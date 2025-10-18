@@ -1,0 +1,34 @@
+# General
+.DS_Store
+node_modules/
+dist/
+build/
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.ruff_cache/
+.mypy_cache/
+
+# uv
+uv.lock
+
+# Logs
+logs/
+
+# Data artifacts
+data/processed/*
+data/interim/*
+data/vector_store/*
+data/models/*
+!data/processed/.gitkeep
+!data/interim/.gitkeep
+!data/vector_store/.gitkeep
+!data/models/.gitkeep
+
+# MCP external servers (do not vendor inside repo)
+backend/mcp/**

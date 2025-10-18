@@ -1,0 +1,501 @@
+feedback_id,client_id,date_feedback,agence,motif_visite,avec_rendez_vous,temps_attente,note_globale,note_accueil,note_competence_conseiller,note_proprete_locaux,note_accessibilite,reviendrait,commentaire
+AGENCE-00001,CLI-27583,2025-06-03,Diekirch,Rendez-vous conseiller,Oui,> 30 min,5,5,5,4,4,Oui,Conseiller très professionnel
+AGENCE-00002,CLI-56407,2025-09-05,Differdange,Résiliation,Oui,> 30 min,5,5,5,5,4,Oui,Conseiller très professionnel
+AGENCE-00003,CLI-99173,2025-06-11,Diekirch,Question/conseil,Oui,15-30 min,4,4,5,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00004,CLI-92084,2025-10-08,Esch-sur-Alzette,Modification de contrat,Oui,15-30 min,4,4,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00005,CLI-37982,2025-04-24,Remich,Demande d'information,Oui,> 30 min,4,5,5,4,3,Oui,Agence bien située et accueillante
+AGENCE-00006,CLI-37194,2025-08-17,Grevenmacher,Souscription nouveau contrat,Oui,15-30 min,5,5,5,5,5,Oui,Accueil chaleureux
+AGENCE-00007,CLI-83335,2025-09-17,Luxembourg-Centre,Demande d'information,Non,> 30 min,4,5,3,4,4,Oui,Conseiller très professionnel
+AGENCE-00008,CLI-72110,2025-06-28,Luxembourg-Gare,Rendez-vous conseiller,Oui,> 30 min,4,5,3,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00009,CLI-84162,2025-06-27,Esch-sur-Alzette,Rendez-vous conseiller,Oui,5-10 min,4,3,5,4,4,Oui,Accueil chaleureux
+AGENCE-00010,CLI-69505,2025-07-06,Luxembourg-Centre,Question/conseil,Oui,15-30 min,3,3,4,2,3,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00011,CLI-40205,2025-05-02,Luxembourg-Gare,Retrait de documents,Non,> 30 min,5,5,4,5,4,Oui,Agence bien située et accueillante
+AGENCE-00012,CLI-39330,2025-08-31,Luxembourg-Gare,Souscription nouveau contrat,Oui,> 30 min,5,4,4,4,4,Oui,Accueil chaleureux
+AGENCE-00013,CLI-14236,2025-07-14,Grevenmacher,Retrait de documents,Oui,< 5 min,4,4,5,3,4,Oui,Conseiller très professionnel
+AGENCE-00014,CLI-53726,2025-09-01,Esch-sur-Alzette,Modification de contrat,Oui,15-30 min,4,3,4,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00015,CLI-91575,2025-08-26,Dudelange,Retrait de documents,Non,10-15 min,5,5,4,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00016,CLI-89998,2025-06-04,Differdange,Question/conseil,Non,< 5 min,1,1,2,1,1,Non,Conseiller pressé
+AGENCE-00017,CLI-78949,2025-10-14,Remich,Modification de contrat,Oui,15-30 min,4,4,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00018,CLI-44489,2025-09-02,Esch-sur-Alzette,Déclaration sinistre,Non,> 30 min,2,1,2,2,1,Non,Parking difficile
+AGENCE-00019,CLI-67040,2025-09-30,Esch-sur-Alzette,Souscription nouveau contrat,Oui,15-30 min,2,2,1,1,2,Non,Temps d'attente excessif
+AGENCE-00020,CLI-95731,2025-04-29,Diekirch,Déclaration sinistre,Non,< 5 min,5,4,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00021,CLI-11713,2025-06-19,Grevenmacher,Résiliation,Oui,< 5 min,5,4,5,4,4,Oui,Accueil chaleureux
+AGENCE-00022,CLI-93095,2025-06-19,Dudelange,Paiement,Non,15-30 min,4,4,3,4,3,Oui,Conseiller très professionnel
+AGENCE-00023,CLI-78348,2025-06-30,Diekirch,Question/conseil,Oui,> 30 min,5,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00024,CLI-23344,2025-04-30,Dudelange,Rendez-vous conseiller,Oui,< 5 min,1,1,2,1,1,Non,Conseiller pressé
+AGENCE-00025,CLI-88535,2025-07-10,Remich,Résiliation,Oui,15-30 min,4,4,3,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00026,CLI-43750,2025-09-17,Wiltz,Rendez-vous conseiller,Non,> 30 min,5,5,5,5,5,Oui,Accueil chaleureux
+AGENCE-00027,CLI-41123,2025-09-11,Diekirch,Paiement,Oui,> 30 min,5,4,5,5,5,Oui,Accueil chaleureux
+AGENCE-00028,CLI-91915,2025-08-31,Ettelbruck,Souscription nouveau contrat,Oui,> 30 min,2,2,1,2,2,Non,Conseiller pressé
+AGENCE-00029,CLI-14778,2025-07-16,Grevenmacher,Question/conseil,Oui,5-10 min,5,4,5,4,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00030,CLI-77233,2025-06-13,Grevenmacher,Souscription nouveau contrat,Non,> 30 min,4,4,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00031,CLI-32722,2025-10-15,Luxembourg-Centre,Question/conseil,Oui,< 5 min,5,5,4,4,5,Oui,Agence bien située et accueillante
+AGENCE-00032,CLI-34352,2025-08-21,Luxembourg-Centre,Souscription nouveau contrat,Oui,10-15 min,3,4,3,2,2,Peut-être,Conseiller pressé
+AGENCE-00033,CLI-92719,2025-06-29,Dudelange,Modification de contrat,Non,15-30 min,4,5,3,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00034,CLI-29886,2025-08-14,Grevenmacher,Retrait de documents,Oui,5-10 min,2,2,1,1,2,Non,Parking difficile
+AGENCE-00035,CLI-78578,2025-07-30,Remich,Souscription nouveau contrat,Oui,5-10 min,4,3,5,4,3,Oui,Accueil chaleureux
+AGENCE-00036,CLI-28346,2025-06-15,Dudelange,Demande d'information,Non,< 5 min,3,4,4,3,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00037,CLI-42410,2025-04-29,Diekirch,Résiliation,Oui,> 30 min,5,5,5,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00038,CLI-91948,2025-06-03,Wiltz,Déclaration sinistre,Oui,10-15 min,5,5,5,5,5,Oui,Agence bien située et accueillante
+AGENCE-00039,CLI-94217,2025-04-26,Diekirch,Demande d'information,Oui,5-10 min,4,3,4,4,3,Oui,Accueil chaleureux
+AGENCE-00040,CLI-42205,2025-06-18,Differdange,Souscription nouveau contrat,Non,< 5 min,4,5,3,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00041,CLI-29985,2025-07-12,Remich,Paiement,Oui,5-10 min,5,5,5,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00042,CLI-44388,2025-09-14,Esch-sur-Alzette,Modification de contrat,Non,15-30 min,5,4,5,5,4,Oui,Accueil chaleureux
+AGENCE-00043,CLI-95662,2025-06-20,Luxembourg-Centre,Résiliation,Non,< 5 min,4,3,5,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00044,CLI-33661,2025-09-27,Differdange,Retrait de documents,Oui,10-15 min,4,4,4,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00045,CLI-49714,2025-06-19,Luxembourg-Centre,Résiliation,Non,< 5 min,5,5,5,4,4,Oui,Conseiller très professionnel
+AGENCE-00046,CLI-49623,2025-05-18,Remich,Souscription nouveau contrat,Oui,> 30 min,2,3,2,1,1,Non,Parking difficile
+AGENCE-00047,CLI-27348,2025-09-05,Luxembourg-Centre,Retrait de documents,Oui,< 5 min,3,3,2,2,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00048,CLI-65189,2025-07-08,Grevenmacher,Paiement,Non,10-15 min,4,3,3,3,3,Oui,Conseiller très professionnel
+AGENCE-00049,CLI-12652,2025-10-07,Ettelbruck,Déclaration sinistre,Oui,> 30 min,4,3,4,3,4,Oui,Agence bien située et accueillante
+AGENCE-00050,CLI-64315,2025-09-04,Esch-sur-Alzette,Retrait de documents,Oui,> 30 min,5,5,5,5,4,Oui,Conseiller très professionnel
+AGENCE-00051,CLI-46381,2025-09-27,Remich,Demande d'information,Non,15-30 min,3,2,2,2,2,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00052,CLI-18125,2025-04-25,Grevenmacher,Paiement,Non,< 5 min,4,4,4,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00053,CLI-72519,2025-06-20,Diekirch,Question/conseil,Non,> 30 min,5,5,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00054,CLI-11479,2025-06-24,Esch-sur-Alzette,Demande d'information,Non,< 5 min,3,2,3,2,2,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00055,CLI-63591,2025-10-11,Ettelbruck,Modification de contrat,Oui,5-10 min,4,5,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00056,CLI-57026,2025-09-01,Wiltz,Question/conseil,Oui,5-10 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00057,CLI-40750,2025-05-10,Diekirch,Retrait de documents,Oui,15-30 min,4,5,3,3,3,Oui,Conseiller très professionnel
+AGENCE-00058,CLI-97880,2025-08-22,Esch-sur-Alzette,Souscription nouveau contrat,Oui,15-30 min,3,2,2,2,3,Peut-être,Temps d'attente excessif
+AGENCE-00059,CLI-76855,2025-05-05,Luxembourg-Centre,Retrait de documents,Non,10-15 min,3,3,2,3,2,Peut-être,Temps d'attente excessif
+AGENCE-00060,CLI-89265,2025-06-22,Remich,Modification de contrat,Non,> 30 min,2,3,3,2,2,Non,Conseiller pressé
+AGENCE-00061,CLI-44546,2025-06-29,Luxembourg-Centre,Souscription nouveau contrat,Oui,5-10 min,3,4,2,3,3,Peut-être,Temps d'attente excessif
+AGENCE-00062,CLI-44988,2025-08-07,Dudelange,Paiement,Non,15-30 min,5,4,5,5,4,Oui,Conseiller très professionnel
+AGENCE-00063,CLI-84776,2025-09-15,Diekirch,Paiement,Non,< 5 min,2,2,2,2,1,Non,Horaires d'ouverture contraignants
+AGENCE-00064,CLI-12463,2025-04-25,Diekirch,Paiement,Oui,10-15 min,5,4,5,5,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00065,CLI-24600,2025-05-20,Wiltz,Réclamation,Oui,10-15 min,4,5,4,3,4,Oui,Accueil chaleureux
+AGENCE-00066,CLI-49381,2025-07-15,Luxembourg-Gare,Déclaration sinistre,Non,10-15 min,4,4,5,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00067,CLI-60146,2025-08-30,Remich,Réclamation,Non,10-15 min,5,4,5,5,5,Oui,Conseiller très professionnel
+AGENCE-00068,CLI-61284,2025-08-03,Ettelbruck,Résiliation,Oui,< 5 min,2,2,2,2,1,Non,Parking difficile
+AGENCE-00069,CLI-43810,2025-05-13,Wiltz,Demande d'information,Non,< 5 min,4,3,3,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00070,CLI-93759,2025-07-16,Esch-sur-Alzette,Souscription nouveau contrat,Non,> 30 min,2,2,3,2,1,Non,Parking difficile
+AGENCE-00071,CLI-33193,2025-08-23,Dudelange,Retrait de documents,Non,> 30 min,5,4,4,5,4,Oui,Conseiller très professionnel
+AGENCE-00072,CLI-52941,2025-06-10,Luxembourg-Centre,Retrait de documents,Non,15-30 min,2,3,2,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00073,CLI-20129,2025-06-18,Luxembourg-Centre,Rendez-vous conseiller,Oui,< 5 min,4,5,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00074,CLI-16464,2025-05-30,Luxembourg-Gare,Retrait de documents,Non,10-15 min,5,5,5,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00075,CLI-71737,2025-09-16,Ettelbruck,Demande d'information,Non,5-10 min,5,5,5,4,5,Oui,Accueil chaleureux
+AGENCE-00076,CLI-60701,2025-08-05,Ettelbruck,Réclamation,Non,5-10 min,4,3,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00077,CLI-54558,2025-07-09,Esch-sur-Alzette,Demande d'information,Non,15-30 min,3,4,3,3,3,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00078,CLI-83933,2025-09-19,Esch-sur-Alzette,Réclamation,Oui,5-10 min,2,2,3,1,2,Non,Horaires d'ouverture contraignants
+AGENCE-00079,CLI-80286,2025-04-22,Remich,Retrait de documents,Non,< 5 min,5,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00080,CLI-90177,2025-08-25,Differdange,Déclaration sinistre,Non,15-30 min,4,4,5,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00081,CLI-94127,2025-09-23,Luxembourg-Centre,Déclaration sinistre,Oui,10-15 min,4,5,4,4,3,Oui,Agence bien située et accueillante
+AGENCE-00082,CLI-22928,2025-07-05,Grevenmacher,Modification de contrat,Oui,< 5 min,5,5,5,4,5,Oui,Accueil chaleureux
+AGENCE-00083,CLI-96472,2025-06-17,Esch-sur-Alzette,Déclaration sinistre,Oui,15-30 min,4,4,5,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00084,CLI-80754,2025-07-19,Ettelbruck,Souscription nouveau contrat,Oui,< 5 min,5,5,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00085,CLI-23116,2025-07-11,Esch-sur-Alzette,Retrait de documents,Non,10-15 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00086,CLI-51618,2025-05-24,Grevenmacher,Modification de contrat,Non,5-10 min,4,3,3,3,3,Oui,Accueil chaleureux
+AGENCE-00087,CLI-66881,2025-07-28,Luxembourg-Gare,Rendez-vous conseiller,Non,< 5 min,5,4,5,5,4,Oui,Accueil chaleureux
+AGENCE-00088,CLI-30405,2025-07-14,Ettelbruck,Rendez-vous conseiller,Oui,10-15 min,1,1,1,1,1,Non,Conseiller pressé
+AGENCE-00089,CLI-33344,2025-08-01,Dudelange,Question/conseil,Non,5-10 min,3,2,3,2,3,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00090,CLI-78804,2025-05-04,Differdange,Résiliation,Non,15-30 min,3,4,3,2,2,Peut-être,Temps d'attente excessif
+AGENCE-00091,CLI-53726,2025-08-27,Wiltz,Résiliation,Non,5-10 min,2,2,1,1,2,Non,"Agence trop petite, manque de place"
+AGENCE-00092,CLI-41043,2025-08-04,Differdange,Résiliation,Non,5-10 min,4,5,4,4,3,Oui,Conseiller très professionnel
+AGENCE-00093,CLI-46431,2025-04-29,Luxembourg-Gare,Question/conseil,Oui,> 30 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00094,CLI-30827,2025-05-08,Esch-sur-Alzette,Retrait de documents,Oui,5-10 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00095,CLI-27149,2025-10-04,Ettelbruck,Modification de contrat,Non,10-15 min,4,4,3,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00096,CLI-20764,2025-05-31,Luxembourg-Gare,Rendez-vous conseiller,Oui,5-10 min,5,5,5,5,5,Oui,Agence bien située et accueillante
+AGENCE-00097,CLI-46277,2025-05-31,Esch-sur-Alzette,Retrait de documents,Non,15-30 min,4,4,3,3,4,Oui,Conseiller très professionnel
+AGENCE-00098,CLI-19338,2025-09-06,Luxembourg-Gare,Rendez-vous conseiller,Oui,15-30 min,5,4,5,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00099,CLI-79274,2025-05-16,Remich,Modification de contrat,Non,15-30 min,2,3,1,1,1,Non,Horaires d'ouverture contraignants
+AGENCE-00100,CLI-84416,2025-04-25,Luxembourg-Centre,Paiement,Oui,5-10 min,5,5,5,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00101,CLI-60163,2025-05-15,Luxembourg-Centre,Résiliation,Oui,15-30 min,2,1,1,1,1,Non,Horaires d'ouverture contraignants
+AGENCE-00102,CLI-34173,2025-07-07,Dudelange,Résiliation,Non,10-15 min,3,3,3,2,2,Peut-être,Conseiller pressé
+AGENCE-00103,CLI-36118,2025-08-21,Luxembourg-Gare,Retrait de documents,Non,5-10 min,4,5,5,3,3,Oui,Accueil chaleureux
+AGENCE-00104,CLI-12153,2025-09-25,Luxembourg-Gare,Déclaration sinistre,Non,5-10 min,4,3,4,4,3,Oui,Agence bien située et accueillante
+AGENCE-00105,CLI-50971,2025-07-01,Remich,Paiement,Oui,10-15 min,5,5,5,5,4,Oui,Conseiller très professionnel
+AGENCE-00106,CLI-63738,2025-05-25,Wiltz,Résiliation,Oui,5-10 min,4,3,3,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00107,CLI-77022,2025-07-23,Luxembourg-Centre,Paiement,Oui,5-10 min,4,4,5,3,3,Oui,Conseiller très professionnel
+AGENCE-00108,CLI-83930,2025-06-01,Dudelange,Réclamation,Oui,15-30 min,4,3,3,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00109,CLI-78691,2025-07-16,Esch-sur-Alzette,Réclamation,Oui,< 5 min,3,3,2,2,3,Peut-être,Conseiller pressé
+AGENCE-00110,CLI-86308,2025-07-18,Grevenmacher,Retrait de documents,Oui,> 30 min,3,3,3,2,2,Peut-être,Temps d'attente excessif
+AGENCE-00111,CLI-63448,2025-08-16,Diekirch,Retrait de documents,Oui,10-15 min,3,2,2,3,2,Peut-être,Parking difficile
+AGENCE-00112,CLI-84470,2025-10-11,Ettelbruck,Question/conseil,Oui,10-15 min,3,2,4,3,2,Peut-être,Conseiller pressé
+AGENCE-00113,CLI-50679,2025-07-28,Diekirch,Modification de contrat,Non,10-15 min,5,5,5,4,5,Oui,Conseiller très professionnel
+AGENCE-00114,CLI-19019,2025-08-06,Ettelbruck,Demande d'information,Oui,5-10 min,4,5,5,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00115,CLI-78089,2025-09-30,Differdange,Réclamation,Oui,< 5 min,4,4,4,4,4,Oui,Accueil chaleureux
+AGENCE-00116,CLI-76856,2025-07-01,Remich,Souscription nouveau contrat,Oui,< 5 min,4,4,3,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00117,CLI-59733,2025-07-15,Diekirch,Demande d'information,Oui,5-10 min,5,4,5,4,5,Oui,Conseiller très professionnel
+AGENCE-00118,CLI-37632,2025-05-17,Luxembourg-Gare,Modification de contrat,Oui,< 5 min,5,4,4,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00119,CLI-69263,2025-09-25,Wiltz,Retrait de documents,Oui,5-10 min,4,4,5,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00120,CLI-57126,2025-05-28,Esch-sur-Alzette,Déclaration sinistre,Non,> 30 min,3,3,4,3,3,Peut-être,Temps d'attente excessif
+AGENCE-00121,CLI-87844,2025-06-20,Esch-sur-Alzette,Question/conseil,Oui,5-10 min,4,3,3,3,3,Oui,Accueil chaleureux
+AGENCE-00122,CLI-46486,2025-08-26,Luxembourg-Centre,Modification de contrat,Oui,> 30 min,5,5,4,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00123,CLI-95041,2025-09-01,Luxembourg-Gare,Déclaration sinistre,Oui,10-15 min,4,5,4,3,4,Oui,Accueil chaleureux
+AGENCE-00124,CLI-47373,2025-09-11,Differdange,Rendez-vous conseiller,Oui,> 30 min,2,2,2,1,2,Non,Parking difficile
+AGENCE-00125,CLI-85771,2025-09-01,Diekirch,Modification de contrat,Non,15-30 min,4,4,5,4,3,Oui,Agence bien située et accueillante
+AGENCE-00126,CLI-72337,2025-06-21,Remich,Résiliation,Oui,10-15 min,3,4,3,3,3,Peut-être,Parking difficile
+AGENCE-00127,CLI-92591,2025-06-27,Wiltz,Retrait de documents,Oui,< 5 min,3,4,2,3,2,Peut-être,Temps d'attente excessif
+AGENCE-00128,CLI-88503,2025-06-05,Remich,Demande d'information,Oui,15-30 min,3,3,2,3,2,Peut-être,Parking difficile
+AGENCE-00129,CLI-36212,2025-08-14,Diekirch,Déclaration sinistre,Non,15-30 min,4,5,4,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00130,CLI-97196,2025-05-10,Esch-sur-Alzette,Paiement,Oui,< 5 min,4,5,4,4,4,Oui,Agence bien située et accueillante
+AGENCE-00131,CLI-95834,2025-06-09,Ettelbruck,Réclamation,Oui,< 5 min,5,5,5,4,5,Oui,Agence bien située et accueillante
+AGENCE-00132,CLI-51280,2025-07-29,Luxembourg-Centre,Question/conseil,Non,5-10 min,4,3,3,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00133,CLI-30420,2025-08-17,Differdange,Question/conseil,Oui,15-30 min,5,4,5,4,5,Oui,Accueil chaleureux
+AGENCE-00134,CLI-64714,2025-07-26,Ettelbruck,Paiement,Non,15-30 min,3,3,2,3,3,Peut-être,Parking difficile
+AGENCE-00135,CLI-17616,2025-09-19,Diekirch,Réclamation,Non,> 30 min,4,4,3,3,3,Oui,Conseiller très professionnel
+AGENCE-00136,CLI-20177,2025-04-28,Diekirch,Question/conseil,Oui,> 30 min,3,2,4,2,2,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00137,CLI-28846,2025-05-22,Dudelange,Résiliation,Oui,< 5 min,4,4,4,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00138,CLI-33553,2025-08-05,Esch-sur-Alzette,Résiliation,Non,5-10 min,5,4,5,4,4,Oui,Conseiller très professionnel
+AGENCE-00139,CLI-53926,2025-09-12,Luxembourg-Centre,Demande d'information,Oui,5-10 min,2,3,3,1,2,Non,"Agence trop petite, manque de place"
+AGENCE-00140,CLI-66524,2025-05-13,Grevenmacher,Retrait de documents,Oui,> 30 min,5,5,5,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00141,CLI-50321,2025-10-11,Remich,Modification de contrat,Oui,15-30 min,5,5,4,5,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00142,CLI-51826,2025-08-07,Dudelange,Résiliation,Oui,10-15 min,5,4,4,5,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00143,CLI-38157,2025-10-03,Differdange,Réclamation,Oui,5-10 min,4,4,3,4,4,Oui,Accueil chaleureux
+AGENCE-00144,CLI-96437,2025-09-05,Dudelange,Résiliation,Non,15-30 min,5,5,5,5,5,Oui,Accueil chaleureux
+AGENCE-00145,CLI-21079,2025-05-01,Luxembourg-Gare,Retrait de documents,Non,15-30 min,4,3,4,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00146,CLI-85614,2025-06-26,Luxembourg-Gare,Rendez-vous conseiller,Oui,< 5 min,3,2,4,3,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00147,CLI-39173,2025-08-24,Esch-sur-Alzette,Déclaration sinistre,Oui,< 5 min,2,3,1,2,1,Non,Horaires d'ouverture contraignants
+AGENCE-00148,CLI-39236,2025-08-28,Diekirch,Paiement,Oui,< 5 min,5,5,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00149,CLI-15543,2025-06-10,Differdange,Rendez-vous conseiller,Non,> 30 min,5,5,4,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00150,CLI-43939,2025-08-25,Esch-sur-Alzette,Réclamation,Oui,15-30 min,4,5,3,4,4,Oui,Accueil chaleureux
+AGENCE-00151,CLI-68725,2025-05-06,Grevenmacher,Rendez-vous conseiller,Non,< 5 min,5,5,4,5,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00152,CLI-14033,2025-07-08,Wiltz,Déclaration sinistre,Oui,5-10 min,4,4,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00153,CLI-50728,2025-07-25,Grevenmacher,Réclamation,Non,10-15 min,4,4,3,4,4,Oui,Conseiller très professionnel
+AGENCE-00154,CLI-21789,2025-09-27,Luxembourg-Centre,Question/conseil,Non,> 30 min,1,1,2,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00155,CLI-52152,2025-08-10,Dudelange,Demande d'information,Oui,10-15 min,4,3,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00156,CLI-52256,2025-08-01,Diekirch,Demande d'information,Oui,15-30 min,1,1,2,1,1,Non,Parking difficile
+AGENCE-00157,CLI-33738,2025-05-29,Wiltz,Rendez-vous conseiller,Non,> 30 min,5,4,4,5,5,Oui,Conseiller très professionnel
+AGENCE-00158,CLI-94665,2025-09-16,Esch-sur-Alzette,Paiement,Non,5-10 min,1,2,1,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00159,CLI-43132,2025-10-10,Diekirch,Modification de contrat,Non,5-10 min,3,3,2,3,3,Peut-être,Temps d'attente excessif
+AGENCE-00160,CLI-30261,2025-04-30,Luxembourg-Gare,Modification de contrat,Oui,10-15 min,5,5,4,4,4,Oui,Agence bien située et accueillante
+AGENCE-00161,CLI-13087,2025-04-25,Esch-sur-Alzette,Retrait de documents,Non,> 30 min,2,2,1,2,2,Non,"Agence trop petite, manque de place"
+AGENCE-00162,CLI-13222,2025-07-09,Ettelbruck,Paiement,Non,> 30 min,5,4,5,5,5,Oui,Conseiller très professionnel
+AGENCE-00163,CLI-60637,2025-09-29,Diekirch,Retrait de documents,Non,< 5 min,3,3,3,3,2,Peut-être,Conseiller pressé
+AGENCE-00164,CLI-26799,2025-07-28,Wiltz,Rendez-vous conseiller,Non,5-10 min,4,3,5,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00165,CLI-38070,2025-09-27,Remich,Rendez-vous conseiller,Non,< 5 min,5,5,4,5,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00166,CLI-27746,2025-05-19,Ettelbruck,Souscription nouveau contrat,Oui,5-10 min,5,5,5,5,5,Oui,Agence bien située et accueillante
+AGENCE-00167,CLI-22464,2025-07-19,Grevenmacher,Paiement,Oui,15-30 min,3,3,4,2,2,Peut-être,Parking difficile
+AGENCE-00168,CLI-30650,2025-08-30,Esch-sur-Alzette,Déclaration sinistre,Non,> 30 min,2,2,3,1,2,Non,Conseiller pressé
+AGENCE-00169,CLI-82928,2025-05-20,Differdange,Déclaration sinistre,Oui,10-15 min,4,3,4,3,4,Oui,Accueil chaleureux
+AGENCE-00170,CLI-40441,2025-09-19,Differdange,Question/conseil,Non,10-15 min,4,4,4,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00171,CLI-65154,2025-09-09,Ettelbruck,Déclaration sinistre,Oui,> 30 min,4,5,3,4,4,Oui,Accueil chaleureux
+AGENCE-00172,CLI-29929,2025-07-28,Luxembourg-Gare,Réclamation,Oui,10-15 min,4,4,4,3,4,Oui,Accueil chaleureux
+AGENCE-00173,CLI-95254,2025-07-15,Luxembourg-Centre,Retrait de documents,Non,15-30 min,5,5,5,5,5,Oui,Accueil chaleureux
+AGENCE-00174,CLI-84596,2025-09-26,Luxembourg-Gare,Résiliation,Non,> 30 min,4,4,3,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00175,CLI-91076,2025-05-26,Differdange,Modification de contrat,Non,> 30 min,4,3,3,4,4,Oui,Conseiller très professionnel
+AGENCE-00176,CLI-52090,2025-09-05,Wiltz,Réclamation,Oui,10-15 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00177,CLI-46340,2025-09-09,Wiltz,Rendez-vous conseiller,Oui,> 30 min,1,1,1,1,1,Non,Horaires d'ouverture contraignants
+AGENCE-00178,CLI-16335,2025-07-21,Differdange,Déclaration sinistre,Oui,5-10 min,4,4,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00179,CLI-19736,2025-10-09,Luxembourg-Centre,Réclamation,Oui,10-15 min,5,5,5,5,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00180,CLI-10422,2025-05-01,Wiltz,Demande d'information,Non,5-10 min,2,3,3,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00181,CLI-34661,2025-10-09,Wiltz,Réclamation,Non,10-15 min,5,5,5,4,5,Oui,Agence bien située et accueillante
+AGENCE-00182,CLI-58847,2025-09-30,Luxembourg-Centre,Demande d'information,Non,5-10 min,4,4,3,3,4,Oui,Conseiller très professionnel
+AGENCE-00183,CLI-88320,2025-05-19,Grevenmacher,Résiliation,Non,15-30 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00184,CLI-79694,2025-06-22,Wiltz,Demande d'information,Non,10-15 min,3,2,3,3,2,Peut-être,Conseiller pressé
+AGENCE-00185,CLI-81841,2025-04-25,Diekirch,Réclamation,Oui,> 30 min,5,5,5,5,5,Oui,Conseiller très professionnel
+AGENCE-00186,CLI-32287,2025-09-16,Luxembourg-Gare,Rendez-vous conseiller,Oui,< 5 min,5,5,5,5,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00187,CLI-63899,2025-09-21,Dudelange,Modification de contrat,Oui,15-30 min,4,5,4,4,4,Oui,Accueil chaleureux
+AGENCE-00188,CLI-81854,2025-09-03,Dudelange,Résiliation,Oui,15-30 min,1,1,1,1,1,Non,Temps d'attente excessif
+AGENCE-00189,CLI-21987,2025-04-23,Dudelange,Modification de contrat,Non,15-30 min,5,5,4,5,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00190,CLI-86147,2025-05-23,Diekirch,Demande d'information,Non,10-15 min,4,5,4,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00191,CLI-80674,2025-06-02,Ettelbruck,Déclaration sinistre,Non,10-15 min,3,3,2,2,2,Peut-être,Temps d'attente excessif
+AGENCE-00192,CLI-82894,2025-08-14,Wiltz,Déclaration sinistre,Non,< 5 min,4,5,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00193,CLI-49465,2025-05-08,Differdange,Rendez-vous conseiller,Non,> 30 min,5,4,4,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00194,CLI-92700,2025-07-01,Esch-sur-Alzette,Question/conseil,Non,> 30 min,4,5,3,3,3,Oui,Conseiller très professionnel
+AGENCE-00195,CLI-68897,2025-08-20,Diekirch,Question/conseil,Oui,5-10 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00196,CLI-17134,2025-09-16,Wiltz,Réclamation,Non,> 30 min,3,2,4,2,2,Peut-être,Parking difficile
+AGENCE-00197,CLI-14479,2025-06-19,Wiltz,Demande d'information,Oui,15-30 min,5,4,4,4,5,Oui,Agence bien située et accueillante
+AGENCE-00198,CLI-97666,2025-07-29,Luxembourg-Centre,Paiement,Oui,5-10 min,4,4,4,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00199,CLI-48152,2025-07-11,Dudelange,Souscription nouveau contrat,Oui,15-30 min,2,3,2,2,1,Non,"Agence trop petite, manque de place"
+AGENCE-00200,CLI-27896,2025-08-03,Remich,Modification de contrat,Non,5-10 min,5,5,4,5,4,Oui,Agence bien située et accueillante
+AGENCE-00201,CLI-94036,2025-09-24,Esch-sur-Alzette,Déclaration sinistre,Non,10-15 min,4,4,4,3,4,Oui,Accueil chaleureux
+AGENCE-00202,CLI-28579,2025-06-05,Luxembourg-Gare,Question/conseil,Oui,10-15 min,4,5,5,4,3,Oui,Conseiller très professionnel
+AGENCE-00203,CLI-86984,2025-04-26,Remich,Paiement,Non,15-30 min,4,5,3,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00204,CLI-42759,2025-06-25,Luxembourg-Centre,Souscription nouveau contrat,Oui,5-10 min,4,5,5,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00205,CLI-57317,2025-09-10,Grevenmacher,Retrait de documents,Oui,10-15 min,5,5,5,5,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00206,CLI-97644,2025-04-25,Ettelbruck,Paiement,Non,< 5 min,4,3,3,3,3,Oui,Agence bien située et accueillante
+AGENCE-00207,CLI-18493,2025-05-15,Dudelange,Déclaration sinistre,Oui,15-30 min,4,5,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00208,CLI-25693,2025-05-15,Wiltz,Déclaration sinistre,Non,10-15 min,3,3,2,3,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00209,CLI-17295,2025-06-20,Diekirch,Paiement,Oui,< 5 min,4,3,5,3,3,Oui,Conseiller très professionnel
+AGENCE-00210,CLI-27315,2025-08-19,Esch-sur-Alzette,Rendez-vous conseiller,Oui,10-15 min,5,5,4,4,5,Oui,Accueil chaleureux
+AGENCE-00211,CLI-91034,2025-08-05,Luxembourg-Centre,Question/conseil,Non,5-10 min,4,5,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00212,CLI-98199,2025-07-17,Grevenmacher,Déclaration sinistre,Oui,> 30 min,3,4,2,2,2,Peut-être,Temps d'attente excessif
+AGENCE-00213,CLI-72815,2025-09-27,Remich,Question/conseil,Oui,10-15 min,4,5,4,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00214,CLI-24547,2025-07-06,Dudelange,Déclaration sinistre,Oui,< 5 min,4,3,3,3,4,Oui,Agence bien située et accueillante
+AGENCE-00215,CLI-98672,2025-10-15,Esch-sur-Alzette,Retrait de documents,Oui,< 5 min,4,4,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00216,CLI-50706,2025-06-07,Dudelange,Demande d'information,Oui,10-15 min,4,4,3,3,3,Oui,Accueil chaleureux
+AGENCE-00217,CLI-50979,2025-06-17,Wiltz,Question/conseil,Oui,15-30 min,4,3,3,3,3,Oui,Conseiller très professionnel
+AGENCE-00218,CLI-32059,2025-06-06,Grevenmacher,Demande d'information,Non,10-15 min,4,3,3,4,3,Oui,Conseiller très professionnel
+AGENCE-00219,CLI-17355,2025-06-13,Remich,Modification de contrat,Non,> 30 min,3,4,3,2,2,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00220,CLI-48707,2025-10-15,Differdange,Demande d'information,Non,5-10 min,4,3,4,3,3,Oui,Conseiller très professionnel
+AGENCE-00221,CLI-82948,2025-07-07,Esch-sur-Alzette,Paiement,Non,15-30 min,2,1,1,2,2,Non,Temps d'attente excessif
+AGENCE-00222,CLI-26361,2025-09-15,Dudelange,Retrait de documents,Non,15-30 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00223,CLI-73734,2025-07-27,Esch-sur-Alzette,Rendez-vous conseiller,Non,10-15 min,5,5,5,5,5,Oui,Accueil chaleureux
+AGENCE-00224,CLI-64658,2025-08-14,Wiltz,Demande d'information,Oui,15-30 min,3,2,3,2,2,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00225,CLI-26858,2025-08-08,Ettelbruck,Déclaration sinistre,Oui,10-15 min,5,5,4,4,4,Oui,Accueil chaleureux
+AGENCE-00226,CLI-78693,2025-06-18,Wiltz,Résiliation,Oui,> 30 min,5,4,4,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00227,CLI-13950,2025-09-03,Diekirch,Modification de contrat,Oui,> 30 min,4,3,3,4,4,Oui,Agence bien située et accueillante
+AGENCE-00228,CLI-38433,2025-08-30,Remich,Déclaration sinistre,Non,> 30 min,3,2,2,2,2,Peut-être,Conseiller pressé
+AGENCE-00229,CLI-80465,2025-08-21,Diekirch,Retrait de documents,Non,10-15 min,5,4,4,4,4,Oui,Accueil chaleureux
+AGENCE-00230,CLI-58054,2025-05-25,Ettelbruck,Réclamation,Oui,< 5 min,3,3,2,3,2,Peut-être,Parking difficile
+AGENCE-00231,CLI-25140,2025-06-05,Ettelbruck,Paiement,Non,15-30 min,5,5,4,4,5,Oui,Accueil chaleureux
+AGENCE-00232,CLI-14445,2025-06-18,Dudelange,Rendez-vous conseiller,Oui,15-30 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00233,CLI-69295,2025-07-29,Luxembourg-Centre,Question/conseil,Non,< 5 min,4,3,4,3,3,Oui,Conseiller très professionnel
+AGENCE-00234,CLI-99180,2025-06-28,Esch-sur-Alzette,Souscription nouveau contrat,Non,> 30 min,5,5,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00235,CLI-40069,2025-05-21,Luxembourg-Gare,Réclamation,Oui,5-10 min,2,3,1,2,1,Non,Conseiller pressé
+AGENCE-00236,CLI-74854,2025-06-05,Luxembourg-Gare,Paiement,Oui,10-15 min,5,4,4,4,5,Oui,Conseiller très professionnel
+AGENCE-00237,CLI-75379,2025-07-27,Luxembourg-Centre,Déclaration sinistre,Oui,10-15 min,2,1,3,2,1,Non,"Agence trop petite, manque de place"
+AGENCE-00238,CLI-20824,2025-10-06,Remich,Demande d'information,Non,5-10 min,2,2,2,1,1,Non,Horaires d'ouverture contraignants
+AGENCE-00239,CLI-77059,2025-08-02,Diekirch,Déclaration sinistre,Oui,15-30 min,4,5,4,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00240,CLI-66240,2025-05-16,Differdange,Réclamation,Non,10-15 min,4,5,3,4,3,Oui,Accueil chaleureux
+AGENCE-00241,CLI-63892,2025-08-31,Luxembourg-Gare,Modification de contrat,Non,< 5 min,2,2,3,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00242,CLI-26427,2025-07-26,Esch-sur-Alzette,Réclamation,Oui,10-15 min,4,5,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00243,CLI-32380,2025-10-01,Luxembourg-Centre,Déclaration sinistre,Oui,> 30 min,3,3,3,3,2,Peut-être,Conseiller pressé
+AGENCE-00244,CLI-81780,2025-08-04,Ettelbruck,Question/conseil,Non,10-15 min,3,2,2,2,2,Peut-être,Conseiller pressé
+AGENCE-00245,CLI-66526,2025-05-07,Ettelbruck,Souscription nouveau contrat,Non,10-15 min,5,5,5,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00246,CLI-55630,2025-07-29,Ettelbruck,Question/conseil,Oui,15-30 min,5,5,4,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00247,CLI-22980,2025-09-24,Diekirch,Rendez-vous conseiller,Non,10-15 min,3,2,4,3,3,Peut-être,Parking difficile
+AGENCE-00248,CLI-62459,2025-06-20,Grevenmacher,Question/conseil,Non,5-10 min,3,2,2,3,2,Peut-être,Temps d'attente excessif
+AGENCE-00249,CLI-57478,2025-07-12,Dudelange,Souscription nouveau contrat,Non,< 5 min,2,3,3,1,2,Non,Horaires d'ouverture contraignants
+AGENCE-00250,CLI-96189,2025-07-07,Diekirch,Souscription nouveau contrat,Oui,10-15 min,3,2,3,2,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00251,CLI-89956,2025-07-21,Luxembourg-Centre,Réclamation,Non,15-30 min,1,1,2,1,1,Non,Temps d'attente excessif
+AGENCE-00252,CLI-94665,2025-04-24,Remich,Modification de contrat,Non,5-10 min,5,5,5,4,5,Oui,Agence bien située et accueillante
+AGENCE-00253,CLI-29184,2025-04-30,Luxembourg-Gare,Demande d'information,Non,10-15 min,5,5,5,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00254,CLI-98640,2025-09-29,Wiltz,Résiliation,Oui,10-15 min,5,4,4,5,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00255,CLI-98976,2025-06-02,Luxembourg-Centre,Modification de contrat,Oui,> 30 min,1,1,1,1,1,Non,Temps d'attente excessif
+AGENCE-00256,CLI-94124,2025-10-03,Remich,Rendez-vous conseiller,Oui,10-15 min,4,5,3,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00257,CLI-78135,2025-07-08,Remich,Réclamation,Oui,5-10 min,4,4,5,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00258,CLI-15866,2025-08-20,Esch-sur-Alzette,Rendez-vous conseiller,Non,< 5 min,4,4,4,4,3,Oui,Agence bien située et accueillante
+AGENCE-00259,CLI-68298,2025-10-05,Luxembourg-Gare,Résiliation,Non,5-10 min,5,5,4,4,5,Oui,Agence bien située et accueillante
+AGENCE-00260,CLI-85849,2025-06-16,Wiltz,Rendez-vous conseiller,Oui,> 30 min,5,5,4,4,5,Oui,Accueil chaleureux
+AGENCE-00261,CLI-25537,2025-08-08,Ettelbruck,Retrait de documents,Oui,> 30 min,2,1,3,1,1,Non,Parking difficile
+AGENCE-00262,CLI-79577,2025-05-23,Remich,Rendez-vous conseiller,Oui,> 30 min,5,4,4,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00263,CLI-82084,2025-05-27,Luxembourg-Gare,Demande d'information,Oui,5-10 min,4,4,5,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00264,CLI-69152,2025-06-10,Ettelbruck,Question/conseil,Oui,10-15 min,4,3,3,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00265,CLI-39326,2025-05-22,Differdange,Retrait de documents,Oui,> 30 min,4,5,4,4,3,Oui,Agence bien située et accueillante
+AGENCE-00266,CLI-85610,2025-06-10,Diekirch,Rendez-vous conseiller,Oui,10-15 min,3,3,4,2,3,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00267,CLI-31292,2025-08-29,Luxembourg-Centre,Question/conseil,Non,> 30 min,4,5,5,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00268,CLI-99791,2025-07-04,Diekirch,Retrait de documents,Oui,< 5 min,3,4,4,2,2,Peut-être,Parking difficile
+AGENCE-00269,CLI-33702,2025-09-11,Diekirch,Rendez-vous conseiller,Non,5-10 min,4,4,4,3,4,Oui,Accueil chaleureux
+AGENCE-00270,CLI-93295,2025-07-07,Ettelbruck,Paiement,Oui,> 30 min,5,4,5,4,5,Oui,Agence bien située et accueillante
+AGENCE-00271,CLI-59660,2025-05-06,Differdange,Rendez-vous conseiller,Non,15-30 min,1,1,1,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00272,CLI-98267,2025-07-21,Diekirch,Résiliation,Oui,10-15 min,5,4,5,5,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00273,CLI-35042,2025-07-15,Esch-sur-Alzette,Demande d'information,Non,5-10 min,3,4,3,3,2,Peut-être,Conseiller pressé
+AGENCE-00274,CLI-44932,2025-08-30,Remich,Réclamation,Oui,> 30 min,4,5,3,3,3,Oui,Agence bien située et accueillante
+AGENCE-00275,CLI-80417,2025-05-15,Remich,Retrait de documents,Non,< 5 min,2,2,2,2,2,Non,Temps d'attente excessif
+AGENCE-00276,CLI-59973,2025-09-07,Luxembourg-Gare,Résiliation,Non,15-30 min,5,4,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00277,CLI-48384,2025-07-19,Diekirch,Paiement,Non,< 5 min,5,5,5,4,5,Oui,Conseiller très professionnel
+AGENCE-00278,CLI-62559,2025-06-14,Wiltz,Résiliation,Oui,5-10 min,5,5,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00279,CLI-62476,2025-05-09,Wiltz,Déclaration sinistre,Oui,15-30 min,1,1,1,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00280,CLI-39587,2025-04-22,Wiltz,Demande d'information,Oui,10-15 min,4,5,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00281,CLI-47157,2025-06-18,Dudelange,Réclamation,Non,< 5 min,4,4,4,4,3,Oui,Agence bien située et accueillante
+AGENCE-00282,CLI-71261,2025-07-18,Remich,Modification de contrat,Non,5-10 min,4,5,4,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00283,CLI-67808,2025-06-25,Ettelbruck,Souscription nouveau contrat,Non,10-15 min,5,4,5,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00284,CLI-13744,2025-06-05,Differdange,Paiement,Non,10-15 min,3,2,2,3,2,Peut-être,Parking difficile
+AGENCE-00285,CLI-40177,2025-09-29,Dudelange,Rendez-vous conseiller,Non,5-10 min,4,3,3,3,4,Oui,Agence bien située et accueillante
+AGENCE-00286,CLI-83840,2025-08-06,Luxembourg-Gare,Retrait de documents,Oui,10-15 min,5,5,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00287,CLI-50609,2025-08-12,Wiltz,Déclaration sinistre,Non,15-30 min,5,5,4,5,5,Oui,Agence bien située et accueillante
+AGENCE-00288,CLI-61599,2025-08-20,Differdange,Retrait de documents,Oui,10-15 min,4,5,4,3,4,Oui,Conseiller très professionnel
+AGENCE-00289,CLI-34805,2025-05-06,Luxembourg-Gare,Modification de contrat,Oui,10-15 min,5,4,5,5,5,Oui,Conseiller très professionnel
+AGENCE-00290,CLI-65400,2025-06-26,Luxembourg-Gare,Question/conseil,Non,5-10 min,4,4,5,4,3,Oui,Conseiller très professionnel
+AGENCE-00291,CLI-73833,2025-07-01,Ettelbruck,Résiliation,Non,> 30 min,4,3,5,3,3,Oui,Conseiller très professionnel
+AGENCE-00292,CLI-23789,2025-09-16,Esch-sur-Alzette,Résiliation,Non,< 5 min,4,4,3,3,3,Oui,Accueil chaleureux
+AGENCE-00293,CLI-92715,2025-09-04,Wiltz,Demande d'information,Non,5-10 min,4,5,5,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00294,CLI-41279,2025-05-22,Diekirch,Paiement,Oui,5-10 min,2,3,3,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00295,CLI-46150,2025-09-16,Grevenmacher,Déclaration sinistre,Non,< 5 min,4,5,5,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00296,CLI-63304,2025-10-15,Luxembourg-Gare,Déclaration sinistre,Non,15-30 min,5,5,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00297,CLI-97640,2025-07-05,Luxembourg-Gare,Demande d'information,Non,15-30 min,4,3,4,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00298,CLI-71402,2025-08-22,Remich,Souscription nouveau contrat,Non,< 5 min,4,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00299,CLI-18520,2025-09-28,Differdange,Rendez-vous conseiller,Non,< 5 min,3,2,3,2,3,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00300,CLI-26487,2025-08-12,Luxembourg-Gare,Modification de contrat,Non,< 5 min,5,5,5,5,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00301,CLI-44461,2025-10-12,Luxembourg-Gare,Résiliation,Non,< 5 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00302,CLI-85572,2025-05-07,Ettelbruck,Paiement,Non,5-10 min,5,5,5,4,5,Oui,Agence bien située et accueillante
+AGENCE-00303,CLI-71695,2025-08-04,Diekirch,Demande d'information,Non,> 30 min,5,4,5,5,4,Oui,Accueil chaleureux
+AGENCE-00304,CLI-17030,2025-04-21,Remich,Paiement,Oui,15-30 min,4,3,3,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00305,CLI-46285,2025-08-04,Remich,Résiliation,Non,5-10 min,4,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00306,CLI-73737,2025-07-31,Esch-sur-Alzette,Demande d'information,Non,> 30 min,5,5,5,4,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00307,CLI-62459,2025-09-03,Wiltz,Retrait de documents,Non,> 30 min,5,5,4,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00308,CLI-51873,2025-05-23,Diekirch,Déclaration sinistre,Non,> 30 min,4,4,3,3,3,Oui,Agence bien située et accueillante
+AGENCE-00309,CLI-68121,2025-09-16,Differdange,Déclaration sinistre,Non,10-15 min,4,3,3,4,4,Oui,Accueil chaleureux
+AGENCE-00310,CLI-80321,2025-09-15,Remich,Réclamation,Oui,15-30 min,4,4,5,4,3,Oui,Conseiller très professionnel
+AGENCE-00311,CLI-36416,2025-07-14,Esch-sur-Alzette,Rendez-vous conseiller,Non,10-15 min,4,5,4,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00312,CLI-50332,2025-05-26,Diekirch,Souscription nouveau contrat,Non,5-10 min,4,4,4,3,4,Oui,Agence bien située et accueillante
+AGENCE-00313,CLI-26227,2025-07-09,Diekirch,Souscription nouveau contrat,Non,< 5 min,3,4,3,3,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00314,CLI-50322,2025-06-27,Grevenmacher,Souscription nouveau contrat,Non,10-15 min,4,5,3,4,4,Oui,Accueil chaleureux
+AGENCE-00315,CLI-89670,2025-09-27,Differdange,Retrait de documents,Non,15-30 min,3,4,4,3,3,Peut-être,Conseiller pressé
+AGENCE-00316,CLI-93322,2025-09-10,Dudelange,Rendez-vous conseiller,Non,< 5 min,5,5,4,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00317,CLI-25671,2025-09-21,Luxembourg-Centre,Déclaration sinistre,Oui,10-15 min,2,2,2,2,2,Non,Horaires d'ouverture contraignants
+AGENCE-00318,CLI-11498,2025-10-14,Diekirch,Modification de contrat,Oui,5-10 min,3,2,3,2,3,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00319,CLI-60061,2025-07-15,Luxembourg-Gare,Modification de contrat,Oui,< 5 min,4,3,5,3,3,Oui,Accueil chaleureux
+AGENCE-00320,CLI-48912,2025-05-08,Wiltz,Déclaration sinistre,Oui,10-15 min,2,2,1,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00321,CLI-87737,2025-04-21,Grevenmacher,Paiement,Oui,10-15 min,2,1,1,1,1,Non,Conseiller pressé
+AGENCE-00322,CLI-16751,2025-10-18,Differdange,Paiement,Non,> 30 min,4,3,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00323,CLI-72860,2025-07-19,Esch-sur-Alzette,Réclamation,Non,15-30 min,5,5,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00324,CLI-32719,2025-07-29,Grevenmacher,Résiliation,Oui,5-10 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00325,CLI-23674,2025-10-07,Differdange,Souscription nouveau contrat,Oui,15-30 min,4,4,5,3,3,Oui,Conseiller très professionnel
+AGENCE-00326,CLI-71690,2025-06-15,Diekirch,Souscription nouveau contrat,Non,15-30 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00327,CLI-18128,2025-08-08,Dudelange,Question/conseil,Non,10-15 min,4,4,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00328,CLI-60966,2025-08-01,Luxembourg-Gare,Paiement,Oui,> 30 min,1,1,1,1,1,Non,Temps d'attente excessif
+AGENCE-00329,CLI-10232,2025-07-28,Grevenmacher,Retrait de documents,Non,< 5 min,5,5,5,4,4,Oui,Conseiller très professionnel
+AGENCE-00330,CLI-41730,2025-07-12,Luxembourg-Centre,Résiliation,Oui,> 30 min,4,4,5,3,4,Oui,Conseiller très professionnel
+AGENCE-00331,CLI-73548,2025-09-02,Ettelbruck,Réclamation,Oui,10-15 min,4,3,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00332,CLI-55787,2025-06-02,Differdange,Souscription nouveau contrat,Oui,> 30 min,4,5,3,3,4,Oui,Agence bien située et accueillante
+AGENCE-00333,CLI-14878,2025-06-18,Grevenmacher,Rendez-vous conseiller,Non,15-30 min,4,3,4,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00334,CLI-95319,2025-04-22,Dudelange,Réclamation,Oui,> 30 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00335,CLI-97335,2025-07-14,Remich,Résiliation,Oui,< 5 min,4,3,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00336,CLI-67871,2025-05-03,Wiltz,Question/conseil,Non,5-10 min,4,5,3,4,3,Oui,Conseiller très professionnel
+AGENCE-00337,CLI-43697,2025-09-10,Grevenmacher,Paiement,Non,10-15 min,3,4,2,2,2,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00338,CLI-31377,2025-07-21,Diekirch,Déclaration sinistre,Oui,5-10 min,4,3,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00339,CLI-14196,2025-08-07,Remich,Déclaration sinistre,Non,10-15 min,1,1,2,1,1,Non,"Agence trop petite, manque de place"
+AGENCE-00340,CLI-31136,2025-06-14,Esch-sur-Alzette,Résiliation,Oui,> 30 min,5,4,5,5,5,Oui,Agence bien située et accueillante
+AGENCE-00341,CLI-53518,2025-04-23,Wiltz,Déclaration sinistre,Oui,10-15 min,5,5,5,5,4,Oui,Conseiller très professionnel
+AGENCE-00342,CLI-71671,2025-10-12,Luxembourg-Gare,Déclaration sinistre,Oui,> 30 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00343,CLI-59234,2025-09-01,Wiltz,Question/conseil,Non,< 5 min,2,2,3,1,1,Non,Conseiller pressé
+AGENCE-00344,CLI-89567,2025-10-14,Esch-sur-Alzette,Modification de contrat,Non,> 30 min,5,5,5,5,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00345,CLI-41103,2025-09-05,Ettelbruck,Demande d'information,Non,10-15 min,5,5,5,4,5,Oui,Accueil chaleureux
+AGENCE-00346,CLI-38926,2025-05-18,Diekirch,Question/conseil,Non,5-10 min,4,5,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00347,CLI-30335,2025-09-07,Remich,Demande d'information,Oui,> 30 min,4,5,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00348,CLI-32481,2025-06-13,Ettelbruck,Retrait de documents,Non,< 5 min,5,4,5,5,5,Oui,Conseiller très professionnel
+AGENCE-00349,CLI-34914,2025-07-07,Dudelange,Modification de contrat,Oui,10-15 min,2,3,1,2,2,Non,Conseiller pressé
+AGENCE-00350,CLI-91566,2025-07-04,Ettelbruck,Résiliation,Non,5-10 min,5,5,5,4,5,Oui,Conseiller très professionnel
+AGENCE-00351,CLI-58587,2025-05-25,Esch-sur-Alzette,Modification de contrat,Oui,> 30 min,4,4,3,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00352,CLI-74300,2025-08-13,Ettelbruck,Demande d'information,Oui,< 5 min,3,4,4,3,2,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00353,CLI-62751,2025-06-03,Grevenmacher,Souscription nouveau contrat,Oui,5-10 min,4,5,3,4,4,Oui,Conseiller très professionnel
+AGENCE-00354,CLI-10786,2025-10-14,Luxembourg-Centre,Paiement,Oui,> 30 min,5,5,5,5,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00355,CLI-92064,2025-10-11,Dudelange,Question/conseil,Non,5-10 min,4,5,5,4,3,Oui,Agence bien située et accueillante
+AGENCE-00356,CLI-11228,2025-05-05,Diekirch,Modification de contrat,Non,15-30 min,3,3,3,2,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00357,CLI-44599,2025-10-11,Ettelbruck,Modification de contrat,Non,5-10 min,5,5,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00358,CLI-85524,2025-07-19,Luxembourg-Centre,Retrait de documents,Oui,15-30 min,5,4,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00359,CLI-96493,2025-07-10,Luxembourg-Centre,Demande d'information,Oui,> 30 min,4,4,4,4,3,Oui,Conseiller très professionnel
+AGENCE-00360,CLI-10930,2025-06-25,Luxembourg-Centre,Résiliation,Oui,< 5 min,5,5,4,4,4,Oui,Agence bien située et accueillante
+AGENCE-00361,CLI-74866,2025-08-16,Luxembourg-Centre,Modification de contrat,Non,10-15 min,2,1,3,1,2,Non,Conseiller pressé
+AGENCE-00362,CLI-35396,2025-07-03,Remich,Rendez-vous conseiller,Non,5-10 min,4,4,4,3,4,Oui,Conseiller très professionnel
+AGENCE-00363,CLI-34959,2025-08-31,Ettelbruck,Paiement,Non,< 5 min,4,3,4,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00364,CLI-43789,2025-05-29,Remich,Réclamation,Oui,10-15 min,4,3,4,3,4,Oui,Accueil chaleureux
+AGENCE-00365,CLI-69912,2025-10-11,Grevenmacher,Souscription nouveau contrat,Non,10-15 min,1,1,1,1,1,Non,Parking difficile
+AGENCE-00366,CLI-72995,2025-05-19,Luxembourg-Gare,Question/conseil,Oui,15-30 min,5,5,5,5,5,Oui,Accueil chaleureux
+AGENCE-00367,CLI-17423,2025-10-07,Wiltz,Retrait de documents,Oui,10-15 min,4,3,5,4,4,Oui,Accueil chaleureux
+AGENCE-00368,CLI-13206,2025-06-12,Diekirch,Souscription nouveau contrat,Non,15-30 min,4,4,3,4,4,Oui,Accueil chaleureux
+AGENCE-00369,CLI-52680,2025-08-24,Luxembourg-Gare,Rendez-vous conseiller,Oui,> 30 min,5,5,5,5,5,Oui,Conseiller très professionnel
+AGENCE-00370,CLI-87128,2025-06-01,Esch-sur-Alzette,Réclamation,Non,5-10 min,4,5,4,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00371,CLI-48960,2025-08-31,Grevenmacher,Question/conseil,Non,> 30 min,3,2,2,3,3,Peut-être,Parking difficile
+AGENCE-00372,CLI-97641,2025-10-14,Luxembourg-Gare,Paiement,Oui,10-15 min,3,4,4,2,2,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00373,CLI-27249,2025-07-28,Dudelange,Retrait de documents,Oui,10-15 min,4,4,5,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00374,CLI-59331,2025-06-24,Ettelbruck,Réclamation,Oui,10-15 min,5,5,5,5,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00375,CLI-92270,2025-08-07,Dudelange,Question/conseil,Non,> 30 min,3,3,4,3,2,Peut-être,Temps d'attente excessif
+AGENCE-00376,CLI-25673,2025-04-21,Wiltz,Souscription nouveau contrat,Oui,> 30 min,5,5,4,4,4,Oui,Agence bien située et accueillante
+AGENCE-00377,CLI-83437,2025-06-23,Grevenmacher,Réclamation,Non,10-15 min,4,3,4,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00378,CLI-66481,2025-10-05,Dudelange,Retrait de documents,Oui,< 5 min,5,4,5,4,5,Oui,Conseiller très professionnel
+AGENCE-00379,CLI-54386,2025-10-16,Luxembourg-Gare,Retrait de documents,Oui,10-15 min,5,4,5,5,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00380,CLI-24195,2025-10-09,Ettelbruck,Résiliation,Non,> 30 min,3,4,4,2,3,Peut-être,Parking difficile
+AGENCE-00381,CLI-40402,2025-07-26,Dudelange,Réclamation,Oui,< 5 min,4,5,5,3,3,Oui,Conseiller très professionnel
+AGENCE-00382,CLI-85056,2025-10-01,Differdange,Question/conseil,Oui,10-15 min,4,4,4,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00383,CLI-60937,2025-09-12,Ettelbruck,Paiement,Non,> 30 min,3,4,2,3,2,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00384,CLI-75914,2025-07-21,Diekirch,Paiement,Non,> 30 min,4,3,4,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00385,CLI-19561,2025-10-02,Esch-sur-Alzette,Rendez-vous conseiller,Oui,< 5 min,2,3,3,1,1,Non,Conseiller pressé
+AGENCE-00386,CLI-36650,2025-06-30,Luxembourg-Gare,Réclamation,Non,10-15 min,4,3,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00387,CLI-62059,2025-10-13,Esch-sur-Alzette,Rendez-vous conseiller,Oui,> 30 min,2,1,3,1,1,Non,Horaires d'ouverture contraignants
+AGENCE-00388,CLI-95488,2025-06-26,Differdange,Réclamation,Oui,10-15 min,4,3,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00389,CLI-40346,2025-07-30,Dudelange,Paiement,Oui,5-10 min,3,4,2,2,2,Peut-être,Parking difficile
+AGENCE-00390,CLI-16780,2025-09-26,Differdange,Question/conseil,Non,5-10 min,4,5,5,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00391,CLI-13253,2025-08-16,Dudelange,Résiliation,Non,5-10 min,3,4,4,3,2,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00392,CLI-30345,2025-07-01,Remich,Souscription nouveau contrat,Non,> 30 min,5,4,5,5,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00393,CLI-97748,2025-06-30,Wiltz,Retrait de documents,Non,15-30 min,2,2,3,2,2,Non,"Agence trop petite, manque de place"
+AGENCE-00394,CLI-45407,2025-05-18,Luxembourg-Gare,Résiliation,Non,5-10 min,2,2,3,2,2,Non,Horaires d'ouverture contraignants
+AGENCE-00395,CLI-37932,2025-09-25,Diekirch,Retrait de documents,Non,> 30 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00396,CLI-60389,2025-09-15,Luxembourg-Centre,Rendez-vous conseiller,Oui,> 30 min,3,4,2,2,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00397,CLI-47362,2025-10-09,Diekirch,Demande d'information,Non,10-15 min,4,4,5,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00398,CLI-53660,2025-06-22,Dudelange,Rendez-vous conseiller,Oui,5-10 min,4,4,5,4,4,Oui,Accueil chaleureux
+AGENCE-00399,CLI-30724,2025-09-11,Luxembourg-Gare,Déclaration sinistre,Oui,< 5 min,4,5,5,3,3,Oui,Agence bien située et accueillante
+AGENCE-00400,CLI-69176,2025-10-05,Dudelange,Question/conseil,Non,10-15 min,5,5,5,5,5,Oui,Agence bien située et accueillante
+AGENCE-00401,CLI-54289,2025-05-13,Luxembourg-Centre,Retrait de documents,Non,< 5 min,4,4,4,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00402,CLI-25314,2025-10-14,Luxembourg-Centre,Rendez-vous conseiller,Oui,5-10 min,1,1,1,1,1,Non,Parking difficile
+AGENCE-00403,CLI-48184,2025-10-03,Grevenmacher,Rendez-vous conseiller,Non,> 30 min,4,3,5,3,3,Oui,Accueil chaleureux
+AGENCE-00404,CLI-36565,2025-06-06,Grevenmacher,Rendez-vous conseiller,Oui,5-10 min,2,1,2,1,1,Non,Horaires d'ouverture contraignants
+AGENCE-00405,CLI-93787,2025-04-25,Luxembourg-Gare,Réclamation,Oui,10-15 min,1,2,1,1,1,Non,Horaires d'ouverture contraignants
+AGENCE-00406,CLI-45277,2025-09-01,Wiltz,Demande d'information,Oui,< 5 min,4,4,3,4,3,Oui,Conseiller très professionnel
+AGENCE-00407,CLI-48664,2025-08-03,Diekirch,Modification de contrat,Oui,< 5 min,1,1,1,1,1,Non,Conseiller pressé
+AGENCE-00408,CLI-64396,2025-09-27,Luxembourg-Centre,Retrait de documents,Non,10-15 min,4,5,4,3,3,Oui,Conseiller très professionnel
+AGENCE-00409,CLI-54470,2025-06-03,Grevenmacher,Question/conseil,Non,> 30 min,3,3,2,3,3,Peut-être,Parking difficile
+AGENCE-00410,CLI-79081,2025-05-30,Remich,Réclamation,Oui,> 30 min,5,5,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00411,CLI-20562,2025-09-16,Ettelbruck,Modification de contrat,Non,10-15 min,4,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00412,CLI-74543,2025-04-25,Grevenmacher,Déclaration sinistre,Oui,5-10 min,3,2,3,2,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00413,CLI-97897,2025-07-25,Dudelange,Modification de contrat,Oui,< 5 min,4,3,4,3,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00414,CLI-64104,2025-07-08,Differdange,Souscription nouveau contrat,Non,< 5 min,4,4,5,3,3,Oui,Conseiller très professionnel
+AGENCE-00415,CLI-22062,2025-10-02,Esch-sur-Alzette,Demande d'information,Oui,< 5 min,5,5,5,4,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00416,CLI-65696,2025-08-05,Differdange,Demande d'information,Non,> 30 min,3,2,3,2,2,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00417,CLI-69204,2025-08-07,Grevenmacher,Résiliation,Non,15-30 min,4,3,5,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00418,CLI-21890,2025-06-07,Diekirch,Résiliation,Oui,< 5 min,5,4,5,4,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00419,CLI-66539,2025-05-07,Ettelbruck,Résiliation,Oui,10-15 min,5,5,5,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00420,CLI-99709,2025-06-19,Wiltz,Question/conseil,Oui,15-30 min,4,3,5,4,4,Oui,Accueil chaleureux
+AGENCE-00421,CLI-62582,2025-06-16,Remich,Retrait de documents,Non,> 30 min,1,1,1,1,1,Non,Conseiller pressé
+AGENCE-00422,CLI-60684,2025-05-08,Remich,Question/conseil,Non,5-10 min,3,3,3,2,3,Peut-être,Parking difficile
+AGENCE-00423,CLI-10850,2025-04-28,Grevenmacher,Déclaration sinistre,Oui,> 30 min,1,1,1,1,1,Non,Conseiller pressé
+AGENCE-00424,CLI-27957,2025-07-29,Luxembourg-Gare,Déclaration sinistre,Oui,> 30 min,5,5,4,4,4,Oui,Agence bien située et accueillante
+AGENCE-00425,CLI-91848,2025-07-15,Diekirch,Souscription nouveau contrat,Non,15-30 min,4,5,4,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00426,CLI-47846,2025-09-06,Differdange,Déclaration sinistre,Non,15-30 min,4,4,3,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00427,CLI-12347,2025-04-23,Wiltz,Question/conseil,Non,< 5 min,3,4,2,2,3,Peut-être,Parking difficile
+AGENCE-00428,CLI-99120,2025-07-18,Luxembourg-Centre,Question/conseil,Non,< 5 min,2,3,2,1,1,Non,Temps d'attente excessif
+AGENCE-00429,CLI-97409,2025-06-11,Luxembourg-Centre,Paiement,Non,> 30 min,4,4,4,4,4,Oui,Conseiller très professionnel
+AGENCE-00430,CLI-81205,2025-08-11,Differdange,Déclaration sinistre,Non,15-30 min,5,5,5,5,4,Oui,Conseiller très professionnel
+AGENCE-00431,CLI-71187,2025-07-15,Wiltz,Question/conseil,Non,> 30 min,4,5,4,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00432,CLI-46102,2025-09-26,Diekirch,Paiement,Oui,< 5 min,5,4,4,5,4,Oui,Agence bien située et accueillante
+AGENCE-00433,CLI-45813,2025-08-25,Diekirch,Retrait de documents,Oui,> 30 min,3,3,4,3,2,Peut-être,Temps d'attente excessif
+AGENCE-00434,CLI-24438,2025-07-24,Luxembourg-Centre,Souscription nouveau contrat,Oui,> 30 min,3,3,2,3,2,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00435,CLI-69812,2025-06-10,Wiltz,Modification de contrat,Non,> 30 min,4,4,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00436,CLI-21719,2025-07-19,Diekirch,Question/conseil,Oui,< 5 min,3,3,4,2,3,Peut-être,Parking difficile
+AGENCE-00437,CLI-53138,2025-07-22,Wiltz,Réclamation,Oui,> 30 min,4,3,4,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00438,CLI-86262,2025-05-17,Grevenmacher,Souscription nouveau contrat,Oui,5-10 min,4,3,4,3,4,Oui,Agence bien située et accueillante
+AGENCE-00439,CLI-56473,2025-05-13,Diekirch,Résiliation,Non,10-15 min,1,1,1,1,1,Non,Temps d'attente excessif
+AGENCE-00440,CLI-48397,2025-09-10,Remich,Souscription nouveau contrat,Non,15-30 min,5,5,5,4,5,Oui,Conseiller très professionnel
+AGENCE-00441,CLI-19267,2025-05-08,Diekirch,Souscription nouveau contrat,Non,> 30 min,1,1,1,1,1,Non,Temps d'attente excessif
+AGENCE-00442,CLI-40578,2025-07-11,Ettelbruck,Souscription nouveau contrat,Non,< 5 min,4,5,4,3,3,Oui,Conseiller très professionnel
+AGENCE-00443,CLI-66188,2025-05-26,Remich,Modification de contrat,Non,15-30 min,5,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00444,CLI-68490,2025-08-10,Dudelange,Modification de contrat,Oui,> 30 min,5,4,5,5,4,Oui,Agence bien située et accueillante
+AGENCE-00445,CLI-56831,2025-05-05,Remich,Modification de contrat,Non,> 30 min,4,3,5,3,4,Oui,Conseiller très professionnel
+AGENCE-00446,CLI-79915,2025-06-22,Diekirch,Souscription nouveau contrat,Non,15-30 min,5,4,5,4,5,Oui,Accueil chaleureux
+AGENCE-00447,CLI-51771,2025-06-03,Luxembourg-Gare,Retrait de documents,Non,< 5 min,3,2,4,3,2,Peut-être,Parking difficile
+AGENCE-00448,CLI-17590,2025-06-10,Wiltz,Déclaration sinistre,Non,10-15 min,4,4,3,4,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00449,CLI-36679,2025-04-22,Luxembourg-Centre,Modification de contrat,Non,< 5 min,2,1,1,2,1,Non,"Agence trop petite, manque de place"
+AGENCE-00450,CLI-27452,2025-09-21,Grevenmacher,Modification de contrat,Non,5-10 min,5,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00451,CLI-41469,2025-10-14,Luxembourg-Centre,Réclamation,Non,< 5 min,2,2,1,2,2,Non,"Agence trop petite, manque de place"
+AGENCE-00452,CLI-83387,2025-05-26,Wiltz,Souscription nouveau contrat,Non,< 5 min,4,5,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00453,CLI-55587,2025-08-29,Luxembourg-Centre,Modification de contrat,Oui,15-30 min,3,3,4,2,3,Peut-être,Temps d'attente excessif
+AGENCE-00454,CLI-53449,2025-04-23,Dudelange,Résiliation,Non,5-10 min,4,3,4,3,3,Oui,Accueil chaleureux
+AGENCE-00455,CLI-12635,2025-09-09,Luxembourg-Gare,Réclamation,Oui,< 5 min,4,5,4,4,3,Oui,Accueil chaleureux
+AGENCE-00456,CLI-53762,2025-08-30,Luxembourg-Gare,Retrait de documents,Oui,5-10 min,4,3,3,3,3,Oui,Conseiller très professionnel
+AGENCE-00457,CLI-36566,2025-05-10,Differdange,Réclamation,Oui,5-10 min,5,5,5,5,5,Oui,Conseiller très professionnel
+AGENCE-00458,CLI-81036,2025-10-07,Differdange,Paiement,Oui,< 5 min,4,5,5,4,3,Oui,Accueil chaleureux
+AGENCE-00459,CLI-49231,2025-07-26,Differdange,Demande d'information,Non,< 5 min,4,3,4,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00460,CLI-33597,2025-05-13,Luxembourg-Centre,Demande d'information,Oui,15-30 min,5,4,5,4,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00461,CLI-28090,2025-05-07,Esch-sur-Alzette,Paiement,Non,5-10 min,3,4,2,3,3,Peut-être,Temps d'attente excessif
+AGENCE-00462,CLI-68653,2025-10-12,Luxembourg-Centre,Résiliation,Oui,> 30 min,2,2,1,2,1,Non,Parking difficile
+AGENCE-00463,CLI-12254,2025-08-17,Remich,Paiement,Oui,< 5 min,4,5,5,4,3,Oui,Accueil chaleureux
+AGENCE-00464,CLI-55546,2025-07-25,Differdange,Rendez-vous conseiller,Oui,10-15 min,4,5,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00465,CLI-20465,2025-08-04,Ettelbruck,Réclamation,Oui,< 5 min,5,4,4,4,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00466,CLI-45116,2025-09-30,Ettelbruck,Rendez-vous conseiller,Non,> 30 min,4,4,3,4,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00467,CLI-45765,2025-05-26,Grevenmacher,Résiliation,Non,10-15 min,5,5,4,5,4,Oui,Conseiller très professionnel
+AGENCE-00468,CLI-83255,2025-08-10,Grevenmacher,Réclamation,Oui,10-15 min,5,5,5,4,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00469,CLI-61626,2025-07-25,Remich,Demande d'information,Oui,10-15 min,5,5,5,5,4,Oui,Accueil chaleureux
+AGENCE-00470,CLI-89260,2025-05-06,Remich,Souscription nouveau contrat,Non,> 30 min,5,4,4,5,5,Oui,Conseiller très professionnel
+AGENCE-00471,CLI-68553,2025-07-04,Differdange,Modification de contrat,Non,> 30 min,3,2,3,2,3,Peut-être,"Agence trop petite, manque de place"
+AGENCE-00472,CLI-65175,2025-08-21,Grevenmacher,Résiliation,Oui,5-10 min,4,4,4,4,3,Oui,Personnel compétent et à l'écoute
+AGENCE-00473,CLI-45142,2025-05-20,Diekirch,Déclaration sinistre,Oui,5-10 min,4,4,3,3,3,Oui,"Pas d'attente, service rapide"
+AGENCE-00474,CLI-26801,2025-08-02,Remich,Paiement,Non,15-30 min,4,4,3,4,4,Oui,Conseiller très professionnel
+AGENCE-00475,CLI-45870,2025-06-27,Luxembourg-Centre,Question/conseil,Oui,5-10 min,4,5,3,3,3,Oui,Accueil chaleureux
+AGENCE-00476,CLI-46298,2025-07-20,Ettelbruck,Paiement,Oui,15-30 min,4,4,5,3,4,Oui,Accueil chaleureux
+AGENCE-00477,CLI-48103,2025-07-01,Remich,Souscription nouveau contrat,Oui,5-10 min,4,4,4,3,4,Oui,"Pas d'attente, service rapide"
+AGENCE-00478,CLI-47196,2025-10-03,Diekirch,Question/conseil,Oui,10-15 min,5,5,5,5,5,Oui,Accueil chaleureux
+AGENCE-00479,CLI-56385,2025-07-05,Grevenmacher,Déclaration sinistre,Oui,15-30 min,2,1,2,2,1,Non,Conseiller pressé
+AGENCE-00480,CLI-42536,2025-08-22,Esch-sur-Alzette,Rendez-vous conseiller,Non,> 30 min,4,5,3,4,3,Oui,Conseiller très professionnel
+AGENCE-00481,CLI-85759,2025-04-22,Ettelbruck,Déclaration sinistre,Oui,15-30 min,3,2,2,3,2,Peut-être,Horaires d'ouverture contraignants
+AGENCE-00482,CLI-15138,2025-05-10,Differdange,Modification de contrat,Non,> 30 min,2,3,1,2,2,Non,"Agence trop petite, manque de place"
+AGENCE-00483,CLI-33976,2025-06-25,Ettelbruck,Réclamation,Non,< 5 min,4,4,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00484,CLI-41771,2025-04-27,Dudelange,Paiement,Non,15-30 min,4,4,4,4,4,Oui,Agence bien située et accueillante
+AGENCE-00485,CLI-14076,2025-04-21,Esch-sur-Alzette,Demande d'information,Oui,> 30 min,2,2,2,2,2,Non,Horaires d'ouverture contraignants
+AGENCE-00486,CLI-88440,2025-04-26,Luxembourg-Gare,Réclamation,Oui,10-15 min,3,3,3,2,3,Peut-être,Temps d'attente excessif
+AGENCE-00487,CLI-18223,2025-07-26,Wiltz,Question/conseil,Oui,< 5 min,4,5,5,4,4,Oui,Agence bien située et accueillante
+AGENCE-00488,CLI-30896,2025-09-11,Luxembourg-Centre,Rendez-vous conseiller,Oui,10-15 min,4,3,3,3,4,Oui,Conseiller très professionnel
+AGENCE-00489,CLI-56209,2025-08-29,Dudelange,Réclamation,Oui,15-30 min,4,5,3,3,3,Oui,Agence bien située et accueillante
+AGENCE-00490,CLI-46607,2025-06-12,Wiltz,Retrait de documents,Non,5-10 min,2,2,1,1,2,Non,Temps d'attente excessif
+AGENCE-00491,CLI-77535,2025-05-08,Grevenmacher,Question/conseil,Non,10-15 min,5,4,5,5,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00492,CLI-54164,2025-06-11,Grevenmacher,Paiement,Non,5-10 min,4,4,4,3,4,Oui,Personnel compétent et à l'écoute
+AGENCE-00493,CLI-85901,2025-05-16,Luxembourg-Gare,Déclaration sinistre,Non,> 30 min,4,5,5,3,4,Oui,Agence bien située et accueillante
+AGENCE-00494,CLI-45039,2025-07-23,Remich,Rendez-vous conseiller,Non,> 30 min,4,5,3,4,3,Oui,Agence bien située et accueillante
+AGENCE-00495,CLI-71425,2025-04-24,Differdange,Résiliation,Oui,< 5 min,4,4,3,4,3,Oui,Conseiller très professionnel
+AGENCE-00496,CLI-12110,2025-07-02,Diekirch,Demande d'information,Oui,> 30 min,5,5,5,5,5,Oui,Personnel compétent et à l'écoute
+AGENCE-00497,CLI-62378,2025-08-11,Grevenmacher,Modification de contrat,Non,10-15 min,4,4,4,3,3,Oui,Agence bien située et accueillante
+AGENCE-00498,CLI-83794,2025-05-10,Remich,Paiement,Oui,> 30 min,5,5,5,4,5,Oui,"Pas d'attente, service rapide"
+AGENCE-00499,CLI-45238,2025-08-17,Esch-sur-Alzette,Réclamation,Oui,10-15 min,5,5,5,5,5,Oui,Agence bien située et accueillante
+AGENCE-00500,CLI-72041,2025-05-22,Wiltz,Modification de contrat,Oui,> 30 min,3,3,3,2,2,Peut-être,Parking difficile

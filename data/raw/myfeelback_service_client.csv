@@ -1,0 +1,501 @@
+feedback_id,client_id,date_feedback,motif_contact,canal,temps_attente,temps_resolution,note_globale,note_rapidite,note_competence,note_amabilite,probleme_resolu,commentaire
+SVCLI-00001,CLI-22734,2025-05-01,Résiliation,Téléphone,< 2 min,< 24h,1,1,2,1,Non,Pas de rappel comme promis
+SVCLI-00002,CLI-19257,2025-05-15,Modification de contrat,Agence,10-20 min,Immédiat,5,4,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00003,CLI-90977,2025-05-14,Question technique app/site,Application mobile,5-10 min,Immédiat,4,4,4,4,Oui,Conseiller compétent
+SVCLI-00004,CLI-67214,2025-06-12,Suivi de dossier,Application mobile,10-20 min,> 7 jours,4,5,3,4,Oui,Prise en charge rapide
+SVCLI-00005,CLI-90626,2025-06-26,Question sur contrat,Email,2-5 min,Immédiat,3,3,2,3,Partiellement,Information contradictoire
+SVCLI-00006,CLI-89716,2025-10-15,Question sur contrat,Formulaire web,< 2 min,1-3 jours,5,5,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00007,CLI-40773,2025-07-26,Problème de paiement,Chat en ligne,< 2 min,Immédiat,3,3,4,3,Partiellement,Problème non résolu
+SVCLI-00008,CLI-91665,2025-07-24,Renouvellement,Email,10-20 min,Immédiat,5,5,4,5,Oui,Professionnel et courtois
+SVCLI-00009,CLI-73939,2025-07-17,Suivi de dossier,Chat en ligne,< 2 min,Immédiat,1,1,1,2,Non,Pas de rappel comme promis
+SVCLI-00010,CLI-14546,2025-08-24,Réclamation,Chat en ligne,< 2 min,< 24h,1,2,1,1,Non,Réponse évasive
+SVCLI-00011,CLI-21242,2025-09-16,Réclamation,Chat en ligne,5-10 min,< 24h,5,5,5,5,Oui,Prise en charge rapide
+SVCLI-00012,CLI-66763,2025-08-10,Problème de paiement,Formulaire web,5-10 min,< 24h,3,2,4,3,Partiellement,Réponse évasive
+SVCLI-00013,CLI-63468,2025-06-11,Question sur contrat,Chat en ligne,2-5 min,< 24h,4,4,4,4,Oui,Service de qualité
+SVCLI-00014,CLI-42349,2025-10-08,Demande d'attestation,Email,2-5 min,> 7 jours,1,1,1,1,Non,Problème non résolu
+SVCLI-00015,CLI-81951,2025-08-21,Modification de contrat,Agence,5-10 min,Immédiat,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00016,CLI-40471,2025-10-02,Question technique app/site,Email,5-10 min,Immédiat,1,1,1,1,Non,Réponse évasive
+SVCLI-00017,CLI-92765,2025-07-12,Question sur contrat,Application mobile,> 20 min,< 24h,4,5,5,4,Oui,Prise en charge rapide
+SVCLI-00018,CLI-73412,2025-06-22,Modification de contrat,Téléphone,5-10 min,Immédiat,3,2,4,3,Partiellement,Pas de rappel comme promis
+SVCLI-00019,CLI-49916,2025-09-07,Demande de devis,Application mobile,< 2 min,> 7 jours,1,1,2,2,Non,Réponse évasive
+SVCLI-00020,CLI-72917,2025-04-22,Résiliation,Chat en ligne,5-10 min,1-3 jours,4,5,3,4,Oui,Professionnel et courtois
+SVCLI-00021,CLI-80055,2025-09-27,Résiliation,Formulaire web,< 2 min,Immédiat,4,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00022,CLI-85664,2025-09-06,Question sur contrat,Chat en ligne,< 2 min,> 7 jours,4,5,3,5,Oui,Disponibilité appréciée
+SVCLI-00023,CLI-73734,2025-10-16,Question technique app/site,Application mobile,< 2 min,3-7 jours,5,5,5,5,Oui,Professionnel et courtois
+SVCLI-00024,CLI-79136,2025-07-15,Résiliation,Agence,10-20 min,3-7 jours,4,4,4,3,Oui,Conseiller compétent
+SVCLI-00025,CLI-59686,2025-05-13,Suivi de dossier,Formulaire web,5-10 min,Immédiat,2,3,1,3,Non,Conseiller pas assez informé
+SVCLI-00026,CLI-51898,2025-08-09,Question technique app/site,Formulaire web,2-5 min,Immédiat,4,3,3,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00027,CLI-12567,2025-04-21,Réclamation,Email,10-20 min,> 7 jours,2,1,2,1,Non,Conseiller pas assez informé
+SVCLI-00028,CLI-96636,2025-06-28,Demande de devis,Formulaire web,> 20 min,3-7 jours,4,3,5,5,Oui,Service de qualité
+SVCLI-00029,CLI-16888,2025-06-04,Réclamation,Email,> 20 min,< 24h,4,4,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00030,CLI-33220,2025-08-20,Question technique app/site,Application mobile,5-10 min,3-7 jours,1,2,2,1,Non,Pas de rappel comme promis
+SVCLI-00031,CLI-94843,2025-06-23,Information sur garanties,Téléphone,< 2 min,Immédiat,5,4,5,4,Oui,Conseiller compétent
+SVCLI-00032,CLI-63998,2025-10-02,Question technique app/site,Téléphone,< 2 min,Immédiat,4,3,3,5,Oui,Réponse rapide et précise
+SVCLI-00033,CLI-97826,2025-08-24,Résiliation,Application mobile,10-20 min,> 7 jours,4,5,4,3,Oui,Problème résolu immédiatement
+SVCLI-00034,CLI-70598,2025-09-12,Demande d'attestation,Téléphone,2-5 min,1-3 jours,4,4,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00035,CLI-18370,2025-08-27,Demande d'attestation,Agence,< 2 min,> 7 jours,4,4,5,4,Oui,Très bonne écoute
+SVCLI-00036,CLI-50114,2025-07-08,Question sur contrat,Application mobile,10-20 min,1-3 jours,4,3,3,4,Oui,Prise en charge rapide
+SVCLI-00037,CLI-50232,2025-09-07,Demande de devis,Application mobile,10-20 min,3-7 jours,4,5,3,3,Oui,Problème résolu immédiatement
+SVCLI-00038,CLI-49432,2025-06-10,Déclaration de sinistre,Formulaire web,> 20 min,1-3 jours,4,5,3,3,Oui,Réponse rapide et précise
+SVCLI-00039,CLI-41117,2025-06-24,Modification de contrat,Chat en ligne,> 20 min,1-3 jours,4,4,5,5,Oui,Conseiller compétent
+SVCLI-00040,CLI-13804,2025-08-25,Modification de contrat,Agence,10-20 min,> 7 jours,3,2,2,2,Partiellement,Problème non résolu
+SVCLI-00041,CLI-75221,2025-08-25,Question technique app/site,Téléphone,10-20 min,> 7 jours,1,1,1,1,Non,Information contradictoire
+SVCLI-00042,CLI-79995,2025-08-01,Suivi de dossier,Email,> 20 min,Immédiat,2,2,1,3,Non,Information contradictoire
+SVCLI-00043,CLI-87047,2025-06-09,Modification de contrat,Chat en ligne,10-20 min,Immédiat,5,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00044,CLI-41212,2025-05-15,Demande d'attestation,Email,2-5 min,< 24h,3,3,3,4,Partiellement,Réponse évasive
+SVCLI-00045,CLI-42190,2025-08-23,Problème de paiement,Chat en ligne,5-10 min,Immédiat,4,3,4,3,Oui,Conseiller compétent
+SVCLI-00046,CLI-67255,2025-07-12,Question sur contrat,Email,10-20 min,1-3 jours,1,1,1,1,Non,Transféré plusieurs fois
+SVCLI-00047,CLI-60650,2025-09-07,Modification de contrat,Formulaire web,10-20 min,> 7 jours,4,3,5,3,Oui,Réponse rapide et précise
+SVCLI-00048,CLI-36652,2025-07-02,Modification de contrat,Application mobile,< 2 min,3-7 jours,3,4,4,4,Partiellement,Service décevant
+SVCLI-00049,CLI-65333,2025-08-07,Modification de contrat,Chat en ligne,2-5 min,< 24h,4,3,3,5,Oui,Professionnel et courtois
+SVCLI-00050,CLI-31360,2025-05-30,Renouvellement,Chat en ligne,2-5 min,3-7 jours,4,4,4,5,Oui,Prise en charge rapide
+SVCLI-00051,CLI-90413,2025-07-03,Problème de paiement,Formulaire web,10-20 min,> 7 jours,4,3,4,3,Oui,Explications claires
+SVCLI-00052,CLI-48759,2025-07-13,Problème de paiement,Application mobile,< 2 min,> 7 jours,5,4,4,4,Oui,Explications claires
+SVCLI-00053,CLI-31521,2025-06-16,Renouvellement,Chat en ligne,5-10 min,3-7 jours,2,2,3,2,Non,Toujours en attente de solution
+SVCLI-00054,CLI-31312,2025-08-18,Question technique app/site,Email,< 2 min,3-7 jours,4,3,4,5,Oui,Service de qualité
+SVCLI-00055,CLI-69567,2025-07-14,Suivi de dossier,Formulaire web,2-5 min,3-7 jours,3,2,3,3,Partiellement,Information contradictoire
+SVCLI-00056,CLI-59394,2025-09-06,Question technique app/site,Email,< 2 min,Immédiat,3,3,2,2,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00057,CLI-64830,2025-09-30,Renouvellement,Chat en ligne,< 2 min,3-7 jours,2,1,2,2,Non,Conseiller pas assez informé
+SVCLI-00058,CLI-72062,2025-08-29,Information sur garanties,Email,10-20 min,< 24h,3,2,2,2,Partiellement,Toujours en attente de solution
+SVCLI-00059,CLI-45180,2025-08-05,Demande de devis,Téléphone,5-10 min,3-7 jours,3,2,2,4,Partiellement,Information contradictoire
+SVCLI-00060,CLI-12358,2025-09-20,Information sur garanties,Application mobile,< 2 min,3-7 jours,3,4,3,3,Partiellement,Conseiller pas assez informé
+SVCLI-00061,CLI-20808,2025-09-25,Information sur garanties,Formulaire web,5-10 min,> 7 jours,1,1,1,1,Non,Problème non résolu
+SVCLI-00062,CLI-75956,2025-09-25,Renouvellement,Email,5-10 min,< 24h,3,3,3,2,Partiellement,Service décevant
+SVCLI-00063,CLI-40246,2025-04-27,Information sur garanties,Application mobile,5-10 min,Immédiat,4,5,4,4,Oui,Professionnel et courtois
+SVCLI-00064,CLI-23221,2025-10-11,Demande d'attestation,Formulaire web,2-5 min,1-3 jours,3,4,3,3,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00065,CLI-59430,2025-06-18,Demande d'attestation,Application mobile,5-10 min,Immédiat,5,4,4,5,Oui,Conseiller compétent
+SVCLI-00066,CLI-24791,2025-08-17,Déclaration de sinistre,Formulaire web,2-5 min,< 24h,4,4,3,4,Oui,Disponibilité appréciée
+SVCLI-00067,CLI-60351,2025-06-20,Déclaration de sinistre,Chat en ligne,5-10 min,> 7 jours,5,5,5,5,Oui,Explications claires
+SVCLI-00068,CLI-74836,2025-06-18,Question technique app/site,Agence,10-20 min,Immédiat,5,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00069,CLI-81291,2025-08-10,Question sur contrat,Formulaire web,2-5 min,3-7 jours,3,4,3,4,Partiellement,Pas de rappel comme promis
+SVCLI-00070,CLI-38749,2025-10-04,Suivi de dossier,Formulaire web,2-5 min,3-7 jours,5,5,5,5,Oui,Prise en charge rapide
+SVCLI-00071,CLI-14805,2025-08-21,Déclaration de sinistre,Chat en ligne,< 2 min,Immédiat,1,2,1,1,Non,Manque d'empathie
+SVCLI-00072,CLI-59039,2025-06-07,Question sur contrat,Agence,5-10 min,< 24h,3,2,3,3,Partiellement,Conseiller pas assez informé
+SVCLI-00073,CLI-69218,2025-05-18,Question technique app/site,Chat en ligne,< 2 min,> 7 jours,1,1,1,1,Non,Pas de rappel comme promis
+SVCLI-00074,CLI-40383,2025-08-21,Renouvellement,Formulaire web,> 20 min,3-7 jours,5,5,4,5,Oui,Prise en charge rapide
+SVCLI-00075,CLI-61043,2025-06-30,Information sur garanties,Téléphone,5-10 min,< 24h,4,5,5,3,Oui,Conseiller très efficace et sympathique
+SVCLI-00076,CLI-88162,2025-06-24,Déclaration de sinistre,Agence,< 2 min,1-3 jours,4,3,3,5,Oui,Prise en charge rapide
+SVCLI-00077,CLI-34126,2025-07-09,Résiliation,Application mobile,< 2 min,1-3 jours,2,2,1,2,Non,Manque d'empathie
+SVCLI-00078,CLI-53210,2025-06-16,Réclamation,Email,5-10 min,Immédiat,4,3,4,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00079,CLI-64237,2025-09-10,Question technique app/site,Agence,10-20 min,> 7 jours,5,4,5,5,Oui,Service de qualité
+SVCLI-00080,CLI-98250,2025-07-27,Suivi de dossier,Application mobile,2-5 min,< 24h,5,4,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00081,CLI-12295,2025-06-21,Suivi de dossier,Chat en ligne,2-5 min,< 24h,4,5,5,3,Oui,Professionnel et courtois
+SVCLI-00082,CLI-77055,2025-07-17,Problème de paiement,Application mobile,5-10 min,1-3 jours,5,4,5,4,Oui,Service de qualité
+SVCLI-00083,CLI-17819,2025-07-12,Demande de devis,Email,2-5 min,3-7 jours,4,4,5,5,Oui,Professionnel et courtois
+SVCLI-00084,CLI-58389,2025-06-11,Suivi de dossier,Formulaire web,> 20 min,Immédiat,4,5,4,4,Oui,Service de qualité
+SVCLI-00085,CLI-28633,2025-05-16,Question sur contrat,Chat en ligne,10-20 min,< 24h,4,5,4,3,Oui,Réponse rapide et précise
+SVCLI-00086,CLI-97290,2025-08-13,Problème de paiement,Agence,5-10 min,3-7 jours,1,1,1,2,Non,Conseiller pas assez informé
+SVCLI-00087,CLI-85103,2025-05-11,Déclaration de sinistre,Chat en ligne,< 2 min,< 24h,4,5,5,4,Oui,Conseiller compétent
+SVCLI-00088,CLI-70977,2025-07-18,Demande d'attestation,Téléphone,> 20 min,1-3 jours,4,5,4,3,Oui,Très bonne écoute
+SVCLI-00089,CLI-93654,2025-09-20,Résiliation,Téléphone,> 20 min,Immédiat,4,4,5,4,Oui,Professionnel et courtois
+SVCLI-00090,CLI-10728,2025-05-14,Suivi de dossier,Agence,5-10 min,> 7 jours,2,2,1,3,Non,Manque d'empathie
+SVCLI-00091,CLI-28325,2025-09-11,Réclamation,Application mobile,2-5 min,> 7 jours,4,5,4,5,Oui,Prise en charge rapide
+SVCLI-00092,CLI-74286,2025-08-24,Déclaration de sinistre,Agence,< 2 min,Immédiat,3,3,4,3,Partiellement,Transféré plusieurs fois
+SVCLI-00093,CLI-90334,2025-08-28,Réclamation,Chat en ligne,> 20 min,Immédiat,4,5,5,3,Oui,Problème résolu immédiatement
+SVCLI-00094,CLI-37874,2025-07-03,Information sur garanties,Application mobile,5-10 min,Immédiat,4,3,5,5,Oui,Réponse rapide et précise
+SVCLI-00095,CLI-43843,2025-06-28,Modification de contrat,Chat en ligne,2-5 min,Immédiat,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00096,CLI-48916,2025-05-10,Problème de paiement,Formulaire web,10-20 min,> 7 jours,5,4,5,5,Oui,Réponse rapide et précise
+SVCLI-00097,CLI-53728,2025-09-24,Problème de paiement,Agence,5-10 min,< 24h,3,4,4,3,Partiellement,Information contradictoire
+SVCLI-00098,CLI-83154,2025-07-17,Question sur contrat,Agence,5-10 min,3-7 jours,4,3,5,3,Oui,Prise en charge rapide
+SVCLI-00099,CLI-20920,2025-09-13,Modification de contrat,Chat en ligne,> 20 min,3-7 jours,4,4,3,3,Oui,Disponibilité appréciée
+SVCLI-00100,CLI-32104,2025-05-24,Question sur contrat,Email,5-10 min,3-7 jours,3,2,2,4,Partiellement,Problème non résolu
+SVCLI-00101,CLI-54754,2025-06-18,Demande de devis,Application mobile,10-20 min,1-3 jours,5,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00102,CLI-25536,2025-04-28,Résiliation,Formulaire web,< 2 min,3-7 jours,5,4,5,5,Oui,Explications claires
+SVCLI-00103,CLI-86088,2025-07-07,Question technique app/site,Agence,> 20 min,1-3 jours,2,2,2,3,Non,Pas de rappel comme promis
+SVCLI-00104,CLI-22421,2025-10-05,Résiliation,Application mobile,< 2 min,3-7 jours,5,4,5,5,Oui,Problème résolu immédiatement
+SVCLI-00105,CLI-39593,2025-08-23,Problème de paiement,Agence,> 20 min,Immédiat,4,3,5,3,Oui,Service de qualité
+SVCLI-00106,CLI-26612,2025-10-11,Renouvellement,Application mobile,10-20 min,> 7 jours,4,4,5,3,Oui,Explications claires
+SVCLI-00107,CLI-70220,2025-10-06,Suivi de dossier,Application mobile,10-20 min,3-7 jours,5,5,5,4,Oui,Professionnel et courtois
+SVCLI-00108,CLI-42969,2025-05-13,Suivi de dossier,Chat en ligne,2-5 min,< 24h,2,1,1,1,Non,Service décevant
+SVCLI-00109,CLI-23012,2025-05-30,Question technique app/site,Téléphone,< 2 min,> 7 jours,2,2,3,2,Non,Pas de rappel comme promis
+SVCLI-00110,CLI-87850,2025-08-01,Résiliation,Téléphone,< 2 min,> 7 jours,5,4,5,5,Oui,Conseiller compétent
+SVCLI-00111,CLI-34650,2025-07-12,Demande d'attestation,Téléphone,2-5 min,3-7 jours,2,2,2,1,Non,Problème non résolu
+SVCLI-00112,CLI-52382,2025-05-27,Renouvellement,Agence,< 2 min,< 24h,2,1,1,2,Non,Information contradictoire
+SVCLI-00113,CLI-97064,2025-06-30,Problème de paiement,Email,2-5 min,Immédiat,4,4,5,5,Oui,Disponibilité appréciée
+SVCLI-00114,CLI-48779,2025-08-05,Modification de contrat,Email,2-5 min,Immédiat,2,1,3,2,Non,Réponse évasive
+SVCLI-00115,CLI-82786,2025-09-13,Demande d'attestation,Chat en ligne,> 20 min,3-7 jours,3,4,3,2,Partiellement,Pas de rappel comme promis
+SVCLI-00116,CLI-22153,2025-06-04,Réclamation,Agence,5-10 min,3-7 jours,4,4,3,4,Oui,Explications claires
+SVCLI-00117,CLI-77031,2025-10-02,Question technique app/site,Formulaire web,< 2 min,> 7 jours,2,3,1,2,Non,Réponse évasive
+SVCLI-00118,CLI-65609,2025-04-21,Suivi de dossier,Email,> 20 min,Immédiat,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00119,CLI-12168,2025-10-14,Question technique app/site,Agence,2-5 min,1-3 jours,3,4,3,3,Partiellement,Réponse évasive
+SVCLI-00120,CLI-90887,2025-06-06,Renouvellement,Chat en ligne,> 20 min,< 24h,2,3,2,3,Non,Problème non résolu
+SVCLI-00121,CLI-35383,2025-07-20,Renouvellement,Formulaire web,10-20 min,< 24h,5,5,5,5,Oui,Réponse rapide et précise
+SVCLI-00122,CLI-14575,2025-06-22,Résiliation,Agence,< 2 min,Immédiat,2,1,3,3,Non,Réponse évasive
+SVCLI-00123,CLI-20348,2025-06-02,Modification de contrat,Téléphone,10-20 min,< 24h,4,3,3,3,Oui,Explications claires
+SVCLI-00124,CLI-11901,2025-07-06,Modification de contrat,Formulaire web,10-20 min,Immédiat,3,3,2,2,Partiellement,Transféré plusieurs fois
+SVCLI-00125,CLI-77519,2025-08-04,Résiliation,Téléphone,5-10 min,< 24h,2,3,2,1,Non,Pas de rappel comme promis
+SVCLI-00126,CLI-82877,2025-08-11,Information sur garanties,Email,10-20 min,1-3 jours,2,1,2,2,Non,Service décevant
+SVCLI-00127,CLI-85877,2025-08-28,Résiliation,Application mobile,> 20 min,1-3 jours,4,5,5,4,Oui,Prise en charge rapide
+SVCLI-00128,CLI-82925,2025-05-09,Information sur garanties,Formulaire web,< 2 min,> 7 jours,2,2,3,1,Non,Problème non résolu
+SVCLI-00129,CLI-13541,2025-06-30,Problème de paiement,Application mobile,5-10 min,1-3 jours,3,4,4,3,Partiellement,Pas de rappel comme promis
+SVCLI-00130,CLI-43319,2025-09-30,Problème de paiement,Formulaire web,> 20 min,> 7 jours,4,3,5,4,Oui,Réponse rapide et précise
+SVCLI-00131,CLI-52129,2025-09-16,Demande d'attestation,Téléphone,< 2 min,< 24h,4,4,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00132,CLI-49981,2025-05-17,Réclamation,Agence,> 20 min,Immédiat,4,3,4,4,Oui,Problème résolu immédiatement
+SVCLI-00133,CLI-46931,2025-07-14,Demande d'attestation,Chat en ligne,10-20 min,3-7 jours,4,5,3,3,Oui,Prise en charge rapide
+SVCLI-00134,CLI-77920,2025-05-07,Question sur contrat,Email,< 2 min,1-3 jours,5,5,5,5,Oui,Professionnel et courtois
+SVCLI-00135,CLI-30291,2025-07-08,Demande de devis,Email,2-5 min,3-7 jours,4,3,3,4,Oui,Professionnel et courtois
+SVCLI-00136,CLI-58804,2025-05-01,Renouvellement,Chat en ligne,> 20 min,< 24h,2,3,3,3,Non,Pas de rappel comme promis
+SVCLI-00137,CLI-21838,2025-06-26,Question technique app/site,Agence,< 2 min,Immédiat,5,5,5,4,Oui,Service de qualité
+SVCLI-00138,CLI-54520,2025-08-20,Demande d'attestation,Email,< 2 min,> 7 jours,2,1,3,2,Non,Réponse évasive
+SVCLI-00139,CLI-59568,2025-05-11,Demande de devis,Chat en ligne,10-20 min,1-3 jours,4,5,3,3,Oui,Conseiller compétent
+SVCLI-00140,CLI-87732,2025-06-11,Réclamation,Chat en ligne,< 2 min,3-7 jours,5,4,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00141,CLI-74177,2025-07-28,Demande de devis,Email,< 2 min,1-3 jours,4,3,3,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00142,CLI-65097,2025-08-06,Question technique app/site,Agence,2-5 min,< 24h,4,3,3,3,Oui,Conseiller très efficace et sympathique
+SVCLI-00143,CLI-58070,2025-07-24,Demande de devis,Email,< 2 min,< 24h,4,3,3,4,Oui,Explications claires
+SVCLI-00144,CLI-38540,2025-10-10,Demande de devis,Chat en ligne,< 2 min,< 24h,3,2,4,3,Partiellement,Service décevant
+SVCLI-00145,CLI-29341,2025-08-21,Question sur contrat,Téléphone,5-10 min,< 24h,4,5,3,3,Oui,Prise en charge rapide
+SVCLI-00146,CLI-92818,2025-07-14,Information sur garanties,Application mobile,10-20 min,Immédiat,4,5,4,3,Oui,Professionnel et courtois
+SVCLI-00147,CLI-83867,2025-07-14,Modification de contrat,Formulaire web,> 20 min,3-7 jours,5,5,4,5,Oui,Prise en charge rapide
+SVCLI-00148,CLI-89902,2025-06-22,Question technique app/site,Téléphone,< 2 min,Immédiat,1,2,2,2,Non,Service décevant
+SVCLI-00149,CLI-44540,2025-10-04,Renouvellement,Email,< 2 min,1-3 jours,4,4,5,5,Oui,Disponibilité appréciée
+SVCLI-00150,CLI-46139,2025-04-28,Réclamation,Email,2-5 min,3-7 jours,5,5,5,5,Oui,Problème résolu immédiatement
+SVCLI-00151,CLI-78495,2025-09-10,Question technique app/site,Formulaire web,> 20 min,> 7 jours,3,2,4,3,Partiellement,Information contradictoire
+SVCLI-00152,CLI-61904,2025-10-14,Déclaration de sinistre,Chat en ligne,> 20 min,Immédiat,4,3,5,5,Oui,Réponse rapide et précise
+SVCLI-00153,CLI-39849,2025-07-05,Question sur contrat,Téléphone,2-5 min,Immédiat,3,3,4,4,Partiellement,Toujours en attente de solution
+SVCLI-00154,CLI-85505,2025-09-04,Demande d'attestation,Email,2-5 min,1-3 jours,3,3,2,4,Partiellement,Pas de rappel comme promis
+SVCLI-00155,CLI-84000,2025-08-17,Déclaration de sinistre,Formulaire web,5-10 min,< 24h,3,4,3,3,Partiellement,Manque d'empathie
+SVCLI-00156,CLI-91533,2025-08-05,Question sur contrat,Application mobile,10-20 min,> 7 jours,5,5,4,5,Oui,Professionnel et courtois
+SVCLI-00157,CLI-27591,2025-08-12,Renouvellement,Application mobile,5-10 min,< 24h,2,3,2,2,Non,Transféré plusieurs fois
+SVCLI-00158,CLI-83666,2025-08-28,Déclaration de sinistre,Chat en ligne,< 2 min,< 24h,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00159,CLI-55157,2025-05-13,Résiliation,Formulaire web,> 20 min,Immédiat,2,3,2,3,Non,Transféré plusieurs fois
+SVCLI-00160,CLI-40888,2025-07-09,Modification de contrat,Application mobile,5-10 min,3-7 jours,5,4,5,5,Oui,Prise en charge rapide
+SVCLI-00161,CLI-57562,2025-07-24,Demande de devis,Téléphone,10-20 min,< 24h,5,4,5,4,Oui,Professionnel et courtois
+SVCLI-00162,CLI-67150,2025-05-04,Résiliation,Email,2-5 min,< 24h,4,5,5,4,Oui,Explications claires
+SVCLI-00163,CLI-38746,2025-04-24,Modification de contrat,Email,> 20 min,< 24h,5,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00164,CLI-92573,2025-09-12,Renouvellement,Formulaire web,5-10 min,Immédiat,4,3,5,4,Oui,Prise en charge rapide
+SVCLI-00165,CLI-56791,2025-06-20,Information sur garanties,Agence,< 2 min,Immédiat,5,5,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00166,CLI-64039,2025-07-14,Renouvellement,Email,> 20 min,3-7 jours,1,1,1,2,Non,Temps d'attente beaucoup trop long
+SVCLI-00167,CLI-77074,2025-06-13,Problème de paiement,Email,10-20 min,< 24h,4,3,3,5,Oui,Professionnel et courtois
+SVCLI-00168,CLI-22499,2025-07-29,Question sur contrat,Application mobile,5-10 min,1-3 jours,5,5,5,4,Oui,Explications claires
+SVCLI-00169,CLI-14502,2025-09-13,Suivi de dossier,Formulaire web,5-10 min,< 24h,5,4,5,5,Oui,Service de qualité
+SVCLI-00170,CLI-69553,2025-08-12,Réclamation,Téléphone,5-10 min,1-3 jours,1,1,2,1,Non,Manque d'empathie
+SVCLI-00171,CLI-35492,2025-07-24,Renouvellement,Email,2-5 min,> 7 jours,2,3,3,2,Non,Manque d'empathie
+SVCLI-00172,CLI-64353,2025-05-17,Demande de devis,Email,10-20 min,< 24h,4,4,5,5,Oui,Conseiller compétent
+SVCLI-00173,CLI-25447,2025-08-26,Demande de devis,Chat en ligne,5-10 min,1-3 jours,4,5,3,4,Oui,Problème résolu immédiatement
+SVCLI-00174,CLI-69959,2025-09-03,Déclaration de sinistre,Agence,< 2 min,> 7 jours,4,3,5,3,Oui,Professionnel et courtois
+SVCLI-00175,CLI-89015,2025-10-16,Réclamation,Chat en ligne,< 2 min,1-3 jours,4,4,3,3,Oui,Problème résolu immédiatement
+SVCLI-00176,CLI-29726,2025-04-27,Demande d'attestation,Téléphone,> 20 min,Immédiat,5,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00177,CLI-49112,2025-06-09,Question sur contrat,Agence,10-20 min,< 24h,4,3,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00178,CLI-59389,2025-05-01,Suivi de dossier,Application mobile,> 20 min,Immédiat,5,4,5,5,Oui,Service de qualité
+SVCLI-00179,CLI-61252,2025-07-08,Demande d'attestation,Agence,5-10 min,> 7 jours,3,3,4,4,Partiellement,Transféré plusieurs fois
+SVCLI-00180,CLI-74767,2025-05-28,Question technique app/site,Formulaire web,> 20 min,1-3 jours,3,3,2,4,Partiellement,Service décevant
+SVCLI-00181,CLI-41275,2025-05-30,Question technique app/site,Chat en ligne,2-5 min,< 24h,4,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00182,CLI-77492,2025-09-24,Demande de devis,Téléphone,10-20 min,> 7 jours,5,5,4,5,Oui,Service de qualité
+SVCLI-00183,CLI-18186,2025-07-13,Modification de contrat,Formulaire web,10-20 min,< 24h,4,5,3,4,Oui,Service de qualité
+SVCLI-00184,CLI-14706,2025-10-15,Résiliation,Agence,< 2 min,1-3 jours,3,4,4,3,Partiellement,Toujours en attente de solution
+SVCLI-00185,CLI-91374,2025-10-11,Renouvellement,Formulaire web,10-20 min,3-7 jours,4,5,5,5,Oui,Conseiller compétent
+SVCLI-00186,CLI-80839,2025-05-08,Problème de paiement,Formulaire web,< 2 min,< 24h,4,4,3,4,Oui,Très bonne écoute
+SVCLI-00187,CLI-63110,2025-08-24,Réclamation,Email,5-10 min,3-7 jours,3,2,4,2,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00188,CLI-55762,2025-05-06,Réclamation,Chat en ligne,5-10 min,< 24h,2,2,1,3,Non,Information contradictoire
+SVCLI-00189,CLI-20519,2025-06-23,Question sur contrat,Agence,< 2 min,1-3 jours,1,1,1,1,Non,Toujours en attente de solution
+SVCLI-00190,CLI-40905,2025-07-30,Problème de paiement,Email,< 2 min,< 24h,4,3,4,4,Oui,Problème résolu immédiatement
+SVCLI-00191,CLI-29071,2025-06-09,Question technique app/site,Formulaire web,> 20 min,Immédiat,4,5,4,5,Oui,Service de qualité
+SVCLI-00192,CLI-63506,2025-07-30,Demande de devis,Application mobile,< 2 min,< 24h,4,3,3,5,Oui,Explications claires
+SVCLI-00193,CLI-53631,2025-05-21,Modification de contrat,Téléphone,< 2 min,Immédiat,1,2,1,2,Non,Problème non résolu
+SVCLI-00194,CLI-26743,2025-09-14,Demande de devis,Téléphone,> 20 min,1-3 jours,4,4,3,5,Oui,Conseiller compétent
+SVCLI-00195,CLI-43064,2025-06-19,Suivi de dossier,Agence,2-5 min,> 7 jours,4,5,4,4,Oui,Réponse rapide et précise
+SVCLI-00196,CLI-76103,2025-07-19,Suivi de dossier,Formulaire web,10-20 min,< 24h,3,4,3,3,Partiellement,Toujours en attente de solution
+SVCLI-00197,CLI-42445,2025-09-08,Modification de contrat,Agence,> 20 min,< 24h,3,2,3,3,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00198,CLI-78959,2025-07-16,Demande d'attestation,Application mobile,> 20 min,1-3 jours,1,1,2,2,Non,Conseiller pas assez informé
+SVCLI-00199,CLI-65415,2025-05-21,Demande d'attestation,Chat en ligne,5-10 min,< 24h,5,4,5,5,Oui,Réponse rapide et précise
+SVCLI-00200,CLI-69274,2025-05-13,Suivi de dossier,Email,10-20 min,> 7 jours,4,5,3,3,Oui,Prise en charge rapide
+SVCLI-00201,CLI-43108,2025-08-06,Question sur contrat,Agence,10-20 min,Immédiat,3,4,3,4,Partiellement,Problème non résolu
+SVCLI-00202,CLI-75718,2025-09-27,Question sur contrat,Téléphone,5-10 min,< 24h,4,5,4,4,Oui,Très bonne écoute
+SVCLI-00203,CLI-19259,2025-05-17,Déclaration de sinistre,Formulaire web,2-5 min,1-3 jours,5,5,5,5,Oui,Réponse rapide et précise
+SVCLI-00204,CLI-37651,2025-08-29,Problème de paiement,Email,> 20 min,> 7 jours,2,2,2,2,Non,Transféré plusieurs fois
+SVCLI-00205,CLI-68767,2025-05-04,Question technique app/site,Chat en ligne,> 20 min,1-3 jours,3,4,3,2,Partiellement,Conseiller pas assez informé
+SVCLI-00206,CLI-59220,2025-05-16,Suivi de dossier,Chat en ligne,< 2 min,< 24h,5,4,4,5,Oui,Conseiller compétent
+SVCLI-00207,CLI-68947,2025-09-05,Demande de devis,Formulaire web,10-20 min,< 24h,5,5,4,5,Oui,Service de qualité
+SVCLI-00208,CLI-14019,2025-06-29,Déclaration de sinistre,Agence,10-20 min,Immédiat,2,2,1,2,Non,Réponse évasive
+SVCLI-00209,CLI-67886,2025-06-01,Problème de paiement,Application mobile,> 20 min,Immédiat,3,2,2,4,Partiellement,Manque d'empathie
+SVCLI-00210,CLI-27967,2025-09-04,Demande de devis,Email,5-10 min,3-7 jours,5,4,4,5,Oui,Réponse rapide et précise
+SVCLI-00211,CLI-41662,2025-09-12,Résiliation,Agence,2-5 min,1-3 jours,4,3,5,4,Oui,Service de qualité
+SVCLI-00212,CLI-40974,2025-06-12,Déclaration de sinistre,Téléphone,10-20 min,> 7 jours,2,1,3,1,Non,Réponse évasive
+SVCLI-00213,CLI-78773,2025-05-01,Renouvellement,Formulaire web,> 20 min,1-3 jours,4,3,5,5,Oui,Professionnel et courtois
+SVCLI-00214,CLI-74820,2025-06-12,Question technique app/site,Email,> 20 min,Immédiat,3,4,4,4,Partiellement,Toujours en attente de solution
+SVCLI-00215,CLI-37650,2025-10-15,Question sur contrat,Chat en ligne,10-20 min,< 24h,2,3,2,1,Non,Temps d'attente beaucoup trop long
+SVCLI-00216,CLI-40232,2025-05-11,Demande de devis,Application mobile,> 20 min,< 24h,3,2,3,2,Partiellement,Manque d'empathie
+SVCLI-00217,CLI-21031,2025-07-29,Résiliation,Email,5-10 min,Immédiat,3,4,2,3,Partiellement,Conseiller pas assez informé
+SVCLI-00218,CLI-18848,2025-08-07,Modification de contrat,Chat en ligne,10-20 min,1-3 jours,2,3,2,3,Non,Information contradictoire
+SVCLI-00219,CLI-77369,2025-07-18,Déclaration de sinistre,Téléphone,> 20 min,1-3 jours,3,4,2,2,Partiellement,Manque d'empathie
+SVCLI-00220,CLI-56667,2025-05-01,Demande de devis,Formulaire web,10-20 min,< 24h,4,3,4,3,Oui,Très bonne écoute
+SVCLI-00221,CLI-82497,2025-08-13,Suivi de dossier,Application mobile,5-10 min,1-3 jours,2,2,2,2,Non,Transféré plusieurs fois
+SVCLI-00222,CLI-52500,2025-07-02,Demande d'attestation,Agence,< 2 min,1-3 jours,5,4,4,4,Oui,Explications claires
+SVCLI-00223,CLI-26768,2025-04-21,Déclaration de sinistre,Téléphone,< 2 min,3-7 jours,4,5,3,4,Oui,Conseiller compétent
+SVCLI-00224,CLI-62461,2025-05-17,Question sur contrat,Chat en ligne,2-5 min,> 7 jours,5,4,4,4,Oui,Problème résolu immédiatement
+SVCLI-00225,CLI-40646,2025-04-28,Réclamation,Application mobile,5-10 min,> 7 jours,4,5,4,3,Oui,Problème résolu immédiatement
+SVCLI-00226,CLI-21333,2025-05-14,Modification de contrat,Agence,< 2 min,1-3 jours,5,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00227,CLI-62465,2025-09-18,Réclamation,Formulaire web,2-5 min,Immédiat,2,2,2,1,Non,Temps d'attente beaucoup trop long
+SVCLI-00228,CLI-90894,2025-10-01,Modification de contrat,Agence,> 20 min,Immédiat,3,4,3,3,Partiellement,Réponse évasive
+SVCLI-00229,CLI-49032,2025-05-12,Renouvellement,Agence,> 20 min,> 7 jours,3,4,2,3,Partiellement,Conseiller pas assez informé
+SVCLI-00230,CLI-52103,2025-04-21,Information sur garanties,Formulaire web,2-5 min,< 24h,5,5,5,5,Oui,Service de qualité
+SVCLI-00231,CLI-29654,2025-10-08,Renouvellement,Formulaire web,< 2 min,3-7 jours,5,4,5,5,Oui,Conseiller compétent
+SVCLI-00232,CLI-87486,2025-08-08,Question sur contrat,Téléphone,> 20 min,1-3 jours,4,4,5,4,Oui,Service de qualité
+SVCLI-00233,CLI-80114,2025-10-08,Information sur garanties,Application mobile,2-5 min,< 24h,4,4,4,4,Oui,Disponibilité appréciée
+SVCLI-00234,CLI-71247,2025-07-13,Suivi de dossier,Téléphone,10-20 min,3-7 jours,4,5,4,5,Oui,Prise en charge rapide
+SVCLI-00235,CLI-59317,2025-07-31,Demande d'attestation,Chat en ligne,> 20 min,1-3 jours,2,1,1,3,Non,Problème non résolu
+SVCLI-00236,CLI-83349,2025-07-02,Problème de paiement,Formulaire web,5-10 min,1-3 jours,5,5,4,5,Oui,Explications claires
+SVCLI-00237,CLI-45152,2025-09-02,Question technique app/site,Application mobile,< 2 min,Immédiat,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00238,CLI-49282,2025-08-14,Question sur contrat,Agence,5-10 min,< 24h,3,2,2,4,Partiellement,Information contradictoire
+SVCLI-00239,CLI-51056,2025-07-01,Réclamation,Agence,2-5 min,< 24h,4,5,4,4,Oui,Explications claires
+SVCLI-00240,CLI-41674,2025-08-21,Question technique app/site,Email,5-10 min,< 24h,3,2,2,4,Partiellement,Information contradictoire
+SVCLI-00241,CLI-92102,2025-06-13,Résiliation,Téléphone,> 20 min,1-3 jours,3,4,3,2,Partiellement,Problème non résolu
+SVCLI-00242,CLI-77666,2025-07-17,Demande de devis,Formulaire web,2-5 min,> 7 jours,3,4,4,3,Partiellement,Conseiller pas assez informé
+SVCLI-00243,CLI-42958,2025-09-03,Question technique app/site,Agence,< 2 min,1-3 jours,1,1,1,2,Non,Toujours en attente de solution
+SVCLI-00244,CLI-29533,2025-09-15,Déclaration de sinistre,Téléphone,< 2 min,Immédiat,4,4,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00245,CLI-89217,2025-06-30,Réclamation,Formulaire web,5-10 min,> 7 jours,4,5,4,4,Oui,Service de qualité
+SVCLI-00246,CLI-47313,2025-09-28,Problème de paiement,Formulaire web,2-5 min,1-3 jours,4,4,4,4,Oui,Prise en charge rapide
+SVCLI-00247,CLI-83896,2025-05-07,Problème de paiement,Application mobile,< 2 min,Immédiat,5,5,4,5,Oui,Très bonne écoute
+SVCLI-00248,CLI-57690,2025-08-19,Question technique app/site,Formulaire web,> 20 min,> 7 jours,3,4,2,2,Partiellement,Réponse évasive
+SVCLI-00249,CLI-14412,2025-05-23,Problème de paiement,Agence,2-5 min,3-7 jours,4,5,4,5,Oui,Professionnel et courtois
+SVCLI-00250,CLI-17937,2025-09-09,Demande d'attestation,Agence,> 20 min,3-7 jours,5,5,5,5,Oui,Réponse rapide et précise
+SVCLI-00251,CLI-77988,2025-08-08,Renouvellement,Chat en ligne,5-10 min,< 24h,4,5,4,4,Oui,Explications claires
+SVCLI-00252,CLI-58587,2025-06-14,Résiliation,Application mobile,2-5 min,1-3 jours,4,5,4,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00253,CLI-34496,2025-04-30,Suivi de dossier,Application mobile,2-5 min,> 7 jours,3,4,3,4,Partiellement,Information contradictoire
+SVCLI-00254,CLI-78538,2025-08-07,Renouvellement,Chat en ligne,10-20 min,1-3 jours,1,1,1,2,Non,Réponse évasive
+SVCLI-00255,CLI-46133,2025-09-11,Information sur garanties,Chat en ligne,> 20 min,< 24h,2,1,2,1,Non,Information contradictoire
+SVCLI-00256,CLI-95978,2025-07-11,Déclaration de sinistre,Application mobile,< 2 min,Immédiat,4,5,5,5,Oui,Conseiller compétent
+SVCLI-00257,CLI-61590,2025-07-02,Question technique app/site,Chat en ligne,> 20 min,> 7 jours,2,2,3,3,Non,Réponse évasive
+SVCLI-00258,CLI-73071,2025-08-14,Demande d'attestation,Agence,2-5 min,> 7 jours,3,4,4,3,Partiellement,Réponse évasive
+SVCLI-00259,CLI-39469,2025-09-17,Modification de contrat,Email,2-5 min,3-7 jours,2,1,1,2,Non,Manque d'empathie
+SVCLI-00260,CLI-35839,2025-05-07,Demande d'attestation,Application mobile,> 20 min,Immédiat,5,5,5,5,Oui,Problème résolu immédiatement
+SVCLI-00261,CLI-85857,2025-08-16,Demande de devis,Email,10-20 min,< 24h,1,1,1,1,Non,Toujours en attente de solution
+SVCLI-00262,CLI-74710,2025-08-29,Information sur garanties,Email,10-20 min,> 7 jours,3,2,3,4,Partiellement,Transféré plusieurs fois
+SVCLI-00263,CLI-59447,2025-09-19,Demande d'attestation,Formulaire web,5-10 min,1-3 jours,2,3,1,3,Non,Transféré plusieurs fois
+SVCLI-00264,CLI-44116,2025-04-24,Modification de contrat,Email,> 20 min,1-3 jours,3,4,2,4,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00265,CLI-81988,2025-08-08,Suivi de dossier,Email,10-20 min,> 7 jours,3,3,2,4,Partiellement,Problème non résolu
+SVCLI-00266,CLI-10778,2025-07-13,Question sur contrat,Email,2-5 min,< 24h,4,3,4,5,Oui,Conseiller compétent
+SVCLI-00267,CLI-63322,2025-10-08,Question sur contrat,Application mobile,10-20 min,1-3 jours,4,4,5,5,Oui,Problème résolu immédiatement
+SVCLI-00268,CLI-54809,2025-08-21,Modification de contrat,Email,2-5 min,> 7 jours,5,5,5,5,Oui,Professionnel et courtois
+SVCLI-00269,CLI-85704,2025-07-06,Question technique app/site,Agence,2-5 min,Immédiat,5,5,5,5,Oui,Service de qualité
+SVCLI-00270,CLI-13906,2025-05-20,Renouvellement,Agence,10-20 min,1-3 jours,4,3,5,5,Oui,Conseiller compétent
+SVCLI-00271,CLI-78734,2025-06-27,Problème de paiement,Téléphone,> 20 min,3-7 jours,4,4,3,5,Oui,Service de qualité
+SVCLI-00272,CLI-51954,2025-10-18,Question technique app/site,Application mobile,< 2 min,< 24h,4,3,5,4,Oui,Explications claires
+SVCLI-00273,CLI-69415,2025-08-17,Question sur contrat,Formulaire web,10-20 min,3-7 jours,2,1,2,3,Non,Information contradictoire
+SVCLI-00274,CLI-47661,2025-07-03,Question technique app/site,Agence,> 20 min,< 24h,5,5,5,5,Oui,Problème résolu immédiatement
+SVCLI-00275,CLI-58479,2025-06-23,Demande de devis,Agence,10-20 min,3-7 jours,2,2,3,3,Non,Réponse évasive
+SVCLI-00276,CLI-17377,2025-06-24,Suivi de dossier,Application mobile,10-20 min,> 7 jours,4,4,5,4,Oui,Réponse rapide et précise
+SVCLI-00277,CLI-44769,2025-10-08,Problème de paiement,Application mobile,10-20 min,1-3 jours,5,5,4,5,Oui,Prise en charge rapide
+SVCLI-00278,CLI-62856,2025-06-08,Modification de contrat,Agence,10-20 min,> 7 jours,5,4,4,5,Oui,Problème résolu immédiatement
+SVCLI-00279,CLI-83570,2025-10-17,Réclamation,Agence,< 2 min,1-3 jours,3,3,2,3,Partiellement,Pas de rappel comme promis
+SVCLI-00280,CLI-22260,2025-09-19,Question sur contrat,Email,2-5 min,< 24h,5,5,5,5,Oui,Explications claires
+SVCLI-00281,CLI-27000,2025-10-16,Problème de paiement,Application mobile,< 2 min,> 7 jours,1,2,1,1,Non,Service décevant
+SVCLI-00282,CLI-91475,2025-04-27,Déclaration de sinistre,Application mobile,10-20 min,1-3 jours,4,3,5,4,Oui,Service de qualité
+SVCLI-00283,CLI-98754,2025-04-29,Problème de paiement,Application mobile,5-10 min,Immédiat,5,5,4,5,Oui,Explications claires
+SVCLI-00284,CLI-33706,2025-07-17,Réclamation,Application mobile,< 2 min,> 7 jours,4,3,4,4,Oui,Problème résolu immédiatement
+SVCLI-00285,CLI-70935,2025-08-01,Question technique app/site,Agence,10-20 min,< 24h,5,5,4,5,Oui,Conseiller compétent
+SVCLI-00286,CLI-70887,2025-08-01,Renouvellement,Agence,5-10 min,> 7 jours,5,4,4,5,Oui,Explications claires
+SVCLI-00287,CLI-21887,2025-05-29,Déclaration de sinistre,Chat en ligne,< 2 min,1-3 jours,3,3,4,2,Partiellement,Conseiller pas assez informé
+SVCLI-00288,CLI-37722,2025-04-22,Question sur contrat,Chat en ligne,> 20 min,3-7 jours,3,4,3,3,Partiellement,Information contradictoire
+SVCLI-00289,CLI-36586,2025-10-17,Question sur contrat,Chat en ligne,> 20 min,Immédiat,5,5,4,5,Oui,Professionnel et courtois
+SVCLI-00290,CLI-20863,2025-06-26,Question technique app/site,Agence,> 20 min,3-7 jours,4,3,5,5,Oui,Prise en charge rapide
+SVCLI-00291,CLI-69467,2025-09-11,Réclamation,Formulaire web,5-10 min,1-3 jours,5,4,5,5,Oui,Prise en charge rapide
+SVCLI-00292,CLI-46846,2025-04-22,Question sur contrat,Chat en ligne,5-10 min,< 24h,4,3,3,3,Oui,Service de qualité
+SVCLI-00293,CLI-55780,2025-05-06,Suivi de dossier,Email,< 2 min,> 7 jours,2,2,2,2,Non,Conseiller pas assez informé
+SVCLI-00294,CLI-94635,2025-06-08,Question technique app/site,Application mobile,> 20 min,Immédiat,3,3,2,2,Partiellement,Toujours en attente de solution
+SVCLI-00295,CLI-83446,2025-05-10,Modification de contrat,Formulaire web,> 20 min,1-3 jours,4,5,3,5,Oui,Conseiller compétent
+SVCLI-00296,CLI-25071,2025-06-26,Déclaration de sinistre,Application mobile,2-5 min,Immédiat,3,4,3,4,Partiellement,Service décevant
+SVCLI-00297,CLI-85375,2025-04-27,Résiliation,Email,< 2 min,< 24h,2,1,1,2,Non,Temps d'attente beaucoup trop long
+SVCLI-00298,CLI-64594,2025-07-30,Question sur contrat,Agence,2-5 min,< 24h,2,3,3,3,Non,Manque d'empathie
+SVCLI-00299,CLI-48073,2025-07-06,Question sur contrat,Téléphone,> 20 min,< 24h,4,3,3,5,Oui,Service de qualité
+SVCLI-00300,CLI-17096,2025-04-28,Suivi de dossier,Agence,> 20 min,1-3 jours,3,4,4,4,Partiellement,Pas de rappel comme promis
+SVCLI-00301,CLI-48584,2025-06-27,Demande d'attestation,Formulaire web,5-10 min,1-3 jours,5,5,4,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00302,CLI-85694,2025-09-04,Question technique app/site,Email,5-10 min,3-7 jours,4,3,3,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00303,CLI-90994,2025-07-28,Réclamation,Formulaire web,> 20 min,1-3 jours,1,2,1,1,Non,Pas de rappel comme promis
+SVCLI-00304,CLI-80384,2025-06-23,Problème de paiement,Formulaire web,5-10 min,< 24h,4,3,5,5,Oui,Explications claires
+SVCLI-00305,CLI-17836,2025-09-22,Modification de contrat,Chat en ligne,10-20 min,< 24h,2,2,2,1,Non,Pas de rappel comme promis
+SVCLI-00306,CLI-25740,2025-05-22,Problème de paiement,Formulaire web,< 2 min,3-7 jours,4,5,4,5,Oui,Problème résolu immédiatement
+SVCLI-00307,CLI-95145,2025-07-16,Problème de paiement,Agence,2-5 min,3-7 jours,5,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00308,CLI-30044,2025-07-11,Modification de contrat,Email,10-20 min,Immédiat,4,3,3,4,Oui,Conseiller compétent
+SVCLI-00309,CLI-74404,2025-06-22,Modification de contrat,Chat en ligne,5-10 min,1-3 jours,3,3,3,3,Partiellement,Problème non résolu
+SVCLI-00310,CLI-47891,2025-05-22,Demande de devis,Formulaire web,2-5 min,Immédiat,3,3,4,2,Partiellement,Réponse évasive
+SVCLI-00311,CLI-20152,2025-04-27,Résiliation,Application mobile,2-5 min,> 7 jours,3,2,4,2,Partiellement,Réponse évasive
+SVCLI-00312,CLI-44588,2025-09-02,Demande de devis,Application mobile,> 20 min,3-7 jours,3,2,3,4,Partiellement,Conseiller pas assez informé
+SVCLI-00313,CLI-21047,2025-04-22,Demande d'attestation,Formulaire web,2-5 min,> 7 jours,3,2,3,2,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00314,CLI-69945,2025-06-15,Demande de devis,Téléphone,> 20 min,< 24h,4,4,3,4,Oui,Conseiller compétent
+SVCLI-00315,CLI-88710,2025-06-25,Renouvellement,Téléphone,5-10 min,1-3 jours,5,5,5,5,Oui,Explications claires
+SVCLI-00316,CLI-31494,2025-07-15,Résiliation,Chat en ligne,> 20 min,3-7 jours,4,3,4,5,Oui,Professionnel et courtois
+SVCLI-00317,CLI-28110,2025-07-07,Demande d'attestation,Email,10-20 min,> 7 jours,5,5,5,4,Oui,Problème résolu immédiatement
+SVCLI-00318,CLI-97302,2025-09-08,Question technique app/site,Email,2-5 min,1-3 jours,4,5,5,4,Oui,Professionnel et courtois
+SVCLI-00319,CLI-10616,2025-08-03,Information sur garanties,Téléphone,2-5 min,> 7 jours,4,4,3,5,Oui,Problème résolu immédiatement
+SVCLI-00320,CLI-33861,2025-08-29,Problème de paiement,Email,2-5 min,1-3 jours,4,3,4,3,Oui,Réponse rapide et précise
+SVCLI-00321,CLI-26516,2025-04-24,Demande d'attestation,Email,10-20 min,Immédiat,5,5,4,4,Oui,Professionnel et courtois
+SVCLI-00322,CLI-96412,2025-10-13,Problème de paiement,Formulaire web,< 2 min,1-3 jours,5,5,5,5,Oui,Professionnel et courtois
+SVCLI-00323,CLI-60178,2025-09-13,Problème de paiement,Agence,< 2 min,< 24h,3,2,3,4,Partiellement,Transféré plusieurs fois
+SVCLI-00324,CLI-10663,2025-09-09,Déclaration de sinistre,Agence,> 20 min,> 7 jours,4,3,3,5,Oui,Service de qualité
+SVCLI-00325,CLI-53736,2025-10-14,Modification de contrat,Email,5-10 min,Immédiat,4,5,5,5,Oui,Prise en charge rapide
+SVCLI-00326,CLI-60741,2025-07-12,Renouvellement,Chat en ligne,10-20 min,< 24h,3,3,3,2,Partiellement,Toujours en attente de solution
+SVCLI-00327,CLI-54142,2025-06-26,Renouvellement,Application mobile,> 20 min,3-7 jours,3,2,2,2,Partiellement,Transféré plusieurs fois
+SVCLI-00328,CLI-50853,2025-05-02,Demande d'attestation,Application mobile,< 2 min,1-3 jours,2,3,1,2,Non,Problème non résolu
+SVCLI-00329,CLI-76807,2025-05-05,Question sur contrat,Agence,2-5 min,3-7 jours,3,2,4,3,Partiellement,Manque d'empathie
+SVCLI-00330,CLI-79233,2025-09-29,Renouvellement,Application mobile,5-10 min,1-3 jours,4,4,3,3,Oui,Explications claires
+SVCLI-00331,CLI-34772,2025-07-30,Question sur contrat,Application mobile,10-20 min,1-3 jours,1,1,2,2,Non,Conseiller pas assez informé
+SVCLI-00332,CLI-16226,2025-05-20,Demande de devis,Agence,5-10 min,> 7 jours,2,1,2,3,Non,Transféré plusieurs fois
+SVCLI-00333,CLI-68261,2025-09-24,Déclaration de sinistre,Agence,< 2 min,1-3 jours,5,5,5,4,Oui,Très bonne écoute
+SVCLI-00334,CLI-78457,2025-05-12,Résiliation,Téléphone,5-10 min,> 7 jours,4,4,5,5,Oui,Disponibilité appréciée
+SVCLI-00335,CLI-77468,2025-10-11,Résiliation,Chat en ligne,5-10 min,< 24h,4,5,3,4,Oui,Explications claires
+SVCLI-00336,CLI-95772,2025-06-14,Question technique app/site,Email,5-10 min,< 24h,5,5,5,5,Oui,Problème résolu immédiatement
+SVCLI-00337,CLI-99301,2025-08-24,Question sur contrat,Email,5-10 min,< 24h,5,5,5,5,Oui,Explications claires
+SVCLI-00338,CLI-80697,2025-08-25,Renouvellement,Téléphone,> 20 min,< 24h,1,1,2,1,Non,Conseiller pas assez informé
+SVCLI-00339,CLI-93467,2025-09-15,Déclaration de sinistre,Email,10-20 min,< 24h,5,5,5,4,Oui,Problème résolu immédiatement
+SVCLI-00340,CLI-76198,2025-06-16,Suivi de dossier,Chat en ligne,10-20 min,3-7 jours,1,1,1,1,Non,Pas de rappel comme promis
+SVCLI-00341,CLI-67151,2025-09-06,Déclaration de sinistre,Téléphone,< 2 min,> 7 jours,5,4,4,5,Oui,Conseiller compétent
+SVCLI-00342,CLI-70594,2025-08-17,Demande de devis,Email,> 20 min,3-7 jours,4,3,4,3,Oui,Réponse rapide et précise
+SVCLI-00343,CLI-12889,2025-10-11,Renouvellement,Agence,5-10 min,Immédiat,4,3,4,5,Oui,Réponse rapide et précise
+SVCLI-00344,CLI-25798,2025-07-14,Renouvellement,Agence,> 20 min,3-7 jours,3,4,3,4,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00345,CLI-18705,2025-06-12,Question sur contrat,Agence,5-10 min,1-3 jours,4,3,5,4,Oui,Problème résolu immédiatement
+SVCLI-00346,CLI-62299,2025-10-10,Question technique app/site,Formulaire web,2-5 min,1-3 jours,1,1,1,2,Non,Temps d'attente beaucoup trop long
+SVCLI-00347,CLI-44406,2025-04-25,Déclaration de sinistre,Agence,< 2 min,Immédiat,5,5,4,4,Oui,Disponibilité appréciée
+SVCLI-00348,CLI-23574,2025-10-06,Problème de paiement,Application mobile,< 2 min,Immédiat,4,5,4,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00349,CLI-19159,2025-06-12,Réclamation,Téléphone,< 2 min,3-7 jours,1,1,1,1,Non,Conseiller pas assez informé
+SVCLI-00350,CLI-31083,2025-08-05,Problème de paiement,Application mobile,> 20 min,< 24h,4,3,5,3,Oui,Prise en charge rapide
+SVCLI-00351,CLI-59425,2025-10-13,Réclamation,Formulaire web,5-10 min,> 7 jours,4,5,5,3,Oui,Réponse rapide et précise
+SVCLI-00352,CLI-75123,2025-06-11,Question technique app/site,Agence,> 20 min,< 24h,5,5,5,5,Oui,Très bonne écoute
+SVCLI-00353,CLI-43445,2025-10-07,Question sur contrat,Téléphone,< 2 min,1-3 jours,3,3,3,4,Partiellement,Toujours en attente de solution
+SVCLI-00354,CLI-53673,2025-06-27,Renouvellement,Formulaire web,2-5 min,> 7 jours,3,3,4,3,Partiellement,Pas de rappel comme promis
+SVCLI-00355,CLI-31129,2025-09-19,Résiliation,Chat en ligne,5-10 min,> 7 jours,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00356,CLI-80420,2025-09-08,Modification de contrat,Chat en ligne,< 2 min,< 24h,3,2,3,2,Partiellement,Pas de rappel comme promis
+SVCLI-00357,CLI-56042,2025-08-08,Question technique app/site,Application mobile,> 20 min,< 24h,4,5,4,4,Oui,Service de qualité
+SVCLI-00358,CLI-90600,2025-05-30,Réclamation,Formulaire web,2-5 min,> 7 jours,5,5,5,5,Oui,Professionnel et courtois
+SVCLI-00359,CLI-17647,2025-09-14,Information sur garanties,Téléphone,10-20 min,Immédiat,5,4,5,4,Oui,Service de qualité
+SVCLI-00360,CLI-19820,2025-08-17,Demande d'attestation,Agence,< 2 min,Immédiat,2,2,3,2,Non,Pas de rappel comme promis
+SVCLI-00361,CLI-84214,2025-05-28,Modification de contrat,Agence,< 2 min,Immédiat,5,4,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00362,CLI-73778,2025-08-11,Modification de contrat,Email,10-20 min,Immédiat,2,1,1,1,Non,Transféré plusieurs fois
+SVCLI-00363,CLI-56716,2025-04-30,Déclaration de sinistre,Formulaire web,2-5 min,1-3 jours,1,1,1,1,Non,Problème non résolu
+SVCLI-00364,CLI-91420,2025-09-21,Modification de contrat,Email,10-20 min,< 24h,1,1,1,1,Non,Transféré plusieurs fois
+SVCLI-00365,CLI-58869,2025-09-28,Demande d'attestation,Agence,> 20 min,3-7 jours,4,5,3,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00366,CLI-89814,2025-09-03,Renouvellement,Formulaire web,> 20 min,Immédiat,4,5,5,3,Oui,Prise en charge rapide
+SVCLI-00367,CLI-63628,2025-05-22,Suivi de dossier,Formulaire web,2-5 min,1-3 jours,5,5,4,5,Oui,Réponse rapide et précise
+SVCLI-00368,CLI-62403,2025-06-08,Modification de contrat,Agence,2-5 min,> 7 jours,4,3,3,3,Oui,Disponibilité appréciée
+SVCLI-00369,CLI-99868,2025-08-10,Demande d'attestation,Téléphone,< 2 min,Immédiat,4,4,5,5,Oui,Professionnel et courtois
+SVCLI-00370,CLI-85217,2025-04-24,Réclamation,Chat en ligne,10-20 min,1-3 jours,3,4,2,3,Partiellement,Toujours en attente de solution
+SVCLI-00371,CLI-64487,2025-04-26,Question sur contrat,Email,< 2 min,1-3 jours,1,2,1,2,Non,Pas de rappel comme promis
+SVCLI-00372,CLI-28381,2025-04-28,Renouvellement,Agence,5-10 min,3-7 jours,5,5,4,5,Oui,Service de qualité
+SVCLI-00373,CLI-27559,2025-08-22,Réclamation,Formulaire web,> 20 min,< 24h,3,4,2,4,Partiellement,Réponse évasive
+SVCLI-00374,CLI-28765,2025-09-01,Information sur garanties,Agence,5-10 min,< 24h,1,1,1,1,Non,Information contradictoire
+SVCLI-00375,CLI-50351,2025-07-27,Information sur garanties,Agence,> 20 min,> 7 jours,4,3,5,5,Oui,Disponibilité appréciée
+SVCLI-00376,CLI-98537,2025-09-12,Question technique app/site,Chat en ligne,> 20 min,> 7 jours,3,2,2,2,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00377,CLI-94539,2025-07-06,Question sur contrat,Application mobile,10-20 min,1-3 jours,4,5,3,5,Oui,Problème résolu immédiatement
+SVCLI-00378,CLI-97974,2025-07-22,Question technique app/site,Email,5-10 min,3-7 jours,1,1,2,1,Non,Pas de rappel comme promis
+SVCLI-00379,CLI-28567,2025-09-29,Modification de contrat,Chat en ligne,> 20 min,3-7 jours,3,3,3,2,Partiellement,Temps d'attente beaucoup trop long
+SVCLI-00380,CLI-57790,2025-05-30,Modification de contrat,Téléphone,5-10 min,3-7 jours,4,4,3,4,Oui,Réponse rapide et précise
+SVCLI-00381,CLI-69222,2025-09-18,Question technique app/site,Chat en ligne,10-20 min,3-7 jours,5,4,4,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00382,CLI-39744,2025-06-24,Renouvellement,Agence,5-10 min,> 7 jours,5,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00383,CLI-57789,2025-07-20,Résiliation,Email,> 20 min,< 24h,4,4,3,4,Oui,Professionnel et courtois
+SVCLI-00384,CLI-69769,2025-08-16,Question sur contrat,Application mobile,5-10 min,> 7 jours,4,4,4,5,Oui,Très bonne écoute
+SVCLI-00385,CLI-41054,2025-07-11,Question technique app/site,Email,2-5 min,3-7 jours,4,4,4,3,Oui,Problème résolu immédiatement
+SVCLI-00386,CLI-98092,2025-08-08,Réclamation,Email,2-5 min,< 24h,2,3,3,1,Non,Information contradictoire
+SVCLI-00387,CLI-95114,2025-06-25,Déclaration de sinistre,Formulaire web,< 2 min,1-3 jours,5,5,5,4,Oui,Explications claires
+SVCLI-00388,CLI-22343,2025-10-09,Réclamation,Application mobile,2-5 min,> 7 jours,4,3,3,5,Oui,Prise en charge rapide
+SVCLI-00389,CLI-74010,2025-09-04,Suivi de dossier,Formulaire web,10-20 min,3-7 jours,4,3,5,5,Oui,Conseiller compétent
+SVCLI-00390,CLI-33518,2025-07-27,Suivi de dossier,Application mobile,5-10 min,3-7 jours,4,5,5,3,Oui,Conseiller compétent
+SVCLI-00391,CLI-40422,2025-10-11,Demande de devis,Agence,2-5 min,< 24h,5,4,5,5,Oui,Prise en charge rapide
+SVCLI-00392,CLI-60135,2025-08-11,Modification de contrat,Formulaire web,5-10 min,Immédiat,3,2,2,3,Partiellement,Toujours en attente de solution
+SVCLI-00393,CLI-17841,2025-09-06,Modification de contrat,Chat en ligne,2-5 min,< 24h,3,4,2,3,Partiellement,Pas de rappel comme promis
+SVCLI-00394,CLI-25672,2025-05-14,Résiliation,Formulaire web,< 2 min,3-7 jours,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00395,CLI-81936,2025-08-16,Réclamation,Application mobile,5-10 min,3-7 jours,3,3,2,2,Partiellement,Toujours en attente de solution
+SVCLI-00396,CLI-64658,2025-06-22,Problème de paiement,Agence,< 2 min,3-7 jours,5,5,5,5,Oui,Problème résolu immédiatement
+SVCLI-00397,CLI-18435,2025-06-21,Déclaration de sinistre,Formulaire web,> 20 min,3-7 jours,4,5,4,3,Oui,Réponse rapide et précise
+SVCLI-00398,CLI-72038,2025-05-29,Question sur contrat,Téléphone,2-5 min,1-3 jours,5,5,4,4,Oui,Réponse rapide et précise
+SVCLI-00399,CLI-31370,2025-08-09,Réclamation,Application mobile,< 2 min,Immédiat,4,4,4,3,Oui,Service de qualité
+SVCLI-00400,CLI-32318,2025-06-27,Modification de contrat,Formulaire web,< 2 min,1-3 jours,3,3,3,2,Partiellement,Service décevant
+SVCLI-00401,CLI-65011,2025-10-01,Renouvellement,Agence,> 20 min,1-3 jours,5,5,5,5,Oui,Réponse rapide et précise
+SVCLI-00402,CLI-66598,2025-08-04,Question technique app/site,Formulaire web,2-5 min,> 7 jours,3,3,3,4,Partiellement,Toujours en attente de solution
+SVCLI-00403,CLI-67070,2025-09-12,Réclamation,Email,< 2 min,< 24h,5,4,4,5,Oui,Explications claires
+SVCLI-00404,CLI-29194,2025-04-26,Demande d'attestation,Chat en ligne,10-20 min,1-3 jours,2,1,1,2,Non,Problème non résolu
+SVCLI-00405,CLI-14685,2025-10-04,Réclamation,Application mobile,10-20 min,3-7 jours,2,2,2,2,Non,Temps d'attente beaucoup trop long
+SVCLI-00406,CLI-57485,2025-07-18,Demande d'attestation,Formulaire web,10-20 min,< 24h,1,1,2,1,Non,Information contradictoire
+SVCLI-00407,CLI-27242,2025-06-28,Suivi de dossier,Téléphone,5-10 min,< 24h,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00408,CLI-25572,2025-09-19,Question technique app/site,Email,< 2 min,3-7 jours,4,5,3,3,Oui,Service de qualité
+SVCLI-00409,CLI-68057,2025-10-07,Demande de devis,Email,> 20 min,Immédiat,5,5,4,4,Oui,Très bonne écoute
+SVCLI-00410,CLI-49348,2025-09-17,Question technique app/site,Agence,> 20 min,1-3 jours,5,5,5,4,Oui,Très bonne écoute
+SVCLI-00411,CLI-74375,2025-10-09,Question sur contrat,Application mobile,10-20 min,< 24h,3,2,4,2,Partiellement,Service décevant
+SVCLI-00412,CLI-35238,2025-05-16,Renouvellement,Chat en ligne,> 20 min,3-7 jours,5,5,5,5,Oui,Problème résolu immédiatement
+SVCLI-00413,CLI-49481,2025-04-25,Modification de contrat,Téléphone,5-10 min,> 7 jours,5,4,4,5,Oui,Réponse rapide et précise
+SVCLI-00414,CLI-82221,2025-10-04,Question sur contrat,Téléphone,2-5 min,< 24h,5,5,5,5,Oui,Prise en charge rapide
+SVCLI-00415,CLI-32341,2025-07-02,Résiliation,Chat en ligne,5-10 min,3-7 jours,3,3,4,2,Partiellement,Toujours en attente de solution
+SVCLI-00416,CLI-21422,2025-10-10,Demande de devis,Application mobile,5-10 min,< 24h,4,3,4,4,Oui,Disponibilité appréciée
+SVCLI-00417,CLI-61978,2025-07-03,Demande d'attestation,Email,> 20 min,> 7 jours,4,4,5,3,Oui,Réponse rapide et précise
+SVCLI-00418,CLI-99135,2025-10-18,Renouvellement,Formulaire web,2-5 min,> 7 jours,3,3,3,4,Partiellement,Conseiller pas assez informé
+SVCLI-00419,CLI-66495,2025-09-02,Question sur contrat,Formulaire web,< 2 min,< 24h,3,4,2,2,Partiellement,Transféré plusieurs fois
+SVCLI-00420,CLI-33062,2025-07-13,Résiliation,Formulaire web,5-10 min,1-3 jours,5,5,5,5,Oui,Prise en charge rapide
+SVCLI-00421,CLI-66458,2025-07-20,Question sur contrat,Email,< 2 min,Immédiat,1,1,1,1,Non,Service décevant
+SVCLI-00422,CLI-25160,2025-08-05,Information sur garanties,Téléphone,> 20 min,1-3 jours,5,5,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00423,CLI-40880,2025-06-09,Suivi de dossier,Chat en ligne,5-10 min,1-3 jours,5,5,5,4,Oui,Prise en charge rapide
+SVCLI-00424,CLI-28260,2025-07-26,Résiliation,Agence,< 2 min,> 7 jours,4,3,5,3,Oui,Conseiller très efficace et sympathique
+SVCLI-00425,CLI-56645,2025-05-06,Demande de devis,Téléphone,5-10 min,1-3 jours,4,4,3,3,Oui,Conseiller très efficace et sympathique
+SVCLI-00426,CLI-68259,2025-08-09,Modification de contrat,Formulaire web,< 2 min,Immédiat,1,1,1,1,Non,Temps d'attente beaucoup trop long
+SVCLI-00427,CLI-96245,2025-08-14,Question sur contrat,Email,> 20 min,3-7 jours,5,5,4,4,Oui,Très bonne écoute
+SVCLI-00428,CLI-21189,2025-06-09,Question sur contrat,Chat en ligne,5-10 min,1-3 jours,5,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00429,CLI-26574,2025-09-04,Demande d'attestation,Téléphone,> 20 min,< 24h,3,3,2,3,Partiellement,Transféré plusieurs fois
+SVCLI-00430,CLI-58510,2025-06-16,Information sur garanties,Application mobile,< 2 min,> 7 jours,4,5,3,5,Oui,Professionnel et courtois
+SVCLI-00431,CLI-66849,2025-07-03,Modification de contrat,Téléphone,10-20 min,> 7 jours,3,3,4,4,Partiellement,Transféré plusieurs fois
+SVCLI-00432,CLI-33569,2025-06-27,Question technique app/site,Application mobile,> 20 min,Immédiat,4,3,5,3,Oui,Réponse rapide et précise
+SVCLI-00433,CLI-13657,2025-06-11,Demande de devis,Application mobile,> 20 min,> 7 jours,4,4,5,3,Oui,Conseiller très efficace et sympathique
+SVCLI-00434,CLI-92541,2025-08-29,Demande de devis,Téléphone,5-10 min,< 24h,4,4,5,3,Oui,Service de qualité
+SVCLI-00435,CLI-99973,2025-08-18,Renouvellement,Téléphone,> 20 min,1-3 jours,4,5,4,4,Oui,Réponse rapide et précise
+SVCLI-00436,CLI-40687,2025-06-21,Demande d'attestation,Téléphone,> 20 min,3-7 jours,5,5,5,4,Oui,Service de qualité
+SVCLI-00437,CLI-82400,2025-10-10,Suivi de dossier,Application mobile,5-10 min,1-3 jours,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00438,CLI-34809,2025-10-06,Information sur garanties,Email,> 20 min,Immédiat,4,5,3,4,Oui,Prise en charge rapide
+SVCLI-00439,CLI-37969,2025-08-31,Demande d'attestation,Application mobile,2-5 min,Immédiat,2,3,2,1,Non,Temps d'attente beaucoup trop long
+SVCLI-00440,CLI-85710,2025-06-27,Demande de devis,Téléphone,2-5 min,Immédiat,5,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00441,CLI-83437,2025-07-15,Demande d'attestation,Formulaire web,10-20 min,> 7 jours,2,2,3,2,Non,Conseiller pas assez informé
+SVCLI-00442,CLI-96843,2025-08-02,Suivi de dossier,Formulaire web,10-20 min,3-7 jours,3,4,3,3,Partiellement,Information contradictoire
+SVCLI-00443,CLI-87347,2025-09-28,Problème de paiement,Email,5-10 min,Immédiat,5,5,5,5,Oui,Service de qualité
+SVCLI-00444,CLI-84352,2025-04-27,Question sur contrat,Application mobile,10-20 min,Immédiat,4,4,4,4,Oui,Réponse rapide et précise
+SVCLI-00445,CLI-57723,2025-05-15,Demande de devis,Agence,5-10 min,Immédiat,1,2,1,1,Non,Manque d'empathie
+SVCLI-00446,CLI-98474,2025-09-01,Question sur contrat,Agence,< 2 min,< 24h,5,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00447,CLI-79321,2025-10-14,Modification de contrat,Formulaire web,5-10 min,< 24h,2,1,2,2,Non,Toujours en attente de solution
+SVCLI-00448,CLI-74728,2025-05-03,Suivi de dossier,Email,10-20 min,Immédiat,5,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00449,CLI-51724,2025-06-04,Demande d'attestation,Téléphone,10-20 min,< 24h,3,4,2,2,Partiellement,Toujours en attente de solution
+SVCLI-00450,CLI-42950,2025-08-16,Renouvellement,Formulaire web,10-20 min,> 7 jours,2,3,1,3,Non,Conseiller pas assez informé
+SVCLI-00451,CLI-44213,2025-08-20,Question technique app/site,Application mobile,< 2 min,Immédiat,4,4,5,5,Oui,Professionnel et courtois
+SVCLI-00452,CLI-79625,2025-07-15,Réclamation,Agence,2-5 min,Immédiat,4,4,4,4,Oui,Conseiller compétent
+SVCLI-00453,CLI-63253,2025-08-28,Résiliation,Application mobile,> 20 min,< 24h,3,4,2,4,Partiellement,Problème non résolu
+SVCLI-00454,CLI-26426,2025-10-13,Demande de devis,Agence,5-10 min,3-7 jours,3,2,4,4,Partiellement,Réponse évasive
+SVCLI-00455,CLI-56323,2025-06-14,Problème de paiement,Formulaire web,10-20 min,Immédiat,5,4,5,5,Oui,Disponibilité appréciée
+SVCLI-00456,CLI-24173,2025-04-24,Suivi de dossier,Agence,2-5 min,> 7 jours,3,3,2,4,Partiellement,Toujours en attente de solution
+SVCLI-00457,CLI-83791,2025-08-24,Résiliation,Application mobile,5-10 min,1-3 jours,4,5,4,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00458,CLI-26554,2025-05-07,Demande de devis,Agence,< 2 min,1-3 jours,1,1,1,2,Non,Temps d'attente beaucoup trop long
+SVCLI-00459,CLI-15896,2025-10-02,Problème de paiement,Formulaire web,5-10 min,> 7 jours,3,4,4,2,Partiellement,Transféré plusieurs fois
+SVCLI-00460,CLI-48711,2025-07-17,Renouvellement,Téléphone,10-20 min,< 24h,5,5,5,5,Oui,Service de qualité
+SVCLI-00461,CLI-59332,2025-05-30,Demande de devis,Agence,> 20 min,Immédiat,4,5,5,4,Oui,Professionnel et courtois
+SVCLI-00462,CLI-55212,2025-06-04,Question sur contrat,Email,10-20 min,3-7 jours,4,3,3,3,Oui,Service de qualité
+SVCLI-00463,CLI-85798,2025-09-03,Déclaration de sinistre,Chat en ligne,5-10 min,> 7 jours,2,3,2,2,Non,Pas de rappel comme promis
+SVCLI-00464,CLI-31059,2025-05-22,Résiliation,Téléphone,2-5 min,< 24h,5,5,5,5,Oui,Professionnel et courtois
+SVCLI-00465,CLI-92520,2025-08-26,Modification de contrat,Téléphone,5-10 min,3-7 jours,4,5,3,5,Oui,Prise en charge rapide
+SVCLI-00466,CLI-20271,2025-06-07,Réclamation,Application mobile,2-5 min,> 7 jours,5,4,4,4,Oui,Problème résolu immédiatement
+SVCLI-00467,CLI-17420,2025-09-17,Suivi de dossier,Chat en ligne,2-5 min,3-7 jours,4,4,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00468,CLI-30368,2025-06-20,Renouvellement,Agence,10-20 min,Immédiat,4,3,4,4,Oui,Explications claires
+SVCLI-00469,CLI-72665,2025-10-11,Résiliation,Chat en ligne,> 20 min,< 24h,5,4,4,4,Oui,Disponibilité appréciée
+SVCLI-00470,CLI-60217,2025-08-25,Modification de contrat,Application mobile,2-5 min,3-7 jours,2,1,3,3,Non,Toujours en attente de solution
+SVCLI-00471,CLI-13474,2025-05-06,Déclaration de sinistre,Téléphone,> 20 min,> 7 jours,4,5,3,5,Oui,Très bonne écoute
+SVCLI-00472,CLI-48565,2025-09-21,Suivi de dossier,Email,> 20 min,3-7 jours,3,3,3,4,Partiellement,Information contradictoire
+SVCLI-00473,CLI-75708,2025-05-04,Modification de contrat,Formulaire web,10-20 min,> 7 jours,1,1,1,2,Non,Transféré plusieurs fois
+SVCLI-00474,CLI-66683,2025-06-27,Demande d'attestation,Email,> 20 min,3-7 jours,2,1,3,2,Non,Pas de rappel comme promis
+SVCLI-00475,CLI-21721,2025-06-22,Problème de paiement,Agence,< 2 min,1-3 jours,4,5,3,3,Oui,Conseiller très efficace et sympathique
+SVCLI-00476,CLI-89577,2025-05-08,Suivi de dossier,Téléphone,< 2 min,3-7 jours,1,1,2,2,Non,Problème non résolu
+SVCLI-00477,CLI-19866,2025-07-13,Demande d'attestation,Téléphone,5-10 min,> 7 jours,1,2,2,1,Non,Pas de rappel comme promis
+SVCLI-00478,CLI-23688,2025-07-05,Problème de paiement,Formulaire web,10-20 min,< 24h,2,1,3,3,Non,Manque d'empathie
+SVCLI-00479,CLI-13652,2025-10-18,Demande d'attestation,Agence,5-10 min,Immédiat,3,2,2,3,Partiellement,Conseiller pas assez informé
+SVCLI-00480,CLI-89898,2025-10-01,Problème de paiement,Application mobile,< 2 min,1-3 jours,2,3,1,3,Non,Temps d'attente beaucoup trop long
+SVCLI-00481,CLI-50222,2025-06-06,Suivi de dossier,Agence,> 20 min,1-3 jours,4,4,4,4,Oui,Réponse rapide et précise
+SVCLI-00482,CLI-41880,2025-10-17,Réclamation,Email,2-5 min,1-3 jours,5,5,5,4,Oui,Réponse rapide et précise
+SVCLI-00483,CLI-87808,2025-08-07,Déclaration de sinistre,Email,2-5 min,1-3 jours,5,5,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00484,CLI-21955,2025-08-10,Demande de devis,Agence,2-5 min,> 7 jours,2,1,2,1,Non,Manque d'empathie
+SVCLI-00485,CLI-41526,2025-09-01,Demande d'attestation,Agence,2-5 min,> 7 jours,5,5,4,4,Oui,Problème résolu immédiatement
+SVCLI-00486,CLI-53689,2025-09-30,Réclamation,Formulaire web,5-10 min,Immédiat,3,2,3,3,Partiellement,Conseiller pas assez informé
+SVCLI-00487,CLI-28420,2025-05-13,Demande de devis,Téléphone,5-10 min,> 7 jours,4,5,5,5,Oui,Disponibilité appréciée
+SVCLI-00488,CLI-26386,2025-09-30,Demande de devis,Formulaire web,< 2 min,1-3 jours,4,4,5,5,Oui,Conseiller très efficace et sympathique
+SVCLI-00489,CLI-32236,2025-07-15,Demande d'attestation,Chat en ligne,< 2 min,3-7 jours,4,4,5,3,Oui,Service de qualité
+SVCLI-00490,CLI-27262,2025-04-26,Information sur garanties,Application mobile,> 20 min,> 7 jours,4,3,4,5,Oui,Service de qualité
+SVCLI-00491,CLI-14867,2025-09-13,Modification de contrat,Téléphone,10-20 min,< 24h,3,4,4,4,Partiellement,Transféré plusieurs fois
+SVCLI-00492,CLI-38370,2025-05-03,Information sur garanties,Application mobile,> 20 min,1-3 jours,2,2,3,1,Non,Information contradictoire
+SVCLI-00493,CLI-64184,2025-06-05,Question sur contrat,Formulaire web,> 20 min,< 24h,3,3,3,3,Partiellement,Information contradictoire
+SVCLI-00494,CLI-14848,2025-04-24,Information sur garanties,Application mobile,< 2 min,< 24h,5,5,4,5,Oui,Prise en charge rapide
+SVCLI-00495,CLI-85041,2025-09-25,Question technique app/site,Formulaire web,10-20 min,> 7 jours,4,3,4,5,Oui,Prise en charge rapide
+SVCLI-00496,CLI-43913,2025-08-16,Question technique app/site,Formulaire web,2-5 min,> 7 jours,4,5,3,3,Oui,Professionnel et courtois
+SVCLI-00497,CLI-98709,2025-05-25,Déclaration de sinistre,Application mobile,2-5 min,1-3 jours,1,2,2,1,Non,Conseiller pas assez informé
+SVCLI-00498,CLI-19914,2025-08-09,Réclamation,Email,5-10 min,< 24h,1,1,1,1,Non,Problème non résolu
+SVCLI-00499,CLI-23376,2025-09-05,Problème de paiement,Agence,10-20 min,Immédiat,4,4,5,4,Oui,Conseiller très efficace et sympathique
+SVCLI-00500,CLI-88328,2025-08-08,Résiliation,Formulaire web,< 2 min,1-3 jours,5,5,5,4,Oui,Prise en charge rapide

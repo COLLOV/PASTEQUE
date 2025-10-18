@@ -1,0 +1,7 @@
+# Mappez ici vos fichiers CSV si vous souhaitez un catalogue explicite.
+# Exemple:
+# tables:
+#   users:
+#     path: ./raw/users.csv
+#   orders:
+#     path: ./raw/orders.csv

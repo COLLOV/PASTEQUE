@@ -1,0 +1,501 @@
+feedback_id,client_id,date_feedback,nps_score,categorie,profil_client,nb_contrats,a_eu_sinistre,a_contacte_service_client,utilise_app_mobile,commentaire
+NPS-00001,CLI-53912,2025-07-01,3,Détracteur,Client depuis 3-5 ans,3 contrats,Oui,Non,Oui,Tarifs trop élevés
+NPS-00002,CLI-29451,2025-09-21,7,Passif,Client depuis < 1 an,4+ contrats,Non,Non,Non,Pas de problème majeur
+NPS-00003,CLI-18723,2025-08-11,9,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00004,CLI-77560,2025-07-17,9,Promoteur,Client depuis < 1 an,1 contrat,Non,Non,Non,Service client irréprochable
+NPS-00005,CLI-37009,2025-05-11,7,Passif,Client depuis 5-10 ans,3 contrats,Non,Non,Oui,Service correct mais améliorable
+NPS-00006,CLI-56753,2025-06-18,2,Détracteur,Client depuis 1-3 ans,4+ contrats,Oui,Oui,Oui,Tarifs trop élevés
+NPS-00007,CLI-23489,2025-09-22,4,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Oui,Oui,Trop de complications administratives
+NPS-00008,CLI-11180,2025-08-29,10,Promoteur,Client depuis 5-10 ans,2 contrats,Oui,Oui,Non,Excellent rapport qualité/prix
+NPS-00009,CLI-65965,2025-09-19,1,Détracteur,Client depuis 5-10 ans,2 contrats,Oui,Oui,Non,Tarifs trop élevés
+NPS-00010,CLI-72916,2025-07-05,5,Détracteur,Client depuis 5-10 ans,4+ contrats,Non,Non,Non,Remboursements insuffisants
+NPS-00011,CLI-76376,2025-06-12,8,Passif,Client depuis 1-3 ans,2 contrats,Oui,Oui,Oui,Service correct mais améliorable
+NPS-00012,CLI-14445,2025-05-12,8,Passif,Client depuis < 1 an,4+ contrats,Non,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00013,CLI-41354,2025-09-15,6,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Oui,Non,Tarifs trop élevés
+NPS-00014,CLI-28350,2025-05-18,9,Promoteur,Client depuis > 10 ans,3 contrats,Oui,Non,Non,Confiance totale
+NPS-00015,CLI-29260,2025-05-05,8,Passif,Client depuis 1-3 ans,4+ contrats,Oui,Oui,Non,Pas de problème majeur
+NPS-00016,CLI-52098,2025-09-18,9,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Oui,Non,Confiance totale
+NPS-00017,CLI-20329,2025-05-31,6,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Trop de complications administratives
+NPS-00018,CLI-87225,2025-09-24,5,Détracteur,Client depuis 5-10 ans,2 contrats,Non,Oui,Non,Service client décevant
+NPS-00019,CLI-28493,2025-08-14,6,Détracteur,Client depuis 1-3 ans,3 contrats,Oui,Non,Oui,Tarifs trop élevés
+NPS-00020,CLI-52510,2025-07-02,1,Détracteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Non,Manque de transparence
+NPS-00021,CLI-60578,2025-05-27,9,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Oui,Oui,Service client irréprochable
+NPS-00022,CLI-75210,2025-06-18,10,Promoteur,Client depuis 5-10 ans,1 contrat,Non,Oui,Oui,Remboursements rapides et sans souci
+NPS-00023,CLI-53708,2025-09-12,10,Promoteur,Client depuis 5-10 ans,2 contrats,Oui,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00024,CLI-77527,2025-07-05,8,Passif,Client depuis > 10 ans,4+ contrats,Non,Oui,Oui,Service correct mais améliorable
+NPS-00025,CLI-42932,2025-06-27,10,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00026,CLI-37203,2025-04-23,10,Promoteur,Client depuis 5-10 ans,4+ contrats,Oui,Oui,Oui,Excellent rapport qualité/prix
+NPS-00027,CLI-41467,2025-05-22,8,Passif,Client depuis > 10 ans,1 contrat,Non,Oui,Oui,Pas de problème majeur
+NPS-00028,CLI-26230,2025-07-29,5,Détracteur,Client depuis 5-10 ans,2 contrats,Non,Oui,Non,Service client décevant
+NPS-00029,CLI-10476,2025-07-02,1,Détracteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Non,Service client décevant
+NPS-00030,CLI-46310,2025-06-07,8,Passif,Client depuis 1-3 ans,1 contrat,Non,Oui,Non,Pas de problème majeur
+NPS-00031,CLI-21270,2025-09-08,2,Détracteur,Client depuis 3-5 ans,4+ contrats,Oui,Non,Oui,Remboursements insuffisants
+NPS-00032,CLI-34995,2025-06-01,10,Promoteur,Client depuis 1-3 ans,3 contrats,Oui,Non,Oui,Remboursements rapides et sans souci
+NPS-00033,CLI-77636,2025-07-20,3,Détracteur,Client depuis 5-10 ans,3 contrats,Oui,Non,Oui,Remboursements insuffisants
+NPS-00034,CLI-89962,2025-08-26,4,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Oui,Non,Remboursements insuffisants
+NPS-00035,CLI-85199,2025-09-01,4,Détracteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Non,Trop de complications administratives
+NPS-00036,CLI-72922,2025-08-11,6,Détracteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Oui,Tarifs trop élevés
+NPS-00037,CLI-90769,2025-06-22,7,Passif,Client depuis > 10 ans,2 contrats,Non,Non,Non,Pas de problème majeur
+NPS-00038,CLI-45114,2025-05-31,9,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00039,CLI-89592,2025-07-14,9,Promoteur,Client depuis 5-10 ans,3 contrats,Non,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00040,CLI-33644,2025-08-04,10,Promoteur,Client depuis > 10 ans,3 contrats,Oui,Oui,Non,Remboursements rapides et sans souci
+NPS-00041,CLI-63298,2025-08-10,10,Promoteur,Client depuis < 1 an,2 contrats,Non,Oui,Oui,Excellent rapport qualité/prix
+NPS-00042,CLI-48473,2025-06-20,9,Promoteur,Client depuis 1-3 ans,1 contrat,Non,Non,Non,Confiance totale
+NPS-00043,CLI-24405,2025-05-02,4,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Non,Service client décevant
+NPS-00044,CLI-48800,2025-07-20,4,Détracteur,Client depuis 5-10 ans,1 contrat,Non,Non,Non,Trop de complications administratives
+NPS-00045,CLI-17753,2025-06-22,10,Promoteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Non,Service client irréprochable
+NPS-00046,CLI-18934,2025-09-13,2,Détracteur,Client depuis 5-10 ans,4+ contrats,Non,Non,Oui,Trop de complications administratives
+NPS-00047,CLI-70910,2025-10-07,10,Promoteur,Client depuis < 1 an,4+ contrats,Oui,Non,Non,Confiance totale
+NPS-00048,CLI-35491,2025-08-13,10,Promoteur,Client depuis 1-3 ans,1 contrat,Non,Oui,Non,Excellent rapport qualité/prix
+NPS-00049,CLI-37082,2025-05-18,10,Promoteur,Client depuis > 10 ans,2 contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00050,CLI-38693,2025-10-05,8,Passif,Client depuis 5-10 ans,3 contrats,Oui,Oui,Non,Prix corrects mais pas les meilleurs
+NPS-00051,CLI-23437,2025-08-24,7,Passif,Client depuis 3-5 ans,2 contrats,Oui,Oui,Non,Prix corrects mais pas les meilleurs
+NPS-00052,CLI-20881,2025-08-04,5,Détracteur,Client depuis 5-10 ans,3 contrats,Oui,Non,Oui,Remboursements insuffisants
+NPS-00053,CLI-75022,2025-09-29,7,Passif,Client depuis < 1 an,1 contrat,Oui,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00054,CLI-97245,2025-10-05,10,Promoteur,Client depuis 3-5 ans,3 contrats,Oui,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00055,CLI-45794,2025-05-19,9,Promoteur,Client depuis 5-10 ans,2 contrats,Non,Non,Oui,Service client irréprochable
+NPS-00056,CLI-20209,2025-05-14,10,Promoteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Non,Confiance totale
+NPS-00057,CLI-24940,2025-08-10,9,Promoteur,Client depuis 5-10 ans,2 contrats,Non,Oui,Oui,Remboursements rapides et sans souci
+NPS-00058,CLI-87509,2025-08-02,8,Passif,Client depuis 3-5 ans,4+ contrats,Oui,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00059,CLI-49283,2025-09-07,10,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Non,Confiance totale
+NPS-00060,CLI-24568,2025-04-29,4,Détracteur,Client depuis 5-10 ans,2 contrats,Oui,Oui,Oui,Service client décevant
+NPS-00061,CLI-22106,2025-07-05,9,Promoteur,Client depuis > 10 ans,4+ contrats,Non,Oui,Non,Confiance totale
+NPS-00062,CLI-98017,2025-07-22,4,Détracteur,Client depuis 1-3 ans,1 contrat,Oui,Non,Oui,Manque de transparence
+NPS-00063,CLI-56935,2025-06-13,5,Détracteur,Client depuis < 1 an,3 contrats,Oui,Oui,Non,Trop de complications administratives
+NPS-00064,CLI-58419,2025-07-18,5,Détracteur,Client depuis 5-10 ans,3 contrats,Non,Non,Oui,Tarifs trop élevés
+NPS-00065,CLI-90710,2025-10-08,7,Passif,Client depuis 1-3 ans,4+ contrats,Non,Non,Oui,Service correct mais améliorable
+NPS-00066,CLI-95977,2025-07-03,0,Détracteur,Client depuis > 10 ans,3 contrats,Non,Oui,Oui,Trop de complications administratives
+NPS-00067,CLI-45829,2025-06-27,9,Promoteur,Client depuis < 1 an,1 contrat,Non,Oui,Oui,Service client irréprochable
+NPS-00068,CLI-68513,2025-04-24,9,Promoteur,Client depuis 5-10 ans,1 contrat,Non,Oui,Oui,Remboursements rapides et sans souci
+NPS-00069,CLI-78632,2025-07-10,0,Détracteur,Client depuis 5-10 ans,4+ contrats,Non,Oui,Non,Tarifs trop élevés
+NPS-00070,CLI-11258,2025-05-03,9,Promoteur,Client depuis 3-5 ans,3 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00071,CLI-66901,2025-07-22,8,Passif,Client depuis 5-10 ans,3 contrats,Non,Oui,Non,Satisfait sans plus
+NPS-00072,CLI-72417,2025-09-25,9,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Non,Oui,Confiance totale
+NPS-00073,CLI-59745,2025-09-11,10,Promoteur,Client depuis 3-5 ans,4+ contrats,Non,Non,Oui,Excellent rapport qualité/prix
+NPS-00074,CLI-15979,2025-04-25,9,Promoteur,Client depuis < 1 an,1 contrat,Oui,Oui,Oui,Service client irréprochable
+NPS-00075,CLI-64411,2025-05-27,7,Passif,Client depuis < 1 an,4+ contrats,Oui,Non,Non,Service correct mais améliorable
+NPS-00076,CLI-64627,2025-04-26,8,Passif,Client depuis > 10 ans,3 contrats,Oui,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00077,CLI-44028,2025-05-12,7,Passif,Client depuis 3-5 ans,4+ contrats,Oui,Oui,Non,Satisfait sans plus
+NPS-00078,CLI-64387,2025-07-06,2,Détracteur,Client depuis 1-3 ans,1 contrat,Oui,Non,Non,Manque de transparence
+NPS-00079,CLI-56465,2025-07-27,8,Passif,Client depuis > 10 ans,4+ contrats,Oui,Non,Oui,Satisfait sans plus
+NPS-00080,CLI-15079,2025-10-11,2,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Non,Trop de complications administratives
+NPS-00081,CLI-43076,2025-06-15,9,Promoteur,Client depuis 5-10 ans,2 contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00082,CLI-60095,2025-10-02,9,Promoteur,Client depuis 3-5 ans,1 contrat,Non,Oui,Non,Service client irréprochable
+NPS-00083,CLI-15594,2025-07-09,10,Promoteur,Client depuis > 10 ans,2 contrats,Oui,Oui,Non,Remboursements rapides et sans souci
+NPS-00084,CLI-10735,2025-07-15,10,Promoteur,Client depuis > 10 ans,1 contrat,Oui,Oui,Oui,Conseiller toujours disponible et efficace
+NPS-00085,CLI-46662,2025-04-25,6,Détracteur,Client depuis > 10 ans,3 contrats,Oui,Non,Non,Tarifs trop élevés
+NPS-00086,CLI-82960,2025-08-25,4,Détracteur,Client depuis 3-5 ans,4+ contrats,Non,Oui,Non,Manque de transparence
+NPS-00087,CLI-80717,2025-07-13,8,Passif,Client depuis 5-10 ans,4+ contrats,Oui,Non,Non,Pas de problème majeur
+NPS-00088,CLI-33403,2025-06-11,10,Promoteur,Client depuis < 1 an,1 contrat,Non,Non,Non,Conseiller toujours disponible et efficace
+NPS-00089,CLI-10867,2025-07-24,0,Détracteur,Client depuis > 10 ans,2 contrats,Oui,Oui,Non,Remboursements insuffisants
+NPS-00090,CLI-47483,2025-06-19,7,Passif,Client depuis > 10 ans,3 contrats,Non,Oui,Oui,Pas de problème majeur
+NPS-00091,CLI-11502,2025-10-01,6,Détracteur,Client depuis < 1 an,4+ contrats,Oui,Non,Non,Trop de complications administratives
+NPS-00092,CLI-70051,2025-05-19,8,Passif,Client depuis > 10 ans,1 contrat,Non,Oui,Non,Prix corrects mais pas les meilleurs
+NPS-00093,CLI-15545,2025-06-28,8,Passif,Client depuis < 1 an,4+ contrats,Oui,Non,Non,Satisfait sans plus
+NPS-00094,CLI-66266,2025-08-27,8,Passif,Client depuis 1-3 ans,1 contrat,Non,Non,Oui,Pas de problème majeur
+NPS-00095,CLI-60574,2025-05-31,9,Promoteur,Client depuis 5-10 ans,2 contrats,Non,Oui,Oui,Confiance totale
+NPS-00096,CLI-27059,2025-07-17,7,Passif,Client depuis < 1 an,1 contrat,Oui,Oui,Oui,Pas de problème majeur
+NPS-00097,CLI-92958,2025-09-08,10,Promoteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Confiance totale
+NPS-00098,CLI-29389,2025-07-16,9,Promoteur,Client depuis 5-10 ans,1 contrat,Oui,Oui,Oui,Confiance totale
+NPS-00099,CLI-68327,2025-05-04,6,Détracteur,Client depuis 3-5 ans,4+ contrats,Non,Non,Non,Manque de transparence
+NPS-00100,CLI-70748,2025-09-11,1,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Non,Non,Trop de complications administratives
+NPS-00101,CLI-19049,2025-08-01,7,Passif,Client depuis 3-5 ans,1 contrat,Oui,Non,Non,Satisfait sans plus
+NPS-00102,CLI-43997,2025-05-16,9,Promoteur,Client depuis < 1 an,3 contrats,Oui,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00103,CLI-15898,2025-04-29,8,Passif,Client depuis 1-3 ans,1 contrat,Oui,Oui,Oui,Pas de problème majeur
+NPS-00104,CLI-59134,2025-05-06,6,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Tarifs trop élevés
+NPS-00105,CLI-30045,2025-08-17,10,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Non,Oui,Service client irréprochable
+NPS-00106,CLI-55099,2025-06-18,9,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Non,Oui,Confiance totale
+NPS-00107,CLI-94360,2025-08-28,10,Promoteur,Client depuis 5-10 ans,1 contrat,Non,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00108,CLI-73432,2025-08-26,7,Passif,Client depuis 5-10 ans,1 contrat,Oui,Non,Oui,Pas de problème majeur
+NPS-00109,CLI-67963,2025-06-17,6,Détracteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Oui,Remboursements insuffisants
+NPS-00110,CLI-73664,2025-05-30,4,Détracteur,Client depuis < 1 an,3 contrats,Oui,Non,Non,Manque de transparence
+NPS-00111,CLI-40035,2025-08-19,2,Détracteur,Client depuis < 1 an,3 contrats,Non,Oui,Oui,Remboursements insuffisants
+NPS-00112,CLI-91261,2025-05-22,4,Détracteur,Client depuis > 10 ans,2 contrats,Non,Oui,Non,Remboursements insuffisants
+NPS-00113,CLI-52820,2025-06-11,3,Détracteur,Client depuis 3-5 ans,3 contrats,Oui,Non,Oui,Trop de complications administratives
+NPS-00114,CLI-22012,2025-08-02,10,Promoteur,Client depuis > 10 ans,1 contrat,Non,Non,Non,Excellent rapport qualité/prix
+NPS-00115,CLI-34574,2025-05-09,1,Détracteur,Client depuis < 1 an,4+ contrats,Non,Non,Non,Manque de transparence
+NPS-00116,CLI-24605,2025-07-08,2,Détracteur,Client depuis 1-3 ans,1 contrat,Oui,Non,Oui,Remboursements insuffisants
+NPS-00117,CLI-25329,2025-05-28,2,Détracteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Non,Manque de transparence
+NPS-00118,CLI-42758,2025-07-03,5,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Non,Non,Manque de transparence
+NPS-00119,CLI-86436,2025-07-03,9,Promoteur,Client depuis < 1 an,1 contrat,Non,Non,Oui,Remboursements rapides et sans souci
+NPS-00120,CLI-31530,2025-09-12,8,Passif,Client depuis < 1 an,1 contrat,Oui,Oui,Oui,Satisfait sans plus
+NPS-00121,CLI-43593,2025-09-10,9,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00122,CLI-41585,2025-05-10,7,Passif,Client depuis 5-10 ans,1 contrat,Oui,Oui,Oui,Prix corrects mais pas les meilleurs
+NPS-00123,CLI-37192,2025-06-04,8,Passif,Client depuis 1-3 ans,3 contrats,Non,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00124,CLI-94958,2025-05-19,8,Passif,Client depuis 3-5 ans,2 contrats,Non,Non,Non,Satisfait sans plus
+NPS-00125,CLI-82841,2025-08-28,8,Passif,Client depuis 1-3 ans,1 contrat,Non,Non,Non,Satisfait sans plus
+NPS-00126,CLI-11801,2025-09-11,5,Détracteur,Client depuis 5-10 ans,4+ contrats,Oui,Oui,Oui,Manque de transparence
+NPS-00127,CLI-92968,2025-06-26,3,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Oui,Oui,Service client décevant
+NPS-00128,CLI-90237,2025-10-14,4,Détracteur,Client depuis 1-3 ans,3 contrats,Oui,Non,Non,Remboursements insuffisants
+NPS-00129,CLI-16596,2025-06-06,4,Détracteur,Client depuis > 10 ans,1 contrat,Non,Oui,Non,Remboursements insuffisants
+NPS-00130,CLI-75910,2025-06-19,9,Promoteur,Client depuis 5-10 ans,1 contrat,Oui,Non,Non,Confiance totale
+NPS-00131,CLI-73329,2025-10-16,10,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00132,CLI-22512,2025-06-07,10,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00133,CLI-23110,2025-08-04,9,Promoteur,Client depuis 3-5 ans,1 contrat,Non,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00134,CLI-54037,2025-05-29,8,Passif,Client depuis < 1 an,1 contrat,Non,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00135,CLI-89417,2025-08-07,6,Détracteur,Client depuis < 1 an,2 contrats,Oui,Oui,Oui,Tarifs trop élevés
+NPS-00136,CLI-63049,2025-06-20,3,Détracteur,Client depuis > 10 ans,2 contrats,Non,Non,Oui,Remboursements insuffisants
+NPS-00137,CLI-92528,2025-09-02,5,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Oui,Oui,Tarifs trop élevés
+NPS-00138,CLI-33897,2025-09-19,7,Passif,Client depuis 1-3 ans,1 contrat,Non,Non,Non,Pas de problème majeur
+NPS-00139,CLI-68729,2025-05-03,8,Passif,Client depuis 3-5 ans,2 contrats,Oui,Oui,Non,Pas de problème majeur
+NPS-00140,CLI-96503,2025-05-10,4,Détracteur,Client depuis > 10 ans,2 contrats,Oui,Oui,Oui,Manque de transparence
+NPS-00141,CLI-47637,2025-08-01,10,Promoteur,Client depuis 3-5 ans,1 contrat,Oui,Oui,Oui,Excellent rapport qualité/prix
+NPS-00142,CLI-70249,2025-09-14,6,Détracteur,Client depuis 5-10 ans,4+ contrats,Non,Non,Oui,Tarifs trop élevés
+NPS-00143,CLI-83296,2025-09-08,8,Passif,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Pas de problème majeur
+NPS-00144,CLI-19835,2025-08-16,4,Détracteur,Client depuis 1-3 ans,4+ contrats,Non,Oui,Non,Trop de complications administratives
+NPS-00145,CLI-98162,2025-07-09,6,Détracteur,Client depuis < 1 an,3 contrats,Non,Non,Non,Tarifs trop élevés
+NPS-00146,CLI-55051,2025-09-17,10,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00147,CLI-93588,2025-08-19,1,Détracteur,Client depuis 3-5 ans,4+ contrats,Oui,Non,Oui,Remboursements insuffisants
+NPS-00148,CLI-20479,2025-08-04,9,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Non,Oui,Confiance totale
+NPS-00149,CLI-54827,2025-06-05,3,Détracteur,Client depuis > 10 ans,2 contrats,Oui,Oui,Oui,Remboursements insuffisants
+NPS-00150,CLI-51266,2025-06-01,8,Passif,Client depuis < 1 an,2 contrats,Non,Non,Non,Service correct mais améliorable
+NPS-00151,CLI-62293,2025-05-01,4,Détracteur,Client depuis > 10 ans,1 contrat,Non,Non,Oui,Tarifs trop élevés
+NPS-00152,CLI-16723,2025-10-12,7,Passif,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Satisfait sans plus
+NPS-00153,CLI-90366,2025-08-14,0,Détracteur,Client depuis 5-10 ans,1 contrat,Non,Non,Oui,Tarifs trop élevés
+NPS-00154,CLI-75986,2025-08-02,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Non,Remboursements rapides et sans souci
+NPS-00155,CLI-68560,2025-08-15,7,Passif,Client depuis < 1 an,1 contrat,Non,Oui,Non,Satisfait sans plus
+NPS-00156,CLI-11997,2025-06-02,10,Promoteur,Client depuis 5-10 ans,1 contrat,Non,Non,Oui,Excellent rapport qualité/prix
+NPS-00157,CLI-26089,2025-10-18,10,Promoteur,Client depuis < 1 an,1 contrat,Non,Non,Non,Conseiller toujours disponible et efficace
+NPS-00158,CLI-46988,2025-10-09,3,Détracteur,Client depuis > 10 ans,2 contrats,Non,Oui,Non,Service client décevant
+NPS-00159,CLI-98230,2025-05-15,9,Promoteur,Client depuis > 10 ans,1 contrat,Non,Oui,Oui,Conseiller toujours disponible et efficace
+NPS-00160,CLI-58290,2025-07-22,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00161,CLI-55463,2025-10-17,10,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00162,CLI-80652,2025-07-30,4,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Non,Tarifs trop élevés
+NPS-00163,CLI-10905,2025-05-10,10,Promoteur,Client depuis 5-10 ans,3 contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00164,CLI-46397,2025-06-29,6,Détracteur,Client depuis > 10 ans,2 contrats,Non,Oui,Non,Trop de complications administratives
+NPS-00165,CLI-33095,2025-06-04,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Non,Remboursements rapides et sans souci
+NPS-00166,CLI-40743,2025-06-12,7,Passif,Client depuis 1-3 ans,2 contrats,Non,Oui,Oui,Satisfait sans plus
+NPS-00167,CLI-89919,2025-06-01,9,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00168,CLI-58979,2025-09-07,10,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00169,CLI-73254,2025-09-05,9,Promoteur,Client depuis 5-10 ans,4+ contrats,Oui,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00170,CLI-84875,2025-05-18,8,Passif,Client depuis > 10 ans,1 contrat,Oui,Non,Non,Service correct mais améliorable
+NPS-00171,CLI-36270,2025-09-26,8,Passif,Client depuis < 1 an,4+ contrats,Oui,Non,Oui,Satisfait sans plus
+NPS-00172,CLI-82387,2025-06-26,9,Promoteur,Client depuis 1-3 ans,3 contrats,Oui,Non,Non,Remboursements rapides et sans souci
+NPS-00173,CLI-42766,2025-08-07,9,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Non,Oui,Service client irréprochable
+NPS-00174,CLI-38427,2025-08-26,5,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Tarifs trop élevés
+NPS-00175,CLI-72428,2025-04-22,10,Promoteur,Client depuis 1-3 ans,3 contrats,Non,Oui,Oui,Confiance totale
+NPS-00176,CLI-66416,2025-09-12,1,Détracteur,Client depuis > 10 ans,1 contrat,Non,Non,Oui,Remboursements insuffisants
+NPS-00177,CLI-35981,2025-08-26,10,Promoteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Non,Service client irréprochable
+NPS-00178,CLI-71640,2025-09-23,5,Détracteur,Client depuis 1-3 ans,4+ contrats,Oui,Oui,Non,Tarifs trop élevés
+NPS-00179,CLI-66892,2025-08-04,7,Passif,Client depuis > 10 ans,1 contrat,Non,Non,Oui,Pas de problème majeur
+NPS-00180,CLI-54317,2025-05-13,9,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00181,CLI-68355,2025-09-08,9,Promoteur,Client depuis 3-5 ans,3 contrats,Oui,Oui,Oui,Confiance totale
+NPS-00182,CLI-70430,2025-07-06,9,Promoteur,Client depuis 3-5 ans,4+ contrats,Non,Non,Oui,Confiance totale
+NPS-00183,CLI-89431,2025-09-15,4,Détracteur,Client depuis 5-10 ans,2 contrats,Oui,Oui,Non,Tarifs trop élevés
+NPS-00184,CLI-98223,2025-10-06,7,Passif,Client depuis 3-5 ans,1 contrat,Oui,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00185,CLI-76703,2025-06-26,10,Promoteur,Client depuis > 10 ans,2 contrats,Non,Oui,Oui,Excellent rapport qualité/prix
+NPS-00186,CLI-10011,2025-08-31,1,Détracteur,Client depuis 3-5 ans,4+ contrats,Non,Non,Oui,Remboursements insuffisants
+NPS-00187,CLI-49894,2025-07-15,3,Détracteur,Client depuis < 1 an,4+ contrats,Oui,Non,Oui,Trop de complications administratives
+NPS-00188,CLI-94254,2025-09-12,5,Détracteur,Client depuis 1-3 ans,2 contrats,Oui,Oui,Oui,Tarifs trop élevés
+NPS-00189,CLI-84839,2025-05-20,8,Passif,Client depuis 3-5 ans,4+ contrats,Non,Non,Non,Pas de problème majeur
+NPS-00190,CLI-11042,2025-09-29,10,Promoteur,Client depuis 3-5 ans,3 contrats,Non,Oui,Non,Service client irréprochable
+NPS-00191,CLI-87444,2025-07-15,9,Promoteur,Client depuis > 10 ans,3 contrats,Non,Oui,Non,Service client irréprochable
+NPS-00192,CLI-14613,2025-06-14,10,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00193,CLI-78832,2025-08-18,5,Détracteur,Client depuis 1-3 ans,4+ contrats,Non,Oui,Non,Trop de complications administratives
+NPS-00194,CLI-88884,2025-06-20,7,Passif,Client depuis 3-5 ans,2 contrats,Non,Oui,Non,Service correct mais améliorable
+NPS-00195,CLI-20744,2025-07-18,8,Passif,Client depuis 5-10 ans,4+ contrats,Non,Oui,Oui,Pas de problème majeur
+NPS-00196,CLI-19592,2025-07-29,10,Promoteur,Client depuis < 1 an,2 contrats,Oui,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00197,CLI-53223,2025-09-25,7,Passif,Client depuis 3-5 ans,4+ contrats,Oui,Oui,Non,Service correct mais améliorable
+NPS-00198,CLI-57490,2025-08-02,9,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00199,CLI-43829,2025-07-11,8,Passif,Client depuis 3-5 ans,3 contrats,Oui,Oui,Oui,Satisfait sans plus
+NPS-00200,CLI-71118,2025-05-28,10,Promoteur,Client depuis 1-3 ans,4+ contrats,Non,Oui,Oui,Excellent rapport qualité/prix
+NPS-00201,CLI-39561,2025-04-25,5,Détracteur,Client depuis 5-10 ans,3 contrats,Oui,Oui,Oui,Service client décevant
+NPS-00202,CLI-75783,2025-06-17,9,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Non,Non,Remboursements rapides et sans souci
+NPS-00203,CLI-88165,2025-09-20,5,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Service client décevant
+NPS-00204,CLI-60240,2025-05-16,10,Promoteur,Client depuis > 10 ans,1 contrat,Non,Non,Non,Confiance totale
+NPS-00205,CLI-49141,2025-07-03,9,Promoteur,Client depuis 1-3 ans,3 contrats,Non,Non,Non,Confiance totale
+NPS-00206,CLI-99485,2025-05-09,4,Détracteur,Client depuis 3-5 ans,3 contrats,Oui,Non,Non,Remboursements insuffisants
+NPS-00207,CLI-34971,2025-07-25,9,Promoteur,Client depuis 3-5 ans,1 contrat,Oui,Oui,Oui,Excellent rapport qualité/prix
+NPS-00208,CLI-86969,2025-05-19,10,Promoteur,Client depuis 3-5 ans,1 contrat,Non,Non,Non,Conseiller toujours disponible et efficace
+NPS-00209,CLI-88067,2025-10-06,2,Détracteur,Client depuis < 1 an,4+ contrats,Oui,Oui,Oui,Trop de complications administratives
+NPS-00210,CLI-36655,2025-08-03,4,Détracteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Oui,Trop de complications administratives
+NPS-00211,CLI-85923,2025-08-20,6,Détracteur,Client depuis 1-3 ans,1 contrat,Oui,Non,Non,Manque de transparence
+NPS-00212,CLI-89045,2025-08-20,6,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Oui,Oui,Manque de transparence
+NPS-00213,CLI-11986,2025-06-22,10,Promoteur,Client depuis 5-10 ans,1 contrat,Oui,Oui,Oui,Remboursements rapides et sans souci
+NPS-00214,CLI-96531,2025-07-27,4,Détracteur,Client depuis 3-5 ans,4+ contrats,Non,Non,Non,Service client décevant
+NPS-00215,CLI-68855,2025-07-12,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Oui,Service client irréprochable
+NPS-00216,CLI-17382,2025-08-29,6,Détracteur,Client depuis 3-5 ans,3 contrats,Oui,Oui,Oui,Tarifs trop élevés
+NPS-00217,CLI-14853,2025-08-30,7,Passif,Client depuis 1-3 ans,3 contrats,Oui,Oui,Non,Prix corrects mais pas les meilleurs
+NPS-00218,CLI-45374,2025-06-30,7,Passif,Client depuis 5-10 ans,3 contrats,Non,Oui,Non,Service correct mais améliorable
+NPS-00219,CLI-77205,2025-10-05,8,Passif,Client depuis 3-5 ans,3 contrats,Non,Oui,Non,Service correct mais améliorable
+NPS-00220,CLI-14545,2025-05-01,8,Passif,Client depuis 3-5 ans,1 contrat,Oui,Non,Non,Satisfait sans plus
+NPS-00221,CLI-98385,2025-08-19,9,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00222,CLI-98059,2025-06-27,8,Passif,Client depuis > 10 ans,3 contrats,Non,Non,Oui,Satisfait sans plus
+NPS-00223,CLI-60130,2025-07-05,10,Promoteur,Client depuis > 10 ans,3 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00224,CLI-34429,2025-06-24,3,Détracteur,Client depuis 5-10 ans,2 contrats,Non,Oui,Non,Manque de transparence
+NPS-00225,CLI-32327,2025-08-28,8,Passif,Client depuis > 10 ans,1 contrat,Oui,Oui,Oui,Satisfait sans plus
+NPS-00226,CLI-52389,2025-07-20,9,Promoteur,Client depuis > 10 ans,2 contrats,Oui,Non,Non,Service client irréprochable
+NPS-00227,CLI-32744,2025-09-05,9,Promoteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Non,Service client irréprochable
+NPS-00228,CLI-94827,2025-10-17,10,Promoteur,Client depuis < 1 an,3 contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00229,CLI-38494,2025-07-12,6,Détracteur,Client depuis > 10 ans,3 contrats,Non,Oui,Oui,Manque de transparence
+NPS-00230,CLI-17073,2025-10-12,10,Promoteur,Client depuis > 10 ans,3 contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00231,CLI-88740,2025-06-27,9,Promoteur,Client depuis 5-10 ans,4+ contrats,Oui,Oui,Oui,Conseiller toujours disponible et efficace
+NPS-00232,CLI-95043,2025-09-26,10,Promoteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00233,CLI-92281,2025-09-12,5,Détracteur,Client depuis 1-3 ans,1 contrat,Non,Oui,Oui,Trop de complications administratives
+NPS-00234,CLI-70039,2025-05-17,4,Détracteur,Client depuis > 10 ans,3 contrats,Non,Non,Non,Manque de transparence
+NPS-00235,CLI-31129,2025-10-06,9,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Oui,Non,Remboursements rapides et sans souci
+NPS-00236,CLI-43671,2025-05-15,8,Passif,Client depuis > 10 ans,4+ contrats,Oui,Oui,Oui,Service correct mais améliorable
+NPS-00237,CLI-20206,2025-07-27,10,Promoteur,Client depuis < 1 an,3 contrats,Oui,Oui,Oui,Confiance totale
+NPS-00238,CLI-61970,2025-05-21,9,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Non,Oui,Remboursements rapides et sans souci
+NPS-00239,CLI-97043,2025-10-01,0,Détracteur,Client depuis 3-5 ans,4+ contrats,Non,Oui,Oui,Trop de complications administratives
+NPS-00240,CLI-95611,2025-06-08,9,Promoteur,Client depuis 1-3 ans,3 contrats,Oui,Oui,Oui,Remboursements rapides et sans souci
+NPS-00241,CLI-52446,2025-06-10,5,Détracteur,Client depuis 1-3 ans,2 contrats,Oui,Oui,Non,Manque de transparence
+NPS-00242,CLI-37942,2025-05-01,6,Détracteur,Client depuis 3-5 ans,4+ contrats,Non,Oui,Oui,Service client décevant
+NPS-00243,CLI-90104,2025-09-08,9,Promoteur,Client depuis 3-5 ans,3 contrats,Non,Oui,Oui,Excellent rapport qualité/prix
+NPS-00244,CLI-92447,2025-10-10,5,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Oui,Oui,Service client décevant
+NPS-00245,CLI-69731,2025-07-23,9,Promoteur,Client depuis 5-10 ans,4+ contrats,Non,Oui,Oui,Remboursements rapides et sans souci
+NPS-00246,CLI-87852,2025-10-02,5,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Non,Oui,Remboursements insuffisants
+NPS-00247,CLI-18065,2025-07-31,8,Passif,Client depuis < 1 an,2 contrats,Oui,Oui,Oui,Pas de problème majeur
+NPS-00248,CLI-59139,2025-10-12,10,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00249,CLI-13449,2025-08-24,3,Détracteur,Client depuis < 1 an,2 contrats,Non,Oui,Oui,Trop de complications administratives
+NPS-00250,CLI-43392,2025-10-03,7,Passif,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00251,CLI-88841,2025-07-16,7,Passif,Client depuis 5-10 ans,3 contrats,Oui,Oui,Non,Prix corrects mais pas les meilleurs
+NPS-00252,CLI-75807,2025-09-24,9,Promoteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Non,Service client irréprochable
+NPS-00253,CLI-76583,2025-09-06,3,Détracteur,Client depuis < 1 an,3 contrats,Oui,Oui,Non,Service client décevant
+NPS-00254,CLI-57920,2025-06-10,10,Promoteur,Client depuis 3-5 ans,1 contrat,Non,Non,Non,Confiance totale
+NPS-00255,CLI-23235,2025-06-24,4,Détracteur,Client depuis 5-10 ans,2 contrats,Oui,Oui,Non,Manque de transparence
+NPS-00256,CLI-86895,2025-10-17,9,Promoteur,Client depuis 3-5 ans,3 contrats,Oui,Oui,Non,Service client irréprochable
+NPS-00257,CLI-54816,2025-06-29,1,Détracteur,Client depuis < 1 an,2 contrats,Non,Oui,Non,Tarifs trop élevés
+NPS-00258,CLI-65019,2025-09-20,9,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00259,CLI-37164,2025-07-14,9,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Non,Non,Conseiller toujours disponible et efficace
+NPS-00260,CLI-51623,2025-10-13,9,Promoteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Non,Service client irréprochable
+NPS-00261,CLI-95591,2025-08-15,9,Promoteur,Client depuis > 10 ans,1 contrat,Oui,Non,Oui,Remboursements rapides et sans souci
+NPS-00262,CLI-77773,2025-06-10,9,Promoteur,Client depuis < 1 an,2 contrats,Oui,Non,Oui,Remboursements rapides et sans souci
+NPS-00263,CLI-61107,2025-06-11,4,Détracteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Non,Remboursements insuffisants
+NPS-00264,CLI-34824,2025-08-15,5,Détracteur,Client depuis < 1 an,2 contrats,Non,Non,Oui,Trop de complications administratives
+NPS-00265,CLI-42631,2025-05-13,5,Détracteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Non,Service client décevant
+NPS-00266,CLI-45495,2025-06-06,3,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Oui,Oui,Service client décevant
+NPS-00267,CLI-19662,2025-06-16,10,Promoteur,Client depuis > 10 ans,4+ contrats,Oui,Non,Oui,Confiance totale
+NPS-00268,CLI-26902,2025-10-06,2,Détracteur,Client depuis < 1 an,3 contrats,Non,Non,Oui,Manque de transparence
+NPS-00269,CLI-92353,2025-07-19,5,Détracteur,Client depuis 5-10 ans,2 contrats,Oui,Oui,Oui,Manque de transparence
+NPS-00270,CLI-62575,2025-04-22,4,Détracteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Oui,Service client décevant
+NPS-00271,CLI-93460,2025-05-25,10,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Oui,Oui,Conseiller toujours disponible et efficace
+NPS-00272,CLI-95748,2025-09-15,9,Promoteur,Client depuis 3-5 ans,1 contrat,Non,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00273,CLI-50899,2025-07-06,7,Passif,Client depuis 1-3 ans,3 contrats,Oui,Oui,Non,Prix corrects mais pas les meilleurs
+NPS-00274,CLI-90465,2025-05-10,9,Promoteur,Client depuis 3-5 ans,4+ contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00275,CLI-73903,2025-04-28,4,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Manque de transparence
+NPS-00276,CLI-17508,2025-07-06,10,Promoteur,Client depuis > 10 ans,3 contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00277,CLI-52928,2025-08-09,10,Promoteur,Client depuis > 10 ans,4+ contrats,Oui,Non,Non,Confiance totale
+NPS-00278,CLI-93356,2025-04-23,9,Promoteur,Client depuis 5-10 ans,4+ contrats,Non,Oui,Non,Confiance totale
+NPS-00279,CLI-27525,2025-07-27,8,Passif,Client depuis 5-10 ans,4+ contrats,Oui,Oui,Oui,Satisfait sans plus
+NPS-00280,CLI-70210,2025-06-11,10,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Non,Non,Service client irréprochable
+NPS-00281,CLI-71626,2025-04-25,1,Détracteur,Client depuis < 1 an,1 contrat,Non,Non,Oui,Manque de transparence
+NPS-00282,CLI-87109,2025-05-11,10,Promoteur,Client depuis 3-5 ans,3 contrats,Oui,Oui,Oui,Service client irréprochable
+NPS-00283,CLI-84347,2025-05-03,7,Passif,Client depuis 3-5 ans,2 contrats,Oui,Non,Non,Pas de problème majeur
+NPS-00284,CLI-74213,2025-05-17,9,Promoteur,Client depuis 1-3 ans,1 contrat,Non,Non,Oui,Remboursements rapides et sans souci
+NPS-00285,CLI-15165,2025-10-08,9,Promoteur,Client depuis 3-5 ans,4+ contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00286,CLI-70290,2025-06-17,6,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Non,Remboursements insuffisants
+NPS-00287,CLI-42612,2025-05-04,9,Promoteur,Client depuis < 1 an,1 contrat,Non,Non,Oui,Remboursements rapides et sans souci
+NPS-00288,CLI-19802,2025-06-13,9,Promoteur,Client depuis < 1 an,1 contrat,Oui,Non,Non,Service client irréprochable
+NPS-00289,CLI-34307,2025-05-04,6,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Oui,Non,Tarifs trop élevés
+NPS-00290,CLI-85424,2025-06-30,7,Passif,Client depuis 5-10 ans,3 contrats,Non,Oui,Non,Satisfait sans plus
+NPS-00291,CLI-67506,2025-05-09,3,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Non,Oui,Trop de complications administratives
+NPS-00292,CLI-49724,2025-05-02,3,Détracteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Oui,Manque de transparence
+NPS-00293,CLI-21200,2025-07-29,6,Détracteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Non,Service client décevant
+NPS-00294,CLI-40658,2025-07-13,6,Détracteur,Client depuis 1-3 ans,3 contrats,Oui,Oui,Oui,Trop de complications administratives
+NPS-00295,CLI-37499,2025-07-01,10,Promoteur,Client depuis < 1 an,2 contrats,Oui,Non,Non,Conseiller toujours disponible et efficace
+NPS-00296,CLI-96586,2025-07-27,9,Promoteur,Client depuis > 10 ans,2 contrats,Oui,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00297,CLI-61252,2025-05-11,9,Promoteur,Client depuis < 1 an,1 contrat,Oui,Non,Oui,Confiance totale
+NPS-00298,CLI-42398,2025-07-02,10,Promoteur,Client depuis < 1 an,2 contrats,Oui,Oui,Non,Confiance totale
+NPS-00299,CLI-39081,2025-06-24,4,Détracteur,Client depuis 5-10 ans,3 contrats,Non,Non,Oui,Remboursements insuffisants
+NPS-00300,CLI-18002,2025-10-13,9,Promoteur,Client depuis 3-5 ans,3 contrats,Non,Non,Non,Service client irréprochable
+NPS-00301,CLI-99716,2025-04-24,7,Passif,Client depuis > 10 ans,4+ contrats,Oui,Non,Oui,Satisfait sans plus
+NPS-00302,CLI-51930,2025-08-24,9,Promoteur,Client depuis < 1 an,3 contrats,Non,Non,Non,Excellent rapport qualité/prix
+NPS-00303,CLI-94850,2025-10-06,10,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00304,CLI-37977,2025-07-09,10,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00305,CLI-10026,2025-07-25,3,Détracteur,Client depuis 5-10 ans,4+ contrats,Non,Oui,Non,Tarifs trop élevés
+NPS-00306,CLI-33572,2025-07-24,9,Promoteur,Client depuis 3-5 ans,1 contrat,Non,Non,Non,Service client irréprochable
+NPS-00307,CLI-37420,2025-05-03,9,Promoteur,Client depuis < 1 an,1 contrat,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00308,CLI-93924,2025-09-28,8,Passif,Client depuis 1-3 ans,1 contrat,Non,Oui,Non,Service correct mais améliorable
+NPS-00309,CLI-26915,2025-06-10,8,Passif,Client depuis < 1 an,1 contrat,Non,Oui,Non,Pas de problème majeur
+NPS-00310,CLI-81714,2025-05-18,3,Détracteur,Client depuis 5-10 ans,3 contrats,Non,Oui,Non,Remboursements insuffisants
+NPS-00311,CLI-38008,2025-09-25,3,Détracteur,Client depuis < 1 an,2 contrats,Non,Oui,Oui,Trop de complications administratives
+NPS-00312,CLI-36479,2025-06-27,1,Détracteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Oui,Manque de transparence
+NPS-00313,CLI-69007,2025-08-27,9,Promoteur,Client depuis > 10 ans,1 contrat,Oui,Non,Non,Conseiller toujours disponible et efficace
+NPS-00314,CLI-31484,2025-06-25,10,Promoteur,Client depuis 1-3 ans,4+ contrats,Non,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00315,CLI-86235,2025-09-07,8,Passif,Client depuis 1-3 ans,1 contrat,Oui,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00316,CLI-93253,2025-07-11,9,Promoteur,Client depuis > 10 ans,4+ contrats,Oui,Non,Non,Service client irréprochable
+NPS-00317,CLI-25325,2025-06-01,6,Détracteur,Client depuis < 1 an,4+ contrats,Non,Oui,Non,Tarifs trop élevés
+NPS-00318,CLI-53458,2025-09-28,7,Passif,Client depuis < 1 an,4+ contrats,Non,Non,Non,Service correct mais améliorable
+NPS-00319,CLI-91110,2025-07-28,6,Détracteur,Client depuis > 10 ans,2 contrats,Non,Oui,Oui,Manque de transparence
+NPS-00320,CLI-54042,2025-06-13,1,Détracteur,Client depuis < 1 an,4+ contrats,Oui,Oui,Non,Remboursements insuffisants
+NPS-00321,CLI-76037,2025-05-29,8,Passif,Client depuis 5-10 ans,3 contrats,Oui,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00322,CLI-63781,2025-07-08,9,Promoteur,Client depuis 5-10 ans,3 contrats,Non,Oui,Oui,Confiance totale
+NPS-00323,CLI-71884,2025-05-04,3,Détracteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Non,Trop de complications administratives
+NPS-00324,CLI-61383,2025-06-13,1,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Non,Non,Trop de complications administratives
+NPS-00325,CLI-88980,2025-05-01,10,Promoteur,Client depuis 5-10 ans,1 contrat,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00326,CLI-49051,2025-08-26,5,Détracteur,Client depuis < 1 an,3 contrats,Non,Oui,Oui,Tarifs trop élevés
+NPS-00327,CLI-27568,2025-07-26,6,Détracteur,Client depuis 5-10 ans,1 contrat,Non,Non,Oui,Tarifs trop élevés
+NPS-00328,CLI-60262,2025-08-23,4,Détracteur,Client depuis < 1 an,2 contrats,Oui,Oui,Non,Manque de transparence
+NPS-00329,CLI-35171,2025-07-17,6,Détracteur,Client depuis 5-10 ans,4+ contrats,Oui,Oui,Non,Trop de complications administratives
+NPS-00330,CLI-63477,2025-06-25,8,Passif,Client depuis 5-10 ans,1 contrat,Non,Non,Oui,Satisfait sans plus
+NPS-00331,CLI-30667,2025-05-24,8,Passif,Client depuis 3-5 ans,3 contrats,Oui,Oui,Non,Pas de problème majeur
+NPS-00332,CLI-33359,2025-04-25,6,Détracteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Oui,Service client décevant
+NPS-00333,CLI-62472,2025-08-27,8,Passif,Client depuis 3-5 ans,3 contrats,Non,Non,Oui,Satisfait sans plus
+NPS-00334,CLI-71394,2025-10-05,10,Promoteur,Client depuis < 1 an,2 contrats,Non,Non,Non,Excellent rapport qualité/prix
+NPS-00335,CLI-81771,2025-09-04,10,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Oui,Oui,Remboursements rapides et sans souci
+NPS-00336,CLI-59205,2025-05-31,7,Passif,Client depuis < 1 an,2 contrats,Oui,Oui,Oui,Satisfait sans plus
+NPS-00337,CLI-34329,2025-08-21,8,Passif,Client depuis > 10 ans,2 contrats,Non,Non,Oui,Satisfait sans plus
+NPS-00338,CLI-51020,2025-08-13,4,Détracteur,Client depuis < 1 an,4+ contrats,Non,Non,Oui,Trop de complications administratives
+NPS-00339,CLI-43933,2025-07-24,10,Promoteur,Client depuis > 10 ans,2 contrats,Non,Oui,Oui,Excellent rapport qualité/prix
+NPS-00340,CLI-21105,2025-04-25,9,Promoteur,Client depuis 1-3 ans,3 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00341,CLI-74456,2025-08-27,6,Détracteur,Client depuis 1-3 ans,3 contrats,Oui,Oui,Non,Remboursements insuffisants
+NPS-00342,CLI-34759,2025-09-15,8,Passif,Client depuis 5-10 ans,3 contrats,Oui,Non,Oui,Service correct mais améliorable
+NPS-00343,CLI-87967,2025-09-08,7,Passif,Client depuis 5-10 ans,2 contrats,Oui,Oui,Non,Pas de problème majeur
+NPS-00344,CLI-94951,2025-08-20,9,Promoteur,Client depuis < 1 an,3 contrats,Oui,Non,Oui,Confiance totale
+NPS-00345,CLI-39751,2025-10-05,6,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Non,Non,Trop de complications administratives
+NPS-00346,CLI-96676,2025-05-07,10,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Non,Remboursements rapides et sans souci
+NPS-00347,CLI-80780,2025-09-05,0,Détracteur,Client depuis > 10 ans,3 contrats,Non,Oui,Non,Service client décevant
+NPS-00348,CLI-87897,2025-05-28,6,Détracteur,Client depuis > 10 ans,2 contrats,Non,Non,Non,Manque de transparence
+NPS-00349,CLI-79039,2025-05-22,8,Passif,Client depuis 3-5 ans,2 contrats,Non,Oui,Oui,Satisfait sans plus
+NPS-00350,CLI-31691,2025-09-20,9,Promoteur,Client depuis > 10 ans,1 contrat,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00351,CLI-68965,2025-04-25,9,Promoteur,Client depuis 1-3 ans,3 contrats,Oui,Oui,Non,Service client irréprochable
+NPS-00352,CLI-58044,2025-06-28,6,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Oui,Non,Trop de complications administratives
+NPS-00353,CLI-53359,2025-09-08,9,Promoteur,Client depuis > 10 ans,2 contrats,Oui,Non,Non,Service client irréprochable
+NPS-00354,CLI-50598,2025-07-07,10,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Oui,Non,Excellent rapport qualité/prix
+NPS-00355,CLI-87837,2025-05-14,2,Détracteur,Client depuis 5-10 ans,2 contrats,Non,Non,Oui,Trop de complications administratives
+NPS-00356,CLI-94198,2025-08-09,9,Promoteur,Client depuis < 1 an,4+ contrats,Non,Non,Non,Service client irréprochable
+NPS-00357,CLI-98525,2025-04-21,4,Détracteur,Client depuis < 1 an,3 contrats,Oui,Non,Non,Remboursements insuffisants
+NPS-00358,CLI-50294,2025-07-10,7,Passif,Client depuis > 10 ans,3 contrats,Non,Non,Non,Pas de problème majeur
+NPS-00359,CLI-64574,2025-05-06,9,Promoteur,Client depuis < 1 an,4+ contrats,Oui,Oui,Oui,Remboursements rapides et sans souci
+NPS-00360,CLI-44471,2025-09-02,10,Promoteur,Client depuis > 10 ans,3 contrats,Non,Non,Non,Excellent rapport qualité/prix
+NPS-00361,CLI-36051,2025-08-15,8,Passif,Client depuis < 1 an,2 contrats,Oui,Non,Oui,Satisfait sans plus
+NPS-00362,CLI-25636,2025-10-11,3,Détracteur,Client depuis < 1 an,1 contrat,Oui,Non,Non,Service client décevant
+NPS-00363,CLI-97055,2025-05-29,3,Détracteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Non,Trop de complications administratives
+NPS-00364,CLI-56632,2025-06-10,7,Passif,Client depuis 1-3 ans,1 contrat,Non,Oui,Oui,Pas de problème majeur
+NPS-00365,CLI-83894,2025-08-10,2,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Non,Non,Trop de complications administratives
+NPS-00366,CLI-61754,2025-05-26,10,Promoteur,Client depuis < 1 an,2 contrats,Oui,Non,Oui,Remboursements rapides et sans souci
+NPS-00367,CLI-35942,2025-08-04,8,Passif,Client depuis 1-3 ans,3 contrats,Non,Oui,Oui,Prix corrects mais pas les meilleurs
+NPS-00368,CLI-45382,2025-05-10,10,Promoteur,Client depuis > 10 ans,4+ contrats,Non,Non,Oui,Service client irréprochable
+NPS-00369,CLI-63313,2025-05-01,9,Promoteur,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Confiance totale
+NPS-00370,CLI-69247,2025-08-25,9,Promoteur,Client depuis 5-10 ans,1 contrat,Oui,Non,Oui,Remboursements rapides et sans souci
+NPS-00371,CLI-94473,2025-07-24,6,Détracteur,Client depuis < 1 an,4+ contrats,Oui,Oui,Oui,Remboursements insuffisants
+NPS-00372,CLI-22086,2025-08-24,10,Promoteur,Client depuis 3-5 ans,3 contrats,Oui,Non,Oui,Service client irréprochable
+NPS-00373,CLI-63360,2025-08-02,10,Promoteur,Client depuis 1-3 ans,2 contrats,Non,Oui,Oui,Conseiller toujours disponible et efficace
+NPS-00374,CLI-55205,2025-07-26,7,Passif,Client depuis < 1 an,1 contrat,Non,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00375,CLI-99362,2025-04-22,8,Passif,Client depuis 5-10 ans,4+ contrats,Oui,Non,Oui,Service correct mais améliorable
+NPS-00376,CLI-32446,2025-06-29,9,Promoteur,Client depuis < 1 an,2 contrats,Non,Non,Non,Excellent rapport qualité/prix
+NPS-00377,CLI-10716,2025-06-20,5,Détracteur,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Manque de transparence
+NPS-00378,CLI-56893,2025-07-05,10,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Oui,Non,Confiance totale
+NPS-00379,CLI-37567,2025-07-31,7,Passif,Client depuis 3-5 ans,4+ contrats,Non,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00380,CLI-37282,2025-07-20,10,Promoteur,Client depuis 1-3 ans,3 contrats,Non,Non,Non,Conseiller toujours disponible et efficace
+NPS-00381,CLI-90737,2025-08-05,9,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Oui,Non,Excellent rapport qualité/prix
+NPS-00382,CLI-37762,2025-09-30,7,Passif,Client depuis 1-3 ans,2 contrats,Non,Oui,Non,Service correct mais améliorable
+NPS-00383,CLI-63253,2025-04-28,9,Promoteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00384,CLI-85744,2025-09-01,4,Détracteur,Client depuis > 10 ans,2 contrats,Oui,Oui,Non,Manque de transparence
+NPS-00385,CLI-37346,2025-10-12,5,Détracteur,Client depuis < 1 an,4+ contrats,Oui,Non,Oui,Trop de complications administratives
+NPS-00386,CLI-57445,2025-09-09,10,Promoteur,Client depuis < 1 an,3 contrats,Non,Oui,Oui,Confiance totale
+NPS-00387,CLI-73947,2025-05-21,10,Promoteur,Client depuis 1-3 ans,3 contrats,Oui,Non,Non,Confiance totale
+NPS-00388,CLI-26755,2025-05-22,2,Détracteur,Client depuis 3-5 ans,1 contrat,Non,Non,Non,Service client décevant
+NPS-00389,CLI-32105,2025-09-24,3,Détracteur,Client depuis 3-5 ans,2 contrats,Oui,Oui,Oui,Manque de transparence
+NPS-00390,CLI-67929,2025-07-03,10,Promoteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00391,CLI-83678,2025-05-02,4,Détracteur,Client depuis 3-5 ans,3 contrats,Oui,Oui,Non,Remboursements insuffisants
+NPS-00392,CLI-23389,2025-10-07,2,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Trop de complications administratives
+NPS-00393,CLI-99112,2025-08-26,8,Passif,Client depuis > 10 ans,2 contrats,Non,Non,Oui,Service correct mais améliorable
+NPS-00394,CLI-33246,2025-04-29,6,Détracteur,Client depuis 1-3 ans,3 contrats,Oui,Oui,Non,Tarifs trop élevés
+NPS-00395,CLI-89835,2025-09-24,0,Détracteur,Client depuis 3-5 ans,1 contrat,Oui,Oui,Non,Service client décevant
+NPS-00396,CLI-13803,2025-08-05,1,Détracteur,Client depuis 3-5 ans,2 contrats,Oui,Oui,Non,Service client décevant
+NPS-00397,CLI-94155,2025-08-27,8,Passif,Client depuis 5-10 ans,3 contrats,Non,Oui,Oui,Service correct mais améliorable
+NPS-00398,CLI-10289,2025-05-23,9,Promoteur,Client depuis 1-3 ans,1 contrat,Non,Oui,Oui,Remboursements rapides et sans souci
+NPS-00399,CLI-76305,2025-06-06,9,Promoteur,Client depuis 5-10 ans,2 contrats,Oui,Non,Non,Service client irréprochable
+NPS-00400,CLI-37881,2025-07-14,8,Passif,Client depuis > 10 ans,3 contrats,Oui,Oui,Non,Service correct mais améliorable
+NPS-00401,CLI-43651,2025-08-16,2,Détracteur,Client depuis < 1 an,1 contrat,Oui,Non,Oui,Tarifs trop élevés
+NPS-00402,CLI-67483,2025-04-25,10,Promoteur,Client depuis < 1 an,2 contrats,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00403,CLI-59964,2025-08-02,10,Promoteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Oui,Service client irréprochable
+NPS-00404,CLI-37565,2025-09-07,7,Passif,Client depuis 5-10 ans,1 contrat,Oui,Non,Non,Service correct mais améliorable
+NPS-00405,CLI-30740,2025-09-20,7,Passif,Client depuis 1-3 ans,1 contrat,Oui,Oui,Oui,Service correct mais améliorable
+NPS-00406,CLI-43434,2025-08-12,9,Promoteur,Client depuis 3-5 ans,3 contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00407,CLI-97199,2025-07-12,9,Promoteur,Client depuis < 1 an,4+ contrats,Non,Oui,Non,Service client irréprochable
+NPS-00408,CLI-29327,2025-10-01,8,Passif,Client depuis > 10 ans,2 contrats,Oui,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00409,CLI-51401,2025-08-24,1,Détracteur,Client depuis > 10 ans,2 contrats,Non,Oui,Non,Manque de transparence
+NPS-00410,CLI-35363,2025-07-22,9,Promoteur,Client depuis 5-10 ans,3 contrats,Non,Oui,Non,Remboursements rapides et sans souci
+NPS-00411,CLI-24339,2025-06-06,4,Détracteur,Client depuis 3-5 ans,3 contrats,Oui,Oui,Non,Service client décevant
+NPS-00412,CLI-97626,2025-08-28,7,Passif,Client depuis < 1 an,2 contrats,Non,Non,Oui,Satisfait sans plus
+NPS-00413,CLI-30389,2025-09-28,2,Détracteur,Client depuis 3-5 ans,4+ contrats,Non,Oui,Non,Remboursements insuffisants
+NPS-00414,CLI-43403,2025-06-17,4,Détracteur,Client depuis 5-10 ans,2 contrats,Non,Non,Oui,Remboursements insuffisants
+NPS-00415,CLI-76002,2025-08-29,6,Détracteur,Client depuis 5-10 ans,3 contrats,Non,Non,Non,Service client décevant
+NPS-00416,CLI-73041,2025-05-06,10,Promoteur,Client depuis 5-10 ans,4+ contrats,Oui,Oui,Non,Excellent rapport qualité/prix
+NPS-00417,CLI-50595,2025-09-25,0,Détracteur,Client depuis > 10 ans,2 contrats,Non,Oui,Oui,Remboursements insuffisants
+NPS-00418,CLI-38664,2025-06-25,10,Promoteur,Client depuis > 10 ans,2 contrats,Non,Non,Non,Conseiller toujours disponible et efficace
+NPS-00419,CLI-36550,2025-08-29,10,Promoteur,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00420,CLI-10020,2025-09-29,8,Passif,Client depuis 3-5 ans,3 contrats,Non,Oui,Non,Satisfait sans plus
+NPS-00421,CLI-47867,2025-07-19,8,Passif,Client depuis < 1 an,2 contrats,Non,Oui,Non,Service correct mais améliorable
+NPS-00422,CLI-97752,2025-08-14,1,Détracteur,Client depuis 5-10 ans,3 contrats,Oui,Oui,Oui,Service client décevant
+NPS-00423,CLI-22804,2025-06-10,8,Passif,Client depuis > 10 ans,2 contrats,Oui,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00424,CLI-47892,2025-05-31,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Non,Non,Oui,Excellent rapport qualité/prix
+NPS-00425,CLI-63912,2025-07-10,7,Passif,Client depuis < 1 an,2 contrats,Non,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00426,CLI-96544,2025-07-22,10,Promoteur,Client depuis > 10 ans,4+ contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00427,CLI-37277,2025-05-11,8,Passif,Client depuis 1-3 ans,2 contrats,Oui,Non,Oui,Pas de problème majeur
+NPS-00428,CLI-35736,2025-09-29,10,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Oui,Non,Excellent rapport qualité/prix
+NPS-00429,CLI-76185,2025-09-20,8,Passif,Client depuis 1-3 ans,3 contrats,Oui,Non,Oui,Prix corrects mais pas les meilleurs
+NPS-00430,CLI-76979,2025-08-08,5,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Oui,Non,Service client décevant
+NPS-00431,CLI-82475,2025-05-06,5,Détracteur,Client depuis > 10 ans,3 contrats,Non,Oui,Non,Manque de transparence
+NPS-00432,CLI-19962,2025-06-25,0,Détracteur,Client depuis < 1 an,2 contrats,Non,Oui,Non,Tarifs trop élevés
+NPS-00433,CLI-24400,2025-06-26,9,Promoteur,Client depuis 5-10 ans,4+ contrats,Non,Non,Non,Excellent rapport qualité/prix
+NPS-00434,CLI-83165,2025-10-08,8,Passif,Client depuis 5-10 ans,1 contrat,Non,Oui,Non,Satisfait sans plus
+NPS-00435,CLI-72523,2025-08-12,8,Passif,Client depuis 1-3 ans,3 contrats,Non,Oui,Non,Pas de problème majeur
+NPS-00436,CLI-12919,2025-06-10,9,Promoteur,Client depuis 5-10 ans,3 contrats,Non,Oui,Oui,Remboursements rapides et sans souci
+NPS-00437,CLI-89119,2025-09-10,8,Passif,Client depuis 5-10 ans,1 contrat,Non,Oui,Oui,Satisfait sans plus
+NPS-00438,CLI-42586,2025-09-03,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Oui,Confiance totale
+NPS-00439,CLI-46047,2025-06-13,3,Détracteur,Client depuis 1-3 ans,4+ contrats,Non,Non,Oui,Tarifs trop élevés
+NPS-00440,CLI-95657,2025-06-25,8,Passif,Client depuis < 1 an,3 contrats,Oui,Non,Non,Service correct mais améliorable
+NPS-00441,CLI-50700,2025-10-17,9,Promoteur,Client depuis 1-3 ans,3 contrats,Oui,Oui,Oui,Service client irréprochable
+NPS-00442,CLI-98478,2025-05-15,6,Détracteur,Client depuis 1-3 ans,4+ contrats,Non,Oui,Non,Trop de complications administratives
+NPS-00443,CLI-47778,2025-07-12,9,Promoteur,Client depuis > 10 ans,2 contrats,Non,Oui,Non,Confiance totale
+NPS-00444,CLI-16434,2025-07-29,5,Détracteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Oui,Remboursements insuffisants
+NPS-00445,CLI-25246,2025-10-06,3,Détracteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Non,Manque de transparence
+NPS-00446,CLI-83282,2025-10-11,9,Promoteur,Client depuis < 1 an,3 contrats,Non,Oui,Oui,Service client irréprochable
+NPS-00447,CLI-21531,2025-06-13,9,Promoteur,Client depuis 3-5 ans,2 contrats,Oui,Non,Oui,Remboursements rapides et sans souci
+NPS-00448,CLI-70443,2025-10-08,10,Promoteur,Client depuis < 1 an,1 contrat,Oui,Oui,Oui,Confiance totale
+NPS-00449,CLI-69020,2025-06-08,2,Détracteur,Client depuis 3-5 ans,3 contrats,Non,Oui,Oui,Tarifs trop élevés
+NPS-00450,CLI-98710,2025-08-23,7,Passif,Client depuis 1-3 ans,4+ contrats,Non,Non,Non,Service correct mais améliorable
+NPS-00451,CLI-16598,2025-04-21,9,Promoteur,Client depuis 1-3 ans,1 contrat,Oui,Oui,Non,Remboursements rapides et sans souci
+NPS-00452,CLI-49850,2025-09-01,0,Détracteur,Client depuis > 10 ans,2 contrats,Non,Non,Oui,Tarifs trop élevés
+NPS-00453,CLI-34574,2025-08-28,8,Passif,Client depuis < 1 an,3 contrats,Non,Non,Non,Prix corrects mais pas les meilleurs
+NPS-00454,CLI-91406,2025-09-07,1,Détracteur,Client depuis 1-3 ans,1 contrat,Oui,Non,Oui,Manque de transparence
+NPS-00455,CLI-29611,2025-07-06,4,Détracteur,Client depuis 3-5 ans,4+ contrats,Oui,Non,Oui,Tarifs trop élevés
+NPS-00456,CLI-37202,2025-08-18,10,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Non,Service client irréprochable
+NPS-00457,CLI-90554,2025-09-03,8,Passif,Client depuis > 10 ans,4+ contrats,Oui,Non,Non,Satisfait sans plus
+NPS-00458,CLI-69269,2025-07-18,8,Passif,Client depuis 1-3 ans,3 contrats,Oui,Non,Non,Satisfait sans plus
+NPS-00459,CLI-42979,2025-07-19,7,Passif,Client depuis > 10 ans,2 contrats,Oui,Oui,Non,Pas de problème majeur
+NPS-00460,CLI-96088,2025-05-03,8,Passif,Client depuis 3-5 ans,3 contrats,Oui,Oui,Oui,Prix corrects mais pas les meilleurs
+NPS-00461,CLI-47291,2025-05-02,10,Promoteur,Client depuis 1-3 ans,1 contrat,Non,Non,Non,Service client irréprochable
+NPS-00462,CLI-76632,2025-06-08,6,Détracteur,Client depuis < 1 an,1 contrat,Oui,Oui,Oui,Tarifs trop élevés
+NPS-00463,CLI-86851,2025-08-20,9,Promoteur,Client depuis > 10 ans,3 contrats,Non,Oui,Oui,Conseiller toujours disponible et efficace
+NPS-00464,CLI-17986,2025-08-07,4,Détracteur,Client depuis 1-3 ans,2 contrats,Oui,Non,Oui,Service client décevant
+NPS-00465,CLI-41810,2025-05-14,9,Promoteur,Client depuis > 10 ans,2 contrats,Non,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00466,CLI-21724,2025-08-17,10,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Non,Non,Service client irréprochable
+NPS-00467,CLI-79651,2025-07-06,6,Détracteur,Client depuis > 10 ans,3 contrats,Oui,Non,Oui,Manque de transparence
+NPS-00468,CLI-63492,2025-09-30,10,Promoteur,Client depuis 5-10 ans,4+ contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00469,CLI-62341,2025-07-19,9,Promoteur,Client depuis < 1 an,3 contrats,Non,Non,Non,Remboursements rapides et sans souci
+NPS-00470,CLI-31830,2025-10-08,10,Promoteur,Client depuis < 1 an,1 contrat,Oui,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00471,CLI-46390,2025-10-01,7,Passif,Client depuis 5-10 ans,1 contrat,Non,Non,Oui,Satisfait sans plus
+NPS-00472,CLI-32070,2025-08-06,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Non,Oui,Oui,Service client irréprochable
+NPS-00473,CLI-87033,2025-07-09,10,Promoteur,Client depuis < 1 an,1 contrat,Oui,Non,Oui,Confiance totale
+NPS-00474,CLI-61166,2025-05-13,10,Promoteur,Client depuis 3-5 ans,1 contrat,Non,Oui,Oui,Confiance totale
+NPS-00475,CLI-20033,2025-10-12,9,Promoteur,Client depuis 5-10 ans,4+ contrats,Oui,Non,Non,Excellent rapport qualité/prix
+NPS-00476,CLI-95913,2025-09-08,3,Détracteur,Client depuis 3-5 ans,2 contrats,Non,Non,Oui,Manque de transparence
+NPS-00477,CLI-75488,2025-07-27,6,Détracteur,Client depuis > 10 ans,4+ contrats,Oui,Oui,Non,Remboursements insuffisants
+NPS-00478,CLI-69133,2025-08-25,9,Promoteur,Client depuis 5-10 ans,1 contrat,Non,Oui,Oui,Confiance totale
+NPS-00479,CLI-76287,2025-05-23,2,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Oui,Non,Manque de transparence
+NPS-00480,CLI-41981,2025-09-18,8,Passif,Client depuis 5-10 ans,2 contrats,Non,Oui,Non,Service correct mais améliorable
+NPS-00481,CLI-64811,2025-09-09,5,Détracteur,Client depuis > 10 ans,3 contrats,Oui,Oui,Non,Service client décevant
+NPS-00482,CLI-16578,2025-09-08,9,Promoteur,Client depuis 1-3 ans,4+ contrats,Oui,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00483,CLI-75236,2025-06-23,7,Passif,Client depuis > 10 ans,4+ contrats,Oui,Oui,Oui,Pas de problème majeur
+NPS-00484,CLI-70086,2025-09-03,8,Passif,Client depuis < 1 an,3 contrats,Non,Non,Non,Pas de problème majeur
+NPS-00485,CLI-89646,2025-07-13,5,Détracteur,Client depuis 5-10 ans,2 contrats,Oui,Non,Non,Remboursements insuffisants
+NPS-00486,CLI-80813,2025-07-13,7,Passif,Client depuis 3-5 ans,4+ contrats,Non,Oui,Non,Pas de problème majeur
+NPS-00487,CLI-53529,2025-10-04,10,Promoteur,Client depuis > 10 ans,3 contrats,Oui,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00488,CLI-14312,2025-07-30,10,Promoteur,Client depuis 1-3 ans,3 contrats,Non,Non,Non,Conseiller toujours disponible et efficace
+NPS-00489,CLI-45279,2025-07-13,5,Détracteur,Client depuis 5-10 ans,3 contrats,Oui,Oui,Oui,Trop de complications administratives
+NPS-00490,CLI-47289,2025-10-05,9,Promoteur,Client depuis < 1 an,4+ contrats,Oui,Non,Oui,Excellent rapport qualité/prix
+NPS-00491,CLI-49638,2025-10-13,8,Passif,Client depuis 5-10 ans,3 contrats,Oui,Oui,Oui,Service correct mais améliorable
+NPS-00492,CLI-63347,2025-06-07,9,Promoteur,Client depuis 3-5 ans,3 contrats,Non,Non,Oui,Conseiller toujours disponible et efficace
+NPS-00493,CLI-42072,2025-04-23,9,Promoteur,Client depuis 3-5 ans,2 contrats,Non,Non,Non,Service client irréprochable
+NPS-00494,CLI-47809,2025-09-26,7,Passif,Client depuis 5-10 ans,1 contrat,Non,Non,Non,Service correct mais améliorable
+NPS-00495,CLI-23079,2025-08-11,8,Passif,Client depuis 1-3 ans,2 contrats,Oui,Non,Non,Service correct mais améliorable
+NPS-00496,CLI-88636,2025-06-11,8,Passif,Client depuis 3-5 ans,1 contrat,Oui,Non,Oui,Service correct mais améliorable
+NPS-00497,CLI-54783,2025-04-23,10,Promoteur,Client depuis 1-3 ans,4+ contrats,Non,Oui,Non,Conseiller toujours disponible et efficace
+NPS-00498,CLI-71836,2025-06-04,10,Promoteur,Client depuis 5-10 ans,3 contrats,Oui,Oui,Oui,Confiance totale
+NPS-00499,CLI-21679,2025-06-17,6,Détracteur,Client depuis 5-10 ans,1 contrat,Oui,Oui,Non,Trop de complications administratives
+NPS-00500,CLI-69600,2025-07-29,3,Détracteur,Client depuis > 10 ans,3 contrats,Oui,Non,Oui,Tarifs trop élevés

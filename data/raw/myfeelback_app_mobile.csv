@@ -1,0 +1,501 @@
+feedback_id,client_id,date_feedback,version_app,fonctionnalite,type_feedback,note_globale,note_facilite,note_design,note_performance,commentaire
+APPMOB-00001,CLI-41331,2025-05-09 11:22:18,iOS 2.4.1,Demande d'attestation,Appréciation positive,3,3,3,4,Interface claire et intuitive
+APPMOB-00002,CLI-64888,2025-06-12 11:22:18,iOS 2.4.1,Suivi de remboursement,Appréciation positive,3,4,3,3,Facile à utiliser
+APPMOB-00003,CLI-99328,2025-04-26 11:22:18,Android 2.4.1,Consultation de contrats,Appréciation positive,1,1,1,1,Interface claire et intuitive
+APPMOB-00004,CLI-47871,2025-05-28 11:22:18,iOS 2.4.0,Paiement,Bug signalé,2,2,3,1,Problème de connexion récurrent
+APPMOB-00005,CLI-60301,2025-06-25 11:22:18,iOS 2.4.1,Gestion de profil,Suggestion d'amélioration,4,5,4,3,Ajouter Touch ID/Face ID
+APPMOB-00006,CLI-17960,2025-06-21 11:22:18,iOS 2.4.0,Simulation de devis,Bug signalé,4,4,5,3,Notifications qui ne s'affichent pas
+APPMOB-00007,CLI-33827,2025-10-18 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,4,3,5,4,Améliorer l'ergonomie
+APPMOB-00008,CLI-20994,2025-10-15 11:22:18,iOS 2.4.1,Paiement,Appréciation positive,5,4,5,5,Facile à utiliser
+APPMOB-00009,CLI-44622,2025-04-25 11:22:18,iOS 2.4.1,Chat avec conseiller,Appréciation positive,3,4,3,3,Interface claire et intuitive
+APPMOB-00010,CLI-59920,2025-07-03 11:22:18,Android 2.3.5,Espace documentaire,Suggestion d'amélioration,5,5,5,5,Ajouter mode sombre
+APPMOB-00011,CLI-37044,2025-06-06 11:22:18,Android 2.4.0,Demande d'attestation,Difficulté d'utilisation,5,4,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00012,CLI-27579,2025-09-27 11:22:18,iOS 2.4.1,Espace documentaire,Appréciation positive,3,4,2,2,Application très pratique
+APPMOB-00013,CLI-15314,2025-06-29 11:22:18,Android 2.4.1,Simulation de devis,Difficulté d'utilisation,2,1,2,2,Trop complexe pour déclarer un sinistre
+APPMOB-00014,CLI-96133,2025-06-03 11:22:18,iOS 2.4.1,Déclaration de sinistre,Suggestion d'amélioration,4,5,4,4,Ajouter Touch ID/Face ID
+APPMOB-00015,CLI-86514,2025-07-07 11:22:18,Android 2.4.1,Déclaration de sinistre,Suggestion d'amélioration,2,3,1,1,Ajouter mode sombre
+APPMOB-00016,CLI-91000,2025-05-06 11:22:18,iOS 2.4.0,Simulation de devis,Appréciation positive,4,3,3,4,Interface claire et intuitive
+APPMOB-00017,CLI-89016,2025-10-11 11:22:18,iOS 2.4.1,Paiement,Suggestion d'amélioration,5,5,4,5,Ajouter Touch ID/Face ID
+APPMOB-00018,CLI-62033,2025-10-18 11:22:18,iOS 2.3.5,Demande d'attestation,Bug signalé,2,1,3,3,Notifications qui ne s'affichent pas
+APPMOB-00019,CLI-12353,2025-09-29 11:22:18,Android 2.4.0,Suivi de remboursement,Suggestion d'amélioration,3,3,3,3,Ajouter Touch ID/Face ID
+APPMOB-00020,CLI-38014,2025-07-17 11:22:18,iOS 2.4.0,Chat avec conseiller,Bug signalé,2,3,3,3,L'application se ferme lors du paiement
+APPMOB-00021,CLI-53831,2025-07-20 11:22:18,iOS 2.4.0,Notification,Bug signalé,3,4,3,4,Problème de connexion récurrent
+APPMOB-00022,CLI-18075,2025-06-22 11:22:18,Android 2.4.1,Suivi de remboursement,Appréciation positive,4,4,5,3,Facile à utiliser
+APPMOB-00023,CLI-28292,2025-07-30 11:22:18,Android 2.3.5,Simulation de devis,Difficulté d'utilisation,4,4,3,5,Menu pas intuitif
+APPMOB-00024,CLI-64350,2025-06-03 11:22:18,iOS 2.4.1,Demande d'attestation,Appréciation positive,3,4,3,4,Application très pratique
+APPMOB-00025,CLI-97489,2025-05-05 11:22:18,Android 2.4.0,Consultation de contrats,Bug signalé,4,4,3,5,Notifications qui ne s'affichent pas
+APPMOB-00026,CLI-84958,2025-07-10 11:22:18,Android 2.4.1,Gestion de profil,Suggestion d'amélioration,5,5,5,5,Ajouter Touch ID/Face ID
+APPMOB-00027,CLI-89652,2025-08-10 11:22:18,Android 2.4.1,Notification,Difficulté d'utilisation,3,3,3,3,Trop complexe pour déclarer un sinistre
+APPMOB-00028,CLI-45691,2025-07-18 11:22:18,Android 2.4.0,Espace documentaire,Bug signalé,4,5,4,3,Impossible de télécharger les attestations
+APPMOB-00029,CLI-40957,2025-10-18 11:22:18,iOS 2.4.0,Demande d'attestation,Bug signalé,5,5,5,5,L'application se ferme lors du paiement
+APPMOB-00030,CLI-46029,2025-06-04 11:22:18,Android 2.3.5,Déclaration de sinistre,Suggestion d'amélioration,4,4,5,3,Améliorer l'ergonomie
+APPMOB-00031,CLI-86340,2025-08-20 11:22:18,iOS 2.4.0,Consultation de contrats,Suggestion d'amélioration,4,3,5,4,Améliorer l'ergonomie
+APPMOB-00032,CLI-22750,2025-05-18 11:22:18,Android 2.4.1,Gestion de profil,Bug signalé,2,2,2,3,Impossible de télécharger les attestations
+APPMOB-00033,CLI-23847,2025-07-24 11:22:18,iOS 2.3.5,Notification,Appréciation positive,5,5,5,5,Facile à utiliser
+APPMOB-00034,CLI-82251,2025-06-10 11:22:18,Android 2.3.5,Consultation de contrats,Bug signalé,5,5,5,5,L'application se ferme lors du paiement
+APPMOB-00035,CLI-35657,2025-10-10 11:22:18,iOS 2.4.1,Suivi de remboursement,Difficulté d'utilisation,2,1,2,1,Menu pas intuitif
+APPMOB-00036,CLI-24559,2025-08-24 11:22:18,iOS 2.3.5,Demande d'attestation,Bug signalé,3,2,3,3,L'application se ferme lors du paiement
+APPMOB-00037,CLI-82286,2025-09-26 11:22:18,Android 2.4.0,Demande d'attestation,Appréciation positive,4,3,4,5,Interface claire et intuitive
+APPMOB-00038,CLI-40256,2025-10-02 11:22:18,Android 2.3.5,Consultation de contrats,Suggestion d'amélioration,3,2,3,3,Ajouter Touch ID/Face ID
+APPMOB-00039,CLI-62492,2025-08-23 11:22:18,Android 2.3.5,Consultation de contrats,Suggestion d'amélioration,3,3,3,2,Ajouter Touch ID/Face ID
+APPMOB-00040,CLI-70765,2025-06-19 11:22:18,iOS 2.4.1,Demande d'attestation,Suggestion d'amélioration,4,5,3,4,Ajouter mode sombre
+APPMOB-00041,CLI-28808,2025-06-17 11:22:18,iOS 2.4.0,Gestion de profil,Bug signalé,5,4,4,5,Notifications qui ne s'affichent pas
+APPMOB-00042,CLI-44533,2025-06-06 11:22:18,Android 2.3.5,Chat avec conseiller,Bug signalé,1,1,2,1,Problème de connexion récurrent
+APPMOB-00043,CLI-24660,2025-08-09 11:22:18,Android 2.4.1,Gestion de profil,Appréciation positive,5,5,5,4,Interface claire et intuitive
+APPMOB-00044,CLI-93519,2025-06-19 11:22:18,iOS 2.4.1,Déclaration de sinistre,Bug signalé,4,4,5,3,Impossible de télécharger les attestations
+APPMOB-00045,CLI-11905,2025-09-17 11:22:18,Android 2.3.5,Déclaration de sinistre,Difficulté d'utilisation,5,4,4,5,Menu pas intuitif
+APPMOB-00046,CLI-72624,2025-05-24 11:22:18,iOS 2.4.0,Demande d'attestation,Appréciation positive,4,4,3,4,Application très pratique
+APPMOB-00047,CLI-46728,2025-07-20 11:22:18,Android 2.3.5,Espace documentaire,Appréciation positive,4,4,4,4,Application très pratique
+APPMOB-00048,CLI-18361,2025-07-10 11:22:18,iOS 2.3.5,Gestion de profil,Suggestion d'amélioration,1,1,1,2,Ajouter mode sombre
+APPMOB-00049,CLI-48152,2025-05-25 11:22:18,iOS 2.4.0,Demande d'attestation,Suggestion d'amélioration,2,1,2,1,Améliorer l'ergonomie
+APPMOB-00050,CLI-79450,2025-09-17 11:22:18,iOS 2.3.5,Déclaration de sinistre,Bug signalé,1,1,2,1,Impossible de télécharger les attestations
+APPMOB-00051,CLI-36129,2025-05-03 11:22:18,iOS 2.4.0,Consultation de contrats,Appréciation positive,3,4,4,2,Application très pratique
+APPMOB-00052,CLI-83043,2025-05-08 11:22:18,iOS 2.3.5,Paiement,Appréciation positive,3,4,2,2,Interface claire et intuitive
+APPMOB-00053,CLI-70931,2025-08-13 11:22:18,Android 2.4.1,Consultation de contrats,Bug signalé,3,2,4,3,Impossible de télécharger les attestations
+APPMOB-00054,CLI-38509,2025-05-28 11:22:18,Android 2.4.0,Suivi de remboursement,Bug signalé,2,3,3,1,L'application se ferme lors du paiement
+APPMOB-00055,CLI-48702,2025-07-19 11:22:18,iOS 2.3.5,Chat avec conseiller,Appréciation positive,5,5,4,5,Application très pratique
+APPMOB-00056,CLI-55099,2025-05-11 11:22:18,iOS 2.4.1,Déclaration de sinistre,Difficulté d'utilisation,4,3,3,4,Trop complexe pour déclarer un sinistre
+APPMOB-00057,CLI-43613,2025-06-11 11:22:18,iOS 2.4.1,Notification,Suggestion d'amélioration,3,4,2,4,Ajouter mode sombre
+APPMOB-00058,CLI-44865,2025-07-12 11:22:18,iOS 2.4.0,Gestion de profil,Appréciation positive,3,3,4,3,Application très pratique
+APPMOB-00059,CLI-46884,2025-07-22 11:22:18,Android 2.3.5,Demande d'attestation,Appréciation positive,1,1,2,2,Application très pratique
+APPMOB-00060,CLI-46567,2025-08-09 11:22:18,Android 2.3.5,Demande d'attestation,Appréciation positive,4,4,3,5,Facile à utiliser
+APPMOB-00061,CLI-47093,2025-07-14 11:22:18,iOS 2.4.0,Espace documentaire,Difficulté d'utilisation,5,5,5,5,Menu pas intuitif
+APPMOB-00062,CLI-91305,2025-05-08 11:22:18,iOS 2.3.5,Simulation de devis,Suggestion d'amélioration,3,4,2,3,Ajouter mode sombre
+APPMOB-00063,CLI-39547,2025-05-27 11:22:18,Android 2.3.5,Notification,Suggestion d'amélioration,3,3,2,3,Ajouter mode sombre
+APPMOB-00064,CLI-30849,2025-09-16 11:22:18,Android 2.4.0,Demande d'attestation,Difficulté d'utilisation,4,5,5,5,Menu pas intuitif
+APPMOB-00065,CLI-48977,2025-08-29 11:22:18,Android 2.4.1,Déclaration de sinistre,Suggestion d'amélioration,3,3,2,4,Ajouter mode sombre
+APPMOB-00066,CLI-61802,2025-04-27 11:22:18,iOS 2.3.5,Déclaration de sinistre,Suggestion d'amélioration,5,4,5,5,Ajouter Touch ID/Face ID
+APPMOB-00067,CLI-65813,2025-08-05 11:22:18,iOS 2.3.5,Consultation de contrats,Bug signalé,4,4,5,5,Problème de connexion récurrent
+APPMOB-00068,CLI-44547,2025-05-10 11:22:18,iOS 2.3.5,Paiement,Appréciation positive,3,2,4,3,Application très pratique
+APPMOB-00069,CLI-54771,2025-07-14 11:22:18,Android 2.4.1,Simulation de devis,Appréciation positive,3,4,2,2,Interface claire et intuitive
+APPMOB-00070,CLI-78960,2025-08-06 11:22:18,iOS 2.3.5,Espace documentaire,Suggestion d'amélioration,4,3,4,5,Ajouter mode sombre
+APPMOB-00071,CLI-63261,2025-08-05 11:22:18,Android 2.4.0,Demande d'attestation,Appréciation positive,5,4,4,5,Interface claire et intuitive
+APPMOB-00072,CLI-88383,2025-08-30 11:22:18,iOS 2.4.1,Chat avec conseiller,Appréciation positive,5,5,4,4,Application très pratique
+APPMOB-00073,CLI-61164,2025-08-10 11:22:18,Android 2.3.5,Suivi de remboursement,Suggestion d'amélioration,4,4,5,4,Ajouter mode sombre
+APPMOB-00074,CLI-54864,2025-04-30 11:22:18,Android 2.4.0,Simulation de devis,Difficulté d'utilisation,3,2,2,4,Trop complexe pour déclarer un sinistre
+APPMOB-00075,CLI-25616,2025-05-17 11:22:18,Android 2.4.1,Demande d'attestation,Appréciation positive,5,4,5,5,Application très pratique
+APPMOB-00076,CLI-11910,2025-09-13 11:22:18,Android 2.4.1,Paiement,Suggestion d'amélioration,3,4,2,2,Ajouter Touch ID/Face ID
+APPMOB-00077,CLI-36449,2025-09-23 11:22:18,iOS 2.4.0,Consultation de contrats,Suggestion d'amélioration,4,4,5,5,Améliorer l'ergonomie
+APPMOB-00078,CLI-75067,2025-09-06 11:22:18,iOS 2.3.5,Simulation de devis,Bug signalé,4,4,5,5,Problème de connexion récurrent
+APPMOB-00079,CLI-62722,2025-09-02 11:22:18,iOS 2.3.5,Suivi de remboursement,Bug signalé,4,3,4,4,Impossible de télécharger les attestations
+APPMOB-00080,CLI-82940,2025-08-22 11:22:18,iOS 2.3.5,Suivi de remboursement,Suggestion d'amélioration,2,2,3,2,Ajouter mode sombre
+APPMOB-00081,CLI-45729,2025-09-27 11:22:18,iOS 2.4.1,Suivi de remboursement,Appréciation positive,3,4,2,2,Application très pratique
+APPMOB-00082,CLI-34665,2025-08-17 11:22:18,Android 2.3.5,Demande d'attestation,Appréciation positive,4,3,3,4,Facile à utiliser
+APPMOB-00083,CLI-22394,2025-06-28 11:22:18,Android 2.4.1,Suivi de remboursement,Suggestion d'amélioration,5,4,4,4,Améliorer l'ergonomie
+APPMOB-00084,CLI-65905,2025-06-23 11:22:18,iOS 2.4.0,Chat avec conseiller,Bug signalé,2,1,2,1,Impossible de télécharger les attestations
+APPMOB-00085,CLI-14652,2025-09-21 11:22:18,iOS 2.4.1,Chat avec conseiller,Bug signalé,4,5,3,4,Notifications qui ne s'affichent pas
+APPMOB-00086,CLI-79358,2025-09-22 11:22:18,Android 2.3.5,Chat avec conseiller,Suggestion d'amélioration,3,4,4,4,Améliorer l'ergonomie
+APPMOB-00087,CLI-80198,2025-08-17 11:22:18,Android 2.4.1,Simulation de devis,Appréciation positive,3,3,2,2,Facile à utiliser
+APPMOB-00088,CLI-94783,2025-06-27 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,1,1,2,1,Ajouter Touch ID/Face ID
+APPMOB-00089,CLI-18570,2025-10-17 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,5,5,4,5,Ajouter Touch ID/Face ID
+APPMOB-00090,CLI-99388,2025-07-24 11:22:18,Android 2.3.5,Paiement,Suggestion d'amélioration,4,4,4,3,Ajouter Touch ID/Face ID
+APPMOB-00091,CLI-51691,2025-08-17 11:22:18,Android 2.4.0,Chat avec conseiller,Difficulté d'utilisation,4,5,5,3,Menu pas intuitif
+APPMOB-00092,CLI-43584,2025-08-25 11:22:18,Android 2.4.1,Demande d'attestation,Appréciation positive,5,5,5,5,Application très pratique
+APPMOB-00093,CLI-76037,2025-06-02 11:22:18,Android 2.3.5,Simulation de devis,Suggestion d'amélioration,3,4,4,3,Ajouter mode sombre
+APPMOB-00094,CLI-14766,2025-06-05 11:22:18,iOS 2.3.5,Simulation de devis,Difficulté d'utilisation,4,4,4,3,Trop complexe pour déclarer un sinistre
+APPMOB-00095,CLI-47870,2025-06-07 11:22:18,Android 2.4.0,Consultation de contrats,Suggestion d'amélioration,5,5,5,5,Ajouter mode sombre
+APPMOB-00096,CLI-52936,2025-09-03 11:22:18,iOS 2.4.1,Simulation de devis,Bug signalé,5,5,5,5,L'application se ferme lors du paiement
+APPMOB-00097,CLI-27686,2025-08-07 11:22:18,Android 2.4.1,Gestion de profil,Difficulté d'utilisation,4,4,3,5,Trop complexe pour déclarer un sinistre
+APPMOB-00098,CLI-53987,2025-05-29 11:22:18,Android 2.3.5,Suivi de remboursement,Difficulté d'utilisation,2,1,2,2,Trop complexe pour déclarer un sinistre
+APPMOB-00099,CLI-42409,2025-05-06 11:22:18,iOS 2.4.1,Espace documentaire,Appréciation positive,4,3,5,5,Application très pratique
+APPMOB-00100,CLI-44289,2025-04-25 11:22:18,Android 2.4.1,Notification,Bug signalé,1,1,2,1,Problème de connexion récurrent
+APPMOB-00101,CLI-84913,2025-10-06 11:22:18,Android 2.3.5,Suivi de remboursement,Appréciation positive,4,3,3,5,Facile à utiliser
+APPMOB-00102,CLI-53700,2025-06-07 11:22:18,Android 2.4.1,Simulation de devis,Appréciation positive,1,1,1,1,Facile à utiliser
+APPMOB-00103,CLI-56049,2025-09-30 11:22:18,iOS 2.3.5,Paiement,Suggestion d'amélioration,3,4,3,3,Améliorer l'ergonomie
+APPMOB-00104,CLI-94416,2025-09-22 11:22:18,Android 2.4.1,Déclaration de sinistre,Suggestion d'amélioration,2,2,2,3,Améliorer l'ergonomie
+APPMOB-00105,CLI-32079,2025-08-30 11:22:18,Android 2.4.0,Consultation de contrats,Suggestion d'amélioration,5,5,5,5,Ajouter Touch ID/Face ID
+APPMOB-00106,CLI-47450,2025-09-21 11:22:18,iOS 2.3.5,Espace documentaire,Bug signalé,5,4,4,5,L'application se ferme lors du paiement
+APPMOB-00107,CLI-84089,2025-04-27 11:22:18,iOS 2.4.1,Consultation de contrats,Bug signalé,4,3,4,4,L'application se ferme lors du paiement
+APPMOB-00108,CLI-76128,2025-06-08 11:22:18,Android 2.4.0,Notification,Appréciation positive,2,3,2,3,Application très pratique
+APPMOB-00109,CLI-85506,2025-07-16 11:22:18,Android 2.4.0,Gestion de profil,Difficulté d'utilisation,1,1,1,2,Menu pas intuitif
+APPMOB-00110,CLI-12845,2025-06-17 11:22:18,Android 2.4.1,Simulation de devis,Appréciation positive,3,3,3,4,Interface claire et intuitive
+APPMOB-00111,CLI-22174,2025-08-30 11:22:18,Android 2.3.5,Déclaration de sinistre,Difficulté d'utilisation,4,3,5,4,Trop complexe pour déclarer un sinistre
+APPMOB-00112,CLI-97432,2025-08-24 11:22:18,Android 2.4.1,Notification,Difficulté d'utilisation,1,2,2,1,Trop complexe pour déclarer un sinistre
+APPMOB-00113,CLI-87767,2025-10-05 11:22:18,iOS 2.3.5,Paiement,Suggestion d'amélioration,3,4,2,4,Améliorer l'ergonomie
+APPMOB-00114,CLI-11917,2025-08-03 11:22:18,iOS 2.4.0,Paiement,Difficulté d'utilisation,2,2,1,2,Menu pas intuitif
+APPMOB-00115,CLI-56709,2025-05-16 11:22:18,Android 2.3.5,Consultation de contrats,Difficulté d'utilisation,3,2,3,2,Trop complexe pour déclarer un sinistre
+APPMOB-00116,CLI-55707,2025-10-10 11:22:18,Android 2.4.0,Simulation de devis,Bug signalé,3,2,4,3,L'application se ferme lors du paiement
+APPMOB-00117,CLI-27007,2025-05-28 11:22:18,Android 2.4.0,Déclaration de sinistre,Appréciation positive,4,3,5,4,Facile à utiliser
+APPMOB-00118,CLI-79201,2025-06-18 11:22:18,Android 2.4.0,Déclaration de sinistre,Suggestion d'amélioration,2,2,2,3,Ajouter Touch ID/Face ID
+APPMOB-00119,CLI-87454,2025-09-04 11:22:18,iOS 2.4.0,Paiement,Appréciation positive,5,5,5,5,Application très pratique
+APPMOB-00120,CLI-35472,2025-05-27 11:22:18,iOS 2.4.0,Simulation de devis,Bug signalé,4,4,3,4,Notifications qui ne s'affichent pas
+APPMOB-00121,CLI-70784,2025-10-17 11:22:18,iOS 2.4.1,Notification,Appréciation positive,2,3,3,2,Application très pratique
+APPMOB-00122,CLI-48941,2025-07-01 11:22:18,iOS 2.4.0,Simulation de devis,Bug signalé,4,5,4,5,Notifications qui ne s'affichent pas
+APPMOB-00123,CLI-64789,2025-05-07 11:22:18,Android 2.4.0,Déclaration de sinistre,Bug signalé,4,3,3,5,Notifications qui ne s'affichent pas
+APPMOB-00124,CLI-42200,2025-10-15 11:22:18,Android 2.3.5,Notification,Suggestion d'amélioration,5,5,5,4,Ajouter mode sombre
+APPMOB-00125,CLI-96417,2025-05-20 11:22:18,Android 2.4.1,Suivi de remboursement,Bug signalé,4,5,3,4,Impossible de télécharger les attestations
+APPMOB-00126,CLI-63898,2025-07-23 11:22:18,iOS 2.4.0,Notification,Appréciation positive,3,3,4,3,Interface claire et intuitive
+APPMOB-00127,CLI-62543,2025-08-26 11:22:18,iOS 2.4.0,Suivi de remboursement,Bug signalé,3,4,3,2,L'application se ferme lors du paiement
+APPMOB-00128,CLI-53737,2025-09-18 11:22:18,iOS 2.4.1,Consultation de contrats,Suggestion d'amélioration,5,5,4,5,Ajouter Touch ID/Face ID
+APPMOB-00129,CLI-71188,2025-05-25 11:22:18,iOS 2.4.1,Paiement,Appréciation positive,5,5,5,4,Interface claire et intuitive
+APPMOB-00130,CLI-11806,2025-05-12 11:22:18,Android 2.4.1,Gestion de profil,Difficulté d'utilisation,4,3,4,4,Trop complexe pour déclarer un sinistre
+APPMOB-00131,CLI-55433,2025-07-17 11:22:18,iOS 2.4.0,Gestion de profil,Bug signalé,4,5,5,5,L'application se ferme lors du paiement
+APPMOB-00132,CLI-85210,2025-04-27 11:22:18,iOS 2.4.1,Suivi de remboursement,Difficulté d'utilisation,5,4,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00133,CLI-85279,2025-05-07 11:22:18,iOS 2.3.5,Gestion de profil,Appréciation positive,5,5,5,5,Application très pratique
+APPMOB-00134,CLI-14538,2025-06-09 11:22:18,Android 2.4.1,Gestion de profil,Difficulté d'utilisation,5,4,5,5,Menu pas intuitif
+APPMOB-00135,CLI-84108,2025-07-05 11:22:18,Android 2.4.0,Suivi de remboursement,Suggestion d'amélioration,4,5,3,5,Ajouter mode sombre
+APPMOB-00136,CLI-79142,2025-07-17 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,1,1,1,1,Ajouter mode sombre
+APPMOB-00137,CLI-30023,2025-07-22 11:22:18,Android 2.3.5,Simulation de devis,Bug signalé,5,5,4,4,Notifications qui ne s'affichent pas
+APPMOB-00138,CLI-53079,2025-06-22 11:22:18,iOS 2.4.1,Chat avec conseiller,Bug signalé,5,4,4,5,Impossible de télécharger les attestations
+APPMOB-00139,CLI-17630,2025-08-16 11:22:18,Android 2.4.0,Simulation de devis,Difficulté d'utilisation,4,3,4,4,Trop complexe pour déclarer un sinistre
+APPMOB-00140,CLI-33804,2025-05-02 11:22:18,Android 2.3.5,Gestion de profil,Suggestion d'amélioration,5,4,5,5,Améliorer l'ergonomie
+APPMOB-00141,CLI-18103,2025-10-18 11:22:18,iOS 2.4.1,Notification,Suggestion d'amélioration,4,4,5,5,Ajouter mode sombre
+APPMOB-00142,CLI-78800,2025-10-01 11:22:18,Android 2.4.1,Demande d'attestation,Appréciation positive,5,5,5,5,Facile à utiliser
+APPMOB-00143,CLI-14649,2025-09-15 11:22:18,Android 2.4.0,Suivi de remboursement,Bug signalé,4,4,3,4,Problème de connexion récurrent
+APPMOB-00144,CLI-54812,2025-09-02 11:22:18,iOS 2.4.0,Suivi de remboursement,Bug signalé,5,4,5,5,Problème de connexion récurrent
+APPMOB-00145,CLI-52435,2025-04-29 11:22:18,iOS 2.3.5,Consultation de contrats,Difficulté d'utilisation,4,5,4,4,Menu pas intuitif
+APPMOB-00146,CLI-52850,2025-07-25 11:22:18,iOS 2.4.1,Demande d'attestation,Difficulté d'utilisation,4,3,5,3,Menu pas intuitif
+APPMOB-00147,CLI-61607,2025-10-18 11:22:18,iOS 2.4.0,Paiement,Difficulté d'utilisation,5,4,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00148,CLI-48150,2025-09-13 11:22:18,Android 2.4.1,Notification,Appréciation positive,2,2,1,3,Application très pratique
+APPMOB-00149,CLI-30789,2025-07-18 11:22:18,Android 2.3.5,Gestion de profil,Bug signalé,5,4,5,5,Problème de connexion récurrent
+APPMOB-00150,CLI-32649,2025-07-25 11:22:18,Android 2.4.1,Suivi de remboursement,Bug signalé,3,3,3,2,Impossible de télécharger les attestations
+APPMOB-00151,CLI-56678,2025-07-17 11:22:18,iOS 2.3.5,Chat avec conseiller,Appréciation positive,1,2,1,1,Facile à utiliser
+APPMOB-00152,CLI-41219,2025-06-12 11:22:18,Android 2.3.5,Notification,Difficulté d'utilisation,3,4,4,4,Trop complexe pour déclarer un sinistre
+APPMOB-00153,CLI-72056,2025-05-24 11:22:18,Android 2.4.0,Gestion de profil,Difficulté d'utilisation,5,4,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00154,CLI-83773,2025-10-13 11:22:18,Android 2.3.5,Espace documentaire,Appréciation positive,5,5,5,5,Interface claire et intuitive
+APPMOB-00155,CLI-34675,2025-10-14 11:22:18,iOS 2.4.1,Gestion de profil,Bug signalé,4,3,5,5,Problème de connexion récurrent
+APPMOB-00156,CLI-93945,2025-10-15 11:22:18,Android 2.3.5,Suivi de remboursement,Difficulté d'utilisation,2,1,2,3,Trop complexe pour déclarer un sinistre
+APPMOB-00157,CLI-69449,2025-05-28 11:22:18,iOS 2.4.1,Chat avec conseiller,Suggestion d'amélioration,4,3,5,3,Ajouter Touch ID/Face ID
+APPMOB-00158,CLI-64116,2025-07-01 11:22:18,Android 2.4.0,Déclaration de sinistre,Bug signalé,2,1,3,1,Impossible de télécharger les attestations
+APPMOB-00159,CLI-47193,2025-09-28 11:22:18,Android 2.4.0,Déclaration de sinistre,Suggestion d'amélioration,3,4,2,2,Ajouter mode sombre
+APPMOB-00160,CLI-64379,2025-07-22 11:22:18,Android 2.4.0,Chat avec conseiller,Difficulté d'utilisation,2,3,3,1,Trop complexe pour déclarer un sinistre
+APPMOB-00161,CLI-20374,2025-08-31 11:22:18,Android 2.3.5,Consultation de contrats,Suggestion d'amélioration,5,5,4,5,Ajouter Touch ID/Face ID
+APPMOB-00162,CLI-60599,2025-08-16 11:22:18,iOS 2.4.0,Espace documentaire,Appréciation positive,5,4,4,5,Application très pratique
+APPMOB-00163,CLI-42404,2025-08-17 11:22:18,Android 2.4.0,Suivi de remboursement,Suggestion d'amélioration,2,3,3,3,Ajouter Touch ID/Face ID
+APPMOB-00164,CLI-87204,2025-07-03 11:22:18,iOS 2.4.0,Gestion de profil,Suggestion d'amélioration,1,2,1,2,Ajouter mode sombre
+APPMOB-00165,CLI-18799,2025-09-12 11:22:18,iOS 2.4.0,Paiement,Appréciation positive,2,1,1,2,Facile à utiliser
+APPMOB-00166,CLI-96628,2025-09-04 11:22:18,Android 2.4.0,Simulation de devis,Suggestion d'amélioration,2,2,1,1,Ajouter Touch ID/Face ID
+APPMOB-00167,CLI-65950,2025-05-10 11:22:18,iOS 2.4.0,Notification,Suggestion d'amélioration,4,3,5,3,Ajouter mode sombre
+APPMOB-00168,CLI-13361,2025-04-28 11:22:18,Android 2.4.0,Notification,Suggestion d'amélioration,3,3,2,4,Ajouter Touch ID/Face ID
+APPMOB-00169,CLI-39259,2025-07-10 11:22:18,iOS 2.4.1,Suivi de remboursement,Difficulté d'utilisation,3,4,2,3,Trop complexe pour déclarer un sinistre
+APPMOB-00170,CLI-33253,2025-08-29 11:22:18,Android 2.4.0,Gestion de profil,Suggestion d'amélioration,5,5,5,4,Améliorer l'ergonomie
+APPMOB-00171,CLI-31756,2025-04-22 11:22:18,Android 2.4.1,Consultation de contrats,Suggestion d'amélioration,3,4,4,3,Ajouter Touch ID/Face ID
+APPMOB-00172,CLI-14174,2025-05-07 11:22:18,Android 2.4.0,Consultation de contrats,Bug signalé,5,5,5,4,Impossible de télécharger les attestations
+APPMOB-00173,CLI-76943,2025-06-26 11:22:18,Android 2.3.5,Notification,Suggestion d'amélioration,4,5,3,3,Ajouter Touch ID/Face ID
+APPMOB-00174,CLI-43931,2025-05-11 11:22:18,Android 2.4.0,Simulation de devis,Suggestion d'amélioration,4,5,4,3,Ajouter mode sombre
+APPMOB-00175,CLI-89198,2025-07-24 11:22:18,Android 2.4.0,Demande d'attestation,Difficulté d'utilisation,4,4,4,3,Trop complexe pour déclarer un sinistre
+APPMOB-00176,CLI-55064,2025-10-17 11:22:18,iOS 2.4.1,Demande d'attestation,Difficulté d'utilisation,5,4,4,5,Trop complexe pour déclarer un sinistre
+APPMOB-00177,CLI-79960,2025-06-04 11:22:18,Android 2.3.5,Demande d'attestation,Suggestion d'amélioration,1,1,1,1,Améliorer l'ergonomie
+APPMOB-00178,CLI-79110,2025-10-14 11:22:18,Android 2.3.5,Gestion de profil,Bug signalé,4,5,3,3,Problème de connexion récurrent
+APPMOB-00179,CLI-11589,2025-04-25 11:22:18,iOS 2.4.0,Paiement,Bug signalé,3,4,2,2,L'application se ferme lors du paiement
+APPMOB-00180,CLI-21094,2025-05-13 11:22:18,Android 2.3.5,Consultation de contrats,Appréciation positive,3,2,2,2,Facile à utiliser
+APPMOB-00181,CLI-16253,2025-09-30 11:22:18,Android 2.4.1,Consultation de contrats,Bug signalé,4,4,5,4,Problème de connexion récurrent
+APPMOB-00182,CLI-61151,2025-09-27 11:22:18,iOS 2.4.0,Demande d'attestation,Bug signalé,4,3,4,3,Problème de connexion récurrent
+APPMOB-00183,CLI-55449,2025-05-30 11:22:18,Android 2.3.5,Demande d'attestation,Difficulté d'utilisation,3,3,2,3,Trop complexe pour déclarer un sinistre
+APPMOB-00184,CLI-53246,2025-09-04 11:22:18,iOS 2.4.0,Suivi de remboursement,Appréciation positive,3,4,4,3,Application très pratique
+APPMOB-00185,CLI-16655,2025-05-01 11:22:18,Android 2.3.5,Espace documentaire,Bug signalé,1,2,1,1,L'application se ferme lors du paiement
+APPMOB-00186,CLI-25168,2025-08-30 11:22:18,Android 2.4.1,Consultation de contrats,Appréciation positive,3,4,3,2,Application très pratique
+APPMOB-00187,CLI-66798,2025-08-06 11:22:18,Android 2.3.5,Gestion de profil,Bug signalé,4,4,5,3,Notifications qui ne s'affichent pas
+APPMOB-00188,CLI-72751,2025-09-13 11:22:18,Android 2.4.1,Espace documentaire,Bug signalé,5,5,5,5,Impossible de télécharger les attestations
+APPMOB-00189,CLI-25659,2025-08-04 11:22:18,Android 2.3.5,Paiement,Bug signalé,2,2,1,1,Notifications qui ne s'affichent pas
+APPMOB-00190,CLI-69977,2025-10-01 11:22:18,Android 2.4.0,Espace documentaire,Suggestion d'amélioration,4,5,5,5,Ajouter Touch ID/Face ID
+APPMOB-00191,CLI-28760,2025-06-24 11:22:18,Android 2.4.1,Espace documentaire,Appréciation positive,1,2,1,1,Facile à utiliser
+APPMOB-00192,CLI-64642,2025-06-11 11:22:18,iOS 2.3.5,Paiement,Appréciation positive,4,5,5,5,Facile à utiliser
+APPMOB-00193,CLI-11024,2025-09-01 11:22:18,Android 2.4.1,Simulation de devis,Bug signalé,1,2,2,2,Notifications qui ne s'affichent pas
+APPMOB-00194,CLI-10550,2025-07-30 11:22:18,Android 2.4.0,Consultation de contrats,Difficulté d'utilisation,3,2,4,2,Menu pas intuitif
+APPMOB-00195,CLI-99394,2025-05-27 11:22:18,iOS 2.3.5,Suivi de remboursement,Appréciation positive,4,4,4,3,Application très pratique
+APPMOB-00196,CLI-58106,2025-09-19 11:22:18,iOS 2.4.1,Simulation de devis,Difficulté d'utilisation,5,4,4,4,Trop complexe pour déclarer un sinistre
+APPMOB-00197,CLI-39917,2025-08-24 11:22:18,Android 2.3.5,Demande d'attestation,Difficulté d'utilisation,4,5,5,3,Menu pas intuitif
+APPMOB-00198,CLI-67441,2025-08-19 11:22:18,iOS 2.4.1,Simulation de devis,Difficulté d'utilisation,1,1,2,1,Trop complexe pour déclarer un sinistre
+APPMOB-00199,CLI-35818,2025-10-09 11:22:18,Android 2.4.0,Déclaration de sinistre,Suggestion d'amélioration,4,3,4,4,Améliorer l'ergonomie
+APPMOB-00200,CLI-15649,2025-07-03 11:22:18,iOS 2.3.5,Chat avec conseiller,Difficulté d'utilisation,4,3,5,4,Menu pas intuitif
+APPMOB-00201,CLI-11926,2025-05-31 11:22:18,Android 2.4.0,Consultation de contrats,Appréciation positive,5,5,5,4,Facile à utiliser
+APPMOB-00202,CLI-95018,2025-07-04 11:22:18,Android 2.4.1,Simulation de devis,Bug signalé,4,5,4,5,L'application se ferme lors du paiement
+APPMOB-00203,CLI-63349,2025-08-29 11:22:18,Android 2.4.0,Suivi de remboursement,Difficulté d'utilisation,3,3,4,3,Menu pas intuitif
+APPMOB-00204,CLI-39231,2025-07-22 11:22:18,iOS 2.4.1,Simulation de devis,Appréciation positive,3,2,3,3,Interface claire et intuitive
+APPMOB-00205,CLI-94557,2025-07-02 11:22:18,iOS 2.4.1,Paiement,Bug signalé,2,2,3,1,Problème de connexion récurrent
+APPMOB-00206,CLI-29500,2025-05-19 11:22:18,iOS 2.4.1,Paiement,Difficulté d'utilisation,2,1,1,2,Menu pas intuitif
+APPMOB-00207,CLI-38916,2025-06-21 11:22:18,Android 2.3.5,Demande d'attestation,Difficulté d'utilisation,4,3,5,5,Menu pas intuitif
+APPMOB-00208,CLI-66887,2025-09-10 11:22:18,Android 2.3.5,Paiement,Suggestion d'amélioration,3,3,2,4,Améliorer l'ergonomie
+APPMOB-00209,CLI-39298,2025-06-27 11:22:18,Android 2.4.0,Gestion de profil,Appréciation positive,4,3,5,4,Application très pratique
+APPMOB-00210,CLI-36347,2025-08-18 11:22:18,iOS 2.3.5,Déclaration de sinistre,Suggestion d'amélioration,5,5,4,5,Améliorer l'ergonomie
+APPMOB-00211,CLI-72818,2025-09-19 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,2,2,3,3,Ajouter Touch ID/Face ID
+APPMOB-00212,CLI-44414,2025-05-27 11:22:18,iOS 2.4.1,Suivi de remboursement,Difficulté d'utilisation,4,5,4,5,Trop complexe pour déclarer un sinistre
+APPMOB-00213,CLI-77855,2025-05-01 11:22:18,iOS 2.3.5,Demande d'attestation,Difficulté d'utilisation,4,4,3,4,Trop complexe pour déclarer un sinistre
+APPMOB-00214,CLI-33141,2025-05-19 11:22:18,Android 2.3.5,Espace documentaire,Appréciation positive,3,3,3,4,Application très pratique
+APPMOB-00215,CLI-81715,2025-08-15 11:22:18,iOS 2.4.1,Suivi de remboursement,Difficulté d'utilisation,2,2,2,1,Menu pas intuitif
+APPMOB-00216,CLI-43516,2025-09-27 11:22:18,Android 2.4.0,Notification,Bug signalé,3,2,3,4,L'application se ferme lors du paiement
+APPMOB-00217,CLI-29404,2025-05-01 11:22:18,Android 2.4.0,Suivi de remboursement,Suggestion d'amélioration,3,2,2,2,Améliorer l'ergonomie
+APPMOB-00218,CLI-85471,2025-05-18 11:22:18,iOS 2.4.0,Espace documentaire,Appréciation positive,5,5,5,4,Application très pratique
+APPMOB-00219,CLI-34980,2025-06-10 11:22:18,Android 2.4.0,Gestion de profil,Appréciation positive,3,4,2,4,Facile à utiliser
+APPMOB-00220,CLI-68173,2025-05-08 11:22:18,iOS 2.3.5,Chat avec conseiller,Appréciation positive,5,5,5,4,Interface claire et intuitive
+APPMOB-00221,CLI-16097,2025-06-08 11:22:18,Android 2.4.1,Déclaration de sinistre,Bug signalé,4,4,3,3,L'application se ferme lors du paiement
+APPMOB-00222,CLI-86654,2025-05-02 11:22:18,Android 2.3.5,Notification,Difficulté d'utilisation,1,1,2,2,Trop complexe pour déclarer un sinistre
+APPMOB-00223,CLI-86526,2025-08-15 11:22:18,iOS 2.4.1,Notification,Suggestion d'amélioration,3,4,2,2,Améliorer l'ergonomie
+APPMOB-00224,CLI-36307,2025-06-19 11:22:18,iOS 2.3.5,Gestion de profil,Difficulté d'utilisation,3,2,3,4,Trop complexe pour déclarer un sinistre
+APPMOB-00225,CLI-50959,2025-08-02 11:22:18,iOS 2.4.0,Demande d'attestation,Appréciation positive,4,4,5,4,Facile à utiliser
+APPMOB-00226,CLI-62388,2025-05-21 11:22:18,Android 2.4.1,Gestion de profil,Appréciation positive,3,2,4,2,Interface claire et intuitive
+APPMOB-00227,CLI-93711,2025-08-11 11:22:18,iOS 2.4.0,Déclaration de sinistre,Bug signalé,3,3,2,2,Notifications qui ne s'affichent pas
+APPMOB-00228,CLI-73038,2025-07-12 11:22:18,iOS 2.3.5,Notification,Appréciation positive,2,3,2,2,Application très pratique
+APPMOB-00229,CLI-39682,2025-06-07 11:22:18,Android 2.4.0,Paiement,Appréciation positive,4,3,4,3,Application très pratique
+APPMOB-00230,CLI-30281,2025-06-06 11:22:18,Android 2.4.1,Demande d'attestation,Bug signalé,5,4,5,5,Notifications qui ne s'affichent pas
+APPMOB-00231,CLI-44390,2025-04-25 11:22:18,Android 2.3.5,Paiement,Difficulté d'utilisation,4,4,3,3,Trop complexe pour déclarer un sinistre
+APPMOB-00232,CLI-98651,2025-08-08 11:22:18,iOS 2.4.1,Simulation de devis,Difficulté d'utilisation,4,3,4,5,Trop complexe pour déclarer un sinistre
+APPMOB-00233,CLI-37127,2025-06-24 11:22:18,iOS 2.3.5,Consultation de contrats,Appréciation positive,1,1,1,2,Interface claire et intuitive
+APPMOB-00234,CLI-54234,2025-09-20 11:22:18,Android 2.3.5,Consultation de contrats,Suggestion d'amélioration,5,5,5,5,Ajouter mode sombre
+APPMOB-00235,CLI-24612,2025-05-02 11:22:18,Android 2.4.1,Chat avec conseiller,Difficulté d'utilisation,2,3,1,1,Menu pas intuitif
+APPMOB-00236,CLI-66517,2025-10-13 11:22:18,iOS 2.4.1,Déclaration de sinistre,Difficulté d'utilisation,2,1,2,2,Menu pas intuitif
+APPMOB-00237,CLI-82586,2025-07-25 11:22:18,iOS 2.4.1,Consultation de contrats,Suggestion d'amélioration,3,4,4,2,Ajouter mode sombre
+APPMOB-00238,CLI-55981,2025-08-25 11:22:18,Android 2.4.1,Gestion de profil,Suggestion d'amélioration,3,2,2,3,Ajouter mode sombre
+APPMOB-00239,CLI-84829,2025-05-07 11:22:18,Android 2.4.1,Paiement,Suggestion d'amélioration,5,5,5,5,Ajouter Touch ID/Face ID
+APPMOB-00240,CLI-17201,2025-09-28 11:22:18,Android 2.4.1,Consultation de contrats,Difficulté d'utilisation,5,5,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00241,CLI-14205,2025-05-09 11:22:18,Android 2.3.5,Notification,Difficulté d'utilisation,3,4,2,2,Trop complexe pour déclarer un sinistre
+APPMOB-00242,CLI-82055,2025-09-20 11:22:18,Android 2.4.0,Chat avec conseiller,Suggestion d'amélioration,4,3,5,4,Ajouter Touch ID/Face ID
+APPMOB-00243,CLI-95545,2025-05-16 11:22:18,iOS 2.4.0,Demande d'attestation,Bug signalé,4,4,3,4,Problème de connexion récurrent
+APPMOB-00244,CLI-98752,2025-07-27 11:22:18,iOS 2.4.1,Gestion de profil,Bug signalé,4,4,3,4,Notifications qui ne s'affichent pas
+APPMOB-00245,CLI-56116,2025-08-02 11:22:18,Android 2.4.1,Notification,Difficulté d'utilisation,4,5,4,3,Menu pas intuitif
+APPMOB-00246,CLI-28354,2025-05-06 11:22:18,Android 2.4.0,Consultation de contrats,Suggestion d'amélioration,5,5,4,5,Ajouter mode sombre
+APPMOB-00247,CLI-71966,2025-05-13 11:22:18,iOS 2.4.0,Déclaration de sinistre,Suggestion d'amélioration,4,3,4,3,Ajouter mode sombre
+APPMOB-00248,CLI-84311,2025-09-13 11:22:18,Android 2.4.1,Demande d'attestation,Suggestion d'amélioration,4,4,5,4,Ajouter mode sombre
+APPMOB-00249,CLI-51088,2025-09-11 11:22:18,iOS 2.4.0,Notification,Bug signalé,3,4,4,4,Problème de connexion récurrent
+APPMOB-00250,CLI-64121,2025-08-14 11:22:18,Android 2.4.1,Paiement,Difficulté d'utilisation,4,3,5,3,Menu pas intuitif
+APPMOB-00251,CLI-90476,2025-09-07 11:22:18,iOS 2.4.0,Paiement,Suggestion d'amélioration,3,3,2,4,Ajouter Touch ID/Face ID
+APPMOB-00252,CLI-14960,2025-06-07 11:22:18,Android 2.4.0,Demande d'attestation,Difficulté d'utilisation,4,5,4,5,Trop complexe pour déclarer un sinistre
+APPMOB-00253,CLI-88280,2025-07-10 11:22:18,iOS 2.3.5,Paiement,Suggestion d'amélioration,4,4,4,4,Ajouter Touch ID/Face ID
+APPMOB-00254,CLI-58340,2025-09-12 11:22:18,iOS 2.4.1,Notification,Suggestion d'amélioration,4,4,4,3,Ajouter Touch ID/Face ID
+APPMOB-00255,CLI-70663,2025-09-29 11:22:18,Android 2.4.0,Chat avec conseiller,Appréciation positive,2,2,1,1,Application très pratique
+APPMOB-00256,CLI-73830,2025-09-04 11:22:18,Android 2.4.0,Consultation de contrats,Suggestion d'amélioration,5,5,5,5,Ajouter Touch ID/Face ID
+APPMOB-00257,CLI-10134,2025-10-17 11:22:18,iOS 2.4.0,Notification,Appréciation positive,3,3,2,2,Facile à utiliser
+APPMOB-00258,CLI-23621,2025-08-07 11:22:18,Android 2.4.0,Consultation de contrats,Bug signalé,2,3,2,3,Notifications qui ne s'affichent pas
+APPMOB-00259,CLI-62635,2025-10-12 11:22:18,Android 2.4.1,Gestion de profil,Appréciation positive,3,2,4,4,Facile à utiliser
+APPMOB-00260,CLI-51554,2025-06-30 11:22:18,iOS 2.4.1,Simulation de devis,Suggestion d'amélioration,4,4,4,5,Améliorer l'ergonomie
+APPMOB-00261,CLI-30959,2025-05-21 11:22:18,iOS 2.3.5,Gestion de profil,Difficulté d'utilisation,1,1,2,1,Menu pas intuitif
+APPMOB-00262,CLI-43990,2025-05-23 11:22:18,Android 2.4.1,Déclaration de sinistre,Suggestion d'amélioration,3,4,4,2,Ajouter Touch ID/Face ID
+APPMOB-00263,CLI-64015,2025-09-08 11:22:18,Android 2.4.0,Demande d'attestation,Difficulté d'utilisation,4,3,5,3,Menu pas intuitif
+APPMOB-00264,CLI-78325,2025-09-17 11:22:18,Android 2.3.5,Gestion de profil,Bug signalé,4,4,3,5,Notifications qui ne s'affichent pas
+APPMOB-00265,CLI-97963,2025-05-31 11:22:18,iOS 2.4.0,Espace documentaire,Difficulté d'utilisation,2,2,3,2,Trop complexe pour déclarer un sinistre
+APPMOB-00266,CLI-37818,2025-10-10 11:22:18,iOS 2.4.0,Suivi de remboursement,Appréciation positive,2,3,3,1,Application très pratique
+APPMOB-00267,CLI-42392,2025-05-29 11:22:18,Android 2.3.5,Demande d'attestation,Bug signalé,4,5,5,4,Problème de connexion récurrent
+APPMOB-00268,CLI-13243,2025-08-07 11:22:18,Android 2.4.1,Gestion de profil,Bug signalé,2,1,3,3,Impossible de télécharger les attestations
+APPMOB-00269,CLI-67917,2025-05-10 11:22:18,iOS 2.4.1,Simulation de devis,Suggestion d'amélioration,3,2,2,2,Ajouter Touch ID/Face ID
+APPMOB-00270,CLI-48632,2025-07-18 11:22:18,Android 2.4.0,Suivi de remboursement,Difficulté d'utilisation,2,2,2,2,Trop complexe pour déclarer un sinistre
+APPMOB-00271,CLI-70350,2025-10-05 11:22:18,Android 2.4.1,Espace documentaire,Bug signalé,3,4,3,2,Impossible de télécharger les attestations
+APPMOB-00272,CLI-56245,2025-06-19 11:22:18,iOS 2.3.5,Chat avec conseiller,Appréciation positive,4,5,5,5,Application très pratique
+APPMOB-00273,CLI-47894,2025-10-10 11:22:18,Android 2.3.5,Consultation de contrats,Suggestion d'amélioration,1,1,1,1,Ajouter Touch ID/Face ID
+APPMOB-00274,CLI-59609,2025-04-29 11:22:18,Android 2.4.1,Paiement,Suggestion d'amélioration,3,4,2,2,Ajouter mode sombre
+APPMOB-00275,CLI-67175,2025-09-30 11:22:18,iOS 2.3.5,Déclaration de sinistre,Difficulté d'utilisation,5,5,5,5,Menu pas intuitif
+APPMOB-00276,CLI-71080,2025-09-14 11:22:18,Android 2.4.0,Demande d'attestation,Bug signalé,4,5,3,3,L'application se ferme lors du paiement
+APPMOB-00277,CLI-20402,2025-07-25 11:22:18,Android 2.3.5,Demande d'attestation,Bug signalé,4,4,3,4,Impossible de télécharger les attestations
+APPMOB-00278,CLI-50487,2025-08-17 11:22:18,Android 2.4.0,Espace documentaire,Bug signalé,3,4,4,3,L'application se ferme lors du paiement
+APPMOB-00279,CLI-76998,2025-09-18 11:22:18,Android 2.4.0,Consultation de contrats,Suggestion d'amélioration,4,5,3,4,Ajouter Touch ID/Face ID
+APPMOB-00280,CLI-27107,2025-08-27 11:22:18,Android 2.4.0,Suivi de remboursement,Suggestion d'amélioration,1,1,1,1,Ajouter mode sombre
+APPMOB-00281,CLI-40735,2025-04-23 11:22:18,Android 2.4.1,Paiement,Bug signalé,4,3,5,5,Impossible de télécharger les attestations
+APPMOB-00282,CLI-91140,2025-05-30 11:22:18,iOS 2.4.1,Espace documentaire,Suggestion d'amélioration,3,3,3,4,Ajouter Touch ID/Face ID
+APPMOB-00283,CLI-32100,2025-08-28 11:22:18,Android 2.4.1,Suivi de remboursement,Bug signalé,5,5,5,5,Impossible de télécharger les attestations
+APPMOB-00284,CLI-14319,2025-08-19 11:22:18,iOS 2.3.5,Suivi de remboursement,Appréciation positive,1,1,1,1,Facile à utiliser
+APPMOB-00285,CLI-72070,2025-08-02 11:22:18,iOS 2.4.0,Simulation de devis,Suggestion d'amélioration,4,3,3,5,Ajouter Touch ID/Face ID
+APPMOB-00286,CLI-51203,2025-09-03 11:22:18,iOS 2.4.1,Demande d'attestation,Suggestion d'amélioration,5,5,5,4,Ajouter mode sombre
+APPMOB-00287,CLI-43531,2025-10-08 11:22:18,Android 2.4.0,Chat avec conseiller,Appréciation positive,3,4,2,4,Facile à utiliser
+APPMOB-00288,CLI-19361,2025-10-18 11:22:18,iOS 2.4.1,Espace documentaire,Difficulté d'utilisation,3,3,4,2,Menu pas intuitif
+APPMOB-00289,CLI-95950,2025-09-03 11:22:18,Android 2.4.0,Suivi de remboursement,Difficulté d'utilisation,3,3,3,3,Trop complexe pour déclarer un sinistre
+APPMOB-00290,CLI-79791,2025-06-28 11:22:18,iOS 2.3.5,Consultation de contrats,Difficulté d'utilisation,2,1,3,2,Menu pas intuitif
+APPMOB-00291,CLI-56912,2025-04-26 11:22:18,Android 2.4.0,Déclaration de sinistre,Difficulté d'utilisation,2,2,2,3,Trop complexe pour déclarer un sinistre
+APPMOB-00292,CLI-54252,2025-04-27 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,3,2,2,3,Ajouter Touch ID/Face ID
+APPMOB-00293,CLI-73661,2025-06-06 11:22:18,Android 2.4.1,Simulation de devis,Difficulté d'utilisation,5,5,5,4,Menu pas intuitif
+APPMOB-00294,CLI-69243,2025-05-28 11:22:18,iOS 2.4.0,Demande d'attestation,Suggestion d'amélioration,5,5,5,5,Améliorer l'ergonomie
+APPMOB-00295,CLI-38233,2025-06-20 11:22:18,iOS 2.4.0,Notification,Suggestion d'amélioration,5,5,4,5,Améliorer l'ergonomie
+APPMOB-00296,CLI-42466,2025-05-16 11:22:18,iOS 2.4.1,Déclaration de sinistre,Appréciation positive,4,4,4,4,Interface claire et intuitive
+APPMOB-00297,CLI-28321,2025-10-03 11:22:18,Android 2.4.0,Consultation de contrats,Difficulté d'utilisation,5,5,4,5,Trop complexe pour déclarer un sinistre
+APPMOB-00298,CLI-78684,2025-06-17 11:22:18,Android 2.4.0,Chat avec conseiller,Suggestion d'amélioration,3,3,4,2,Ajouter Touch ID/Face ID
+APPMOB-00299,CLI-19446,2025-05-16 11:22:18,Android 2.4.0,Notification,Difficulté d'utilisation,2,2,3,1,Menu pas intuitif
+APPMOB-00300,CLI-37675,2025-06-01 11:22:18,Android 2.4.0,Gestion de profil,Suggestion d'amélioration,4,5,5,3,Ajouter Touch ID/Face ID
+APPMOB-00301,CLI-67155,2025-10-01 11:22:18,iOS 2.4.0,Paiement,Suggestion d'amélioration,4,4,3,5,Améliorer l'ergonomie
+APPMOB-00302,CLI-42276,2025-06-28 11:22:18,iOS 2.4.1,Simulation de devis,Difficulté d'utilisation,5,5,4,4,Menu pas intuitif
+APPMOB-00303,CLI-15312,2025-08-09 11:22:18,iOS 2.4.0,Suivi de remboursement,Appréciation positive,4,4,3,3,Facile à utiliser
+APPMOB-00304,CLI-27881,2025-07-31 11:22:18,Android 2.4.0,Gestion de profil,Appréciation positive,4,3,5,5,Application très pratique
+APPMOB-00305,CLI-24336,2025-06-01 11:22:18,Android 2.3.5,Paiement,Bug signalé,3,3,3,2,L'application se ferme lors du paiement
+APPMOB-00306,CLI-75321,2025-08-31 11:22:18,iOS 2.3.5,Gestion de profil,Appréciation positive,3,4,3,4,Facile à utiliser
+APPMOB-00307,CLI-30654,2025-09-17 11:22:18,Android 2.4.1,Gestion de profil,Suggestion d'amélioration,4,4,5,5,Ajouter mode sombre
+APPMOB-00308,CLI-13254,2025-05-31 11:22:18,Android 2.4.0,Chat avec conseiller,Difficulté d'utilisation,1,1,2,2,Menu pas intuitif
+APPMOB-00309,CLI-80349,2025-04-21 11:22:18,iOS 2.4.0,Espace documentaire,Appréciation positive,4,3,3,5,Application très pratique
+APPMOB-00310,CLI-41747,2025-09-06 11:22:18,Android 2.3.5,Chat avec conseiller,Appréciation positive,1,1,1,1,Interface claire et intuitive
+APPMOB-00311,CLI-43288,2025-05-03 11:22:18,Android 2.3.5,Notification,Appréciation positive,4,4,3,4,Facile à utiliser
+APPMOB-00312,CLI-34058,2025-05-27 11:22:18,Android 2.3.5,Chat avec conseiller,Appréciation positive,5,5,4,4,Application très pratique
+APPMOB-00313,CLI-28671,2025-10-01 11:22:18,iOS 2.4.1,Simulation de devis,Suggestion d'amélioration,3,3,2,4,Ajouter Touch ID/Face ID
+APPMOB-00314,CLI-63369,2025-08-20 11:22:18,Android 2.3.5,Espace documentaire,Appréciation positive,4,3,4,5,Interface claire et intuitive
+APPMOB-00315,CLI-60911,2025-09-21 11:22:18,iOS 2.4.0,Espace documentaire,Suggestion d'amélioration,4,3,4,5,Ajouter mode sombre
+APPMOB-00316,CLI-55636,2025-08-09 11:22:18,iOS 2.4.0,Chat avec conseiller,Bug signalé,2,3,1,3,Impossible de télécharger les attestations
+APPMOB-00317,CLI-36565,2025-05-14 11:22:18,iOS 2.4.1,Demande d'attestation,Difficulté d'utilisation,2,2,3,3,Trop complexe pour déclarer un sinistre
+APPMOB-00318,CLI-65717,2025-09-25 11:22:18,Android 2.4.1,Consultation de contrats,Difficulté d'utilisation,5,5,4,5,Trop complexe pour déclarer un sinistre
+APPMOB-00319,CLI-15832,2025-09-18 11:22:18,iOS 2.3.5,Simulation de devis,Suggestion d'amélioration,4,4,5,3,Améliorer l'ergonomie
+APPMOB-00320,CLI-20528,2025-07-15 11:22:18,iOS 2.4.0,Consultation de contrats,Suggestion d'amélioration,1,1,1,1,Ajouter mode sombre
+APPMOB-00321,CLI-14587,2025-04-24 11:22:18,iOS 2.4.1,Déclaration de sinistre,Bug signalé,5,4,4,5,L'application se ferme lors du paiement
+APPMOB-00322,CLI-11117,2025-06-20 11:22:18,iOS 2.3.5,Gestion de profil,Bug signalé,2,2,2,1,Problème de connexion récurrent
+APPMOB-00323,CLI-84242,2025-08-03 11:22:18,iOS 2.4.1,Paiement,Suggestion d'amélioration,2,2,1,3,Améliorer l'ergonomie
+APPMOB-00324,CLI-11042,2025-06-20 11:22:18,Android 2.4.1,Déclaration de sinistre,Bug signalé,3,4,2,4,Impossible de télécharger les attestations
+APPMOB-00325,CLI-65917,2025-06-26 11:22:18,iOS 2.4.1,Consultation de contrats,Suggestion d'amélioration,3,3,2,4,Ajouter Touch ID/Face ID
+APPMOB-00326,CLI-14318,2025-08-07 11:22:18,Android 2.4.1,Simulation de devis,Difficulté d'utilisation,3,3,4,3,Trop complexe pour déclarer un sinistre
+APPMOB-00327,CLI-43795,2025-06-08 11:22:18,iOS 2.3.5,Demande d'attestation,Difficulté d'utilisation,1,2,1,2,Trop complexe pour déclarer un sinistre
+APPMOB-00328,CLI-35292,2025-06-15 11:22:18,Android 2.4.0,Déclaration de sinistre,Suggestion d'amélioration,1,1,1,1,Ajouter Touch ID/Face ID
+APPMOB-00329,CLI-40371,2025-07-05 11:22:18,Android 2.4.1,Paiement,Difficulté d'utilisation,4,3,5,4,Trop complexe pour déclarer un sinistre
+APPMOB-00330,CLI-84843,2025-05-20 11:22:18,Android 2.4.1,Consultation de contrats,Difficulté d'utilisation,2,3,1,2,Trop complexe pour déclarer un sinistre
+APPMOB-00331,CLI-36619,2025-06-01 11:22:18,iOS 2.4.0,Notification,Difficulté d'utilisation,4,3,4,3,Trop complexe pour déclarer un sinistre
+APPMOB-00332,CLI-95747,2025-05-09 11:22:18,iOS 2.4.0,Chat avec conseiller,Bug signalé,2,2,2,3,L'application se ferme lors du paiement
+APPMOB-00333,CLI-62313,2025-08-13 11:22:18,Android 2.3.5,Simulation de devis,Appréciation positive,3,4,4,4,Interface claire et intuitive
+APPMOB-00334,CLI-88424,2025-05-16 11:22:18,Android 2.4.0,Gestion de profil,Suggestion d'amélioration,5,5,4,5,Ajouter mode sombre
+APPMOB-00335,CLI-52118,2025-08-17 11:22:18,iOS 2.4.0,Espace documentaire,Difficulté d'utilisation,2,3,2,3,Menu pas intuitif
+APPMOB-00336,CLI-61147,2025-05-14 11:22:18,Android 2.4.1,Suivi de remboursement,Bug signalé,2,1,2,2,Problème de connexion récurrent
+APPMOB-00337,CLI-28418,2025-07-15 11:22:18,iOS 2.3.5,Consultation de contrats,Appréciation positive,3,4,2,4,Interface claire et intuitive
+APPMOB-00338,CLI-14039,2025-06-16 11:22:18,Android 2.3.5,Gestion de profil,Bug signalé,4,4,3,5,L'application se ferme lors du paiement
+APPMOB-00339,CLI-66851,2025-09-13 11:22:18,Android 2.4.0,Simulation de devis,Difficulté d'utilisation,4,4,5,3,Menu pas intuitif
+APPMOB-00340,CLI-88678,2025-05-04 11:22:18,iOS 2.4.0,Consultation de contrats,Appréciation positive,2,3,1,3,Facile à utiliser
+APPMOB-00341,CLI-81540,2025-09-26 11:22:18,iOS 2.4.0,Suivi de remboursement,Bug signalé,3,3,3,3,Impossible de télécharger les attestations
+APPMOB-00342,CLI-28320,2025-06-25 11:22:18,Android 2.3.5,Demande d'attestation,Difficulté d'utilisation,5,5,5,4,Menu pas intuitif
+APPMOB-00343,CLI-32098,2025-06-28 11:22:18,Android 2.3.5,Chat avec conseiller,Appréciation positive,2,1,2,1,Application très pratique
+APPMOB-00344,CLI-92927,2025-07-19 11:22:18,iOS 2.4.1,Gestion de profil,Difficulté d'utilisation,3,3,3,3,Trop complexe pour déclarer un sinistre
+APPMOB-00345,CLI-90836,2025-05-20 11:22:18,iOS 2.4.1,Suivi de remboursement,Difficulté d'utilisation,1,2,2,1,Menu pas intuitif
+APPMOB-00346,CLI-77111,2025-05-21 11:22:18,Android 2.4.0,Paiement,Difficulté d'utilisation,1,1,1,1,Trop complexe pour déclarer un sinistre
+APPMOB-00347,CLI-77893,2025-09-08 11:22:18,iOS 2.4.0,Chat avec conseiller,Bug signalé,4,5,5,4,Impossible de télécharger les attestations
+APPMOB-00348,CLI-81627,2025-10-01 11:22:18,Android 2.4.0,Demande d'attestation,Difficulté d'utilisation,1,1,1,1,Trop complexe pour déclarer un sinistre
+APPMOB-00349,CLI-35511,2025-07-30 11:22:18,iOS 2.4.1,Gestion de profil,Suggestion d'amélioration,5,5,5,5,Ajouter Touch ID/Face ID
+APPMOB-00350,CLI-81546,2025-08-23 11:22:18,Android 2.3.5,Consultation de contrats,Suggestion d'amélioration,4,4,5,5,Améliorer l'ergonomie
+APPMOB-00351,CLI-22549,2025-05-30 11:22:18,iOS 2.4.0,Consultation de contrats,Appréciation positive,4,3,4,4,Facile à utiliser
+APPMOB-00352,CLI-32342,2025-10-12 11:22:18,iOS 2.4.1,Gestion de profil,Bug signalé,4,4,3,3,Problème de connexion récurrent
+APPMOB-00353,CLI-90986,2025-07-20 11:22:18,iOS 2.4.0,Consultation de contrats,Bug signalé,3,3,4,4,Problème de connexion récurrent
+APPMOB-00354,CLI-60330,2025-07-29 11:22:18,Android 2.4.0,Déclaration de sinistre,Suggestion d'amélioration,4,5,4,3,Ajouter mode sombre
+APPMOB-00355,CLI-35647,2025-05-05 11:22:18,Android 2.3.5,Paiement,Appréciation positive,4,3,3,4,Facile à utiliser
+APPMOB-00356,CLI-95798,2025-08-26 11:22:18,iOS 2.4.1,Simulation de devis,Appréciation positive,4,3,5,3,Interface claire et intuitive
+APPMOB-00357,CLI-39726,2025-06-16 11:22:18,iOS 2.4.0,Espace documentaire,Suggestion d'amélioration,4,3,3,3,Ajouter mode sombre
+APPMOB-00358,CLI-86883,2025-06-28 11:22:18,Android 2.4.0,Paiement,Difficulté d'utilisation,2,2,3,1,Trop complexe pour déclarer un sinistre
+APPMOB-00359,CLI-26973,2025-07-08 11:22:18,iOS 2.3.5,Chat avec conseiller,Difficulté d'utilisation,2,3,1,1,Menu pas intuitif
+APPMOB-00360,CLI-46688,2025-08-27 11:22:18,Android 2.4.1,Simulation de devis,Bug signalé,4,4,3,4,Impossible de télécharger les attestations
+APPMOB-00361,CLI-62508,2025-06-24 11:22:18,iOS 2.3.5,Paiement,Difficulté d'utilisation,1,1,1,1,Menu pas intuitif
+APPMOB-00362,CLI-68363,2025-06-09 11:22:18,Android 2.4.1,Espace documentaire,Suggestion d'amélioration,5,4,4,4,Ajouter mode sombre
+APPMOB-00363,CLI-94900,2025-06-30 11:22:18,Android 2.4.1,Simulation de devis,Suggestion d'amélioration,4,4,4,5,Ajouter mode sombre
+APPMOB-00364,CLI-68026,2025-08-12 11:22:18,Android 2.4.1,Gestion de profil,Suggestion d'amélioration,5,4,5,5,Améliorer l'ergonomie
+APPMOB-00365,CLI-53136,2025-08-03 11:22:18,Android 2.4.0,Notification,Suggestion d'amélioration,3,4,2,2,Ajouter Touch ID/Face ID
+APPMOB-00366,CLI-26532,2025-09-16 11:22:18,iOS 2.3.5,Gestion de profil,Difficulté d'utilisation,3,2,2,3,Menu pas intuitif
+APPMOB-00367,CLI-25561,2025-05-23 11:22:18,Android 2.4.0,Notification,Bug signalé,4,3,3,3,Notifications qui ne s'affichent pas
+APPMOB-00368,CLI-75604,2025-10-11 11:22:18,Android 2.3.5,Gestion de profil,Suggestion d'amélioration,4,3,3,3,Améliorer l'ergonomie
+APPMOB-00369,CLI-94139,2025-07-16 11:22:18,iOS 2.4.1,Chat avec conseiller,Bug signalé,1,1,1,2,L'application se ferme lors du paiement
+APPMOB-00370,CLI-93062,2025-10-14 11:22:18,iOS 2.4.0,Déclaration de sinistre,Appréciation positive,3,2,2,4,Interface claire et intuitive
+APPMOB-00371,CLI-90562,2025-06-29 11:22:18,Android 2.3.5,Suivi de remboursement,Difficulté d'utilisation,3,3,4,4,Menu pas intuitif
+APPMOB-00372,CLI-86240,2025-05-30 11:22:18,Android 2.4.1,Chat avec conseiller,Appréciation positive,4,3,4,5,Application très pratique
+APPMOB-00373,CLI-83229,2025-10-17 11:22:18,iOS 2.4.1,Suivi de remboursement,Bug signalé,3,2,2,3,Impossible de télécharger les attestations
+APPMOB-00374,CLI-87047,2025-09-12 11:22:18,iOS 2.3.5,Suivi de remboursement,Bug signalé,5,5,5,4,Notifications qui ne s'affichent pas
+APPMOB-00375,CLI-91267,2025-07-17 11:22:18,iOS 2.4.0,Simulation de devis,Appréciation positive,3,2,3,3,Facile à utiliser
+APPMOB-00376,CLI-62382,2025-08-02 11:22:18,iOS 2.4.0,Chat avec conseiller,Difficulté d'utilisation,4,5,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00377,CLI-37712,2025-08-30 11:22:18,Android 2.4.0,Suivi de remboursement,Suggestion d'amélioration,1,1,2,2,Améliorer l'ergonomie
+APPMOB-00378,CLI-79941,2025-04-26 11:22:18,Android 2.4.0,Demande d'attestation,Suggestion d'amélioration,1,1,1,2,Améliorer l'ergonomie
+APPMOB-00379,CLI-80594,2025-09-01 11:22:18,iOS 2.4.0,Consultation de contrats,Suggestion d'amélioration,4,3,3,4,Ajouter mode sombre
+APPMOB-00380,CLI-55132,2025-09-02 11:22:18,Android 2.3.5,Notification,Difficulté d'utilisation,1,1,1,1,Trop complexe pour déclarer un sinistre
+APPMOB-00381,CLI-99586,2025-09-10 11:22:18,Android 2.4.1,Gestion de profil,Bug signalé,1,1,1,2,Notifications qui ne s'affichent pas
+APPMOB-00382,CLI-61381,2025-10-08 11:22:18,Android 2.3.5,Notification,Difficulté d'utilisation,5,4,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00383,CLI-43399,2025-08-17 11:22:18,Android 2.3.5,Demande d'attestation,Difficulté d'utilisation,4,3,4,3,Trop complexe pour déclarer un sinistre
+APPMOB-00384,CLI-94758,2025-05-22 11:22:18,Android 2.4.1,Notification,Appréciation positive,5,5,4,5,Application très pratique
+APPMOB-00385,CLI-54057,2025-07-25 11:22:18,Android 2.4.0,Espace documentaire,Appréciation positive,5,4,5,4,Facile à utiliser
+APPMOB-00386,CLI-95694,2025-06-13 11:22:18,iOS 2.4.0,Paiement,Difficulté d'utilisation,5,5,4,5,Menu pas intuitif
+APPMOB-00387,CLI-32274,2025-08-24 11:22:18,Android 2.4.1,Simulation de devis,Bug signalé,3,2,4,2,Notifications qui ne s'affichent pas
+APPMOB-00388,CLI-12763,2025-06-09 11:22:18,iOS 2.3.5,Notification,Appréciation positive,3,4,2,2,Interface claire et intuitive
+APPMOB-00389,CLI-46119,2025-08-01 11:22:18,Android 2.4.0,Paiement,Bug signalé,3,4,2,4,Notifications qui ne s'affichent pas
+APPMOB-00390,CLI-36301,2025-06-05 11:22:18,iOS 2.3.5,Demande d'attestation,Difficulté d'utilisation,3,3,4,2,Trop complexe pour déclarer un sinistre
+APPMOB-00391,CLI-74129,2025-10-15 11:22:18,Android 2.4.1,Consultation de contrats,Appréciation positive,4,3,4,5,Facile à utiliser
+APPMOB-00392,CLI-55398,2025-09-06 11:22:18,Android 2.3.5,Déclaration de sinistre,Suggestion d'amélioration,4,3,4,5,Ajouter Touch ID/Face ID
+APPMOB-00393,CLI-63815,2025-05-29 11:22:18,Android 2.3.5,Demande d'attestation,Suggestion d'amélioration,3,2,4,4,Ajouter mode sombre
+APPMOB-00394,CLI-44053,2025-04-24 11:22:18,iOS 2.3.5,Espace documentaire,Appréciation positive,2,1,3,3,Facile à utiliser
+APPMOB-00395,CLI-71893,2025-05-20 11:22:18,iOS 2.3.5,Consultation de contrats,Suggestion d'amélioration,3,3,3,2,Ajouter mode sombre
+APPMOB-00396,CLI-26836,2025-08-02 11:22:18,Android 2.4.1,Consultation de contrats,Suggestion d'amélioration,4,5,5,4,Ajouter mode sombre
+APPMOB-00397,CLI-13034,2025-10-02 11:22:18,iOS 2.3.5,Demande d'attestation,Suggestion d'amélioration,1,1,1,1,Ajouter mode sombre
+APPMOB-00398,CLI-28635,2025-09-12 11:22:18,Android 2.4.1,Déclaration de sinistre,Bug signalé,2,2,2,1,Impossible de télécharger les attestations
+APPMOB-00399,CLI-84065,2025-05-19 11:22:18,iOS 2.3.5,Paiement,Difficulté d'utilisation,1,2,2,2,Menu pas intuitif
+APPMOB-00400,CLI-23495,2025-08-29 11:22:18,iOS 2.4.1,Paiement,Suggestion d'amélioration,2,3,1,2,Améliorer l'ergonomie
+APPMOB-00401,CLI-32249,2025-07-28 11:22:18,Android 2.3.5,Notification,Bug signalé,3,3,4,3,Impossible de télécharger les attestations
+APPMOB-00402,CLI-35255,2025-08-13 11:22:18,iOS 2.3.5,Demande d'attestation,Bug signalé,1,2,1,1,Notifications qui ne s'affichent pas
+APPMOB-00403,CLI-98905,2025-07-14 11:22:18,Android 2.4.0,Simulation de devis,Appréciation positive,3,2,4,2,Interface claire et intuitive
+APPMOB-00404,CLI-32786,2025-06-02 11:22:18,Android 2.3.5,Demande d'attestation,Bug signalé,4,4,5,3,Notifications qui ne s'affichent pas
+APPMOB-00405,CLI-64655,2025-07-10 11:22:18,Android 2.4.1,Paiement,Suggestion d'amélioration,4,5,4,3,Ajouter mode sombre
+APPMOB-00406,CLI-32165,2025-07-17 11:22:18,iOS 2.3.5,Suivi de remboursement,Suggestion d'amélioration,1,1,2,2,Ajouter mode sombre
+APPMOB-00407,CLI-94788,2025-08-05 11:22:18,iOS 2.4.1,Espace documentaire,Difficulté d'utilisation,5,5,5,4,Trop complexe pour déclarer un sinistre
+APPMOB-00408,CLI-88812,2025-10-10 11:22:18,iOS 2.4.0,Chat avec conseiller,Appréciation positive,3,3,2,4,Facile à utiliser
+APPMOB-00409,CLI-11449,2025-06-07 11:22:18,Android 2.3.5,Simulation de devis,Appréciation positive,4,5,5,5,Application très pratique
+APPMOB-00410,CLI-67831,2025-07-24 11:22:18,Android 2.4.0,Demande d'attestation,Bug signalé,3,2,3,3,Problème de connexion récurrent
+APPMOB-00411,CLI-64220,2025-09-06 11:22:18,iOS 2.4.1,Déclaration de sinistre,Difficulté d'utilisation,2,3,1,1,Menu pas intuitif
+APPMOB-00412,CLI-33666,2025-07-24 11:22:18,iOS 2.4.0,Demande d'attestation,Suggestion d'amélioration,5,5,4,4,Améliorer l'ergonomie
+APPMOB-00413,CLI-76334,2025-07-29 11:22:18,Android 2.4.1,Notification,Difficulté d'utilisation,1,2,2,1,Menu pas intuitif
+APPMOB-00414,CLI-66378,2025-08-04 11:22:18,iOS 2.4.1,Notification,Suggestion d'amélioration,3,4,2,2,Ajouter Touch ID/Face ID
+APPMOB-00415,CLI-31983,2025-10-07 11:22:18,iOS 2.4.1,Gestion de profil,Appréciation positive,5,5,5,5,Interface claire et intuitive
+APPMOB-00416,CLI-95597,2025-06-27 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,5,4,5,4,Ajouter mode sombre
+APPMOB-00417,CLI-95652,2025-04-29 11:22:18,iOS 2.4.1,Consultation de contrats,Suggestion d'amélioration,5,5,5,4,Ajouter Touch ID/Face ID
+APPMOB-00418,CLI-81915,2025-07-23 11:22:18,Android 2.4.0,Chat avec conseiller,Appréciation positive,4,4,3,5,Facile à utiliser
+APPMOB-00419,CLI-12849,2025-06-07 11:22:18,Android 2.4.1,Paiement,Difficulté d'utilisation,3,4,4,4,Trop complexe pour déclarer un sinistre
+APPMOB-00420,CLI-11144,2025-06-19 11:22:18,Android 2.4.1,Chat avec conseiller,Suggestion d'amélioration,5,4,5,4,Ajouter mode sombre
+APPMOB-00421,CLI-95126,2025-09-23 11:22:18,Android 2.3.5,Notification,Suggestion d'amélioration,2,3,2,3,Améliorer l'ergonomie
+APPMOB-00422,CLI-84422,2025-06-08 11:22:18,iOS 2.4.0,Demande d'attestation,Bug signalé,1,1,1,2,Notifications qui ne s'affichent pas
+APPMOB-00423,CLI-88248,2025-09-30 11:22:18,iOS 2.4.0,Demande d'attestation,Bug signalé,3,2,3,4,Notifications qui ne s'affichent pas
+APPMOB-00424,CLI-31717,2025-06-20 11:22:18,iOS 2.4.0,Déclaration de sinistre,Appréciation positive,5,5,5,4,Interface claire et intuitive
+APPMOB-00425,CLI-13401,2025-08-28 11:22:18,iOS 2.4.1,Espace documentaire,Appréciation positive,2,2,3,3,Application très pratique
+APPMOB-00426,CLI-43583,2025-06-10 11:22:18,iOS 2.4.0,Demande d'attestation,Suggestion d'amélioration,4,3,5,5,Ajouter mode sombre
+APPMOB-00427,CLI-60485,2025-04-25 11:22:18,Android 2.4.0,Simulation de devis,Bug signalé,5,4,4,5,Impossible de télécharger les attestations
+APPMOB-00428,CLI-27449,2025-05-15 11:22:18,iOS 2.3.5,Demande d'attestation,Appréciation positive,2,2,2,2,Interface claire et intuitive
+APPMOB-00429,CLI-15220,2025-06-28 11:22:18,iOS 2.3.5,Notification,Difficulté d'utilisation,3,4,3,2,Menu pas intuitif
+APPMOB-00430,CLI-98809,2025-08-04 11:22:18,iOS 2.3.5,Chat avec conseiller,Suggestion d'amélioration,4,4,4,3,Ajouter Touch ID/Face ID
+APPMOB-00431,CLI-24301,2025-06-14 11:22:18,iOS 2.4.0,Simulation de devis,Difficulté d'utilisation,4,5,5,3,Menu pas intuitif
+APPMOB-00432,CLI-79732,2025-05-19 11:22:18,iOS 2.4.0,Chat avec conseiller,Bug signalé,4,4,4,5,Impossible de télécharger les attestations
+APPMOB-00433,CLI-64056,2025-04-22 11:22:18,Android 2.3.5,Déclaration de sinistre,Difficulté d'utilisation,2,2,3,2,Menu pas intuitif
+APPMOB-00434,CLI-97161,2025-05-20 11:22:18,iOS 2.3.5,Suivi de remboursement,Bug signalé,1,1,1,1,Impossible de télécharger les attestations
+APPMOB-00435,CLI-18224,2025-06-10 11:22:18,Android 2.4.0,Demande d'attestation,Bug signalé,5,5,5,4,L'application se ferme lors du paiement
+APPMOB-00436,CLI-89731,2025-07-19 11:22:18,Android 2.3.5,Chat avec conseiller,Appréciation positive,4,4,5,3,Facile à utiliser
+APPMOB-00437,CLI-97898,2025-10-10 11:22:18,iOS 2.4.0,Suivi de remboursement,Appréciation positive,4,5,3,5,Interface claire et intuitive
+APPMOB-00438,CLI-68767,2025-09-18 11:22:18,iOS 2.4.1,Paiement,Bug signalé,4,3,5,4,Impossible de télécharger les attestations
+APPMOB-00439,CLI-51638,2025-05-14 11:22:18,iOS 2.3.5,Notification,Bug signalé,5,5,4,5,Impossible de télécharger les attestations
+APPMOB-00440,CLI-34258,2025-05-12 11:22:18,iOS 2.3.5,Consultation de contrats,Suggestion d'amélioration,5,4,4,5,Améliorer l'ergonomie
+APPMOB-00441,CLI-88176,2025-04-22 11:22:18,iOS 2.3.5,Demande d'attestation,Suggestion d'amélioration,4,4,5,4,Ajouter Touch ID/Face ID
+APPMOB-00442,CLI-69894,2025-07-08 11:22:18,Android 2.4.1,Paiement,Difficulté d'utilisation,5,5,5,4,Menu pas intuitif
+APPMOB-00443,CLI-66158,2025-07-15 11:22:18,Android 2.3.5,Paiement,Bug signalé,4,3,5,3,Problème de connexion récurrent
+APPMOB-00444,CLI-48330,2025-07-05 11:22:18,iOS 2.4.0,Paiement,Bug signalé,4,3,5,5,Impossible de télécharger les attestations
+APPMOB-00445,CLI-66739,2025-08-09 11:22:18,Android 2.4.1,Notification,Bug signalé,5,5,5,5,Problème de connexion récurrent
+APPMOB-00446,CLI-13444,2025-08-01 11:22:18,iOS 2.3.5,Espace documentaire,Bug signalé,5,4,5,5,Impossible de télécharger les attestations
+APPMOB-00447,CLI-83153,2025-08-20 11:22:18,iOS 2.4.1,Espace documentaire,Bug signalé,3,4,3,2,Problème de connexion récurrent
+APPMOB-00448,CLI-38207,2025-08-04 11:22:18,iOS 2.4.1,Consultation de contrats,Suggestion d'amélioration,5,5,5,4,Ajouter mode sombre
+APPMOB-00449,CLI-30613,2025-09-21 11:22:18,iOS 2.4.1,Suivi de remboursement,Difficulté d'utilisation,5,4,5,5,Trop complexe pour déclarer un sinistre
+APPMOB-00450,CLI-66094,2025-05-30 11:22:18,iOS 2.4.0,Notification,Bug signalé,3,4,3,4,Impossible de télécharger les attestations
+APPMOB-00451,CLI-18839,2025-05-07 11:22:18,Android 2.4.0,Chat avec conseiller,Appréciation positive,5,4,5,4,Application très pratique
+APPMOB-00452,CLI-61025,2025-04-27 11:22:18,Android 2.3.5,Déclaration de sinistre,Difficulté d'utilisation,2,1,2,2,Trop complexe pour déclarer un sinistre
+APPMOB-00453,CLI-19843,2025-06-14 11:22:18,Android 2.3.5,Chat avec conseiller,Appréciation positive,3,3,2,4,Facile à utiliser
+APPMOB-00454,CLI-23365,2025-07-13 11:22:18,Android 2.4.0,Notification,Difficulté d'utilisation,4,4,5,5,Menu pas intuitif
+APPMOB-00455,CLI-99341,2025-07-16 11:22:18,Android 2.3.5,Paiement,Difficulté d'utilisation,5,5,5,4,Trop complexe pour déclarer un sinistre
+APPMOB-00456,CLI-15415,2025-04-26 11:22:18,iOS 2.4.1,Gestion de profil,Appréciation positive,1,1,2,1,Facile à utiliser
+APPMOB-00457,CLI-51004,2025-04-24 11:22:18,iOS 2.4.0,Demande d'attestation,Appréciation positive,3,4,2,2,Interface claire et intuitive
+APPMOB-00458,CLI-24866,2025-07-15 11:22:18,iOS 2.4.1,Gestion de profil,Difficulté d'utilisation,2,1,2,3,Menu pas intuitif
+APPMOB-00459,CLI-14279,2025-04-29 11:22:18,Android 2.3.5,Consultation de contrats,Appréciation positive,5,5,5,4,Facile à utiliser
+APPMOB-00460,CLI-81956,2025-08-24 11:22:18,Android 2.4.0,Suivi de remboursement,Suggestion d'amélioration,5,5,4,5,Ajouter Touch ID/Face ID
+APPMOB-00461,CLI-49586,2025-09-25 11:22:18,Android 2.3.5,Déclaration de sinistre,Appréciation positive,4,4,4,4,Application très pratique
+APPMOB-00462,CLI-26548,2025-04-26 11:22:18,Android 2.4.1,Gestion de profil,Bug signalé,4,5,5,3,Problème de connexion récurrent
+APPMOB-00463,CLI-55084,2025-04-23 11:22:18,Android 2.4.0,Gestion de profil,Bug signalé,5,5,5,5,Impossible de télécharger les attestations
+APPMOB-00464,CLI-41466,2025-07-16 11:22:18,iOS 2.3.5,Consultation de contrats,Appréciation positive,3,4,2,3,Interface claire et intuitive
+APPMOB-00465,CLI-78360,2025-09-29 11:22:18,iOS 2.3.5,Consultation de contrats,Difficulté d'utilisation,2,1,1,1,Trop complexe pour déclarer un sinistre
+APPMOB-00466,CLI-26068,2025-06-06 11:22:18,Android 2.3.5,Chat avec conseiller,Appréciation positive,4,5,5,3,Interface claire et intuitive
+APPMOB-00467,CLI-87989,2025-09-23 11:22:18,iOS 2.4.1,Demande d'attestation,Difficulté d'utilisation,3,4,4,2,Menu pas intuitif
+APPMOB-00468,CLI-76618,2025-06-24 11:22:18,iOS 2.4.0,Gestion de profil,Difficulté d'utilisation,3,4,4,3,Menu pas intuitif
+APPMOB-00469,CLI-95598,2025-05-23 11:22:18,iOS 2.3.5,Déclaration de sinistre,Difficulté d'utilisation,2,2,2,2,Menu pas intuitif
+APPMOB-00470,CLI-92335,2025-05-11 11:22:18,Android 2.4.0,Gestion de profil,Difficulté d'utilisation,3,3,2,4,Menu pas intuitif
+APPMOB-00471,CLI-45731,2025-09-29 11:22:18,iOS 2.4.0,Espace documentaire,Bug signalé,4,3,5,4,Problème de connexion récurrent
+APPMOB-00472,CLI-71309,2025-06-13 11:22:18,iOS 2.3.5,Espace documentaire,Suggestion d'amélioration,4,4,3,3,Améliorer l'ergonomie
+APPMOB-00473,CLI-21100,2025-09-18 11:22:18,iOS 2.4.0,Notification,Difficulté d'utilisation,4,5,4,5,Trop complexe pour déclarer un sinistre
+APPMOB-00474,CLI-59859,2025-09-14 11:22:18,Android 2.4.1,Suivi de remboursement,Suggestion d'amélioration,5,5,5,5,Améliorer l'ergonomie
+APPMOB-00475,CLI-93686,2025-09-08 11:22:18,Android 2.3.5,Paiement,Suggestion d'amélioration,4,4,3,4,Ajouter mode sombre
+APPMOB-00476,CLI-66365,2025-07-20 11:22:18,Android 2.3.5,Gestion de profil,Bug signalé,4,3,4,4,L'application se ferme lors du paiement
+APPMOB-00477,CLI-21064,2025-05-08 11:22:18,Android 2.4.1,Gestion de profil,Appréciation positive,5,4,5,4,Facile à utiliser
+APPMOB-00478,CLI-82109,2025-08-31 11:22:18,iOS 2.4.0,Suivi de remboursement,Suggestion d'amélioration,5,5,5,5,Ajouter Touch ID/Face ID
+APPMOB-00479,CLI-96658,2025-08-22 11:22:18,Android 2.4.1,Notification,Appréciation positive,5,4,5,5,Facile à utiliser
+APPMOB-00480,CLI-44913,2025-09-30 11:22:18,iOS 2.4.1,Paiement,Suggestion d'amélioration,2,3,3,1,Ajouter mode sombre
+APPMOB-00481,CLI-35300,2025-06-01 11:22:18,iOS 2.4.0,Paiement,Appréciation positive,4,3,3,5,Facile à utiliser
+APPMOB-00482,CLI-81142,2025-08-19 11:22:18,Android 2.4.0,Gestion de profil,Appréciation positive,5,4,4,5,Interface claire et intuitive
+APPMOB-00483,CLI-75611,2025-06-15 11:22:18,Android 2.4.0,Paiement,Bug signalé,4,3,4,5,Impossible de télécharger les attestations
+APPMOB-00484,CLI-45359,2025-08-21 11:22:18,iOS 2.4.0,Paiement,Bug signalé,2,3,2,2,Impossible de télécharger les attestations
+APPMOB-00485,CLI-90243,2025-04-26 11:22:18,iOS 2.3.5,Consultation de contrats,Difficulté d'utilisation,4,3,5,4,Trop complexe pour déclarer un sinistre
+APPMOB-00486,CLI-39700,2025-06-17 11:22:18,Android 2.4.0,Gestion de profil,Difficulté d'utilisation,3,4,4,3,Trop complexe pour déclarer un sinistre
+APPMOB-00487,CLI-52726,2025-05-28 11:22:18,Android 2.4.1,Chat avec conseiller,Suggestion d'amélioration,1,1,1,2,Ajouter Touch ID/Face ID
+APPMOB-00488,CLI-33905,2025-06-09 11:22:18,Android 2.4.0,Demande d'attestation,Suggestion d'amélioration,4,4,3,3,Ajouter Touch ID/Face ID
+APPMOB-00489,CLI-27460,2025-06-07 11:22:18,iOS 2.3.5,Simulation de devis,Difficulté d'utilisation,1,1,1,1,Menu pas intuitif
+APPMOB-00490,CLI-75074,2025-05-27 11:22:18,Android 2.3.5,Chat avec conseiller,Difficulté d'utilisation,4,4,4,3,Trop complexe pour déclarer un sinistre
+APPMOB-00491,CLI-90240,2025-05-14 11:22:18,iOS 2.4.1,Notification,Appréciation positive,1,2,2,2,Interface claire et intuitive
+APPMOB-00492,CLI-64200,2025-09-18 11:22:18,iOS 2.3.5,Chat avec conseiller,Bug signalé,3,3,4,3,Notifications qui ne s'affichent pas
+APPMOB-00493,CLI-47760,2025-05-12 11:22:18,Android 2.4.0,Notification,Suggestion d'amélioration,2,3,1,3,Ajouter mode sombre
+APPMOB-00494,CLI-98816,2025-09-01 11:22:18,Android 2.4.1,Gestion de profil,Appréciation positive,5,5,5,4,Facile à utiliser
+APPMOB-00495,CLI-98769,2025-09-27 11:22:18,Android 2.3.5,Paiement,Bug signalé,4,3,5,3,Impossible de télécharger les attestations
+APPMOB-00496,CLI-21294,2025-04-23 11:22:18,Android 2.3.5,Suivi de remboursement,Appréciation positive,5,4,4,5,Application très pratique
+APPMOB-00497,CLI-47566,2025-05-01 11:22:18,Android 2.4.0,Paiement,Suggestion d'amélioration,1,2,1,2,Ajouter mode sombre
+APPMOB-00498,CLI-11538,2025-08-23 11:22:18,iOS 2.4.0,Demande d'attestation,Suggestion d'amélioration,4,5,3,5,Ajouter mode sombre
+APPMOB-00499,CLI-17130,2025-08-19 11:22:18,Android 2.3.5,Déclaration de sinistre,Bug signalé,2,2,3,1,L'application se ferme lors du paiement
+APPMOB-00500,CLI-19138,2025-06-07 11:22:18,Android 2.4.1,Paiement,Difficulté d'utilisation,1,2,1,2,Menu pas intuitif
