@@ -69,7 +69,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for cmd in lsof uv npm python3 docker; do
+for cmd in lsof uv npm python3 docker curl; do
   require_command "$cmd"
 done
 
@@ -103,7 +103,29 @@ ensure_mindsdb() {
   docker logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
 }
 
+wait_for_mindsdb() {
+  local max_wait=60
+  local elapsed=0
+  local url="http://127.0.0.1:47334/api/status"
+
+  echo "[start] Waiting for MindsDB to be ready..."
+
+  while [[ $elapsed -lt $max_wait ]]; do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      echo "[start] MindsDB is ready!"
+      return 0
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+    echo "[start] Still waiting for MindsDB... (${elapsed}s)"
+  done
+
+  echo "[start] WARNING: MindsDB did not become ready after ${max_wait}s"
+  return 1
+}
+
 ensure_mindsdb
+wait_for_mindsdb
 
 echo "[start] Ensuring backend dependencies (uv sync)"
 (
