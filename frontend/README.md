@@ -140,6 +140,10 @@ import { login } from '@/services/auth'
 - Auto-scroll lors de nouveaux messages
 - Support du Shift+Enter pour nouvelles lignes
 - Gestion des états de chargement et d'erreur
+- Streaming en direct (SSE sur `POST /api/v1/chat/stream`)
+  - Affichage token‑par‑token dans une bulle éphémère
+  - Remplacement automatique par le message final à la fin
+  - Panneau d’inspection repliable (request_id, provider, model, elapsed)
 
 ### Dashboard
 
