@@ -7,7 +7,6 @@ from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
 from .nl2sql_service import NL2SQLService
-from .mcp_chart_service import ChartGenerationError, ChartGenerationService
 
 
 log = logging.getLogger("insight.services.chat")
@@ -74,10 +73,6 @@ class ChatService:
                     err = data.get("error_message") if isinstance(data, dict) else None
                     text = err or "(Aucune ligne)"
                 return ChatResponse(reply=text, metadata={"provider": "mindsdb-sql"})
-
-            chart_cmd = self._parse_chart_command(last.content)
-            if last.role == "user" and chart_cmd:
-                return self._handle_chart_command(chart_cmd)
 
         # NL→SQL (optional, explicit opt-in via env)
         if payload.messages and settings.nl2sql_enabled:
@@ -195,61 +190,3 @@ class ChatService:
                         return ChatResponse(reply=text, metadata={"provider": "nl2sql-synth-fallback", "error": str(e), "sql": sql})
 
         return self.engine.run(payload)
-
-    def _parse_chart_command(self, text: str) -> dict | None:
-        stripped = text.strip()
-        if not stripped.startswith("/chart"):
-            return None
-        parts = stripped.split()
-        # /chart, /chart all, /chart list, /chart help, /chart nps ...
-        if len(parts) == 1:
-            return {"action": "generate", "selectors": None}
-        action = parts[1].lower()
-        if action in {"list", "help", "?"}:
-            return {"action": "list"}
-        if action in {"all", "*"}:
-            return {"action": "generate", "selectors": None}
-        return {"action": "generate", "selectors": parts[1:]}
-
-    def _handle_chart_command(self, payload: dict) -> ChatResponse:
-        service = ChartGenerationService()
-        action = payload.get("action")
-        if action == "list":
-            catalog = service.available()
-            if not catalog:
-                return ChatResponse(
-                    reply="Aucun graphique n'est disponible pour le moment.",
-                    metadata={"provider": "mcp-chart", "charts": []},
-                )
-            lines = ["Graphiques disponibles (utilisez `/chart <nom>`):"]
-            for item in catalog:
-                lines.append(f"- `{item['command']}` → {item['title']} ({item['dataset']})")
-            return ChatResponse(
-                reply="\n".join(lines),
-                metadata={"provider": "mcp-chart-catalog", "charts": catalog},
-            )
-
-        selectors = payload.get("selectors")
-        try:
-            charts = service.generate(selectors)
-        except ChartGenerationError as exc:
-            return ChatResponse(
-                reply=f"Échec de la génération des graphiques: {exc}",
-                metadata={"provider": "mcp-chart", "error": str(exc)},
-            )
-
-        if not charts:
-            return ChatResponse(
-                reply="Aucun graphique n'a été généré.",
-                metadata={"provider": "mcp-chart", "charts": []},
-            )
-
-        lines = ["Graphiques générés:"]
-        for chart in charts:
-            lines.append(f"- {chart['title']} ({chart['dataset']}) → {chart['chart_url']}")
-        lines.append("\nAstuce: copiez les URL pour ouvrir les visuels dans un nouvel onglet.")
-
-        return ChatResponse(
-            reply="\n".join(lines),
-            metadata={"provider": "mcp-chart", "charts": charts},
-        )

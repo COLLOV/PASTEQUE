@@ -3,11 +3,15 @@ import { apiFetch } from '../../services/api'
 
 export default function Chat() {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Bonjour, comment puis-je vous aider ?', metadata: null }
+    { role: 'assistant', content: 'Bonjour, comment puis-je vous aider ?' }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [chartMode, setChartMode] = useState(false)
+  const [charts, setCharts] = useState([])
+  const [chartsLoading, setChartsLoading] = useState(false)
+  const [chartsError, setChartsError] = useState('')
   const listRef = useRef(null)
 
   useEffect(() => {
@@ -15,26 +19,46 @@ export default function Chat() {
     listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages, loading])
 
+  async function fetchCharts() {
+    setChartsError('')
+    setChartsLoading(true)
+    try {
+      const res = await apiFetch('/mcp/charts')
+      const items = Array.isArray(res?.charts) ? res.charts : []
+      setCharts(items)
+    } catch (e) {
+      console.error(e)
+      setChartsError(e?.message || 'Impossible de générer les graphiques')
+    } finally {
+      setChartsLoading(false)
+    }
+  }
+
+  function onToggleChartMode(e) {
+    const next = Boolean(e.target.checked)
+    setChartMode(next)
+    setCharts([])
+    setChartsError('')
+    if (next) {
+      fetchCharts()
+    }
+  }
+
   async function onSend() {
     const text = input.trim()
     if (!text || loading) return
     setError('')
-    const nextMessages = [...messages, { role: 'user', content: text, metadata: null }]
-    setMessages(nextMessages)
+    const next = [...messages, { role: 'user', content: text }]
+    setMessages(next)
     setInput('')
     setLoading(true)
     try {
       const res = await apiFetch('/chat/completions', {
         method: 'POST',
-        body: JSON.stringify({
-          messages: nextMessages.map(m => ({ role: m.role, content: m.content }))
-        })
+        body: JSON.stringify({ messages: next })
       })
       const reply = res?.reply ?? ''
-      setMessages(prev => [
-        ...prev,
-        { role: 'assistant', content: reply, metadata: res?.metadata ?? null }
-      ])
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (e) {
       console.error(e)
       setError(e?.message || 'Erreur inconnue')
@@ -51,7 +75,7 @@ export default function Chat() {
   }
 
   function onReset() {
-    setMessages([{ role: 'assistant', content: 'Conversation réinitialisée. Que puis-je faire ?', metadata: null }])
+    setMessages([{ role: 'assistant', content: 'Conversation réinitialisée. Que puis-je faire ?' }])
     setError('')
   }
 
@@ -59,12 +83,63 @@ export default function Chat() {
     <section>
       <div style={styles.header}>
         <h2>Chat</h2>
-        <div style={styles.hint}>Commandes : `/sql`, `/chart list`, `/chart nps`, `/chart support`, …</div>
+        <label style={styles.toggle}>
+          <input
+            type="checkbox"
+            checked={chartMode}
+            onChange={onToggleChartMode}
+          />
+          <span>Activer MCP Chart</span>
+        </label>
       </div>
       <div style={styles.container}>
+        {chartMode && (
+          <div style={styles.chartsSection}>
+            <div style={styles.chartsHeader}>
+              <div style={styles.chartsTitle}>Visualisations depuis MCP Chart</div>
+              <button
+                onClick={fetchCharts}
+                disabled={chartsLoading}
+                style={styles.buttonSecondary}
+              >
+                Actualiser
+              </button>
+            </div>
+            {chartsLoading && <div style={styles.loading}>Génération des graphiques…</div>}
+            {chartsError && (
+              <div style={styles.error}>
+                {chartsError}
+              </div>
+            )}
+            {!chartsLoading && !chartsError && charts.length === 0 && (
+              <div style={styles.emptyCharts}>Aucune visualisation disponible.</div>
+            )}
+            {!chartsLoading && !chartsError && charts.length > 0 && (
+              <div style={styles.chartsGrid}>
+                {charts.map(chart => (
+                  <div key={chart.key} style={styles.chartCard}>
+                    <div style={styles.chartMeta}>
+                      <div style={styles.chartTitle}>{chart.title}</div>
+                      <div style={styles.chartDataset}>{chart.dataset}</div>
+                      {chart.description && (
+                        <div style={styles.chartDescription}>{chart.description}</div>
+                      )}
+                    </div>
+                    <img
+                      src={chart.chart_url}
+                      alt={chart.title}
+                      style={styles.chartImage}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div ref={listRef} style={styles.list}>
           {messages.map((m, i) => (
-            <Message key={i} role={m.role} content={m.content} metadata={m.metadata} />
+            <Message key={i} role={m.role} content={m.content} />
           ))}
           {loading && <div style={styles.loading}>Le modèle écrit…</div>}
         </div>
@@ -98,41 +173,15 @@ export default function Chat() {
   )
 }
 
-function Message({ role, content, metadata }) {
+function Message({ role, content }) {
   const isUser = role === 'user'
-  const chartItems = Array.isArray(metadata?.charts)
-    ? metadata.charts.filter(chart => chart?.chart_url)
-    : []
   return (
     <div style={{
       ...styles.msg,
       ...(isUser ? styles.msgUser : styles.msgAssistant)
     }}>
       <div style={styles.msgHeader}>{isUser ? 'Vous' : 'Assistant'}</div>
-      <div style={styles.msgContent}>{content}</div>
-      {chartItems.length > 0 && (
-        <div style={styles.chartGrid}>
-          {chartItems.map(chart => (
-            <div key={chart.key} style={styles.chartCard}>
-              <div style={styles.chartMeta}>
-                <div style={styles.chartTitle}>{chart.title}</div>
-                <div style={styles.chartDataset}>{chart.dataset}</div>
-                {chart.description && (
-                  <div style={styles.chartDescription}>{chart.description}</div>
-                )}
-                <a href={chart.chart_url} target="_blank" rel="noreferrer" style={styles.chartLink}>
-                  Ouvrir dans un nouvel onglet
-                </a>
-              </div>
-              <img
-                src={chart.chart_url}
-                alt={chart.title}
-                style={styles.chartImage}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      <div>{content}</div>
     </div>
   )
 }
@@ -140,13 +189,16 @@ function Message({ role, content, metadata }) {
 const styles = {
   header: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8
   },
-  hint: {
-    fontSize: 12,
-    color: '#6b7280'
+  toggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 14,
+    color: '#111827'
   },
   container: {
     border: '1px solid #e5e7eb',
@@ -183,12 +235,6 @@ const styles = {
     fontSize: 12,
     color: '#6b7280',
     marginBottom: 4
-  },
-  msgContent: {
-    whiteSpace: 'pre-wrap',
-    lineHeight: 1.4,
-    fontSize: 14,
-    color: '#111827'
   },
   inputBox: {
     display: 'flex',
@@ -237,11 +283,26 @@ const styles = {
     borderRadius: 6,
     padding: 8
   },
-  chartGrid: {
+  chartsSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginBottom: 12
+  },
+  chartsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  chartsTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: '#111827'
+  },
+  chartsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 12,
-    marginTop: 12
+    gap: 12
   },
   chartCard: {
     border: '1px solid #e5e7eb',
@@ -277,9 +338,8 @@ const styles = {
     borderRadius: 6,
     border: '1px solid #e5e7eb'
   },
-  chartLink: {
-    fontSize: 12,
-    color: '#2563eb',
-    textDecoration: 'none'
+  emptyCharts: {
+    fontSize: 13,
+    color: '#6b7280'
   }
 }
