@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -84,7 +85,7 @@ class OpenAICompatibleClient:
                     if data == "[DONE]":
                         break
                     try:
-                        yield resp.json_loader(data)
+                        yield json.loads(data)
                     except Exception as exc:  # pragma: no cover - defensive parsing
                         log.error("Invalid SSE chunk: %s", exc)
                         continue
