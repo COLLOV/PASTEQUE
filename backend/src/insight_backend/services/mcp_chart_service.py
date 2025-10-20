@@ -43,6 +43,11 @@ class ChartGenerationService:
         self._chart_spec = self._resolve_chart_spec()
         self._vis_server = self._chart_spec.env.get("VIS_REQUEST_SERVER") or self.DEFAULT_VIS_SERVER
         self._service_id = self._chart_spec.env.get("SERVICE_ID")
+        self._builders = {
+            "nps": self._build_nps_trend_chart,
+            "subscriptions": self._build_subscriptions_channel_chart,
+            "support": self._build_support_resolution_chart,
+        }
 
     def _resolve_chart_spec(self) -> MCPServerSpec:
         manager = MCPManager()
@@ -53,18 +58,46 @@ class ChartGenerationService:
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
         )
 
-    def generate(self) -> List[Dict[str, Any]]:
-        definitions = [
-            self._build_nps_trend_chart(),
-            self._build_subscriptions_channel_chart(),
-            self._build_support_resolution_chart(),
-        ]
-        charts: List[Dict[str, Any]] = []
+    def available(self) -> List[Dict[str, Any]]:
+        catalog = self._build_catalog()
+        results: List[Dict[str, Any]] = []
+        for command, definition in catalog.items():
+            results.append(
+                {
+                    "command": command,
+                    "key": definition.key,
+                    "title": definition.title,
+                    "dataset": definition.dataset,
+                    "description": definition.description,
+                }
+            )
+        return results
 
-        for definition in definitions:
+    def generate(self, selectors: Iterable[str] | None = None) -> List[Dict[str, Any]]:
+        catalog = self._build_catalog()
+        selected: List[tuple[str, ChartDefinition]] = []
+
+        if selectors:
+            for selector in selectors:
+                slug = selector.strip().lower()
+                match: tuple[str, ChartDefinition] | None = None
+                for command, definition in catalog.items():
+                    if slug in {command.lower(), definition.key.lower()}:
+                        match = (command, definition)
+                        break
+                if not match:
+                    raise ChartGenerationError(f"Graphique inconnu: {selector}")
+                if match not in selected:
+                    selected.append(match)
+        else:
+            selected = list(catalog.items())
+
+        charts: List[Dict[str, Any]] = []
+        for command, definition in selected:
             chart_payload = self._generate_single_chart(definition)
             charts.append(
                 {
+                    "command": command,
                     "key": definition.key,
                     "dataset": definition.dataset,
                     "title": definition.title,
@@ -76,6 +109,12 @@ class ChartGenerationService:
             )
 
         return charts
+
+    def _build_catalog(self) -> Dict[str, ChartDefinition]:
+        catalog: Dict[str, ChartDefinition] = {}
+        for command, builder in self._builders.items():
+            catalog[command] = builder()
+        return catalog
 
     def _generate_single_chart(self, definition: ChartDefinition) -> Dict[str, Any]:
         chart_type = self.TOOL_TO_CHART_TYPE.get(definition.tool)
@@ -223,4 +262,3 @@ class ChartGenerationService:
                 "innerRadius": 0.0,
             },
         )
-

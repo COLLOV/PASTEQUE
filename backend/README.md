@@ -82,6 +82,7 @@ curl -sS 'http://127.0.0.1:8000/api/v1/mcp/charts' | jq
 ```
 
 - Les graphiques sont générés à partir des CSV dans `data/raw/`.
+- Les commandes du chat (`/chart list`, `/chart nps`, `/chart support`, …) déclenchent automatiquement l’appel à ce service MCP et retournent les visuels directement dans la réponse de l’assistant.
 - Le backend lit par défaut `plan/Z/mcp.config.json` (surcharge possible via `MCP_CONFIG_PATH`) pour récupérer la configuration du serveur `chart` et ses variables d’environnement (`VIS_REQUEST_SERVER`, `SERVICE_ID`, etc.).
 - Le service distant doit être accessible (réseau sortant). En cas d’erreur, le backend renvoie un `502` explicite sans masquer la cause.
 
