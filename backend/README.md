@@ -84,6 +84,19 @@ Lister la config chargée:
 curl -sS 'http://127.0.0.1:8000/api/v1/mcp/servers' | jq
 ```
 
+Visualisations via MCP Chart:
+
+```bash
+curl -sS -X POST 'http://127.0.0.1:8000/api/v1/mcp/chart' \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Répartition des problèmes par service"}' | jq
+```
+
+- Le backend instancie un agent `pydantic-ai` qui combine les CSV locaux (`data/raw/`) avec les outils du serveur MCP `chart` (`generate_*_chart`).
+- Des outils internes (`load_dataset`, `aggregate_counts`) exposent les données au modèle avant l’appel MCP; aucun graphique n’est pré-calculé.
+- La réponse JSON contient l’URL du graphique (`chart_url`), le nom d’outil MCP utilisé et la spec JSON envoyée au serveur. Un `502` est renvoyé si la génération échoue côté MCP.
+- La configuration du serveur reste déclarative (`plan/Z/mcp.config.json`, `MCP_CONFIG_PATH`, `MCP_SERVERS_JSON`) et supporte les variables `VIS_REQUEST_SERVER`, `SERVICE_ID`, etc.
+
 ### MindsDB – connexion simple (HTTP)
 
 Pré‑requis: vous avez lancé MindsDB OSS avec l’API HTTP (exemple):

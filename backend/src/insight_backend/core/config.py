@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
 
     # MCP configuration (declarative)
-    mcp_config_path: str | None = Field(None, alias="MCP_CONFIG_PATH")
+    mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
     mcp_servers_json: str | None = Field(None, alias="MCP_SERVERS_JSON")
 
     # MindsDB (HTTP API)
