@@ -13,6 +13,23 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
+### Base de données & authentification
+
+- Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :
+  ```
+  createdb pasteque
+  ```
+  puis, dans `backend/.env` :
+  ```
+  DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/pasteque
+  ```
+- Au démarrage, le backend crée la table `users` si nécessaire et provisionne un compte administrateur (`ADMIN_USERNAME` / `ADMIN_PASSWORD`). Les valeurs par défaut sont `admin / admin`; changez-les via l’environnement avant le premier lancement pour écraser la valeur stockée.
+- Les mots de passe sont hachés avec Argon2 (`argon2-cffi`). Si vous avez déjà déployé la version bcrypt, exécutez la migration manuelle suivante pour élargir la colonne :
+  ```
+  ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(256);
+  ```
+- L’endpoint `POST /api/v1/auth/login` vérifie les identifiants et retourne un jeton `Bearer` (JWT HS256).
+
 ### LLM « Z » – deux modes
 
 Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:

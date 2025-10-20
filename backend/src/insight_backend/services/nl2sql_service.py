@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import re
 import csv
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 import json
 
 from ..core.config import settings

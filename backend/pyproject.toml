@@ -14,6 +14,11 @@ dependencies = [
   "python-multipart>=0.0.9",
   # Optional: YAML for MCP config files
   "pyyaml>=6.0.0",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]>=3.2",
+  "passlib[bcrypt]>=1.7",
+  "python-jose[cryptography]>=3.3",
+  "argon2-cffi>=23.1",
 ]
 
 [build-system]
