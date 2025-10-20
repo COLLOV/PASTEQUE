@@ -54,14 +54,91 @@ def _rewrite_date_functions(sql: str) -> str:
     return out
 
 
+def _collect_cte_names(sql: str) -> set[str]:
+    names: set[str] = set()
+    s = sql.lstrip()
+    if not s.lower().startswith("with"):
+        return names
+
+    lower = s.lower()
+    length = len(s)
+    i = len("with")
+
+    def skip_ws(pos: int) -> int:
+        while pos < length and s[pos].isspace():
+            pos += 1
+        return pos
+
+    i = skip_ws(i)
+    if lower.startswith("recursive", i):
+        i += len("recursive")
+        i = skip_ws(i)
+
+    while i < length:
+        if not (s[i].isalpha() or s[i] == "_"):
+            break
+        start = i
+        i += 1
+        while i < length and (s[i].isalnum() or s[i] == "_"):
+            i += 1
+        names.add(s[start:i].lower())
+        i = skip_ws(i)
+
+        if i < length and s[i] == "(":
+            depth = 1
+            i += 1
+            while i < length and depth:
+                if s[i] == "(":
+                    depth += 1
+                elif s[i] == ")":
+                    depth -= 1
+                i += 1
+            i = skip_ws(i)
+
+        if not lower.startswith("as", i):
+            break
+        i += 2
+        i = skip_ws(i)
+
+        if lower.startswith("not materialized", i):
+            i += len("not materialized")
+            i = skip_ws(i)
+        elif lower.startswith("materialized", i):
+            i += len("materialized")
+            i = skip_ws(i)
+
+        if i >= length or s[i] != "(":
+            break
+        depth = 1
+        i += 1
+        while i < length and depth:
+            if s[i] == "(":
+                depth += 1
+            elif s[i] == ")":
+                depth -= 1
+            i += 1
+        i = skip_ws(i)
+
+        if i < length and s[i] == ",":
+            i += 1
+            i = skip_ws(i)
+            continue
+        break
+
+    return names
+
+
 def _ensure_required_prefix(sql: str) -> None:
     prefix = f"{settings.nl2sql_db_prefix.lower()}."
+    cte_names = _collect_cte_names(sql)
     for match in _TABLE_REF_PATTERN.finditer(sql):
         table = match.group(2)
         # Strip trailing punctuation that may hug the identifier
         table_clean = table.rstrip(",)")
         lower_clean = table_clean.lower()
         if lower_clean in _PREFIX_SKIP_KEYWORDS:
+            continue
+        if lower_clean in cte_names:
             continue
         if lower_clean.startswith(prefix):
             continue
