@@ -80,8 +80,6 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
     started = time.perf_counter()
 
     def generate() -> Iterator[bytes]:
-        # meta
-        yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model})
         seq = 0
         try:
             # 1) MindsDB passthrough (/sql ...) or NL→SQL mode
@@ -135,6 +133,8 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
                 return
 
             # 2) Default LLM streaming
+            # Default LLM streaming branch
+            yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model})
             full: list[str] = []
             for event in engine.stream(payload):
                 if event.get("type") == "delta":
