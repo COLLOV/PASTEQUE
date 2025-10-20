@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -8,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from ....core.config import settings
 from ....integrations.mindsdb_client import MindsDBClient
-from ....repositories.data_repository import DataRepository
+from ....services.mindsdb_sync import sync_all_tables
 
 
 router = APIRouter(prefix="/mindsdb")
@@ -43,15 +42,6 @@ def run_sql(payload: SqlRequest) -> SqlResponse:  # type: ignore[valid-type]
 
 @router.post("/sync-files", response_model=SyncResponse)
 def sync_files_from_data() -> SyncResponse:  # type: ignore[valid-type]
-    """Upload CSV/TSV files from settings.tables_dir to MindsDB `files` DB.
-
-    Table name == filename stem. Idempotent on MindsDB side (last write wins).
-    """
-    repo = DataRepository(tables_dir=Path(settings.tables_dir))
-    client = _client()
-    uploaded: list[str] = []
-    for p in repo._iter_table_files():  # reuse internal helper for now
-        client.upload_file(p)
-        uploaded.append(p.name)
+    uploaded = sync_all_tables()
     return SyncResponse(ok=True, uploaded=uploaded)
 

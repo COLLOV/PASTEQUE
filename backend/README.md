@@ -82,6 +82,8 @@ MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 curl -sS -X POST 'http://127.0.0.1:8000/api/v1/mindsdb/sync-files' | jq
 ```
 
+> Pour un démarrage complet, `./start.sh` réinitialise le conteneur `mindsdb_container` et appelle automatiquement cette synchronisation (voir logs `insight.services.mindsdb_sync`).
+
 2) Exécuter une requête SQL sur MindsDB:
 
 ```bash
@@ -119,7 +121,9 @@ NL2SQL_DB_PREFIX=files
 
 "Combien de sinistres ont été déclarés en août 2025 ?"
 
-Le backend génère un `SELECT ... LIMIT 50` ciblant uniquement `files.*`, exécute la requête via MindsDB et affiche: le SQL produit + un tableau. Aucune réponse “fallback” n’est renvoyée si la génération échoue: l’erreur est affichée explicitement.
+Le backend génère un `SELECT ... LIMIT 50` ciblant uniquement `files.*`, exécute la requête via MindsDB et affiche dans le chat la requête exécutée suivie du résultat synthétisé. Aucune réponse “fallback” n’est renvoyée si la génération échoue: l’erreur est affichée explicitement.
+
+Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL et les requêtes SQL envoyées à MindsDB, tandis que `insight.services.mindsdb_sync` détaille les fichiers synchronisés.
 
 Échantillons pour aider la génération (optionnel):
 
@@ -141,6 +145,6 @@ NL2SQL_PLAN_MAX_STEPS=3
 Fonctionnement:
 - Étape 1 (plan): le LLM propose jusqu’à 3 requêtes SQL (SELECT‑only, LIMIT appliqué).
 - Étape 2 (exécution): le backend exécute chaque SQL sur MindsDB et collecte les résultats (tronqués au besoin).
-- Étape 3 (synthèse): le LLM rédige une réponse finale en français à partir des résultats, sans exposer le SQL.
+- Étape 3 (synthèse): le LLM rédige une réponse finale en français à partir des résultats et le chat liste chaque requête exécutée avant la réponse finale.
 
 En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimulation, un message d’erreur explicite est renvoyé.
