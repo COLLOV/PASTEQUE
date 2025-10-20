@@ -82,7 +82,7 @@ data/
 
 ### Visualisations MCP Chart
 
-- L’onglet **Chat** intègre un interrupteur « Mode graphique MCP ». Une fois activé, vous choisissez l’outil (`generate_bar_chart`, `generate_line_chart`, etc.) et fournissez les arguments JSON attendus par le serveur MCP.
-- Chaque requête est envoyée au serveur `chart` déclaré dans `plan/Z/mcp.config.json` (valeur par défaut de `MCP_CONFIG_PATH`) qui renvoie une URL d’image et la configuration complète du graphique.
-- L’endpoint `POST /api/v1/mcp/charts` accepte un corps `{ "tool": "generate_bar_chart", "arguments": { ... } }` identique à l’UI et renvoie `{ "chart_url", "spec", "tool" }`.
+- L’onglet **Chat** comporte désormais un interrupteur « Activer MCP Chart ». Lorsqu’il est activé, le backend interroge le serveur MCP `chart` déclaré dans `plan/Z/mcp.config.json` (valeur par défaut du `MCP_CONFIG_PATH`) afin de générer des graphiques.
+- Les graphiques sont produits à partir des jeux de données CSV situés dans `data/raw/` (moyenne NPS mensuelle, volume de souscriptions par canal, ratio de résolution du support).
+- L’endpoint `GET /api/v1/mcp/charts` renvoie la liste des visualisations (URL d’image + spécification renvoyée par le serveur MCP). Le frontend les affiche sous forme de cartes.
 - Le serveur MCP `chart` délègue la génération à `VIS_REQUEST_SERVER`. Vous pouvez surcharger cette URL (ou `SERVICE_ID`) via `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Une connexion réseau sortante est requise vers le service AntV par défaut.

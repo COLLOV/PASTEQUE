@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from pydantic import BaseModel, Field
-
-
-class ChartRequest(BaseModel):
-    tool: str = Field(description="Nom complet de l'outil MCP (ex: generate_bar_chart).")
-    arguments: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Arguments passés à l'outil MCP chart.",
-    )
+from pydantic import BaseModel
 
 
-class ChartResponse(BaseModel):
+class GeneratedChart(BaseModel):
+    key: str
+    dataset: str
+    title: str
+    description: str | None = None
     tool: str
     chart_url: str
     spec: Dict[str, Any]
-    provider: str = Field(default="mcp-server-chart")
+
+
+class ChartCollectionResponse(BaseModel):
+    charts: List[GeneratedChart]
+    metadata: Dict[str, Any] | None = None
+

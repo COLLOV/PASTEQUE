@@ -1,9 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+import csv
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any, Dict, Iterable, List
 
 import httpx
 
+from ..core.config import settings
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
 
 
@@ -11,33 +17,32 @@ class ChartGenerationError(RuntimeError):
     """Raised when chart generation via MCP fails."""
 
 
-class ChartGenerationService:
-    """Delegate chart generation to the configured MCP chart server."""
+@dataclass(slots=True)
+class ChartDefinition:
+    key: str
+    dataset: str
+    title: str
+    description: str
+    tool: str
+    arguments: Dict[str, Any]
 
-    TOOL_TO_CHART_TYPE: Dict[str, str] = {
+
+class ChartGenerationService:
+    """Generates charts based on local CSV data using the MCP chart configuration."""
+
+    TOOL_TO_CHART_TYPE = {
         "generate_line_chart": "line",
         "generate_bar_chart": "bar",
-        "generate_column_chart": "column",
         "generate_pie_chart": "pie",
-        "generate_area_chart": "area",
-        "generate_scatter_chart": "scatter",
-        "generate_histogram_chart": "histogram",
-        "generate_treemap_chart": "treemap",
-        "generate_radar_chart": "radar",
-        "generate_sankey_chart": "sankey",
-        "generate_liquid_chart": "liquid",
-        "generate_boxplot_chart": "boxplot",
-        "generate_funnel_chart": "funnel",
-        "generate_bar_chart_grouped": "bar",
     }
-
     DEFAULT_VIS_SERVER = "https://antv-studio.alipay.com/api/gpt-vis"
 
-    def __init__(self) -> None:
-        spec = self._resolve_chart_spec()
-        self._env_overrides = spec.env or {}
-        self._vis_server = self._env_overrides.get("VIS_REQUEST_SERVER") or self.DEFAULT_VIS_SERVER
-        self._service_id = self._env_overrides.get("SERVICE_ID")
+    def __init__(self, data_root: Path | None = None) -> None:
+        self._data_root = Path(data_root or settings.data_root).resolve()
+        self._raw_root = self._data_root / "raw"
+        self._chart_spec = self._resolve_chart_spec()
+        self._vis_server = self._chart_spec.env.get("VIS_REQUEST_SERVER") or self.DEFAULT_VIS_SERVER
+        self._service_id = self._chart_spec.env.get("SERVICE_ID")
 
     def _resolve_chart_spec(self) -> MCPServerSpec:
         manager = MCPManager()
@@ -48,47 +53,174 @@ class ChartGenerationService:
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
         )
 
-    def generate(self, tool: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        if not isinstance(arguments, dict):
-            raise ChartGenerationError("Le champ 'arguments' doit être un objet JSON.")
+    def generate(self) -> List[Dict[str, Any]]:
+        definitions = [
+            self._build_nps_trend_chart(),
+            self._build_subscriptions_channel_chart(),
+            self._build_support_resolution_chart(),
+        ]
+        charts: List[Dict[str, Any]] = []
 
-        chart_type = self._resolve_chart_type(tool)
-        payload: Dict[str, Any] = {
-            "type": chart_type,
-            "source": "mcp-server-chart",
-            **arguments,
-        }
+        for definition in definitions:
+            chart_payload = self._generate_single_chart(definition)
+            charts.append(
+                {
+                    "key": definition.key,
+                    "dataset": definition.dataset,
+                    "title": definition.title,
+                    "description": definition.description,
+                    "tool": definition.tool,
+                    "chart_url": chart_payload["chart_url"],
+                    "spec": chart_payload["spec"],
+                }
+            )
+
+        return charts
+
+    def _generate_single_chart(self, definition: ChartDefinition) -> Dict[str, Any]:
+        chart_type = self.TOOL_TO_CHART_TYPE.get(definition.tool)
+        if not chart_type:
+            raise ChartGenerationError(f"Outil MCP non pris en charge: {definition.tool}")
+
+        payload = dict(definition.arguments)
+        payload.update({"type": chart_type, "source": "mcp-server-chart"})
         if self._service_id:
             payload.setdefault("serviceId", self._service_id)
 
         try:
             response = httpx.post(self._vis_server, json=payload, timeout=30.0)
             response.raise_for_status()
-        except httpx.HTTPError as exc:
+        except httpx.HTTPError as exc:  # pragma: no cover - dépend du réseau
             raise ChartGenerationError(
-                f"Appel au serveur MCP chart impossible ({exc})."
+                f"Appel au service de visualisation impossible ({definition.tool}): {exc}"
             ) from exc
 
         data = response.json()
         if not data.get("success"):
-            message = data.get("errorMessage") or "Le serveur MCP chart a rejeté la requête."
-            raise ChartGenerationError(message)
+            message = data.get("errorMessage") or "Le service distant a rejeté la requête."
+            raise ChartGenerationError(
+                f"Le service de visualisation a renvoyé une erreur pour {definition.tool}: {message}"
+            )
 
         chart_url = data.get("resultObj")
         if not chart_url:
-            raise ChartGenerationError("Le serveur MCP chart n'a pas renvoyé d'URL de graphique.")
+            raise ChartGenerationError("Le service de visualisation n'a pas fourni d'URL de graphique.")
 
-        return {
-            "tool": tool,
-            "chart_url": chart_url,
-            "spec": payload,
-            "provider": "mcp-server-chart",
-        }
+        spec = {"type": chart_type, **definition.arguments}
+        return {"chart_url": chart_url, "spec": spec}
 
-    def _resolve_chart_type(self, tool: str) -> str:
-        normalized = tool.strip()
-        if normalized in self.TOOL_TO_CHART_TYPE:
-            return self.TOOL_TO_CHART_TYPE[normalized]
-        if normalized.startswith("generate_") and normalized.endswith("_chart"):
-            return normalized.replace("generate_", "").replace("_chart", "")
-        raise ChartGenerationError(f"Outil MCP chart non supporté: {tool}")
+    def _read_csv(self, filename: str) -> Iterable[Dict[str, str]]:
+        path = self._raw_root / filename
+        if not path.exists():
+            raise ChartGenerationError(f"Dataset introuvable: {path}")
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                yield row
+
+    def _build_nps_trend_chart(self) -> ChartDefinition:
+        monthly: Dict[str, Dict[str, Decimal | int]] = defaultdict(
+            lambda: {"sum": Decimal("0"), "count": 0}
+        )
+        for row in self._read_csv("myfeelback_nps.csv"):
+            date_raw = (row.get("date_feedback") or "").strip()
+            score_raw = (row.get("nps_score") or "").strip()
+            if not date_raw or len(date_raw) < 7 or not score_raw:
+                continue
+            month = date_raw[:7]
+            try:
+                score = Decimal(score_raw)
+            except InvalidOperation:
+                continue
+            bucket = monthly[month]
+            bucket["sum"] = bucket["sum"] + score  # type: ignore[assignment]
+            bucket["count"] = int(bucket["count"]) + 1  # type: ignore[assignment]
+
+        data = []
+        for month in sorted(monthly.keys()):
+            bucket = monthly[month]
+            count = int(bucket["count"])
+            if count == 0:
+                continue
+            average = (bucket["sum"] / count).quantize(Decimal("0.01"))
+            data.append({"time": month, "value": float(average)})
+
+        if not data:
+            raise ChartGenerationError("Aucune donnée exploitable pour le NPS mensuel.")
+
+        return ChartDefinition(
+            key="nps_monthly_trend",
+            dataset="myfeelback_nps.csv",
+            title="Évolution du NPS moyen",
+            description="Score NPS moyen par mois basé sur les retours clients.",
+            tool="generate_line_chart",
+            arguments={
+                "data": data,
+                "title": "NPS moyen par mois",
+                "axisXTitle": "Mois",
+                "axisYTitle": "Score moyen",
+            },
+        )
+
+    def _build_subscriptions_channel_chart(self) -> ChartDefinition:
+        counter: Counter[str] = Counter()
+        for row in self._read_csv("myfeelback_souscriptions.csv"):
+            channel = (row.get("canal") or "").strip()
+            if channel:
+                counter[channel] += 1
+
+        data = [
+            {"category": channel, "value": count}
+            for channel, count in counter.most_common()
+            if count > 0
+        ]
+
+        if not data:
+            raise ChartGenerationError("Aucune donnée exploitable pour les canaux de souscription.")
+
+        return ChartDefinition(
+            key="subscriptions_by_channel",
+            dataset="myfeelback_souscriptions.csv",
+            title="Souscriptions par canal",
+            description="Volume de souscriptions par canal de vente.",
+            tool="generate_bar_chart",
+            arguments={
+                "data": data,
+                "title": "Souscriptions par canal",
+                "axisXTitle": "Canal de souscription",
+                "axisYTitle": "Nombre de souscriptions",
+                "stack": False,
+                "group": False,
+            },
+        )
+
+    def _build_support_resolution_chart(self) -> ChartDefinition:
+        counter: Counter[str] = Counter()
+        for row in self._read_csv("myfeelback_service_client.csv"):
+            solved = (row.get("probleme_resolu") or "").strip() or "Inconnu"
+            counter[solved] += 1
+
+        data = [
+            {"category": label, "value": count}
+            for label, count in counter.items()
+            if count > 0
+        ]
+
+        if not data:
+            raise ChartGenerationError("Aucune donnée exploitable sur la résolution du support.")
+
+        data.sort(key=lambda item: item["value"], reverse=True)
+
+        return ChartDefinition(
+            key="support_resolution_ratio",
+            dataset="myfeelback_service_client.csv",
+            title="Résolution des demandes",
+            description="Part des demandes résolues vs non résolues au support client.",
+            tool="generate_pie_chart",
+            arguments={
+                "data": data,
+                "title": "Résolution au support client",
+                "innerRadius": 0.0,
+            },
+        )
+

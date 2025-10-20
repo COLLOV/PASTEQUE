@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from ....integrations.mcp_manager import MCPManager
-from ....schemas.mcp_chart import ChartRequest, ChartResponse
+from ....schemas.mcp_chart import ChartCollectionResponse
 from ....services.mcp_chart_service import ChartGenerationError, ChartGenerationService
 
 
@@ -17,11 +17,17 @@ def list_mcp_servers() -> list[dict]:  # type: ignore[valid-type]
     ]
 
 
-@router.post("/charts", response_model=ChartResponse)
-def generate_chart(payload: ChartRequest) -> ChartResponse:  # type: ignore[valid-type]
+@router.get("/charts", response_model=ChartCollectionResponse)
+def generate_mcp_charts() -> ChartCollectionResponse:  # type: ignore[valid-type]
     service = ChartGenerationService()
     try:
-        result = service.generate(tool=payload.tool, arguments=payload.arguments)
+        charts = service.generate()
     except ChartGenerationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    return ChartResponse(**result)
+        raise HTTPException(status_code=502, detail=str(exc))
+    return ChartCollectionResponse(
+        charts=charts,
+        metadata={
+            "provider": "mcp-server-chart",
+            "count": len(charts),
+        },
+    )
