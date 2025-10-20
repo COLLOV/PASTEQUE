@@ -69,7 +69,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for cmd in lsof uv npm; do
+for cmd in lsof uv npm python3; do
   require_command "$cmd"
 done
 
@@ -87,6 +87,48 @@ echo "[start] Ensuring backend dependencies (uv sync)"
   uv sync
 )
 
+FRONTEND_ENV_FILE="frontend/.env.development"
+API_URL="http://localhost:${BACKEND_PORT}/api/v1"
+ALLOWED_ORIGINS_VALUE="http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}"
+
+ensure_frontend_env() {
+  local file="$1"
+  local value="$2"
+
+  ENV_FILE="$file" API_URL="$value" python3 <<'PY'
+import os
+from pathlib import Path
+
+path = Path(os.environ["ENV_FILE"])
+value = os.environ["API_URL"]
+
+if path.exists():
+    lines = path.read_text().splitlines()
+else:
+    lines = []
+
+found = False
+for idx, line in enumerate(lines):
+    if line.startswith("VITE_API_URL="):
+        lines[idx] = f"VITE_API_URL={value}"
+        found = True
+
+if not found:
+    if lines and lines[-1].strip():
+        lines.append("")
+    lines.append(f"VITE_API_URL={value}")
+
+text = "\n".join(lines)
+if text and not text.endswith("\n"):
+    text += "\n"
+path.write_text(text)
+PY
+}
+
+ensure_frontend_env "$FRONTEND_ENV_FILE" "$API_URL"
+echo "[start] frontend/.env.development -> VITE_API_URL=$API_URL"
+echo "[start] backend CORS -> ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
+
 if [[ ! -d frontend/node_modules ]]; then
   echo "[start] Installing frontend dependencies (npm install)"
   (
@@ -100,7 +142,7 @@ fi
 echo "[start] Launching backend on port $BACKEND_PORT"
 (
   cd backend
-  exec uv run uvicorn insight_backend.main:app --reload --host 0.0.0.0 --port "$BACKEND_PORT"
+  ALLOWED_ORIGINS="$ALLOWED_ORIGINS_VALUE" exec uv run uvicorn insight_backend.main:app --reload --host 0.0.0.0 --port "$BACKEND_PORT"
 ) &
 BACKEND_PID=$!
 
@@ -110,7 +152,7 @@ sleep 1
 echo "[start] Launching frontend on port $FRONTEND_PORT"
 (
   cd frontend
-  exec npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT"
+  VITE_API_URL="$API_URL" exec npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT"
 ) &
 FRONTEND_PID=$!
 

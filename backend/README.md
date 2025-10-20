@@ -11,7 +11,7 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 `uv run uvicorn insight_backend.main:app --reload`
 
-Variables d’environnement via `.env` (voir `.env.example`).
+Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
 ### LLM « Z » – deux modes
 

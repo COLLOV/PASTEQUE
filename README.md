@@ -16,7 +16,7 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 
 Script combiné (depuis la racine):
 
-- `./start.sh <port_frontend> <port_backend>` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), puis lance le backend via `uv` et le frontend Vite.
+- `./start.sh <port_frontend> <port_backend>` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), met à jour `frontend/.env.development` (`VITE_API_URL`) et configure `ALLOWED_ORIGINS` côté backend pour accepter le port front choisi, puis lance le backend via `uv` et le frontend Vite.
 - Exemple: `./start.sh 5173 8000` (ou `./start.sh 8080 8081` selon vos besoins).
 
 Lancer manuellement si besoin:
