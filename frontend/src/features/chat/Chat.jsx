@@ -9,9 +9,6 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
-  const [charts, setCharts] = useState([])
-  const [chartsLoading, setChartsLoading] = useState(false)
-  const [chartsError, setChartsError] = useState('')
   const listRef = useRef(null)
 
   useEffect(() => {
@@ -19,46 +16,51 @@ export default function Chat() {
     listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages, loading])
 
-  async function fetchCharts() {
-    setChartsError('')
-    setChartsLoading(true)
-    try {
-      const res = await apiFetch('/mcp/charts')
-      const items = Array.isArray(res?.charts) ? res.charts : []
-      setCharts(items)
-    } catch (e) {
-      console.error(e)
-      setChartsError(e?.message || 'Impossible de générer les graphiques')
-    } finally {
-      setChartsLoading(false)
-    }
-  }
-
   function onToggleChartMode(e) {
-    const next = Boolean(e.target.checked)
-    setChartMode(next)
-    setCharts([])
-    setChartsError('')
-    if (next) {
-      fetchCharts()
-    }
+    setChartMode(Boolean(e.target.checked))
+    setError('')
   }
 
   async function onSend() {
     const text = input.trim()
     if (!text || loading) return
+
     setError('')
-    const next = [...messages, { role: 'user', content: text }]
-    setMessages(next)
+    const userMessage = { role: 'user', content: text }
+    const nextMessages = [...messages, userMessage]
+    setMessages(nextMessages)
     setInput('')
     setLoading(true)
+
     try {
-      const res = await apiFetch('/chat/completions', {
-        method: 'POST',
-        body: JSON.stringify({ messages: next })
-      })
-      const reply = res?.reply ?? ''
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+      if (chartMode) {
+        const res = await apiFetch('/mcp/chart', {
+          method: 'POST',
+          body: JSON.stringify({ prompt: text })
+        })
+        const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
+        const assistantMessage = chartUrl
+          ? {
+              role: 'assistant',
+              content: chartUrl,
+              chartUrl,
+              chartTitle: res?.chart_title || '',
+              chartDescription: res?.chart_description || '',
+              chartTool: res?.tool_name || ''
+            }
+          : {
+              role: 'assistant',
+              content: "Impossible de générer un graphique."
+            }
+        setMessages(prev => [...prev, assistantMessage])
+      } else {
+        const res = await apiFetch('/chat/completions', {
+          method: 'POST',
+          body: JSON.stringify({ messages: nextMessages })
+        })
+        const reply = res?.reply ?? ''
+        setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+      }
     } catch (e) {
       console.error(e)
       setError(e?.message || 'Erreur inconnue')
@@ -93,53 +95,17 @@ export default function Chat() {
         </label>
       </div>
       <div style={styles.container}>
-        {chartMode && (
-          <div style={styles.chartsSection}>
-            <div style={styles.chartsHeader}>
-              <div style={styles.chartsTitle}>Visualisations depuis MCP Chart</div>
-              <button
-                onClick={fetchCharts}
-                disabled={chartsLoading}
-                style={styles.buttonSecondary}
-              >
-                Actualiser
-              </button>
-            </div>
-            {chartsLoading && <div style={styles.loading}>Génération des graphiques…</div>}
-            {chartsError && (
-              <div style={styles.error}>
-                {chartsError}
-              </div>
-            )}
-            {!chartsLoading && !chartsError && charts.length === 0 && (
-              <div style={styles.emptyCharts}>Aucune visualisation disponible.</div>
-            )}
-            {!chartsLoading && !chartsError && charts.length > 0 && (
-              <div style={styles.chartsGrid}>
-                {charts.map(chart => (
-                  <div key={chart.key} style={styles.chartCard}>
-                    <div style={styles.chartMeta}>
-                      <div style={styles.chartTitle}>{chart.title}</div>
-                      <div style={styles.chartDataset}>{chart.dataset}</div>
-                      {chart.description && (
-                        <div style={styles.chartDescription}>{chart.description}</div>
-                      )}
-                    </div>
-                    <img
-                      src={chart.chart_url}
-                      alt={chart.title}
-                      style={styles.chartImage}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         <div ref={listRef} style={styles.list}>
           {messages.map((m, i) => (
-            <Message key={i} role={m.role} content={m.content} />
+            <Message
+              key={i}
+              role={m.role}
+              content={m.content}
+              chartUrl={m.chartUrl}
+              chartTitle={m.chartTitle}
+              chartDescription={m.chartDescription}
+              chartTool={m.chartTool}
+            />
           ))}
           {loading && <div style={styles.loading}>Le modèle écrit…</div>}
         </div>
@@ -173,15 +139,31 @@ export default function Chat() {
   )
 }
 
-function Message({ role, content }) {
+function Message({ role, content, chartUrl, chartTitle, chartDescription, chartTool }) {
   const isUser = role === 'user'
+  const containerStyle = {
+    ...styles.msg,
+    ...(isUser ? styles.msgUser : styles.msgAssistant)
+  }
+
   return (
-    <div style={{
-      ...styles.msg,
-      ...(isUser ? styles.msgUser : styles.msgAssistant)
-    }}>
+    <div style={containerStyle}>
       <div style={styles.msgHeader}>{isUser ? 'Vous' : 'Assistant'}</div>
-      <div>{content}</div>
+      {!isUser && chartUrl ? (
+        <div style={styles.chartWrapper}>
+          {chartTitle && <div style={styles.chartTitle}>{chartTitle}</div>}
+          <a href={chartUrl} target="_blank" rel="noreferrer" style={styles.chartLink}>{chartUrl}</a>
+          <img
+            src={chartUrl}
+            alt={chartTitle || 'Graphique MCP'}
+            style={styles.chartImage}
+          />
+          {chartDescription && <div style={styles.chartDescription}>{chartDescription}</div>}
+          {chartTool && <div style={styles.chartMeta}>Outil&nbsp;: {chartTool}</div>}
+        </div>
+      ) : (
+        <div>{content}</div>
+      )}
     </div>
   )
 }
@@ -283,63 +265,33 @@ const styles = {
     borderRadius: 6,
     padding: 8
   },
-  chartsSection: {
+  chartWrapper: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
-    marginBottom: 12
+    gap: 8
   },
-  chartsHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  chartsTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#111827'
-  },
-  chartsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 12
-  },
-  chartCard: {
-    border: '1px solid #e5e7eb',
-    borderRadius: 8,
-    overflow: 'hidden',
-    background: '#ffffff',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    padding: 12
-  },
-  chartMeta: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4
+  chartLink: {
+    fontSize: 13,
+    color: '#1f2937',
+    wordBreak: 'break-all'
   },
   chartTitle: {
     fontSize: 14,
     fontWeight: 600,
     color: '#111827'
   },
-  chartDataset: {
-    fontSize: 12,
-    color: '#6b7280'
-  },
   chartDescription: {
     fontSize: 12,
     color: '#374151'
+  },
+  chartMeta: {
+    fontSize: 12,
+    color: '#6b7280'
   },
   chartImage: {
     width: '100%',
     height: 'auto',
     borderRadius: 6,
     border: '1px solid #e5e7eb'
-  },
-  emptyCharts: {
-    fontSize: 13,
-    color: '#6b7280'
   }
 }

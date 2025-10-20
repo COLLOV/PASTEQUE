@@ -1,48 +1,272 @@
 from __future__ import annotations
 
 import csv
-from collections import Counter, defaultdict
+import os
+from collections import Counter
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict
 
-import httpx
+from pydantic import BaseModel
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.mcp import MCPServerStdio
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from ..core.config import settings
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
+from ..repositories.data_repository import DataRepository
 
 
 class ChartGenerationError(RuntimeError):
     """Raised when chart generation via MCP fails."""
 
 
+class ChartAgentOutput(BaseModel):
+    chart_url: str
+    tool_name: str
+    chart_title: str | None = None
+    chart_description: str | None = None
+    chart_spec: Dict[str, Any] | None = None
+
+
 @dataclass(slots=True)
-class ChartDefinition:
-    key: str
-    dataset: str
-    title: str
-    description: str
-    tool: str
-    arguments: Dict[str, Any]
+class ChartAgentDeps:
+    repo: DataRepository
+    max_rows: int = 500
+
+    def tables_catalog(self) -> list[tuple[str, list[str]]]:
+        catalog: list[tuple[str, list[str]]] = []
+        for table in self.repo.list_tables():
+            try:
+                columns = [col for col, _ in self.repo.get_schema(table)]
+            except FileNotFoundError:
+                continue
+            catalog.append((table, columns))
+        catalog.sort(key=lambda item: item[0])
+        return catalog
+
+    def describe_catalog(self) -> str:
+        lines = ["Jeux de données disponibles dans data/raw :"]
+        for name, columns in self.tables_catalog():
+            preview = ", ".join(columns[:8])
+            if len(columns) > 8:
+                preview += ", …"
+            lines.append(f"- {name} (colonnes: {preview})")
+        return "\n".join(lines)
+
+    def load_rows(
+        self,
+        dataset: str,
+        columns: list[str] | None = None,
+        limit: int = 200,
+    ) -> Dict[str, Any]:
+        path = self._resolve_table_path(dataset)
+        delimiter = "," if path.suffix.lower() == ".csv" else "\t"
+        selected_columns: list[str] | None = None
+        rows: list[dict[str, str]] = []
+        max_items = max(1, min(limit, self.max_rows))
+
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter=delimiter)
+            fieldnames = reader.fieldnames or []
+            selected_columns = columns or fieldnames
+            if not selected_columns:
+                raise ChartGenerationError(
+                    f"Aucune colonne détectée dans {path.name}."
+                )
+
+            for row in reader:
+                record = {col: (row.get(col) or "").strip() for col in selected_columns}
+                rows.append(record)
+                if len(rows) >= max_items:
+                    break
+
+        return {
+            "dataset": self._dataset_name(path),
+            "columns": selected_columns,
+            "rows": rows,
+        }
+
+    def aggregate_counts(
+        self,
+        dataset: str,
+        column: str,
+        filters: Dict[str, Any] | None = None,
+        limit: int = 30,
+    ) -> Dict[str, Any]:
+        path = self._resolve_table_path(dataset)
+        delimiter = "," if path.suffix.lower() == ".csv" else "\t"
+        counter: Counter[str] = Counter()
+        applied_limit = max(1, limit)
+
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter=delimiter)
+            if column not in (reader.fieldnames or []):
+                available = ", ".join(reader.fieldnames or [])
+                raise ChartGenerationError(
+                    f"Colonne '{column}' introuvable dans {self._dataset_name(path)}. Colonnes: {available}"
+                )
+
+            for row in reader:
+                if filters and not self._matches_filters(row, filters):
+                    continue
+                key = (row.get(column) or "").strip()
+                if not key:
+                    continue
+                counter[key] += 1
+
+        if not counter:
+            return {
+                "dataset": self._dataset_name(path),
+                "column": column,
+                "filters": filters or {},
+                "counts": [],
+            }
+
+        items = counter.most_common(applied_limit)
+        data = [
+            {"category": label, "value": count}
+            for label, count in items
+        ]
+        return {
+            "dataset": self._dataset_name(path),
+            "column": column,
+            "filters": filters or {},
+            "counts": data,
+        }
+
+    def _resolve_table_path(self, dataset: str) -> Path:
+        base = Path(self.repo.tables_dir)
+        candidates: list[Path] = []
+        name = dataset.strip()
+        if not name:
+            raise ChartGenerationError("Paramètre 'dataset' vide pour chargement de données.")
+
+        direct = base / name
+        if direct.exists():
+            candidates.append(direct)
+
+        for ext in (".csv", ".tsv"):
+            candidates.append(base / f"{name}{ext}")
+
+        for candidate in candidates:
+            if candidate.exists() and candidate.is_file():
+                return candidate
+
+        raise ChartGenerationError(
+            f"Dataset introuvable: {name}. Vérifiez data/raw/."
+        )
+
+    def _matches_filters(self, row: dict[str, str], filters: Dict[str, Any]) -> bool:
+        for key, expected in filters.items():
+            value = (row.get(key) or "").strip()
+            if isinstance(expected, list):
+                normalized = {str(item).strip() for item in expected}
+                if value not in normalized:
+                    return False
+            else:
+                if value != str(expected).strip():
+                    return False
+        return True
+
+    @staticmethod
+    def _dataset_name(path: Path) -> str:
+        return path.name
+
+
+@dataclass(slots=True)
+class ChartResult:
+    prompt: str
+    chart_url: str
+    tool_name: str
+    chart_title: str | None
+    chart_description: str | None
+    chart_spec: Dict[str, Any] | None
 
 
 class ChartGenerationService:
-    """Generates charts based on local CSV data using the MCP chart configuration."""
+    """Generates charts dynamically through the MCP chart server."""
 
-    TOOL_TO_CHART_TYPE = {
-        "generate_line_chart": "line",
-        "generate_bar_chart": "bar",
-        "generate_pie_chart": "pie",
-    }
-    DEFAULT_VIS_SERVER = "https://antv-studio.alipay.com/api/gpt-vis"
+    _DEFAULT_MAX_ROWS = 400
 
     def __init__(self, data_root: Path | None = None) -> None:
         self._data_root = Path(data_root or settings.data_root).resolve()
         self._raw_root = self._data_root / "raw"
         self._chart_spec = self._resolve_chart_spec()
-        self._vis_server = self._chart_spec.env.get("VIS_REQUEST_SERVER") or self.DEFAULT_VIS_SERVER
-        self._service_id = self._chart_spec.env.get("SERVICE_ID")
+
+    async def generate_chart(self, prompt: str) -> ChartResult:
+        if not prompt.strip():
+            raise ChartGenerationError("La requête utilisateur est vide.")
+
+        provider, model_name = self._build_provider()
+        env = os.environ.copy()
+        env.update(self._chart_spec.env or {})
+
+        server = MCPServerStdio(
+            self._chart_spec.command,
+            self._chart_spec.args,
+            env=env,
+            tool_prefix=self._chart_spec.name,
+            timeout=30,
+            read_timeout=300,
+        )
+
+        model = OpenAIChatModel(model_name=model_name, provider=provider)
+        agent = Agent(
+            model,
+            name="mcp-chart",
+            instructions=self._base_instructions(self._chart_spec.name),
+            deps_type=ChartAgentDeps,
+            output_type=ChartAgentOutput,
+            toolsets=[server],
+        )
+
+        @agent.tool
+        async def load_dataset(  # type: ignore[no-untyped-def]
+            ctx: RunContext[ChartAgentDeps],
+            dataset: str,
+            columns: list[str] | None = None,
+            limit: int = 200,
+        ) -> Dict[str, Any]:
+            """Charge les lignes d'un CSV (max 'limit') pour inspection."""
+            return ctx.deps.load_rows(dataset, columns, limit)
+
+        @agent.tool
+        async def aggregate_counts(  # type: ignore[no-untyped-def]
+            ctx: RunContext[ChartAgentDeps],
+            dataset: str,
+            column: str,
+            filters: Dict[str, Any] | None = None,
+            limit: int = 30,
+        ) -> Dict[str, Any]:
+            """Calcule une distribution par catégories sur une colonne."""
+            return ctx.deps.aggregate_counts(dataset, column, filters or {}, limit)
+
+        @agent.instructions
+        async def dataset_catalog(ctx: RunContext[ChartAgentDeps]) -> str:
+            return ctx.deps.describe_catalog()
+
+        deps = ChartAgentDeps(
+            repo=DataRepository(tables_dir=self._raw_root),
+            max_rows=self._DEFAULT_MAX_ROWS,
+        )
+
+        async with agent:
+            result = await agent.run(prompt, deps=deps)
+
+        output = result.output
+        if not output.chart_url:
+            raise ChartGenerationError("L'agent n'a pas fourni d'URL de graphique.")
+
+        return ChartResult(
+            prompt=prompt,
+            chart_url=output.chart_url,
+            tool_name=output.tool_name,
+            chart_title=output.chart_title,
+            chart_description=output.chart_description,
+            chart_spec=output.chart_spec,
+        )
 
     def _resolve_chart_spec(self) -> MCPServerSpec:
         manager = MCPManager()
@@ -53,174 +277,48 @@ class ChartGenerationService:
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
         )
 
-    def generate(self) -> List[Dict[str, Any]]:
-        definitions = [
-            self._build_nps_trend_chart(),
-            self._build_subscriptions_channel_chart(),
-            self._build_support_resolution_chart(),
-        ]
-        charts: List[Dict[str, Any]] = []
+    def _build_provider(self) -> tuple[OpenAIProvider, str]:
+        if settings.llm_mode not in {"local", "api"}:
+            raise ChartGenerationError("LLM_MODE doit valoir 'local' ou 'api'.")
 
-        for definition in definitions:
-            chart_payload = self._generate_single_chart(definition)
-            charts.append(
-                {
-                    "key": definition.key,
-                    "dataset": definition.dataset,
-                    "title": definition.title,
-                    "description": definition.description,
-                    "tool": definition.tool,
-                    "chart_url": chart_payload["chart_url"],
-                    "spec": chart_payload["spec"],
-                }
+        if settings.llm_mode == "local":
+            base_url = (settings.vllm_base_url or "").rstrip("/")
+            model_name = settings.z_local_model
+            api_key = None
+        else:
+            base_url = (settings.openai_base_url or "").rstrip("/")
+            model_name = settings.llm_model
+            api_key = settings.openai_api_key
+
+        if not base_url or not model_name:
+            raise ChartGenerationError(
+                "Configuration LLM incomplète pour la génération de graphiques."
             )
 
-        return charts
+        provider = OpenAIProvider(base_url=base_url, api_key=api_key)
+        return provider, model_name
 
-    def _generate_single_chart(self, definition: ChartDefinition) -> Dict[str, Any]:
-        chart_type = self.TOOL_TO_CHART_TYPE.get(definition.tool)
-        if not chart_type:
-            raise ChartGenerationError(f"Outil MCP non pris en charge: {definition.tool}")
-
-        payload = dict(definition.arguments)
-        payload.update({"type": chart_type, "source": "mcp-server-chart"})
-        if self._service_id:
-            payload.setdefault("serviceId", self._service_id)
-
-        try:
-            response = httpx.post(self._vis_server, json=payload, timeout=30.0)
-            response.raise_for_status()
-        except httpx.HTTPError as exc:  # pragma: no cover - dépend du réseau
-            raise ChartGenerationError(
-                f"Appel au service de visualisation impossible ({definition.tool}): {exc}"
-            ) from exc
-
-        data = response.json()
-        if not data.get("success"):
-            message = data.get("errorMessage") or "Le service distant a rejeté la requête."
-            raise ChartGenerationError(
-                f"Le service de visualisation a renvoyé une erreur pour {definition.tool}: {message}"
-            )
-
-        chart_url = data.get("resultObj")
-        if not chart_url:
-            raise ChartGenerationError("Le service de visualisation n'a pas fourni d'URL de graphique.")
-
-        spec = {"type": chart_type, **definition.arguments}
-        return {"chart_url": chart_url, "spec": spec}
-
-    def _read_csv(self, filename: str) -> Iterable[Dict[str, str]]:
-        path = self._raw_root / filename
-        if not path.exists():
-            raise ChartGenerationError(f"Dataset introuvable: {path}")
-        with path.open("r", encoding="utf-8", newline="") as handle:
-            reader = csv.DictReader(handle)
-            for row in reader:
-                yield row
-
-    def _build_nps_trend_chart(self) -> ChartDefinition:
-        monthly: Dict[str, Dict[str, Decimal | int]] = defaultdict(
-            lambda: {"sum": Decimal("0"), "count": 0}
+    @staticmethod
+    def _base_instructions(tool_prefix: str | None) -> str:
+        prefix_hint = (
+            f"Les outils du serveur MCP sont exposés sous le préfixe '{tool_prefix}_'."
+            if tool_prefix
+            else "Les outils du serveur MCP sont disponibles sans préfixe spécifique."
         )
-        for row in self._read_csv("myfeelback_nps.csv"):
-            date_raw = (row.get("date_feedback") or "").strip()
-            score_raw = (row.get("nps_score") or "").strip()
-            if not date_raw or len(date_raw) < 7 or not score_raw:
-                continue
-            month = date_raw[:7]
-            try:
-                score = Decimal(score_raw)
-            except InvalidOperation:
-                continue
-            bucket = monthly[month]
-            bucket["sum"] = bucket["sum"] + score  # type: ignore[assignment]
-            bucket["count"] = int(bucket["count"]) + 1  # type: ignore[assignment]
-
-        data = []
-        for month in sorted(monthly.keys()):
-            bucket = monthly[month]
-            count = int(bucket["count"])
-            if count == 0:
-                continue
-            average = (bucket["sum"] / count).quantize(Decimal("0.01"))
-            data.append({"time": month, "value": float(average)})
-
-        if not data:
-            raise ChartGenerationError("Aucune donnée exploitable pour le NPS mensuel.")
-
-        return ChartDefinition(
-            key="nps_monthly_trend",
-            dataset="myfeelback_nps.csv",
-            title="Évolution du NPS moyen",
-            description="Score NPS moyen par mois basé sur les retours clients.",
-            tool="generate_line_chart",
-            arguments={
-                "data": data,
-                "title": "NPS moyen par mois",
-                "axisXTitle": "Mois",
-                "axisYTitle": "Score moyen",
-            },
+        return (
+            "Tu es un analyste data. Analyse précisément la requête utilisateur,"\
+            " inspecte les CSV locaux (data/raw) à l'aide des outils Python fournis,"
+            " puis génère un graphique via le serveur MCP Chart. "
+            + prefix_hint
+            + "\n"
+            "Processus obligatoire :\n"
+            "1. Identifier les colonnes pertinentes grâce aux outils load_dataset et aggregate_counts.\n"
+            "2. Choisir l'outil de visualisation MCP adapté (ex. generate_bar_chart).\n"
+            "3. Fournir au MCP un payload JSON propre incluant les données préparées.\n"
+            "4. Produire un ChartAgentOutput strictement valide avec :\n"
+            "   - chart_url : URL retournée par le MCP\n"
+            "   - tool_name : nom exact de l'outil MCP utilisé\n"
+            "   - chart_title / chart_description : résumé concis\n"
+            "   - chart_spec : payload JSON transmis au MCP (incluant type, data, options).\n"
+            "N'ajoute aucun texte libre en dehors de ce schéma."
         )
-
-    def _build_subscriptions_channel_chart(self) -> ChartDefinition:
-        counter: Counter[str] = Counter()
-        for row in self._read_csv("myfeelback_souscriptions.csv"):
-            channel = (row.get("canal") or "").strip()
-            if channel:
-                counter[channel] += 1
-
-        data = [
-            {"category": channel, "value": count}
-            for channel, count in counter.most_common()
-            if count > 0
-        ]
-
-        if not data:
-            raise ChartGenerationError("Aucune donnée exploitable pour les canaux de souscription.")
-
-        return ChartDefinition(
-            key="subscriptions_by_channel",
-            dataset="myfeelback_souscriptions.csv",
-            title="Souscriptions par canal",
-            description="Volume de souscriptions par canal de vente.",
-            tool="generate_bar_chart",
-            arguments={
-                "data": data,
-                "title": "Souscriptions par canal",
-                "axisXTitle": "Canal de souscription",
-                "axisYTitle": "Nombre de souscriptions",
-                "stack": False,
-                "group": False,
-            },
-        )
-
-    def _build_support_resolution_chart(self) -> ChartDefinition:
-        counter: Counter[str] = Counter()
-        for row in self._read_csv("myfeelback_service_client.csv"):
-            solved = (row.get("probleme_resolu") or "").strip() or "Inconnu"
-            counter[solved] += 1
-
-        data = [
-            {"category": label, "value": count}
-            for label, count in counter.items()
-            if count > 0
-        ]
-
-        if not data:
-            raise ChartGenerationError("Aucune donnée exploitable sur la résolution du support.")
-
-        data.sort(key=lambda item: item["value"], reverse=True)
-
-        return ChartDefinition(
-            key="support_resolution_ratio",
-            dataset="myfeelback_service_client.csv",
-            title="Résolution des demandes",
-            description="Part des demandes résolues vs non résolues au support client.",
-            tool="generate_pie_chart",
-            arguments={
-                "data": data,
-                "title": "Résolution au support client",
-                "innerRadius": 0.0,
-            },
-        )
-

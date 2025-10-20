@@ -82,7 +82,7 @@ data/
 
 ### Visualisations MCP Chart
 
-- L’onglet **Chat** comporte désormais un interrupteur « Activer MCP Chart ». Lorsqu’il est activé, le backend interroge le serveur MCP `chart` déclaré dans `plan/Z/mcp.config.json` (valeur par défaut du `MCP_CONFIG_PATH`) afin de générer des graphiques.
-- Les graphiques sont produits à partir des jeux de données CSV situés dans `data/raw/` (moyenne NPS mensuelle, volume de souscriptions par canal, ratio de résolution du support).
-- L’endpoint `GET /api/v1/mcp/charts` renvoie la liste des visualisations (URL d’image + spécification renvoyée par le serveur MCP). Le frontend les affiche sous forme de cartes.
-- Le serveur MCP `chart` délègue la génération à `VIS_REQUEST_SERVER`. Vous pouvez surcharger cette URL (ou `SERVICE_ID`) via `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Une connexion réseau sortante est requise vers le service AntV par défaut.
+- L’interrupteur « Activer MCP Chart » du chat route désormais chaque message utilisateur vers `POST /api/v1/mcp/chart`. Le backend démarre un agent `pydantic-ai` qui prépare les données locales et pilote le serveur MCP `chart` en tool-calling natif.
+- Les CSV de `data/raw/` sont accessibles via des outils internes (`load_dataset`, `aggregate_counts`) avant l’appel à l’outil MCP (`generate_*_chart`). Aucun graphique n’est pré-calculé : le résultat dépend intégralement de la consigne utilisateur.
+- La réponse API contient uniquement l’URL du graphique généré (plus le titre, la description et la spec JSON fournie). Le frontend affiche l’URL et un aperçu de l’image dans le flux de conversation.
+- La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
