@@ -69,7 +69,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for cmd in lsof uv npm python3; do
+for cmd in lsof uv npm python3 docker; do
   require_command "$cmd"
 done
 
@@ -81,10 +81,48 @@ for port in "$FRONTEND_PORT" "$BACKEND_PORT"; do
   free_port "$port"
 done
 
+ensure_mindsdb() {
+  local container="mindsdb_container"
+
+  if docker ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
+    echo "[start] Resetting existing MindsDB container '$container'"
+    docker rm -f "$container" >/dev/null 2>&1 || true
+  else
+    echo "[start] No previous MindsDB container detected"
+  fi
+
+  echo "[start] Launching MindsDB container '$container'"
+  docker run -d --name "$container" \
+    -e MINDSDB_APIS=http,mysql \
+    -p 47334:47334 -p 47335:47335 \
+    mindsdb/mindsdb >/dev/null
+
+  echo "[start] MindsDB container '$container' status"
+  docker ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
+  echo "[start] MindsDB last logs (tail 10)"
+  docker logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
+}
+
+ensure_mindsdb
+
 echo "[start] Ensuring backend dependencies (uv sync)"
 (
   cd backend
   uv sync
+)
+
+echo "[start] Syncing local tables into MindsDB"
+(
+  cd backend
+  uv run python - <<'PY'
+from insight_backend.services.mindsdb_sync import sync_all_tables
+
+uploaded = sync_all_tables()
+if uploaded:
+    print("[start] MindsDB sync uploaded:", ", ".join(uploaded))
+else:
+    print("[start] MindsDB sync uploaded: (aucun fichier)")
+PY
 )
 
 FRONTEND_ENV_FILE="frontend/.env.development"
