@@ -68,6 +68,32 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/chat/completions' \
   -d '{"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
+### Streaming (SSE)
+
+Endpoint de streaming compatible navigateurs (SSE via `text/event-stream`) — utilise la même configuration LLM:
+
+```
+POST /api/v1/chat/stream
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "messages": [{"role":"user","content":"Bonjour"}]
+}
+```
+
+Évènements émis (ordre garanti):
+- `meta`: `{ request_id, provider, model }`
+- `delta`: `{ seq, content }` (répété)
+- `done`: `{ id, content_full, usage?, finish_reason?, elapsed_s }`
+- `error`: `{ code, message }`
+
+En-têtes envoyés par le serveur: `Cache-Control: no-cache`, `X-Accel-Buffering: no`, `Connection: keep-alive`.
+
+Notes de prod:
+- Si vous terminez derrière Nginx/Cloudflare, désactivez le buffering pour ce chemin.
+- Un seul flux actif par requête; le client doit annuler via `AbortController` si nécessaire.
+
 ### MCP – configuration déclarative
 
 Objectif: faciliter la connexion côté moteur de chat aux serveurs MCP:
