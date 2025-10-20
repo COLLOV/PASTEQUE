@@ -1,10 +1,12 @@
-import json
 import time
 import uuid
 from typing import Iterator
 
 from fastapi import APIRouter, HTTPException
 from starlette.responses import StreamingResponse
+import json
+import threading
+import queue
 from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
 from ....services.chat_service import ChatService
@@ -85,12 +87,35 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
             # 1) MindsDB passthrough (/sql ...) or NL→SQL mode
             last = payload.messages[-1] if payload.messages else None
             if last and last.role == "user" and last.content.strip().casefold().startswith("/sql "):
-                # Reuse ChatService orchestration (executes SQL via MindsDB)
-                resp = service.completion(payload)
-                text = resp.reply or ""
-                prov = (resp.metadata or {}).get("provider") or "mindsdb-sql"
+                prov = "mindsdb-sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
-                # stream by lines to keep UX consistent
+                q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+
+                def emit(evt: str, data: dict) -> None:
+                    q.put((evt, data))
+
+                result_holder: dict[str, object] = {}
+
+                def worker() -> None:
+                    resp = service.completion(payload, events=emit)
+                    result_holder["resp"] = resp
+                    q.put(("__final__", resp))
+
+                th = threading.Thread(target=worker, daemon=True)
+                th.start()
+                while True:
+                    item = q.get()
+                    if not isinstance(item, tuple) or len(item) != 2:
+                        continue
+                    kind, data = item
+                    if kind == "__final__":
+                        break
+                    yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | etc.
+                resp = result_holder.get("resp")
+                if isinstance(resp, ChatResponse):
+                    text = resp.reply or ""
+                else:
+                    text = ""
                 for line in text.splitlines(True):
                     if not line:
                         continue
@@ -110,10 +135,35 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
                 return
 
             if settings.nl2sql_enabled and last and last.role == "user":
-                resp = service.completion(payload)
-                text = resp.reply or ""
-                prov = (resp.metadata or {}).get("provider") or "nl2sql"
+                prov = "nl2sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
+                q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+
+                def emit(evt: str, data: dict) -> None:
+                    q.put((evt, data))
+
+                result_holder: dict[str, object] = {}
+
+                def worker() -> None:
+                    resp = service.completion(payload, events=emit)
+                    result_holder["resp"] = resp
+                    q.put(("__final__", resp))
+
+                th = threading.Thread(target=worker, daemon=True)
+                th.start()
+                while True:
+                    item = q.get()
+                    if not isinstance(item, tuple) or len(item) != 2:
+                        continue
+                    kind, data = item
+                    if kind == "__final__":
+                        break
+                    yield _sse(kind, data)  # 'plan' | 'sql' | 'rows'
+                resp = result_holder.get("resp")
+                if isinstance(resp, ChatResponse):
+                    text = resp.reply or ""
+                else:
+                    text = ""
                 for line in text.splitlines(True):
                     if not line:
                         continue
