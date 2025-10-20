@@ -7,9 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict
 
+import logging
+
+from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.mcp import MCPServerStdio
+from pydantic_ai.messages import ModelResponse
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -20,6 +25,9 @@ from ..repositories.data_repository import DataRepository
 
 class ChartGenerationError(RuntimeError):
     """Raised when chart generation via MCP fails."""
+
+
+log = logging.getLogger("insight.services.mcp_chart")
 
 
 class ChartAgentOutput(BaseModel):
@@ -185,6 +193,15 @@ class ChartResult:
     chart_spec: Dict[str, Any] | None
 
 
+class LenientOpenAIChatModel(OpenAIChatModel):
+    """OpenAI chat model that tolerates missing metadata from compatible backends."""
+
+    def _process_response(self, response: OpenAIChatCompletion | str) -> ModelResponse:  # type: ignore[override]
+        if isinstance(response, OpenAIChatCompletion) and not getattr(response, "object", None):
+            response.object = "chat.completion"
+        return super()._process_response(response)
+
+
 class ChartGenerationService:
     """Generates charts dynamically through the MCP chart server."""
 
@@ -212,7 +229,7 @@ class ChartGenerationService:
             read_timeout=300,
         )
 
-        model = OpenAIChatModel(model_name=model_name, provider=provider)
+        model = LenientOpenAIChatModel(model_name=model_name, provider=provider)
         agent = Agent(
             model,
             name="mcp-chart",
@@ -252,8 +269,15 @@ class ChartGenerationService:
             max_rows=self._DEFAULT_MAX_ROWS,
         )
 
-        async with agent:
-            result = await agent.run(prompt, deps=deps)
+        try:
+            async with agent:
+                result = await agent.run(prompt, deps=deps)
+        except UnexpectedModelBehavior as exc:
+            log.exception("Réponse LLM incompatible pour la génération de graphiques")
+            raise ChartGenerationError(f"Réponse LLM incompatible: {exc}") from exc
+        except Exception as exc:  # pragma: no cover - dépend des intégrations externes
+            log.exception("Échec lors de la génération de graphique via MCP")
+            raise ChartGenerationError(str(exc)) from exc
 
         output = result.output
         if not output.chart_url:
