@@ -82,9 +82,60 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
     def generate() -> Iterator[bytes]:
         # meta
         yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model})
-        full: list[str] = []
         seq = 0
         try:
+            # 1) MindsDB passthrough (/sql ...) or NL→SQL mode
+            last = payload.messages[-1] if payload.messages else None
+            if last and last.role == "user" and last.content.strip().casefold().startswith("/sql "):
+                # Reuse ChatService orchestration (executes SQL via MindsDB)
+                resp = service.completion(payload)
+                text = resp.reply or ""
+                prov = (resp.metadata or {}).get("provider") or "mindsdb-sql"
+                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
+                # stream by lines to keep UX consistent
+                for line in text.splitlines(True):
+                    if not line:
+                        continue
+                    seq += 1
+                    yield _sse("delta", {"seq": seq, "content": line})
+                elapsed = max(time.perf_counter() - started, 1e-6)
+                yield _sse(
+                    "done",
+                    {
+                        "id": trace_id,
+                        "content_full": text,
+                        "usage": None,
+                        "finish_reason": "stop",
+                        "elapsed_s": round(elapsed, 3),
+                    },
+                )
+                return
+
+            if settings.nl2sql_enabled and last and last.role == "user":
+                resp = service.completion(payload)
+                text = resp.reply or ""
+                prov = (resp.metadata or {}).get("provider") or "nl2sql"
+                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
+                for line in text.splitlines(True):
+                    if not line:
+                        continue
+                    seq += 1
+                    yield _sse("delta", {"seq": seq, "content": line})
+                elapsed = max(time.perf_counter() - started, 1e-6)
+                yield _sse(
+                    "done",
+                    {
+                        "id": trace_id,
+                        "content_full": text,
+                        "usage": None,
+                        "finish_reason": "stop",
+                        "elapsed_s": round(elapsed, 3),
+                    },
+                )
+                return
+
+            # 2) Default LLM streaming
+            full: list[str] = []
             for event in engine.stream(payload):
                 if event.get("type") == "delta":
                     text = event.get("content") or ""
@@ -98,7 +149,8 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
                     pass
             content_full = "".join(full)
             elapsed = max(time.perf_counter() - started, 1e-6)
-            result = service._log_completion(  # noqa: SLF001 — intentional internal reuse for logging
+            # Logging via ChatService for consistency
+            service._log_completion(  # noqa: SLF001 — intentional internal reuse for logging
                 ChatResponse(reply=content_full, metadata={"provider": provider}),
                 context="stream done (engine)",
             )
@@ -106,7 +158,7 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
                 "done",
                 {
                     "id": trace_id,
-                    "content_full": result.reply,
+                    "content_full": content_full,
                     "usage": None,
                     "finish_reason": "stop",
                     "elapsed_s": round(elapsed, 3),
