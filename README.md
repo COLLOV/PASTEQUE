@@ -14,11 +14,19 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 
 ## Démarrage rapide
 
+Script combiné (depuis la racine):
+
+- `./start.sh <port_frontend> <port_backend>` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), puis lance le backend via `uv` et le frontend Vite.
+- Exemple: `./start.sh 5173 8000` (ou `./start.sh 8080 8081` selon vos besoins).
+
+Lancer manuellement si besoin:
+
 Backend (depuis `backend/`):
 
 1. Installer `uv` si nécessaire: voir https://docs.astral.sh/uv
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
+4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (LLM mode local/API, MindsDB, etc.).
 
 Frontend (depuis `frontend/`):
 
