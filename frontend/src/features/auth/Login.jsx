@@ -12,10 +12,10 @@ export default function Login({ onSuccess }) {
     setError(null)
     setLoading(true)
     try {
-      const token = await login(username.trim(), password)
+      const auth = await login(username.trim(), password)
       setUsername('')
       setPassword('')
-      onSuccess(token)
+      onSuccess(auth)
     } catch (err) {
       setError(err.message || 'Échec de la connexion')
     } finally {

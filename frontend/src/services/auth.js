@@ -1,15 +1,28 @@
-const TOKEN_KEY = 'authToken'
+const AUTH_KEY = 'authState'
 
-export function storeToken(token) {
-  window.localStorage.setItem(TOKEN_KEY, token)
+export function storeAuth(auth) {
+  window.localStorage.setItem(AUTH_KEY, JSON.stringify(auth))
 }
 
-export function clearToken() {
-  window.localStorage.removeItem(TOKEN_KEY)
+export function clearAuth() {
+  window.localStorage.removeItem(AUTH_KEY)
 }
 
 export function getToken() {
-  return window.localStorage.getItem(TOKEN_KEY)
+  const auth = getAuth()
+  return auth ? auth.token : null
+}
+
+export function getAuth() {
+  const raw = window.localStorage.getItem(AUTH_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch (err) {
+    console.error('Invalid auth state, clearing.', err)
+    clearAuth()
+    return null
+  }
 }
 
 export async function login(username, password) {
@@ -26,6 +39,12 @@ export async function login(username, password) {
   if (!data?.access_token) {
     throw new Error('Réponse API invalide')
   }
-  storeToken(data.access_token)
-  return data.access_token
+  const auth = {
+    token: data.access_token,
+    tokenType: data.token_type || 'bearer',
+    username: data.username,
+    isAdmin: Boolean(data.is_admin),
+  }
+  storeAuth(auth)
+  return auth
 }
