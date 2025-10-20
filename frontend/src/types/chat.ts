@@ -5,6 +5,8 @@ export interface Message {
   chartTitle?: string
   chartDescription?: string
   chartTool?: string
+  // Streaming placeholder (ephemeral) removed at end
+  ephemeral?: boolean
 }
 
 export interface ChatCompletionRequest {
@@ -13,6 +15,26 @@ export interface ChatCompletionRequest {
 
 export interface ChatCompletionResponse {
   reply: string
+}
+
+// Streaming event shapes
+export interface ChatStreamMeta {
+  request_id: string
+  provider?: string
+  model?: string
+}
+
+export interface ChatStreamDelta {
+  seq: number
+  content: string
+}
+
+export interface ChatStreamDone {
+  id: string
+  content_full: string
+  usage?: any
+  finish_reason?: string
+  elapsed_s?: number
 }
 
 export interface ChartGenerationResponse {

@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react'
-import { apiFetch } from '@/services/api'
+import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
   Message,
   ChatCompletionRequest,
   ChatCompletionResponse,
-  ChartGenerationResponse
+  ChartGenerationResponse,
+  ChatStreamMeta,
+  ChatStreamDelta,
+  ChatStreamDone
 } from '@/types/chat'
 import { HiPaperAirplane, HiArrowPath } from 'react-icons/hi2'
 import clsx from 'clsx'
@@ -16,7 +19,16 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
+  const [showInspector, setShowInspector] = useState(false)
+  const [requestInfo, setRequestInfo] = useState<{
+    requestId?: string
+    provider?: string
+    model?: string
+    startedAt?: number
+    elapsed?: number
+  }>({})
   const listRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (!listRef.current) return
@@ -59,18 +71,66 @@ export default function Chat() {
             }
         setMessages(prev => [...prev, assistantMessage])
       } else {
-        const res = await apiFetch<ChatCompletionResponse>('/chat/completions', {
-          method: 'POST',
-          body: JSON.stringify({ messages: next } as ChatCompletionRequest)
+        // Streaming via SSE over POST
+        const controller = new AbortController()
+        abortRef.current = controller
+        // Insert ephemeral assistant message placeholder
+        let streamingIndex = -1
+        setMessages(prev => {
+          streamingIndex = prev.length
+          return [...prev, { role: 'assistant', content: '', ephemeral: true }]
         })
-        const reply = res?.reply ?? ''
-        setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+
+        const payload: ChatCompletionRequest = { messages: next }
+        const startedAt = Date.now()
+        setRequestInfo({ startedAt })
+        await streamSSE('/chat/stream', payload, (type, data) => {
+          if (type === 'meta') {
+            const meta = data as ChatStreamMeta
+            setRequestInfo(curr => ({
+              ...curr,
+              requestId: meta.request_id,
+              provider: meta.provider,
+              model: meta.model,
+            }))
+          } else if (type === 'delta') {
+            const delta = data as ChatStreamDelta
+            setMessages(prev => {
+              const copy = [...prev]
+              const idx = copy.findIndex(m => m.ephemeral)
+              const target = idx >= 0 ? idx : copy.length - 1
+              copy[target] = {
+                ...copy[target],
+                content: (copy[target].content || '') + (delta.content || ''),
+                ephemeral: true,
+              }
+              return copy
+            })
+          } else if (type === 'done') {
+            const done = data as ChatStreamDone
+            setRequestInfo(curr => ({ ...curr, elapsed: done.elapsed_s }))
+            // Replace ephemeral with final
+            setMessages(prev => {
+              const copy = [...prev]
+              const idx = copy.findIndex(m => m.ephemeral)
+              if (idx >= 0) {
+                copy[idx] = { role: 'assistant', content: done.content_full }
+              } else {
+                copy.push({ role: 'assistant', content: done.content_full })
+              }
+              return copy
+            })
+          } else if (type === 'error') {
+            setError(data?.message || 'Erreur streaming')
+          }
+        }, { signal: controller.signal })
       }
     } catch (e) {
       console.error(e)
       setError(e instanceof Error ? e.message : 'Erreur inconnue')
     } finally {
       setLoading(false)
+      abortRef.current = null
     }
   }
 
@@ -84,6 +144,12 @@ export default function Chat() {
   function onReset() {
     setMessages([])
     setError('')
+  }
+
+  function onCancel() {
+    if (abortRef.current) {
+      abortRef.current.abort()
+    }
   }
 
   return (
@@ -106,6 +172,24 @@ export default function Chat() {
         </label>
       </div>
 
+      {/* Inspector */}
+      <div className="px-4 py-2 border-b border-primary-100 bg-primary-50 text-xs">
+        <button
+          className="underline text-primary-700"
+          onClick={() => setShowInspector(v => !v)}
+        >
+          {showInspector ? 'Masquer' : 'Afficher'} les détails de la requête
+        </button>
+        {showInspector && (
+          <div className="mt-2 grid grid-cols-2 gap-2 text-primary-700">
+            <div><span className="text-primary-500">request_id:</span> {requestInfo.requestId || '-'}</div>
+            <div><span className="text-primary-500">provider:</span> {requestInfo.provider || '-'}</div>
+            <div><span className="text-primary-500">model:</span> {requestInfo.model || '-'}</div>
+            <div><span className="text-primary-500">elapsed:</span> {requestInfo.elapsed ? `${requestInfo.elapsed}s` : '-'}</div>
+          </div>
+        )}
+      </div>
+
       <div
         ref={listRef}
         className="flex-1 overflow-y-auto p-4 space-y-4"
@@ -122,8 +206,8 @@ export default function Chat() {
               <MessageBubble key={index} message={message} />
             ))}
             {loading && (
-              <div className="flex justify-center py-4">
-                <Loader text="Le modèle écrit…" />
+              <div className="flex justify-center py-2">
+                <Loader text="Streaming…" />
               </div>
             )}
           </>
@@ -157,6 +241,11 @@ export default function Chat() {
               <HiArrowPath className="w-4 h-4 mr-2" />
               Réinitialiser
             </Button>
+            {loading && (
+              <Button variant="secondary" onClick={onCancel} size="sm">
+                Annuler
+              </Button>
+            )}
             <Button
               onClick={onSend}
               disabled={loading || !input.trim()}
