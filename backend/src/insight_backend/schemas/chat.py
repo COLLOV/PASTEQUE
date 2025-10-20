@@ -1,5 +1,6 @@
+from typing import Any, Dict, List
+
 from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
 
 
 class ChatMessage(BaseModel):
@@ -15,4 +16,3 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     metadata: Dict[str, Any] | None = None
-

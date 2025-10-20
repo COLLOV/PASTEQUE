@@ -1,3 +1,5 @@
+import { getToken } from './auth'
+
 export function getApiBaseUrl() {
   const url = import.meta.env.VITE_API_URL
   if (!url) {
@@ -8,8 +10,13 @@ export function getApiBaseUrl() {
 
 export async function apiFetch(path, options = {}) {
   const base = getApiBaseUrl()
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
+  const token = getToken()
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
   const res = await fetch(`${base}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers,
     ...options,
   })
   if (!res.ok) {
@@ -18,4 +25,3 @@ export async function apiFetch(path, options = {}) {
   }
   return res.json()
 }
-

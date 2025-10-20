@@ -26,7 +26,7 @@ Backend (depuis `backend/`):
 1. Installer `uv` si nécessaire: voir https://docs.astral.sh/uv
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
-4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (LLM mode local/API, MindsDB, etc.).
+4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, MindsDB, etc.).
 
 Frontend (depuis `frontend/`):
 
@@ -34,6 +34,7 @@ Frontend (depuis `frontend/`):
 2. Lancer: `npm run dev`
 
 Configurer l’URL d’API côté front via `frontend/.env.development` (voir `.example`).
+Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
 
 ## Principes d’architecture
 
@@ -52,11 +53,11 @@ backend/
   pyproject.toml
   src/insight_backend/
     main.py
-    api/routes/v1/{health.py, chat.py, data.py}
-    services/{chat_service.py, data_service.py}
-    repositories/{data_repository.py}
-    schemas/{chat.py, data.py}
-    core/{config.py, logging.py}
+    api/routes/v1/{health.py, chat.py, data.py, auth.py}
+    services/{chat_service.py, data_service.py, auth_service.py}
+    repositories/{data_repository.py, user_repository.py}
+    schemas/{chat.py, data.py, auth.py}
+    core/{config.py, logging.py, database.py, security.py}
 frontend/
   package.json, vite.config.js, index.html
   src/{main.jsx, App.jsx, components/, features/, services/}

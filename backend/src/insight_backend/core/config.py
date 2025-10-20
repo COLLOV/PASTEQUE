@@ -38,6 +38,19 @@ class Settings(BaseSettings):
     mindsdb_base_url: str = Field("http://127.0.0.1:47334/api", alias="MINDSDB_BASE_URL")
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
 
+    # Database
+    database_url: str = Field(
+        "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",
+        alias="DATABASE_URL",
+    )
+
+    # Authentication
+    jwt_secret_key: str = Field("change-me", alias="JWT_SECRET_KEY")
+    jwt_algorithm: str = Field("HS256", alias="JWT_ALGORITHM")
+    jwt_expiration_minutes: int = Field(60, alias="JWT_EXPIRATION_MINUTES")
+    admin_username: str = Field("admin", alias="ADMIN_USERNAME")
+    admin_password: str = Field("admin", alias="ADMIN_PASSWORD")
+
     # NL→SQL generation (optional)
     nl2sql_enabled: bool = Field(False, alias="NL2SQL_ENABLED")
     nl2sql_max_rows: int = Field(50, alias="NL2SQL_MAX_ROWS")
