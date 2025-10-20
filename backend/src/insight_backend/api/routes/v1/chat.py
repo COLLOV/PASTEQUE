@@ -3,7 +3,7 @@ from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
 from ....services.chat_service import ChatService
 from ....engines.openai_engine import OpenAIChatEngine
-from ....integrations.openai_client import OpenAICompatibleClient
+from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 
 router = APIRouter(prefix="/chat")
 
@@ -33,4 +33,7 @@ def chat_completion(payload: ChatRequest) -> ChatResponse:  # type: ignore[valid
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
-    return service.completion(payload)
+    try:
+        return service.completion(payload)
+    except OpenAIBackendError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
