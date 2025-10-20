@@ -1,6 +1,37 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { apiFetch } from '../../services/api'
 
+const DEFAULT_PAYLOADS = {
+  generate_bar_chart: JSON.stringify({
+    data: [
+      { category: 'Catégorie A', value: 12 },
+      { category: 'Catégorie B', value: 18 },
+      { category: 'Catégorie C', value: 9 }
+    ],
+    title: 'Comparaison par catégorie',
+    axisXTitle: 'Catégorie',
+    axisYTitle: 'Valeur'
+  }, null, 2),
+  generate_line_chart: JSON.stringify({
+    data: [
+      { time: '2025-01', value: 10 },
+      { time: '2025-02', value: 15 },
+      { time: '2025-03', value: 8 }
+    ],
+    title: 'Tendance mensuelle',
+    axisXTitle: 'Période',
+    axisYTitle: 'Valeur'
+  }, null, 2),
+  generate_pie_chart: JSON.stringify({
+    data: [
+      { category: 'Segment A', value: 35 },
+      { category: 'Segment B', value: 42 },
+      { category: 'Segment C', value: 23 }
+    ],
+    title: 'Répartition par segment'
+  }, null, 2)
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: 'Bonjour, comment puis-je vous aider ?' }
@@ -9,9 +40,12 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
-  const [charts, setCharts] = useState([])
-  const [chartsLoading, setChartsLoading] = useState(false)
-  const [chartsError, setChartsError] = useState('')
+  const [chartTool, setChartTool] = useState('generate_bar_chart')
+  const [chartPayload, setChartPayload] = useState(DEFAULT_PAYLOADS.generate_bar_chart)
+  const [chartResult, setChartResult] = useState(null)
+  const [chartError, setChartError] = useState('')
+  const [chartLoading, setChartLoading] = useState(false)
+
   const listRef = useRef(null)
 
   useEffect(() => {
@@ -19,28 +53,50 @@ export default function Chat() {
     listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages, loading])
 
-  async function fetchCharts() {
-    setChartsError('')
-    setChartsLoading(true)
-    try {
-      const res = await apiFetch('/mcp/charts')
-      const items = Array.isArray(res?.charts) ? res.charts : []
-      setCharts(items)
-    } catch (e) {
-      console.error(e)
-      setChartsError(e?.message || 'Impossible de générer les graphiques')
-    } finally {
-      setChartsLoading(false)
-    }
-  }
-
   function onToggleChartMode(e) {
     const next = Boolean(e.target.checked)
     setChartMode(next)
-    setCharts([])
-    setChartsError('')
+    setChartResult(null)
+    setChartError('')
     if (next) {
-      fetchCharts()
+      setChartPayload(DEFAULT_PAYLOADS[chartTool] || DEFAULT_PAYLOADS.generate_bar_chart)
+    }
+  }
+
+  function onSelectTool(e) {
+    const nextTool = e.target.value
+    setChartTool(nextTool)
+    setChartPayload(DEFAULT_PAYLOADS[nextTool] || DEFAULT_PAYLOADS.generate_bar_chart)
+  }
+
+  async function onGenerateChart(event) {
+    event.preventDefault()
+    setChartError('')
+    setChartResult(null)
+    setChartLoading(true)
+    let parsed
+    try {
+      parsed = JSON.parse(chartPayload)
+      if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Le JSON doit décrire un objet (ex: { "data": [...] }).')
+      }
+    } catch (err) {
+      setChartLoading(false)
+      setChartError(err?.message || 'Le JSON fourni est invalide.')
+      return
+    }
+
+    try {
+      const res = await apiFetch('/mcp/charts', {
+        method: 'POST',
+        body: JSON.stringify({ tool: chartTool, arguments: parsed })
+      })
+      setChartResult(res)
+    } catch (err) {
+      console.error(err)
+      setChartError(err?.message || 'Impossible de générer le graphique.')
+    } finally {
+      setChartLoading(false)
     }
   }
 
@@ -59,9 +115,9 @@ export default function Chat() {
       })
       const reply = res?.reply ?? ''
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
-    } catch (e) {
-      console.error(e)
-      setError(e?.message || 'Erreur inconnue')
+    } catch (err) {
+      console.error(err)
+      setError(err?.message || 'Erreur inconnue')
     } finally {
       setLoading(false)
     }
@@ -89,54 +145,63 @@ export default function Chat() {
             checked={chartMode}
             onChange={onToggleChartMode}
           />
-          <span>Activer MCP Chart</span>
+          <span>Mode graphique MCP</span>
         </label>
       </div>
-      <div style={styles.container}>
-        {chartMode && (
-          <div style={styles.chartsSection}>
-            <div style={styles.chartsHeader}>
-              <div style={styles.chartsTitle}>Visualisations depuis MCP Chart</div>
-              <button
-                onClick={fetchCharts}
-                disabled={chartsLoading}
-                style={styles.buttonSecondary}
-              >
-                Actualiser
-              </button>
-            </div>
-            {chartsLoading && <div style={styles.loading}>Génération des graphiques…</div>}
-            {chartsError && (
-              <div style={styles.error}>
-                {chartsError}
-              </div>
-            )}
-            {!chartsLoading && !chartsError && charts.length === 0 && (
-              <div style={styles.emptyCharts}>Aucune visualisation disponible.</div>
-            )}
-            {!chartsLoading && !chartsError && charts.length > 0 && (
-              <div style={styles.chartsGrid}>
-                {charts.map(chart => (
-                  <div key={chart.key} style={styles.chartCard}>
-                    <div style={styles.chartMeta}>
-                      <div style={styles.chartTitle}>{chart.title}</div>
-                      <div style={styles.chartDataset}>{chart.dataset}</div>
-                      {chart.description && (
-                        <div style={styles.chartDescription}>{chart.description}</div>
-                      )}
-                    </div>
-                    <img
-                      src={chart.chart_url}
-                      alt={chart.title}
-                      style={styles.chartImage}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
+      {chartMode && (
+        <form onSubmit={onGenerateChart} style={styles.chartForm}>
+          <div style={styles.chartRow}>
+            <label style={styles.chartLabel}>
+              Type de graphique
+              <select value={chartTool} onChange={onSelectTool} style={styles.select}>
+                <option value="generate_bar_chart">Barres</option>
+                <option value="generate_line_chart">Courbe</option>
+                <option value="generate_pie_chart">Camembert</option>
+              </select>
+            </label>
+            <button
+              type="submit"
+              disabled={chartLoading}
+              style={styles.buttonPrimary}
+            >
+              {chartLoading ? 'Génération…' : 'Générer'}
+            </button>
+          </div>
+          <label style={styles.chartLabel}>
+            Paramètres (JSON)
+            <textarea
+              value={chartPayload}
+              onChange={e => setChartPayload(e.target.value)}
+              rows={10}
+              style={styles.textarea}
+            />
+          </label>
+          <div style={styles.help}>
+            Fourissez un objet JSON conforme au schéma de l’outil AntV sélectionné.
+            Exemple pour un graphique en barres:
+            {` { "data": [{ "category": "A", "value": 10 }, ...] } `}
+          </div>
+          {chartError && <div style={styles.error}>{chartError}</div>}
+          {chartResult && (
+            <div style={styles.chartResult}>
+              <div style={styles.chartMeta}>
+                <div style={styles.chartTitle}>{chartResult?.spec?.title || 'Graphique généré'}</div>
+                <a href={chartResult.chart_url} target="_blank" rel="noreferrer" style={styles.chartLink}>
+                  Ouvrir dans un nouvel onglet
+                </a>
+              </div>
+              <img
+                src={chartResult.chart_url}
+                alt={chartResult?.spec?.title || 'Graphique MCP'}
+                style={styles.chartImage}
+              />
+            </div>
+          )}
+        </form>
+      )}
+
+      <div style={styles.container}>
         <div ref={listRef} style={styles.list}>
           {messages.map((m, i) => (
             <Message key={i} role={m.role} content={m.content} />
@@ -191,7 +256,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8
+    marginBottom: 12
   },
   toggle: {
     display: 'flex',
@@ -199,6 +264,69 @@ const styles = {
     gap: 8,
     fontSize: 14,
     color: '#111827'
+  },
+  chartForm: {
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    padding: 16,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginBottom: 12,
+    background: '#f9fafb'
+  },
+  chartRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12
+  },
+  chartLabel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    fontSize: 14,
+    color: '#111827',
+    flex: 1
+  },
+  select: {
+    padding: '6px 8px',
+    borderRadius: 6,
+    border: '1px solid #d1d5db'
+  },
+  help: {
+    fontSize: 12,
+    color: '#6b7280'
+  },
+  chartResult: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    border: '1px solid #d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    background: '#fff'
+  },
+  chartMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  chartTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: '#111827'
+  },
+  chartLink: {
+    fontSize: 13,
+    color: '#2563eb',
+    textDecoration: 'none'
+  },
+  chartImage: {
+    width: '100%',
+    height: 'auto',
+    borderRadius: 6,
+    border: '1px solid #e5e7eb'
   },
   container: {
     border: '1px solid #e5e7eb',
@@ -282,64 +410,5 @@ const styles = {
     border: '1px solid #fecaca',
     borderRadius: 6,
     padding: 8
-  },
-  chartsSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    marginBottom: 12
-  },
-  chartsHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  chartsTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#111827'
-  },
-  chartsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 12
-  },
-  chartCard: {
-    border: '1px solid #e5e7eb',
-    borderRadius: 8,
-    overflow: 'hidden',
-    background: '#ffffff',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    padding: 12
-  },
-  chartMeta: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4
-  },
-  chartTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#111827'
-  },
-  chartDataset: {
-    fontSize: 12,
-    color: '#6b7280'
-  },
-  chartDescription: {
-    fontSize: 12,
-    color: '#374151'
-  },
-  chartImage: {
-    width: '100%',
-    height: 'auto',
-    borderRadius: 6,
-    border: '1px solid #e5e7eb'
-  },
-  emptyCharts: {
-    fontSize: 13,
-    color: '#6b7280'
   }
 }

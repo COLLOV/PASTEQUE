@@ -78,10 +78,12 @@ curl -sS 'http://127.0.0.1:8000/api/v1/mcp/servers' | jq
 Visualisations via MCP Chart:
 
 ```bash
-curl -sS 'http://127.0.0.1:8000/api/v1/mcp/charts' | jq
+curl -sS -X POST 'http://127.0.0.1:8000/api/v1/mcp/charts' \
+  -H 'Content-Type: application/json' \
+  -d '{"tool":"generate_bar_chart","arguments":{"data":[{"category":"A","value":10}]}}' | jq
 ```
 
-- Les graphiques sont générés à partir des CSV dans `data/raw/`.
+- L’argument `tool` doit correspondre à un outil reconnu par `@antv/mcp-server-chart`. Le bloc `arguments` est transmis tel quel au serveur MCP (ex: `data`, `title`, `axisXTitle`, ...).
 - Le backend lit par défaut `plan/Z/mcp.config.json` (surcharge possible via `MCP_CONFIG_PATH`) pour récupérer la configuration du serveur `chart` et ses variables d’environnement (`VIS_REQUEST_SERVER`, `SERVICE_ID`, etc.).
 - Le service distant doit être accessible (réseau sortant). En cas d’erreur, le backend renvoie un `502` explicite sans masquer la cause.
 
