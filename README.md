@@ -37,6 +37,12 @@ Frontend (depuis `frontend/`):
 Configurer l’URL d’API côté front via `frontend/.env.development` (voir `.example`).
 Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
 
+### Streaming Chat
+
+- Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
+- Front: affichage en direct des tokens, panneau d’inspection (request_id/provider/model), remplacement par le message final à la fin.
+- Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
+
 ### Gestion des utilisateurs (admin)
 
 - Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. Les autres fonctionnalités (Chat, Dashboard) restent accessibles via la barre de navigation.
