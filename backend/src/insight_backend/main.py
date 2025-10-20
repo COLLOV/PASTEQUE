@@ -21,13 +21,11 @@ log = logging.getLogger("insight.main")
 def create_app() -> FastAPI:
     app = FastAPI(title="20_insightv2 API", version="0.1.0")
 
-    # CORS (wide open by default; tighten via ALLOWED_ORIGINS env var if needed)
-    origins = settings.allowed_origins
-    allow_credentials = False if "*" in origins else True
+    # CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=allow_credentials,
+        allow_origins=settings.allowed_origins,
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )

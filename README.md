@@ -26,7 +26,7 @@ Backend (depuis `backend/`):
 1. Installer `uv` si nécessaire: voir https://docs.astral.sh/uv
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
-4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (PostgreSQL `DATABASE_URL`, identifiants admin, CORS `ALLOWED_ORIGINS`, LLM mode local/API, MindsDB, etc.).
+4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, MindsDB, etc.).
 
 Frontend (depuis `frontend/`):
 
