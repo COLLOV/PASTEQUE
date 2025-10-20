@@ -8,12 +8,41 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [chartMode, setChartMode] = useState(false)
+  const [charts, setCharts] = useState([])
+  const [chartsLoading, setChartsLoading] = useState(false)
+  const [chartsError, setChartsError] = useState('')
   const listRef = useRef(null)
 
   useEffect(() => {
     if (!listRef.current) return
     listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages, loading])
+
+  async function fetchCharts() {
+    setChartsError('')
+    setChartsLoading(true)
+    try {
+      const res = await apiFetch('/mcp/charts')
+      const items = Array.isArray(res?.charts) ? res.charts : []
+      setCharts(items)
+    } catch (e) {
+      console.error(e)
+      setChartsError(e?.message || 'Impossible de générer les graphiques')
+    } finally {
+      setChartsLoading(false)
+    }
+  }
+
+  function onToggleChartMode(e) {
+    const next = Boolean(e.target.checked)
+    setChartMode(next)
+    setCharts([])
+    setChartsError('')
+    if (next) {
+      fetchCharts()
+    }
+  }
 
   async function onSend() {
     const text = input.trim()
@@ -52,8 +81,62 @@ export default function Chat() {
 
   return (
     <section>
-      <h2>Chat</h2>
+      <div style={styles.header}>
+        <h2>Chat</h2>
+        <label style={styles.toggle}>
+          <input
+            type="checkbox"
+            checked={chartMode}
+            onChange={onToggleChartMode}
+          />
+          <span>Activer MCP Chart</span>
+        </label>
+      </div>
       <div style={styles.container}>
+        {chartMode && (
+          <div style={styles.chartsSection}>
+            <div style={styles.chartsHeader}>
+              <div style={styles.chartsTitle}>Visualisations depuis MCP Chart</div>
+              <button
+                onClick={fetchCharts}
+                disabled={chartsLoading}
+                style={styles.buttonSecondary}
+              >
+                Actualiser
+              </button>
+            </div>
+            {chartsLoading && <div style={styles.loading}>Génération des graphiques…</div>}
+            {chartsError && (
+              <div style={styles.error}>
+                {chartsError}
+              </div>
+            )}
+            {!chartsLoading && !chartsError && charts.length === 0 && (
+              <div style={styles.emptyCharts}>Aucune visualisation disponible.</div>
+            )}
+            {!chartsLoading && !chartsError && charts.length > 0 && (
+              <div style={styles.chartsGrid}>
+                {charts.map(chart => (
+                  <div key={chart.key} style={styles.chartCard}>
+                    <div style={styles.chartMeta}>
+                      <div style={styles.chartTitle}>{chart.title}</div>
+                      <div style={styles.chartDataset}>{chart.dataset}</div>
+                      {chart.description && (
+                        <div style={styles.chartDescription}>{chart.description}</div>
+                      )}
+                    </div>
+                    <img
+                      src={chart.chart_url}
+                      alt={chart.title}
+                      style={styles.chartImage}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div ref={listRef} style={styles.list}>
           {messages.map((m, i) => (
             <Message key={i} role={m.role} content={m.content} />
@@ -104,6 +187,19 @@ function Message({ role, content }) {
 }
 
 const styles = {
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  toggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 14,
+    color: '#111827'
+  },
   container: {
     border: '1px solid #e5e7eb',
     borderRadius: 8,
@@ -186,6 +282,64 @@ const styles = {
     border: '1px solid #fecaca',
     borderRadius: 6,
     padding: 8
+  },
+  chartsSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginBottom: 12
+  },
+  chartsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  chartsTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: '#111827'
+  },
+  chartsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: 12
+  },
+  chartCard: {
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    overflow: 'hidden',
+    background: '#ffffff',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    padding: 12
+  },
+  chartMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4
+  },
+  chartTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#111827'
+  },
+  chartDataset: {
+    fontSize: 12,
+    color: '#6b7280'
+  },
+  chartDescription: {
+    fontSize: 12,
+    color: '#374151'
+  },
+  chartImage: {
+    width: '100%',
+    height: 'auto',
+    borderRadius: 6,
+    border: '1px solid #e5e7eb'
+  },
+  emptyCharts: {
+    fontSize: 13,
+    color: '#6b7280'
   }
 }
-

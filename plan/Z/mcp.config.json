@@ -1,0 +1,8 @@
+[
+  {
+    "name": "chart",
+    "command": "npx",
+    "args": ["-y", "@antv/mcp-server-chart"],
+    "env": {}
+  }
+]

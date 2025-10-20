@@ -75,6 +75,16 @@ Lister la config chargée:
 curl -sS 'http://127.0.0.1:8000/api/v1/mcp/servers' | jq
 ```
 
+Visualisations via MCP Chart:
+
+```bash
+curl -sS 'http://127.0.0.1:8000/api/v1/mcp/charts' | jq
+```
+
+- Les graphiques sont générés à partir des CSV dans `data/raw/`.
+- Le backend lit par défaut `plan/Z/mcp.config.json` (surcharge possible via `MCP_CONFIG_PATH`) pour récupérer la configuration du serveur `chart` et ses variables d’environnement (`VIS_REQUEST_SERVER`, `SERVICE_ID`, etc.).
+- Le service distant doit être accessible (réseau sortant). En cas d’erreur, le backend renvoie un `502` explicite sans masquer la cause.
+
 ### MindsDB – connexion simple (HTTP)
 
 Pré‑requis: vous avez lancé MindsDB OSS avec l’API HTTP (exemple):
