@@ -35,6 +35,10 @@ def _is_select_only(sql: str) -> bool:
     return not any(tok in s2 for tok in forbidden[1:])
 
 
+_TABLE_REF_PATTERN = re.compile(r"\b(from|join)\s+(?!\s*\()([a-zA-Z_][\w\.]*)", re.IGNORECASE)
+_PREFIX_SKIP_KEYWORDS = {"select", "lateral", "unnest", "values", "table", "cast"}
+
+
 def _rewrite_date_functions(sql: str) -> str:
     """Rewrite YEAR(col) / MONTH(col) into DuckDB-safe EXTRACT with CAST to DATE."""
     def rep_year(m: re.Match[str]) -> str:
@@ -48,6 +52,104 @@ def _rewrite_date_functions(sql: str) -> str:
     out = re.sub(r"(?is)\byear\s*\(\s*([^\)]+?)\s*\)", rep_year, sql)
     out = re.sub(r"(?is)\bmonth\s*\(\s*([^\)]+?)\s*\)", rep_month, out)
     return out
+
+
+def _collect_cte_names(sql: str) -> set[str]:
+    names: set[str] = set()
+    s = sql.lstrip()
+    if not s.lower().startswith("with"):
+        return names
+
+    lower = s.lower()
+    length = len(s)
+    i = len("with")
+
+    def skip_ws(pos: int) -> int:
+        while pos < length and s[pos].isspace():
+            pos += 1
+        return pos
+
+    i = skip_ws(i)
+    if lower.startswith("recursive", i):
+        i += len("recursive")
+        i = skip_ws(i)
+
+    while i < length:
+        if not (s[i].isalpha() or s[i] == "_"):
+            break
+        start = i
+        i += 1
+        while i < length and (s[i].isalnum() or s[i] == "_"):
+            i += 1
+        names.add(s[start:i].lower())
+        i = skip_ws(i)
+
+        if i < length and s[i] == "(":
+            depth = 1
+            i += 1
+            while i < length and depth:
+                if s[i] == "(":
+                    depth += 1
+                elif s[i] == ")":
+                    depth -= 1
+                i += 1
+            i = skip_ws(i)
+
+        if not lower.startswith("as", i):
+            break
+        i += 2
+        i = skip_ws(i)
+
+        if lower.startswith("not materialized", i):
+            i += len("not materialized")
+            i = skip_ws(i)
+        elif lower.startswith("materialized", i):
+            i += len("materialized")
+            i = skip_ws(i)
+
+        if i >= length or s[i] != "(":
+            break
+        depth = 1
+        i += 1
+        while i < length and depth:
+            if s[i] == "(":
+                depth += 1
+            elif s[i] == ")":
+                depth -= 1
+            i += 1
+        i = skip_ws(i)
+
+        if i < length and s[i] == ",":
+            i += 1
+            i = skip_ws(i)
+            continue
+        break
+
+    return names
+
+
+def _ensure_required_prefix(sql: str) -> None:
+    prefix = f"{settings.nl2sql_db_prefix.lower()}."
+    cte_names = _collect_cte_names(sql)
+    for match in _TABLE_REF_PATTERN.finditer(sql):
+        table = match.group(2)
+        # Strip trailing punctuation that may hug the identifier
+        table_clean = table.rstrip(",)")
+        lower_clean = table_clean.lower()
+        if lower_clean in _PREFIX_SKIP_KEYWORDS:
+            continue
+        if lower_clean in cte_names:
+            continue
+        if lower_clean.startswith(prefix):
+            continue
+        # Allow aliases already referencing the prefix (e.g. files.t AS t)
+        if "." in table_clean:
+            if lower_clean.startswith(prefix):
+                continue
+        raise RuntimeError(
+            "Requête SQL invalide: toutes les tables doivent être préfixées par "
+            f"'{settings.nl2sql_db_prefix}.' (trouvé: '{table_clean}')"
+        )
 
 
 @dataclass
@@ -70,7 +172,14 @@ class NL2SQLService:
             raise RuntimeError("Invalid LLM_MODE; expected 'local' or 'api'")
         if not base_url or not model:
             raise RuntimeError("LLM base_url/model not configured")
-        return OpenAICompatibleClient(base_url=base_url, api_key=api_key), str(model)
+        return (
+            OpenAICompatibleClient(
+                base_url=base_url,
+                api_key=api_key,
+                timeout_s=settings.openai_timeout_s,
+            ),
+            str(model),
+        )
 
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
         client, model = self._client_and_model()
@@ -118,7 +227,10 @@ class NL2SQLService:
             f"Use only the tables listed below under the '{settings.nl2sql_db_prefix}.' schema.\n"
             f"Return exactly ONE SELECT query with LIMIT {limit}. No comments. No explanations.\n"
             "Rules: SELECT-only; never modify data. Date-like columns are TEXT in 'YYYY-MM-DD'.\n"
-            "Always CAST(NULLIF(date_col,'None') AS DATE) before date filters and use EXTRACT(YEAR|MONTH FROM ...)."
+            "Always CAST(NULLIF(date_col,'None') AS DATE) before date filters and use EXTRACT(YEAR|MONTH FROM ...).\n"
+            f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
+            "After introducing an alias, reuse it everywhere (SELECT, WHERE, subqueries) instead of the raw table name.\n"
+            "Never invent table or column names: use them exactly as provided (e.g. if only 'tickets_jira' exists, do NOT use 'tickets')."
         )
         hints = ""
         if date_hints:
@@ -148,6 +260,7 @@ class NL2SQLService:
             # If a trailing duplicate LIMIT was accidentally appended by a prior run, drop the last one
             if re.search(r"\blimit\b.*\blimit\b", low):
                 sql = re.sub(r"(?is)\s+limit\s+\d+\s*$", "", sql)
+        _ensure_required_prefix(sql)
         return sql
 
     def plan(self, *, question: str, schema: Dict[str, List[str]], max_steps: int) -> List[Dict[str, str]]:
@@ -189,6 +302,9 @@ class NL2SQLService:
             "Goal: break the question into up to N SQL queries (SELECT-only) that run on MindsDB (MySQL-like).\n"
             f"Use only tables under '{settings.nl2sql_db_prefix}.' and always include LIMIT {limit}.\n"
             "Date columns are TEXT 'YYYY-MM-DD'; CAST(NULLIF(col,'None') AS DATE) and EXTRACT(YEAR|MONTH ...) must be used.\n"
+            f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
+            "After introducing an alias, reuse it everywhere (SELECT, WHERE, subqueries) instead of the raw table name.\n"
+            "Never invent table or column names: use them exactly as provided (if a table is 'tickets_jira', do NOT rename it).\n"
             "Return JSON only with the shape: {\"queries\":[{\"purpose\":str,\"sql\":str}, ...]} — no prose."
         )
         user = (
@@ -229,6 +345,7 @@ class NL2SQLService:
             low = sql.lower()
             if re.search(r"\blimit\b", low) is None:
                 sql = f"{sql} LIMIT {limit}"
+            _ensure_required_prefix(sql)
             out.append({"purpose": purpose, "sql": sql})
         if not out:
             raise RuntimeError("Aucune requête exploitable dans le plan")
