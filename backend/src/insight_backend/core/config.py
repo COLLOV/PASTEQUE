@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     def allowed_origins(self) -> List[str]:
         if self.allowed_origins_raw:
             return [item.strip() for item in self.allowed_origins_raw.split(",") if item.strip()]
-        return ["http://localhost:5173"]
+        return ["*"]
 
 
 @lru_cache
