@@ -91,7 +91,7 @@ data/
 
 ### Visualisations MCP Chart
 
-- L’interrupteur « Activer MCP Chart » du chat route désormais chaque message utilisateur vers `POST /api/v1/mcp/chart`. Le backend démarre un agent `pydantic-ai` qui prépare les données locales et pilote le serveur MCP `chart` en tool-calling natif.
+- Le bouton « Activer MCP Chart » est intégré dans la zone d'input du chat (composer). Lorsqu’il est activé, chaque message est routé vers `POST /api/v1/mcp/chart`. Le backend démarre un agent `pydantic-ai` qui prépare les données locales et pilote le serveur MCP `chart` en tool-calling natif.
 - Les CSV de `data/raw/` sont accessibles via des outils internes (`load_dataset`, `aggregate_counts`) avant l’appel à l’outil MCP (`generate_*_chart`). Aucun graphique n’est pré-calculé : le résultat dépend intégralement de la consigne utilisateur.
 - La réponse API contient uniquement l’URL du graphique généré (plus le titre, la description et la spec JSON fournie). Le frontend affiche l’URL et un aperçu de l’image dans le flux de conversation.
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
