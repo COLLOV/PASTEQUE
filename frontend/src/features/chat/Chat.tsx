@@ -242,10 +242,14 @@ export default function Chat() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
-              rows={2}
+              placeholder="Posez votre question"
+              rows={1}
               fullWidth
-              className="pl-14 pr-14 min-h-[64px] resize-none"
+              className={clsx(
+                'pl-14 pr-14 h-12 min-h-12 resize-none overflow-x-auto',
+                'placeholder-shown:text-center placeholder:text-primary-400 placeholder-shown:leading-[48px]',
+                'text-left whitespace-nowrap'
+              )}
             />
             {/* Toggle MCP Chart intégré dans la zone de saisie */}
             <button
