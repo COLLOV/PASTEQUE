@@ -250,7 +250,8 @@ export default function Chat() {
                 // Neutralise toute variation visuelle au focus
                 'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
                 'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
-                'placeholder:text-primary-400 placeholder-shown:leading-[48px]',
+                // Centre verticalement le texte saisi comme le placeholder
+                'leading-[48px] placeholder:text-primary-400',
                 'text-left whitespace-nowrap'
               )}
             />
