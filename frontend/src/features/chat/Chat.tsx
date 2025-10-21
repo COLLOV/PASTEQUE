@@ -315,7 +315,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
           isUser
             ? 'max-w-[75%] bg-primary-950 text-white'
             : clsx(
-                'max-w-full bg-white border border-primary-100',
+                'max-w-full bg-white',
                 message.ephemeral && 'opacity-70'
               )
         )}
