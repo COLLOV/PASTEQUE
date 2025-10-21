@@ -51,14 +51,14 @@ export default function Layout() {
               <p className="text-sm text-primary-600">De la donnée à l'action</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={goTo('/chat')}>
+              <Button variant="secondary" size="sm" onClick={goTo('/chat')} className="!rounded-full">
                 Chat
               </Button>
-              <Button variant="secondary" size="sm" onClick={goTo('/dashboard')}>
+              <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">
                 Dashboard
               </Button>
               {auth.isAdmin && (
-                <Button variant="secondary" size="sm" onClick={goTo('/admin')}>
+                <Button variant="secondary" size="sm" onClick={goTo('/admin')} className="!rounded-full">
                   Admin
                 </Button>
               )}
