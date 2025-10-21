@@ -46,3 +46,15 @@
     @apply outline-none ring-2 ring-primary-400 ring-offset-2;
   }
 }
+
+/* Utilitaires personnalisés */
+@layer utilities {
+  /* Masquer proprement les barres de défilement sur un élément précis */
+  .scrollbar-none {
+    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+}

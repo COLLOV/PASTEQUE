@@ -246,7 +246,7 @@ export default function Chat() {
               rows={1}
               fullWidth
               className={clsx(
-                'pl-14 pr-14 h-12 min-h-12 resize-none overflow-x-auto',
+                'pl-14 pr-14 h-12 min-h-12 resize-none overflow-x-auto overflow-y-hidden scrollbar-none',
                 'placeholder-shown:text-center placeholder:text-primary-400 placeholder-shown:leading-[48px]',
                 'text-left whitespace-nowrap'
               )}
