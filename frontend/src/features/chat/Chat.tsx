@@ -337,7 +337,7 @@ export default function Chat() {
               placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
               rows={3}
               fullWidth
-              className="resize-none pr-14"
+              className="pr-14"
             />
             {/* Bouton Envoyer intégré dans la zone de saisie */}
             <button
