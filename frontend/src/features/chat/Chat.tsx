@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react'
+import { useState, useRef, useEffect, KeyboardEvent } from 'react'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -37,8 +37,8 @@ export default function Chat() {
     listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages, loading])
 
-  function onToggleChartMode(e: ChangeEvent<HTMLInputElement>) {
-    setChartMode(e.target.checked)
+  function onToggleChartModeClick() {
+    setChartMode(v => !v)
     setError('')
   }
 
@@ -238,15 +238,7 @@ export default function Chat() {
             Activez MCP Chart pour générer un graphique avec les CSV locaux.
           </p>
         </div>
-        <label className="inline-flex items-center gap-2 text-sm text-primary-700 cursor-pointer">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-primary-400 text-primary-600 focus:ring-primary-500"
-            checked={chartMode}
-            onChange={onToggleChartMode}
-          />
-          <span>Activer MCP Chart</span>
-        </label>
+        {/* Le toggle MCP Chart a été déplacé dans la zone d'input */}
       </div>
 
       {/* Inspector */}
@@ -347,13 +339,23 @@ export default function Chat() {
               <HiPaperAirplane className="w-4 h-4" />
             </button>
           </div>
-          {loading && (
-            <div className="mt-2 flex gap-2 justify-end">
-              <Button variant="secondary" onClick={onCancel} size="sm">
-                Annuler
-              </Button>
-            </div>
-          )}
+          <div className="mt-2 flex items-center justify-between">
+            <Button
+              variant={chartMode ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={onToggleChartModeClick}
+              aria-pressed={chartMode}
+            >
+              Activer MCP Chart
+            </Button>
+            {loading && (
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={onCancel} size="sm">
+                  Annuler
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
