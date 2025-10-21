@@ -3,7 +3,7 @@ import { Button } from '@/components/ui'
 import { clearAuth, getAuth } from '@/services/auth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import Navigation from './Navigation'
+// Navigation secondaire supprimée: boutons déplacés dans le header
 import { useCallback } from 'react'
 
 export default function Layout() {
@@ -66,8 +66,6 @@ export default function Layout() {
           </div>
         </div>
       </header>
-
-      <Navigation />
 
       <main className="container mx-auto px-4 py-6">
         <Outlet />
