@@ -246,7 +246,7 @@ export default function Chat() {
               rows={1}
               fullWidth
               className={clsx(
-                'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring',
+                'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
                 // Neutralise toute variation visuelle au focus
                 'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
                 'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
@@ -261,7 +261,7 @@ export default function Chat() {
               aria-pressed={chartMode}
               title="Activer MCP Chart"
               className={clsx(
-                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400',
+                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
                 chartMode
                   ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
                   : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
@@ -274,7 +274,7 @@ export default function Chat() {
               type="button"
               onClick={onSend}
               disabled={loading || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-md bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
               aria-label="Envoyer le message"
             >
               <HiPaperAirplane className="w-5 h-5" />
