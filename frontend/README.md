@@ -150,6 +150,19 @@ import { login } from '@/services/auth'
 - Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
 - Bouton « Envoyer » intégré directement dans la zone de saisie (icône avion en bas à droite).
 - Entrée simple pour envoyer, `Maj+Entrée` pour aller à la ligne.
+  
+Mise à jour d'harmonisation (oct. 2025):
+
+- Poignée de redimensionnement du textarea supprimée (`resize: none`).
+- Boutons « Graphique » et « Envoyer » centrés verticalement dans l'input.
+- Taille des boutons unifiée à 40px (`h-10 w-10`) avec `rounded-md`.
+- Padding latéral de l'input ajusté pour les accueillir (`pl-14` / `pr-14`).
+- Hauteur initiale confortable (`min-h-[64px]`).
+
+Personnalisation rapide:
+
+- Ajuster `pl-14` / `pr-14` et `min-h-[64px]` dans `src/features/chat/Chat.tsx`.
+- Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
 
 ### Dashboard
 
