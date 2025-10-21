@@ -280,9 +280,9 @@ export default function Chat() {
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in">
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      <div ref={listRef} className="p-4 space-y-4 pb-32 min-h-[calc(100vh-8rem)]">
+      <div ref={listRef} className="p-4 space-y-4 pb-32">
         {messages.length === 0 && !loading ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
             <div className="flex flex-col items-center gap-2 animate-fade-in">
               <img
                 src={`${import.meta.env.BASE_URL}insight.svg`}
