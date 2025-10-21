@@ -9,7 +9,7 @@ import type {
   ChatStreamDelta,
   ChatStreamDone
 } from '@/types/chat'
-import { HiPaperAirplane } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 export default function Chat() {
@@ -326,8 +326,23 @@ export default function Chat() {
               placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
               rows={2}
               fullWidth
-              className="pr-12 min-h-[56px] resize-none"
+              className="pl-10 pr-12 min-h-[56px] resize-none"
             />
+            {/* Toggle MCP Chart intégré dans la zone de saisie */}
+            <button
+              type="button"
+              onClick={onToggleChartModeClick}
+              aria-pressed={chartMode}
+              title="Activer MCP Chart"
+              className={clsx(
+                'absolute bottom-2 left-2 inline-flex items-center justify-center h-8 w-8 rounded-full shadow transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400',
+                chartMode
+                  ? 'bg-primary-600 text-white hover:bg-primary-700'
+                  : 'bg-white text-primary-700 border border-primary-200 hover:bg-primary-50'
+              )}
+            >
+              <HiChartBar className="w-4 h-4" />
+            </button>
             {/* Bouton Envoyer intégré dans la zone de saisie */}
             <button
               type="button"
@@ -339,23 +354,13 @@ export default function Chat() {
               <HiPaperAirplane className="w-4 h-4" />
             </button>
           </div>
-          <div className="mt-2 flex items-center justify-between">
-            <Button
-              variant={chartMode ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={onToggleChartModeClick}
-              aria-pressed={chartMode}
-            >
-              Activer MCP Chart
-            </Button>
-            {loading && (
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={onCancel} size="sm">
-                  Annuler
-                </Button>
-              </div>
-            )}
-          </div>
+          {loading && (
+            <div className="mt-2 flex gap-2 justify-end">
+              <Button variant="secondary" onClick={onCancel} size="sm">
+                Annuler
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
