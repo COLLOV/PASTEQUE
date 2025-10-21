@@ -104,4 +104,4 @@ data/
 
 ## Notes UI
 
-- 2025-10-21: Centrage vertical de l'état vide du chat (« Discutez avec vos données ») en garantissant une hauteur minimale du conteneur (`min-h-[calc(100vh-8rem)]`) pour tenir compte de la barre de composition fixe.
+- 2025-10-21: L'état vide du chat (« Discutez avec vos données ») est maintenant centré via un overlay `fixed` non interactif: pas de scroll tant qu'aucun message n'est présent; la barre de saisie reste accessible.
