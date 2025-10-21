@@ -38,14 +38,17 @@ export default function Layout() {
       <header className="border-b-2 border-primary-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <img
+                src={`${import.meta.env.BASE_URL}logo.svg`}
+                alt="Logo FoyerInsight"
+                className="h-8 w-8"
+              />
               <h1 className="text-2xl font-bold text-primary-950 tracking-tight">
                 FoyerInsight
               </h1>
               <div className="h-6 w-px bg-primary-200" />
-              <p className="text-sm text-primary-600">
-                Connecté en tant que <strong className="text-primary-950">{auth.username}</strong>
-              </p>
+              <p className="text-sm text-primary-600">De la donnée à l'action</p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={goTo('/chat')}>
