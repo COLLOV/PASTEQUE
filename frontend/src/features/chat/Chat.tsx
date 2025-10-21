@@ -364,20 +364,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
             </button>
             {showDetails && (
               <div className="mt-1 space-y-2 text-primary-700">
-                <div className="grid grid-cols-2 gap-2">
-                  {message.details.requestId && (
-                    <div><span className="text-primary-500">request_id:</span> {message.details.requestId}</div>
-                  )}
-                  {message.details.provider && (
-                    <div><span className="text-primary-500">provider:</span> {message.details.provider}</div>
-                  )}
-                  {message.details.model && (
-                    <div><span className="text-primary-500">model:</span> {message.details.model}</div>
-                  )}
-                  {message.details.elapsed !== undefined && (
-                    <div><span className="text-primary-500">elapsed:</span> {message.details.elapsed}s</div>
-                  )}
-                </div>
+                {/* Métadonnées masquées (request_id/provider/model/elapsed) pour alléger l'affichage */}
                 {message.details.steps && message.details.steps.length > 0 && (
                   <div className="text-[11px]">
                     <div className="uppercase tracking-wide text-primary-500 mb-1">SQL exécuté</div>
