@@ -3,9 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import String, Boolean, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column
+from typing import TYPE_CHECKING
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.database import Base
+
+if TYPE_CHECKING:
+    from .chart import Chart
 
 
 class User(Base):
@@ -18,3 +23,4 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    charts: Mapped[list["Chart"]] = relationship("Chart", back_populates="user", cascade="all,delete-orphan")
