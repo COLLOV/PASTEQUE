@@ -376,8 +376,11 @@ export default function Chat() {
                 <HiPaperAirplane className="w-5 h-5" />
               )}
             </button>
-          </div>
+        </div>
           {/* Bouton Annuler séparé supprimé: l'icône de droite devient Annuler pendant le streaming */}
+          <p className="mt-2 text-center text-[10px] md:text-xs text-primary-400 select-none">
+            L'IA peut faire des erreurs, FoyerInsight aussi.
+          </p>
         </div>
       </div>
     </div>
