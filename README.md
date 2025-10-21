@@ -40,7 +40,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 ### Streaming Chat
 
 - Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
-- Front: affichage en direct des tokens, panneau d’inspection (request_id/provider/model), remplacement par le message final à la fin.
+- Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL, échantillons et métadonnées (request_id/provider/model).
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 
 ### Gestion des utilisateurs (admin)
@@ -83,8 +83,7 @@ data/
 ### Mode NL→SQL (aperçu rapide)
 
 - Activez `NL2SQL_ENABLED=true` dans `backend/.env` pour que le LLM génère du SQL exécuté sur MindsDB.
-- Chaque réponse du chat affiche uniquement la synthèse finale; les requêtes SQL exécutées sont visibles dans les logs backend (`insight.services.chat`).
-- Les logs backend (`insight.services.chat`) affichent la question NL→SQL et les requêtes envoyées à MindsDB.
+- En streaming, le frontend affiche d’abord le SQL en cours d’exécution dans la bulle, puis remplace par la synthèse finale. Les détails (SQL, échantillons de colonnes/lignes, request_id/provider/model) restent accessibles dans la bulle via « Afficher les détails de la requête ». Les logs backend (`insight.services.chat`) tracent également ces étapes.
 - Les requêtes générées qualifient toujours les tables avec `files.` et réutilisent les alias déclarés pour éviter les erreurs DuckDB/MindsDB.
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.

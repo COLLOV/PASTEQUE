@@ -7,6 +7,18 @@ export interface Message {
   chartTool?: string
   // Streaming placeholder (ephemeral) removed at end
   ephemeral?: boolean
+  // When streaming NL→SQL, show SQL first then final answer
+  interimSql?: string
+  // Optional per-message details shown on toggle inside the bubble
+  details?: {
+    requestId?: string
+    provider?: string
+    model?: string
+    elapsed?: number
+    plan?: any
+    steps?: Array<{ step?: number; purpose?: string; sql?: string }>
+    samples?: Array<{ step?: number; columns?: string[]; row_count?: number }>
+  }
 }
 
 export interface ChatCompletionRequest {
