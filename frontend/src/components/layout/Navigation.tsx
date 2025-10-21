@@ -1,17 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import clsx from 'clsx'
-import { HiChatBubbleLeftRight, HiChartBar, HiCog6Tooth } from 'react-icons/hi2'
+import { HiChatBubbleLeftRight } from 'react-icons/hi2'
 
-interface NavigationProps {
-  isAdmin: boolean
-}
-
-export default function Navigation({ isAdmin }: NavigationProps) {
-  const links = [
-    { to: '/chat', label: 'Chat', icon: HiChatBubbleLeftRight },
-    { to: '/dashboard', label: 'Dashboard', icon: HiChartBar },
-    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: HiCog6Tooth }] : []),
-  ]
+export default function Navigation() {
+  const links = [{ to: '/chat', label: 'Chat', icon: HiChatBubbleLeftRight }]
 
   return (
     <nav className="border-b-2 border-primary-100 bg-white">

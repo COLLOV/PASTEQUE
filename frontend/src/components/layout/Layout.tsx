@@ -4,6 +4,7 @@ import { clearAuth, getAuth } from '@/services/auth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Navigation from './Navigation'
+import { useCallback } from 'react'
 
 export default function Layout() {
   const navigate = useNavigate()
@@ -19,6 +20,13 @@ export default function Layout() {
     setAuth(null)
     navigate('/login')
   }
+
+  const goTo = useCallback(
+    (path: string) => () => {
+      navigate(path)
+    },
+    [navigate]
+  )
 
   if (!auth) {
     navigate('/login')
@@ -39,14 +47,24 @@ export default function Layout() {
                 Connecté en tant que <strong className="text-primary-950">{auth.username}</strong>
               </p>
             </div>
-            <Button variant="ghost" onClick={handleLogout} size="sm">
-              Se déconnecter
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={goTo('/dashboard')}>
+                Dashboard
+              </Button>
+              {auth.isAdmin && (
+                <Button variant="secondary" size="sm" onClick={goTo('/admin')}>
+                  Admin
+                </Button>
+              )}
+              <Button variant="ghost" onClick={handleLogout} size="sm">
+                Se déconnecter
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <Navigation isAdmin={auth.isAdmin} />
+      <Navigation />
 
       <main className="container mx-auto px-4 py-6">
         <Outlet />
