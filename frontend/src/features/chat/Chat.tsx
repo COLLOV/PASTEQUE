@@ -201,7 +201,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-12rem)] flex flex-col animate-fade-in">
+    <div className="max-w-3xl mx-auto h-[calc(100vh-12rem)] flex flex-col animate-fade-in">
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
       <div
@@ -236,7 +236,7 @@ export default function Chat() {
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
-        <div className="max-w-4xl mx-auto px-4 py-2">
+        <div className="max-w-3xl mx-auto px-4 py-2">
           <div className="relative">
             <Textarea
               value={input}

@@ -159,6 +159,7 @@ Mise à jour d'harmonisation (oct. 2025):
 - Padding latéral de l'input ajusté pour les accueillir (`pl-14` / `pr-14`).
 - Input sur une seule ligne: `rows={1}`, `h-12` et `whitespace-nowrap` avec défilement horizontal.
 - Placeholder mis à jour: « Posez votre question », centré tant qu'il est visible.
+- Largeur du chat: `max-w-3xl` (modifiable dans `src/features/chat/Chat.tsx`).
 
 Personnalisation rapide:
 
