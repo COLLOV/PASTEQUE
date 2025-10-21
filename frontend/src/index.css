@@ -57,4 +57,17 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none; /* Chrome/Safari */
   }
+  /* Neutraliser les styles de focus additionnels quand requis */
+  .no-focus-ring:focus,
+  .no-focus-ring:focus-visible {
+    outline: none;
+    --tw-ring-offset-width: 0px;
+    --tw-ring-color: transparent;
+    --tw-ring-shadow: 0 0 #0000;
+    box-shadow: 0 0 #0000; /* fallback */
+  }
+  .no-focus-border:focus,
+  .no-focus-border:focus-visible {
+    border-color: inherit; /* évite le changement de couleur au focus */
+  }
 }
