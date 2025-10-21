@@ -210,13 +210,13 @@ export default function Chat() {
       >
         {messages.length === 0 && !loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="flex flex-col items-center gap-4 animate-fade-in">
+            <div className="flex flex-col items-center gap-2 animate-fade-in">
               <img
                 src={`${import.meta.env.BASE_URL}insight.svg`}
                 alt="Logo FoyerInsight"
                 className="h-12 w-12 md:h-16 md:w-16 opacity-80"
               />
-              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-primary-900">
+              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900">
                 Discutez avec vos données
               </h2>
             </div>
