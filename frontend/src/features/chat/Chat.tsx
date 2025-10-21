@@ -30,8 +30,12 @@ export default function Chat() {
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (!listRef.current) return
-    listRef.current.scrollTop = listRef.current.scrollHeight
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        const doc = document.documentElement
+        window.scrollTo({ top: doc.scrollHeight, behavior: 'smooth' })
+      })
+    }
   }, [messages, loading])
 
   function onToggleChartModeClick() {
@@ -273,15 +277,17 @@ export default function Chat() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto h-[calc(100vh-12rem)] flex flex-col animate-fade-in">
+    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in">
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      <div
-        ref={listRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 pb-32"
-      >
-        {messages.length === 0 && !loading ? (
-          <div className="flex items-center justify-center h-full">
+      {messages.length === 0 ? (
+        // État vide: contenu figé au centre de l'écran, sans scroll
+        <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
+          {loading ? (
+            <div className="flex justify-center py-2">
+              <Loader text="Streaming…" />
+            </div>
+          ) : (
             <div className="flex flex-col items-center gap-2 animate-fade-in">
               <img
                 src={`${import.meta.env.BASE_URL}insight.svg`}
@@ -292,8 +298,10 @@ export default function Chat() {
                 Discutez avec vos données
               </h2>
             </div>
-          </div>
-        ) : (
+          )}
+        </div>
+      ) : (
+        <div ref={listRef} className="p-4 space-y-4 pb-32">
           <>
             {messages.map((message, index) => (
               <MessageBubble
@@ -308,8 +316,8 @@ export default function Chat() {
               </div>
             )}
           </>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && (
         <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
@@ -368,8 +376,11 @@ export default function Chat() {
                 <HiPaperAirplane className="w-5 h-5" />
               )}
             </button>
-          </div>
+        </div>
           {/* Bouton Annuler séparé supprimé: l'icône de droite devient Annuler pendant le streaming */}
+          <p className="mt-2 text-center text-[10px] md:text-xs text-primary-400 select-none">
+            L'IA peut faire des erreurs, FoyerInsight aussi.
+          </p>
         </div>
       </div>
     </div>
