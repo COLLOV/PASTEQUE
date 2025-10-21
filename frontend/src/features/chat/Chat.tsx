@@ -30,8 +30,12 @@ export default function Chat() {
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (!listRef.current) return
-    listRef.current.scrollTop = listRef.current.scrollHeight
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        const doc = document.documentElement
+        window.scrollTo({ top: doc.scrollHeight, behavior: 'smooth' })
+      })
+    }
   }, [messages, loading])
 
   function onToggleChartModeClick() {
@@ -273,13 +277,10 @@ export default function Chat() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto h-[calc(100vh-12rem)] flex flex-col animate-fade-in">
+    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in">
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      <div
-        ref={listRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 pb-32"
-      >
+      <div ref={listRef} className="p-4 space-y-4 pb-32">
         {messages.length === 0 && !loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-2 animate-fade-in">
