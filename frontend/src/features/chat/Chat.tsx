@@ -280,21 +280,22 @@ export default function Chat() {
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in">
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      <div ref={listRef} className="p-4 space-y-4 pb-32">
-        {messages.length === 0 && !loading ? (
-          <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-            <div className="flex flex-col items-center gap-2 animate-fade-in">
-              <img
-                src={`${import.meta.env.BASE_URL}insight.svg`}
-                alt="Logo FoyerInsight"
-                className="h-12 w-12 md:h-16 md:w-16 opacity-80"
-              />
-              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
-                Discutez avec vos données
-              </h2>
-            </div>
+      {messages.length === 0 && !loading ? (
+        // État vide: titre/logotype figés au centre de l'écran, sans scroll
+        <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-2 animate-fade-in">
+            <img
+              src={`${import.meta.env.BASE_URL}insight.svg`}
+              alt="Logo FoyerInsight"
+              className="h-12 w-12 md:h-16 md:w-16 opacity-80"
+            />
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
+              Discutez avec vos données
+            </h2>
           </div>
-        ) : (
+        </div>
+      ) : (
+        <div ref={listRef} className="p-4 space-y-4 pb-32">
           <>
             {messages.map((message, index) => (
               <MessageBubble
@@ -309,8 +310,8 @@ export default function Chat() {
               </div>
             )}
           </>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && (
         <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
