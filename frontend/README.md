@@ -123,6 +123,7 @@ import { login } from '@/services/auth'
 - Le header l'affiche automatiquement via: `src={`${import.meta.env.BASE_URL}insight.svg`}`.
 - Si vous préférez un autre nom de fichier, modifiez `src/components/layout/Layout.tsx` en conséquence.
 - Alternative (fingerprinting par Vite): placez le fichier dans `src/assets/` et importez-le en tant que module.
+ - Le logo est aussi affiché dans l'état vide du chat, au‑dessus du titre « Discutez avec vos données ».
 
 ## Fonctionnalités
 
