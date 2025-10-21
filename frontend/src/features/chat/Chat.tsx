@@ -18,17 +18,6 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
-  const [showInspector, setShowInspector] = useState(false)
-  const [requestInfo, setRequestInfo] = useState<{
-    requestId?: string
-    provider?: string
-    model?: string
-    startedAt?: number
-    elapsed?: number
-    plan?: any
-    steps?: Array<{ step?: number; purpose?: string; sql?: string }>
-    samples?: Array<{ step?: number; columns?: string[]; row_count?: number }>
-  }>({})
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -80,17 +69,9 @@ export default function Chat() {
         setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
 
         const payload: ChatCompletionRequest = { messages: next }
-        const startedAt = Date.now()
-        setRequestInfo({ startedAt })
         await streamSSE('/chat/stream', payload, (type, data) => {
           if (type === 'meta') {
             const meta = data as ChatStreamMeta
-            setRequestInfo(curr => ({
-              ...curr,
-              requestId: meta.request_id,
-              provider: meta.provider,
-              model: meta.model,
-            }))
             // Attach meta onto the ephemeral assistant message details
             setMessages(prev => {
               const copy = [...prev]
@@ -109,7 +90,6 @@ export default function Chat() {
               return copy
             })
           } else if (type === 'plan') {
-            setRequestInfo(curr => ({ ...curr, plan: data }))
             setMessages(prev => {
               const copy = [...prev]
               const idx = copy.findIndex(m => m.ephemeral)
@@ -123,10 +103,6 @@ export default function Chat() {
             })
           } else if (type === 'sql') {
             const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql }
-            setRequestInfo(curr => ({
-              ...curr,
-              steps: [ ...(curr.steps || []), step ]
-            }))
             // Show SQL as interim content in the ephemeral bubble (grayed)
             setMessages(prev => {
               const copy = [...prev]
@@ -146,10 +122,6 @@ export default function Chat() {
             })
           } else if (type === 'rows') {
             const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
-            setRequestInfo(curr => ({
-              ...curr,
-              samples: [ ...(curr.samples || []), sample ]
-            }))
             setMessages(prev => {
               const copy = [...prev]
               const idx = copy.findIndex(m => m.ephemeral)
@@ -181,7 +153,6 @@ export default function Chat() {
             })
           } else if (type === 'done') {
             const done = data as ChatStreamDone
-            setRequestInfo(curr => ({ ...curr, elapsed: done.elapsed_s }))
             // Replace ephemeral with final
             setMessages(prev => {
               const copy = [...prev]
@@ -231,59 +202,7 @@ export default function Chat() {
 
   return (
     <div className="max-w-5xl mx-auto h-[calc(100vh-12rem)] flex flex-col animate-fade-in">
-      <div className="px-4 py-3 border-b border-primary-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-primary-900">Chat</h2>
-          <p className="text-xs text-primary-500">
-            Activez MCP Chart pour générer un graphique avec les CSV locaux.
-          </p>
-        </div>
-        {/* Le toggle MCP Chart a été déplacé dans la zone d'input */}
-      </div>
-
-      {/* Inspector */}
-      <div className="px-4 py-2 border-b border-primary-100 bg-primary-50 text-xs">
-        <button
-          className="underline text-primary-700"
-          onClick={() => setShowInspector(v => !v)}
-        >
-          {showInspector ? 'Masquer' : 'Afficher'} les détails de la requête
-        </button>
-        {showInspector && (
-          <div className="mt-2 space-y-2 text-primary-700">
-            <div className="grid grid-cols-2 gap-2">
-              <div><span className="text-primary-500">request_id:</span> {requestInfo.requestId || '-'}</div>
-              <div><span className="text-primary-500">provider:</span> {requestInfo.provider || '-'}</div>
-              <div><span className="text-primary-500">model:</span> {requestInfo.model || '-'}</div>
-              <div><span className="text-primary-500">elapsed:</span> {requestInfo.elapsed ? `${requestInfo.elapsed}s` : '-'}</div>
-            </div>
-            {requestInfo.steps && requestInfo.steps.length > 0 && (
-              <div className="text-[11px]">
-                <div className="uppercase tracking-wide text-primary-500 mb-1">SQL exécuté</div>
-                <ul className="list-disc ml-5 space-y-1 max-h-40 overflow-auto">
-                  {requestInfo.steps.map((s, i) => (
-                    <li key={i} className="break-all">
-                      {s.step ? `#${s.step} ` : ''}{s.purpose ? `[${s.purpose}] ` : ''}{s.sql}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {requestInfo.samples && requestInfo.samples.length > 0 && (
-              <div className="text-[11px]">
-                <div className="uppercase tracking-wide text-primary-500 mb-1">Échantillons</div>
-                <ul className="grid grid-cols-2 gap-2">
-                  {requestInfo.samples.map((s, i) => (
-                    <li key={i} className="truncate">
-                      {s.step ? `#${s.step}: ` : ''}{s.columns?.slice(0,3)?.join(', ') || '—'} ({s.row_count ?? 0} lignes)
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
       <div
         ref={listRef}
