@@ -48,6 +48,9 @@ export default function Layout() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={goTo('/chat')}>
+                Chat
+              </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/dashboard')}>
                 Dashboard
               </Button>
