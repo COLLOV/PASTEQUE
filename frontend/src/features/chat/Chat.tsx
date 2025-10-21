@@ -320,9 +320,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
               )
         )}
       >
-        <div className="flex items-center gap-2 text-xs font-medium mb-1.5 text-primary-300">
-          {isUser ? 'Vous' : 'Assistant'}
-        </div>
+        {/* Label d'auteur supprimé (Vous/Assistant) pour une UI plus épurée */}
         {chartUrl && !isUser ? (
           <div className="space-y-3">
             {chartTitle && (
