@@ -10,6 +10,7 @@ from .api.routes.v1.chat import router as chat_router
 from .api.routes.v1.data import router as data_router
 from .api.routes.v1.mcp import router as mcp_router
 from .api.routes.v1.mindsdb import router as mindsdb_router
+from .api.routes.v1.charts import router as charts_router
 from .api.routes.v1.auth import router as auth_router
 from .repositories.user_repository import UserRepository
 from .services.auth_service import AuthService
@@ -35,7 +36,8 @@ def create_app() -> FastAPI:
     app.include_router(chat_router, prefix=f"{settings.api_prefix}/v1", tags=["chat"]) 
     app.include_router(data_router, prefix=f"{settings.api_prefix}/v1", tags=["data"]) 
     app.include_router(mcp_router, prefix=f"{settings.api_prefix}/v1", tags=["mcp"]) 
-    app.include_router(mindsdb_router, prefix=f"{settings.api_prefix}/v1", tags=["mindsdb"]) 
+    app.include_router(mindsdb_router, prefix=f"{settings.api_prefix}/v1", tags=["mindsdb"])
+    app.include_router(charts_router, prefix=f"{settings.api_prefix}/v1", tags=["charts"])
     app.include_router(auth_router, prefix=f"{settings.api_prefix}/v1", tags=["auth"])
 
     @app.on_event("startup")

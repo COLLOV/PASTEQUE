@@ -7,10 +7,18 @@ import type {
   ChartGenerationResponse,
   ChatStreamMeta,
   ChatStreamDelta,
-  ChatStreamDone
+  ChatStreamDone,
+  SavedChartResponse
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle } from 'react-icons/hi2'
 import clsx from 'clsx'
+
+function createMessageId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -35,7 +43,7 @@ export default function Chat() {
     const text = input.trim()
     if (!text || loading) return
     setError('')
-    const userMessage: Message = { role: 'user', content: text }
+    const userMessage: Message = { id: createMessageId(), role: 'user', content: text }
     const next = [...messages, userMessage]
     setMessages(next)
     setInput('')
@@ -49,14 +57,18 @@ export default function Chat() {
         const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
         const assistantMessage: Message = chartUrl
           ? {
+              id: createMessageId(),
               role: 'assistant',
               content: chartUrl,
               chartUrl,
               chartTitle: res?.chart_title,
               chartDescription: res?.chart_description,
-              chartTool: res?.tool_name
+              chartTool: res?.tool_name,
+              chartPrompt: text,
+              chartSpec: res?.chart_spec
             }
           : {
+              id: createMessageId(),
               role: 'assistant',
               content: "Impossible de générer un graphique."
             }
@@ -185,6 +197,66 @@ export default function Chat() {
     }
   }
 
+  async function onSaveChart(messageId: string) {
+    const target = messages.find(m => m.id === messageId)
+    if (!target || !target.chartUrl) {
+      return
+    }
+    let prompt = target.chartPrompt || ''
+    if (!prompt) {
+      const targetIndex = messages.findIndex(m => m.id === messageId)
+      for (let i = targetIndex - 1; i >= 0; i -= 1) {
+        if (messages[i]?.role === 'user') {
+          prompt = messages[i].content
+          break
+        }
+      }
+    }
+    const payload = {
+      prompt,
+      chart_url: target.chartUrl,
+      tool_name: target.chartTool,
+      chart_title: target.chartTitle,
+      chart_description: target.chartDescription,
+      chart_spec: target.chartSpec
+    }
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.id === messageId
+          ? { ...msg, chartSaving: true, chartSaveError: undefined }
+          : msg
+      )
+    )
+    try {
+      const saved = await apiFetch<SavedChartResponse>('/charts', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                chartSaving: false,
+                chartSaved: true,
+                chartRecordId: saved?.id ?? msg.chartRecordId,
+                chartSaveError: undefined
+              }
+            : msg
+        )
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Sauvegarde impossible'
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId
+            ? { ...msg, chartSaving: false, chartSaveError: message }
+            : msg
+        )
+      )
+    }
+  }
+
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -224,7 +296,11 @@ export default function Chat() {
         ) : (
           <>
             {messages.map((message, index) => (
-              <MessageBubble key={index} message={message} />
+              <MessageBubble
+                key={message.id ?? index}
+                message={message}
+                onSaveChart={onSaveChart}
+              />
             ))}
             {loading && (
               <div className="flex justify-center py-2">
@@ -303,10 +379,22 @@ export default function Chat() {
 
 interface MessageBubbleProps {
   message: Message
+  onSaveChart?: (messageId: string) => void
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
-  const { role, content, chartUrl, chartTitle, chartDescription, chartTool } = message
+function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
+  const {
+    id,
+    role,
+    content,
+    chartUrl,
+    chartTitle,
+    chartDescription,
+    chartTool,
+    chartSaved,
+    chartSaving,
+    chartSaveError
+  } = message
   const isUser = role === 'user'
   const [showDetails, setShowDetails] = useState(false)
   return (
@@ -356,6 +444,29 @@ function MessageBubble({ message }: MessageBubbleProps) {
             {chartTool && (
               <p className="text-[11px] uppercase tracking-wide text-primary-400">
                 Outil : {chartTool}
+              </p>
+            )}
+            {!chartSaved && onSaveChart && (
+              <div className="pt-2">
+                <Button
+                  size="sm"
+                  onClick={() => id && onSaveChart(id)}
+                  disabled={chartSaving || !id}
+                >
+                  <HiBookmark className="w-4 h-4 mr-2" />
+                  {chartSaving ? 'Enregistrement…' : 'Enregistrer dans le dashboard'}
+                </Button>
+              </div>
+            )}
+            {chartSaved && (
+              <div className="flex items-center gap-2 text-xs text-primary-600 pt-2">
+                <HiCheckCircle className="w-4 h-4" />
+                <span>Graphique enregistré</span>
+              </div>
+            )}
+            {chartSaveError && (
+              <p className="text-xs text-red-600 pt-2">
+                {chartSaveError}
               </p>
             )}
           </div>
