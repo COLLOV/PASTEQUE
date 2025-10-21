@@ -117,6 +117,13 @@ import { Button } from '@/components/ui'
 import { login } from '@/services/auth'
 ```
 
+## Branding (Logo)
+
+- Placez votre logo dans `frontend/public/insight.svg`.
+- Le header l'affiche automatiquement via: `src={`${import.meta.env.BASE_URL}insight.svg`}`.
+- Si vous préférez un autre nom de fichier, modifiez `src/components/layout/Layout.tsx` en conséquence.
+- Alternative (fingerprinting par Vite): placez le fichier dans `src/assets/` et importez-le en tant que module.
+
 ## Fonctionnalités
 
 ### Authentification
