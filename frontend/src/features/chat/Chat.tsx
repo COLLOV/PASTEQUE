@@ -303,7 +303,7 @@ export default function Chat() {
 
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="flex-1 overflow-y-auto p-4 space-y-4 pb-40"
       >
         {messages.length === 0 && !loading ? (
           <div className="flex items-center justify-center h-full">
@@ -331,24 +331,32 @@ export default function Chat() {
         </div>
       )}
 
-      <div className="p-4 bg-primary-50">
-        <div className="space-y-3">
-          <Textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
-            rows={3}
-            fullWidth
-            className="resize-none"
-          />
-          <div className="flex gap-2 justify-end">
-            <Button
-              variant="secondary"
-              onClick={onReset}
-              disabled={loading}
-              size="sm"
+      {/* Barre de composition fixe en bas de page */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-primary-200 bg-primary-50/95 backdrop-blur">
+        <div className="container mx-auto px-4 py-3">
+          <div className="relative">
+            <Textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
+              rows={3}
+              fullWidth
+              className="resize-none pr-14"
+            />
+            {/* Bouton Envoyer intégré dans la zone de saisie */}
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={loading || !input.trim()}
+              className="absolute bottom-2.5 right-2.5 inline-flex items-center justify-center h-9 w-9 rounded-full bg-primary-600 text-white shadow disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+              aria-label="Envoyer le message"
             >
+              <HiPaperAirplane className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="mt-2 flex gap-2 justify-end">
+            <Button variant="secondary" onClick={onReset} disabled={loading} size="sm">
               <HiArrowPath className="w-4 h-4 mr-2" />
               Réinitialiser
             </Button>
@@ -357,14 +365,6 @@ export default function Chat() {
                 Annuler
               </Button>
             )}
-            <Button
-              onClick={onSend}
-              disabled={loading || !input.trim()}
-              size="sm"
-            >
-              <HiPaperAirplane className="w-4 h-4 mr-2" />
-              Envoyer
-            </Button>
           </div>
         </div>
       </div>

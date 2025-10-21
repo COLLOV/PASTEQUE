@@ -145,6 +145,12 @@ import { login } from '@/services/auth'
   - Remplacement automatique par le message final à la fin
   - Panneau d’inspection repliable (request_id, provider, model, elapsed)
 
+#### Composer (Mise à jour)
+
+- Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
+- Bouton « Envoyer » intégré directement dans la zone de saisie (icône avion en bas à droite).
+- Entrée simple pour envoyer, `Maj+Entrée` pour aller à la ligne.
+
 ### Dashboard
 
 - Cartes de statistiques avec icônes
