@@ -246,7 +246,10 @@ export default function Chat() {
               rows={1}
               fullWidth
               className={clsx(
-                'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring no-focus-border',
+                'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring',
+                // Neutralise toute variation visuelle au focus
+                'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
+                'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
                 'placeholder:text-primary-400 placeholder-shown:leading-[48px]',
                 'text-left whitespace-nowrap'
               )}
