@@ -45,7 +45,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 
 ### Gestion des utilisateurs (admin)
 
-- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. Les autres fonctionnalités (Chat, Dashboard) restent accessibles via la barre de navigation.
+- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Dashboard** et **Admin** sont désormais accessibles via des boutons dans le header (top bar), tandis que **Chat** reste dans la barre de navigation secondaire.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 
 ## Principes d’architecture
