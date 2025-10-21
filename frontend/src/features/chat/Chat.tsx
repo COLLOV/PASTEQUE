@@ -311,11 +311,11 @@ function MessageBubble({ message }: MessageBubbleProps) {
     >
       <div
         className={clsx(
-          'animate-slide-up rounded-lg px-4 py-3 shadow-sm',
+          'animate-slide-up rounded-lg px-4 py-3',
           isUser
-            ? 'max-w-[75%] bg-primary-950 text-white'
+            ? 'max-w-[75%] bg-primary-950 text-white shadow-sm'
             : clsx(
-                'max-w-full bg-white',
+                'max-w-full bg-white shadow-none',
                 message.ephemeral && 'opacity-70'
               )
         )}
