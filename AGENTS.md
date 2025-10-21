@@ -30,3 +30,5 @@
 Ces règles visent à maintenir une base de code propre, modulaire et maintenable tout en favorisant la collaboration efficace entre différents agents et développeurs.
 Utilise toujours uv pour gestion de package python
 Don't write/change any code until you're very confident (95% or more) in what needs to be done. If unclear, ask for more info.
+
+A chaque fois que tu fais une modif, commit les changements

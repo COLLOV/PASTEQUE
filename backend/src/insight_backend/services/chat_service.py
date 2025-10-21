@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Callable, Optional, Dict, Any
 
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..core.config import settings
@@ -54,7 +54,12 @@ class ChatService:
         )
         return response
 
-    def completion(self, payload: ChatRequest) -> ChatResponse:  # type: ignore[valid-type]
+    def completion(
+        self,
+        payload: ChatRequest,
+        *,
+        events: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> ChatResponse:  # type: ignore[valid-type]
         metadata_keys = list((payload.metadata or {}).keys())
         message_count = len(payload.messages)
         if payload.messages:
@@ -83,6 +88,11 @@ class ChatService:
                     "ChatService.mindsdb passthrough: sql_preview=\"%s\"",
                     _preview_text(sql, limit=200),
                 )
+                if events:
+                    try:
+                        events("sql", {"sql": sql})
+                    except Exception:  # pragma: no cover - defensive
+                        pass
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
                 data = client.sql(sql)
                 # Normalize common MindsDB shapes
@@ -98,6 +108,17 @@ class ChatService:
                         rows = data.get("result", {}).get("rows") or data.get("rows") or rows
                     if not columns:
                         columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+
+                if events:
+                    snapshot = {
+                        "columns": columns,
+                        "rows": (rows[: settings.nl2sql_max_rows] if isinstance(rows, list) else []),
+                        "row_count": len(rows) if isinstance(rows, list) else 0,
+                    }
+                    try:
+                        events("rows", snapshot)
+                    except Exception:  # pragma: no cover - defensive
+                        pass
 
                 if rows and columns:
                     header = " | ".join(str(c) for c in columns)
@@ -142,6 +163,11 @@ class ChatService:
                     try:
                         plan = nl2sql.plan(question=last.content.strip(), schema=schema, max_steps=settings.nl2sql_plan_max_steps)
                         log.info("NL2SQL plan (%d steps)", len(plan))
+                        if events:
+                            try:
+                                events("plan", {"steps": plan})
+                            except Exception:  # pragma: no cover
+                                pass
                     except Exception as e:
                         log.error("NL2SQL plan failed: %s", e)
                         return self._log_completion(
@@ -152,7 +178,7 @@ class ChatService:
                             context="completion done (nl2sql-plan-error)",
                         )
                     evidence: list[dict[str, object]] = []
-                    for item in plan:
+                    for idx, item in enumerate(plan, start=1):
                         sql = item["sql"]
                         purpose = item.get("purpose", "")
                         log.info(
@@ -160,6 +186,11 @@ class ChatService:
                             purpose or "step",
                             _preview_text(str(sql), limit=200),
                         )
+                        if events:
+                            try:
+                                events("sql", {"sql": sql, "purpose": purpose, "step": idx})
+                            except Exception:  # pragma: no cover
+                                pass
                         data = client.sql(sql)
                         # Normalize
                         rows: list = []
@@ -172,6 +203,19 @@ class ChatService:
                                 rows = data.get("result", {}).get("rows") or data.get("rows") or rows
                             if not columns:
                                 columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                        if events:
+                            try:
+                                events(
+                                    "rows",
+                                    {
+                                        "step": idx,
+                                        "columns": columns,
+                                        "rows": rows[: settings.nl2sql_max_rows],
+                                        "row_count": len(rows),
+                                    },
+                                )
+                            except Exception:  # pragma: no cover
+                                pass
                         evidence.append({
                             "purpose": purpose,
                             "sql": sql,
@@ -199,6 +243,11 @@ class ChatService:
                     try:
                         sql = nl2sql.generate(question=last.content.strip(), schema=schema)
                         log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
+                        if events:
+                            try:
+                                events("sql", {"sql": sql})
+                            except Exception:  # pragma: no cover
+                                pass
                     except Exception as e:
                         log.error("NL2SQL generation failed: %s", e)
                         return self._log_completion(
@@ -220,6 +269,18 @@ class ChatService:
                             rows = data.get("result", {}).get("rows") or data.get("rows") or rows
                         if not columns:
                             columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                    if events:
+                        try:
+                            events(
+                                "rows",
+                                {
+                                    "columns": columns,
+                                    "rows": rows[: settings.nl2sql_max_rows],
+                                    "row_count": len(rows),
+                                },
+                            )
+                        except Exception:  # pragma: no cover
+                            pass
                     evidence = [{
                         "purpose": "answer",
                         "sql": sql,

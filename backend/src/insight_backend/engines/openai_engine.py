@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, Iterator
 import logging
 
 from ..schemas.chat import ChatRequest, ChatResponse
@@ -31,3 +31,24 @@ class OpenAIChatEngine:
             raise
         return ChatResponse(reply=reply, metadata={"provider": "openai-compatible"})
 
+    def stream(self, payload: ChatRequest) -> Iterator[Dict[str, Any]]:  # type: ignore[valid-type]
+        """Yield token deltas from an OpenAI-compatible streaming endpoint.
+
+        Events yielded:
+        - {"type": "delta", "content": str}
+        - optional meta/done assembled by the caller
+        """
+        messages = [m.model_dump() for m in payload.messages]
+        for chunk in self.client.stream_chat_completions(model=self.model, messages=messages):
+            try:
+                c = chunk["choices"][0]
+                delta = c.get("delta") or {}
+                text = delta.get("content")
+                if text:
+                    yield {"type": "delta", "content": text}
+                finish = c.get("finish_reason")
+                if finish:
+                    yield {"type": "finish", "reason": finish}
+            except Exception as e:  # pragma: no cover - defensive
+                log.error("Invalid stream chunk: %s", e)
+                continue

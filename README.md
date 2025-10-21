@@ -37,9 +37,15 @@ Frontend (depuis `frontend/`):
 Configurer l’URL d’API côté front via `frontend/.env.development` (voir `.example`).
 Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
 
+### Streaming Chat
+
+- Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
+- Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL et échantillons (métadonnées techniques masquées pour alléger l’UI).
+- Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
+
 ### Gestion des utilisateurs (admin)
 
-- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. Les autres fonctionnalités (Chat, Dashboard) restent accessibles via la barre de navigation.
+- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Chat**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 
 ## Principes d’architecture
@@ -77,8 +83,7 @@ data/
 ### Mode NL→SQL (aperçu rapide)
 
 - Activez `NL2SQL_ENABLED=true` dans `backend/.env` pour que le LLM génère du SQL exécuté sur MindsDB.
-- Chaque réponse du chat affiche uniquement la synthèse finale; les requêtes SQL exécutées sont visibles dans les logs backend (`insight.services.chat`).
-- Les logs backend (`insight.services.chat`) affichent la question NL→SQL et les requêtes envoyées à MindsDB.
+- En streaming, le frontend affiche d’abord le SQL en cours d’exécution dans la bulle, puis remplace par la synthèse finale. Les détails (SQL, échantillons de colonnes/lignes) restent accessibles dans la bulle via « Afficher les détails de la requête ». Les logs backend (`insight.services.chat`) tracent également ces étapes.
 - Les requêtes générées qualifient toujours les tables avec `files.` et réutilisent les alias déclarés pour éviter les erreurs DuckDB/MindsDB.
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.
@@ -86,7 +91,7 @@ data/
 
 ### Visualisations MCP Chart
 
-- L’interrupteur « Activer MCP Chart » du chat route désormais chaque message utilisateur vers `POST /api/v1/mcp/chart`. Le backend démarre un agent `pydantic-ai` qui prépare les données locales et pilote le serveur MCP `chart` en tool-calling natif.
+- Un bouton icône (graphique) « Activer MCP Chart » est intégré à l’intérieur de la zone d’input du chat. Lorsqu’il est activé, chaque message est routé vers `POST /api/v1/mcp/chart`. Le backend démarre un agent `pydantic-ai` qui prépare les données locales et pilote le serveur MCP `chart` en tool-calling natif.
 - Les CSV de `data/raw/` sont accessibles via des outils internes (`load_dataset`, `aggregate_counts`) avant l’appel à l’outil MCP (`generate_*_chart`). Aucun graphique n’est pré-calculé : le résultat dépend intégralement de la consigne utilisateur.
 - La réponse API contient uniquement l’URL du graphique généré (plus le titre, la description et la spec JSON fournie). Le frontend affiche l’URL et un aperçu de l’image dans le flux de conversation.
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.

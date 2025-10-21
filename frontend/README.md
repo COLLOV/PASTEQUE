@@ -117,6 +117,14 @@ import { Button } from '@/components/ui'
 import { login } from '@/services/auth'
 ```
 
+## Branding (Logo)
+
+- Placez votre logo dans `frontend/public/insight.svg`.
+- Le header l'affiche automatiquement via: `src={`${import.meta.env.BASE_URL}insight.svg`}`.
+- Si vous préférez un autre nom de fichier, modifiez `src/components/layout/Layout.tsx` en conséquence.
+- Alternative (fingerprinting par Vite): placez le fichier dans `src/assets/` et importez-le en tant que module.
+ - Le logo est aussi affiché dans l'état vide du chat, au‑dessus du titre « Discutez avec vos données ».
+
 ## Fonctionnalités
 
 ### Authentification
@@ -140,6 +148,33 @@ import { login } from '@/services/auth'
 - Auto-scroll lors de nouveaux messages
 - Support du Shift+Enter pour nouvelles lignes
 - Gestion des états de chargement et d'erreur
+- Streaming en direct (SSE sur `POST /api/v1/chat/stream`)
+  - Affichage token‑par‑token dans une bulle éphémère
+  - Remplacement automatique par le message final à la fin
+  - Panneau d’inspection repliable (SQL et échantillons; métadonnées techniques masquées)
+
+#### Composer (Mise à jour)
+
+- Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
+- Bouton contextuel intégré en bas à droite (même place et taille):
+  - Affiche « Envoyer » (icône avion) à l'arrêt.
+  - Se transforme en « Annuler » (icône croix) pendant le streaming, remplaçant l'ancien bouton Annuler séparé.
+- Entrée simple pour envoyer, `Maj+Entrée` pour aller à la ligne.
+  
+Mise à jour d'harmonisation (oct. 2025):
+
+- Poignée de redimensionnement du textarea supprimée (`resize: none`).
+- Boutons « Graphique » et « Envoyer » centrés verticalement dans l'input.
+- Taille des boutons unifiée à 40px (`h-10 w-10`) avec `rounded-md`.
+- Padding latéral de l'input ajusté pour les accueillir (`pl-14` / `pr-14`).
+- Input sur une seule ligne: `rows={1}`, `h-12` et `whitespace-nowrap` avec défilement horizontal.
+- Placeholder mis à jour: « Posez votre question », centré tant qu'il est visible.
+- Largeur du chat: `max-w-3xl` (modifiable dans `src/features/chat/Chat.tsx`).
+
+Personnalisation rapide:
+
+- Ajuster `pl-14` / `pr-14` et `h-12` dans `src/features/chat/Chat.tsx`.
+- Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
 
 ### Dashboard
 
