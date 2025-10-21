@@ -216,7 +216,7 @@ export default function Chat() {
                 alt="Logo FoyerInsight"
                 className="h-12 w-12 md:h-16 md:w-16 opacity-80"
               />
-              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900">
+              <h2 className="text-2xl md:text-3xl font-normal tracking-tight text-primary-900">
                 Discutez avec vos données
               </h2>
             </div>
