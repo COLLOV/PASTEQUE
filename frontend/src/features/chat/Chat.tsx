@@ -245,7 +245,7 @@ export default function Chat() {
               placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
               rows={2}
               fullWidth
-              className="pl-10 pr-12 min-h-[56px] resize-none"
+              className="pl-14 pr-14 min-h-[64px] resize-none"
             />
             {/* Toggle MCP Chart intégré dans la zone de saisie */}
             <button
@@ -254,23 +254,23 @@ export default function Chat() {
               aria-pressed={chartMode}
               title="Activer MCP Chart"
               className={clsx(
-                'absolute bottom-2 left-2 inline-flex items-center justify-center h-8 w-8 rounded-full shadow transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400',
+                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400',
                 chartMode
-                  ? 'bg-primary-600 text-white hover:bg-primary-700'
-                  : 'bg-white text-primary-700 border border-primary-200 hover:bg-primary-50'
+                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
               )}
             >
-              <HiChartBar className="w-4 h-4" />
+              <HiChartBar className="w-5 h-5" />
             </button>
             {/* Bouton Envoyer intégré dans la zone de saisie */}
             <button
               type="button"
               onClick={onSend}
               disabled={loading || !input.trim()}
-              className="absolute bottom-2 right-2 inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white shadow disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-md bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
               aria-label="Envoyer le message"
             >
-              <HiPaperAirplane className="w-4 h-4" />
+              <HiPaperAirplane className="w-5 h-5" />
             </button>
           </div>
           {loading && (
