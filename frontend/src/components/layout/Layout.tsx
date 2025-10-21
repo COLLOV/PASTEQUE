@@ -40,7 +40,7 @@ export default function Layout() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
-                src={`${import.meta.env.BASE_URL}logo.svg`}
+                src={`${import.meta.env.BASE_URL}insight.svg`}
                 alt="Logo FoyerInsight"
                 className="h-8 w-8"
               />
