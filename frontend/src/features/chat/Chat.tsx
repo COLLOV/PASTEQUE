@@ -4,7 +4,6 @@ import { Button, Textarea, Loader } from '@/components/ui'
 import type {
   Message,
   ChatCompletionRequest,
-  ChatCompletionResponse,
   ChartGenerationResponse,
   ChatStreamMeta,
   ChatStreamDelta,
@@ -78,11 +77,7 @@ export default function Chat() {
         const controller = new AbortController()
         abortRef.current = controller
         // Insert ephemeral assistant message placeholder
-        let streamingIndex = -1
-        setMessages(prev => {
-          streamingIndex = prev.length
-          return [...prev, { role: 'assistant', content: '', ephemeral: true }]
-        })
+        setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
 
         const payload: ChatCompletionRequest = { messages: next }
         const startedAt = Date.now()
