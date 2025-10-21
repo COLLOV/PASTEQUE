@@ -156,7 +156,9 @@ import { login } from '@/services/auth'
 #### Composer (Mise à jour)
 
 - Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
-- Bouton « Envoyer » intégré directement dans la zone de saisie (icône avion en bas à droite).
+- Bouton contextuel intégré en bas à droite (même place et taille):
+  - Affiche « Envoyer » (icône avion) à l'arrêt.
+  - Se transforme en « Annuler » (icône croix) pendant le streaming, remplaçant l'ancien bouton Annuler séparé.
 - Entrée simple pour envoyer, `Maj+Entrée` pour aller à la ligne.
   
 Mise à jour d'harmonisation (oct. 2025):

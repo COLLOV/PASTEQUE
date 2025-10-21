@@ -10,7 +10,7 @@ import type {
   ChatStreamDone,
   SavedChartResponse
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 function createMessageId(): string {
@@ -353,24 +353,23 @@ export default function Chat() {
             >
               <HiChartBar className="w-5 h-5" />
             </button>
-            {/* Bouton Envoyer intégré dans la zone de saisie */}
+            {/* Bouton contextuel (même taille/emplacement): Envoyer ↔ Annuler */}
             <button
               type="button"
-              onClick={onSend}
-              disabled={loading || !input.trim()}
+              onClick={loading ? onCancel : onSend}
+              disabled={loading ? false : !input.trim()}
               className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
-              aria-label="Envoyer le message"
+              aria-label={loading ? 'Annuler' : 'Envoyer le message'}
+              title={loading ? 'Annuler' : 'Envoyer'}
             >
-              <HiPaperAirplane className="w-5 h-5" />
+              {loading ? (
+                <HiXMark className="w-5 h-5" />
+              ) : (
+                <HiPaperAirplane className="w-5 h-5" />
+              )}
             </button>
           </div>
-          {loading && (
-            <div className="mt-2 flex gap-2 justify-end">
-              <Button variant="secondary" onClick={onCancel} size="sm">
-                Annuler
-              </Button>
-            </div>
-          )}
+          {/* Bouton Annuler séparé supprimé: l'icône de droite devient Annuler pendant le streaming */}
         </div>
       </div>
     </div>
