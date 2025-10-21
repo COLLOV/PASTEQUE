@@ -143,7 +143,7 @@ import { login } from '@/services/auth'
 - Streaming en direct (SSE sur `POST /api/v1/chat/stream`)
   - Affichage token‑par‑token dans une bulle éphémère
   - Remplacement automatique par le message final à la fin
-  - Panneau d’inspection repliable (request_id, provider, model, elapsed)
+  - Panneau d’inspection repliable (SQL et échantillons; métadonnées techniques masquées)
 
 #### Composer (Mise à jour)
 
