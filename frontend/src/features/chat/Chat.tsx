@@ -9,7 +9,7 @@ import type {
   ChatStreamDelta,
   ChatStreamDone
 } from '@/types/chat'
-import { HiPaperAirplane, HiArrowPath } from 'react-icons/hi2'
+import { HiPaperAirplane } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 export default function Chat() {
@@ -221,10 +221,7 @@ export default function Chat() {
     }
   }
 
-  function onReset() {
-    setMessages([])
-    setError('')
-  }
+  // reset supprimé
 
   function onCancel() {
     if (abortRef.current) {
@@ -326,8 +323,8 @@ export default function Chat() {
         </div>
       )}
 
-      {/* Barre de composition fixe en bas de page */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-primary-200 bg-primary-50/95 backdrop-blur">
+      {/* Barre de composition fixe en bas de page (fond blanc, sans gris) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white">
         <div className="container mx-auto px-4 py-3">
           <div className="relative">
             <Textarea
@@ -337,7 +334,7 @@ export default function Chat() {
               placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
               rows={3}
               fullWidth
-              className="pr-14"
+              className="pr-14 border-0"
             />
             {/* Bouton Envoyer intégré dans la zone de saisie */}
             <button
@@ -350,17 +347,13 @@ export default function Chat() {
               <HiPaperAirplane className="w-4 h-4" />
             </button>
           </div>
-          <div className="mt-2 flex gap-2 justify-end">
-            <Button variant="secondary" onClick={onReset} disabled={loading} size="sm">
-              <HiArrowPath className="w-4 h-4 mr-2" />
-              Réinitialiser
-            </Button>
-            {loading && (
+          {loading && (
+            <div className="mt-2 flex gap-2 justify-end">
               <Button variant="secondary" onClick={onCancel} size="sm">
                 Annuler
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
