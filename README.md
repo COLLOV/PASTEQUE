@@ -82,16 +82,18 @@ data/
 
 ### Mode NL→SQL (aperçu rapide)
 
-- Activez `NL2SQL_ENABLED=true` dans `backend/.env` pour que le LLM génère du SQL exécuté sur MindsDB.
+- Pour un mode global, vous pouvez activer `NL2SQL_ENABLED=true` dans `backend/.env` pour que le LLM génère du SQL exécuté sur MindsDB. Désormais, un bouton « NL→SQL (MindsDB) » dans la zone d’input permet d’activer ce mode au coup‑par‑coup sans modifier l’environnement.
 - En streaming, le frontend affiche d’abord le SQL en cours d’exécution dans la bulle, puis remplace par la synthèse finale. Les détails (SQL, échantillons de colonnes/lignes) restent accessibles dans la bulle via « Afficher les détails de la requête ». Les logs backend (`insight.services.chat`) tracent également ces étapes.
 - Les requêtes générées qualifient toujours les tables avec `files.` et réutilisent les alias déclarés pour éviter les erreurs DuckDB/MindsDB.
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.
 - Le script `start.sh` pousse automatiquement `data/raw/*.csv|tsv` dans MindsDB à chaque démarrage : les logs `insight.services.mindsdb_sync` détaillent les fichiers envoyés.
 
-### Visualisations MCP Chart
+### Visualisations (NL→SQL & MCP Chart)
 
-- L’interrupteur « Activer MCP Chart » déclenche désormais deux appels successifs : le chat classique (`POST /api/v1/chat/stream`) pour obtenir la réponse NL→SQL et son résultat SQL, puis `POST /api/v1/mcp/chart` avec le prompt initial, la réponse textuelle et le dataset SQL (colonnes + lignes) collecté pendant le streaming.
+- Deux boutons icônes sont intégrés à l’intérieur de la zone d’input du chat :
+  - « Activer NL→SQL (MindsDB) » envoie `metadata.nl2sql=true` à `POST /api/v1/chat/stream` pour demander explicitement le mode NL→SQL à la place du mode LLM standard (override per‑requête sans toucher `.env`).
+  - « Activer MCP Chart » déclenche deux appels successifs: d’abord le chat (`POST /api/v1/chat/stream`) pour obtenir la réponse NL→SQL et son résultat SQL; ensuite `POST /api/v1/mcp/chart` avec le prompt initial, la réponse textuelle et le dataset SQL (colonnes + lignes) collecté pendant le streaming.
 - Le frontend capture le dernier jeu de données NL→SQL (SQL, colonnes, lignes tronquées à `NL2SQL_MAX_ROWS`) et l’envoie tel quel au backend. Sans résultat exploitable, aucun graphique n’est généré et un message explicite est renvoyé.
 - Le backend n’explore plus les CSV `data/raw/` lors de cette étape : l’agent `pydantic-ai` consomme uniquement le dataset transmis via l’outil `get_sql_result` pour piloter le serveur MCP Chart et produire la visualisation adaptée.
 - La réponse API contient l’URL du graphique généré, les métadonnées (titre, description, spec JSON) ainsi que la requête SQL source et son volume de lignes pour garder la traçabilité avec la réponse NL→SQL.

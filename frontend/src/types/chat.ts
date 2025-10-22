@@ -30,6 +30,10 @@ export interface Message {
 
 export interface ChatCompletionRequest {
   messages: Message[]
+  metadata?: {
+    nl2sql?: boolean
+    [key: string]: unknown
+  }
 }
 
 export interface ChatCompletionResponse {

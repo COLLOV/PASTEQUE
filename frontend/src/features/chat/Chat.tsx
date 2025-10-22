@@ -12,7 +12,7 @@ import type {
   ChatStreamDone,
   SavedChartResponse
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
@@ -49,6 +49,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
+  const [sqlMode, setSqlMode] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -62,7 +63,20 @@ export default function Chat() {
   }, [messages, loading])
 
   function onToggleChartModeClick() {
-    setChartMode(v => !v)
+    setChartMode(v => {
+      const next = !v
+      if (next) setSqlMode(false) // exclusif: un seul mode à la fois
+      return next
+    })
+    setError('')
+  }
+
+  function onToggleSqlModeClick() {
+    setSqlMode(v => {
+      const next = !v
+      if (next) setChartMode(false) // exclusif: un seul mode à la fois
+      return next
+    })
     setError('')
   }
 
@@ -86,7 +100,11 @@ export default function Chat() {
       abortRef.current = controller
       setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
 
-      const payload: ChatCompletionRequest = { messages: next }
+      // Force NL→SQL when SQL toggle or Chart mode is active
+      const payload: ChatCompletionRequest = (sqlMode || isChartMode)
+        ? { messages: next, metadata: { nl2sql: true } }
+        : { messages: next }
+
       await streamSSE('/chat/stream', payload, (type, data) => {
         if (type === 'meta') {
           const meta = data as ChatStreamMeta
@@ -418,7 +436,7 @@ export default function Chat() {
               rows={1}
               fullWidth
               className={clsx(
-                'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
+                'pl-24 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
                 // Neutralise toute variation visuelle au focus
                 'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
                 'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
@@ -427,6 +445,21 @@ export default function Chat() {
                 'text-left whitespace-nowrap'
               )}
             />
+            {/* Toggle NL→SQL (MindsDB) intégré dans la zone de saisie */}
+            <button
+              type="button"
+              onClick={onToggleSqlModeClick}
+              aria-pressed={sqlMode}
+              title="Activer NL→SQL (MindsDB)"
+              className={clsx(
+                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                sqlMode
+                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
+              )}
+            >
+              <HiCircleStack className="w-5 h-5" />
+            </button>
             {/* Toggle MCP Chart intégré dans la zone de saisie */}
             <button
               type="button"
@@ -434,7 +467,7 @@ export default function Chat() {
               aria-pressed={chartMode}
               title="Activer MCP Chart"
               className={clsx(
-                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
                 chartMode
                   ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
                   : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
