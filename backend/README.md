@@ -182,6 +182,8 @@ NL2SQL_ENABLED=true
 NL2SQL_DB_PREFIX=files
 ```
 
+> Depuis la version actuelle, `NL2SQL_MAX_ROWS` n’est plus supportée: supprimez la variable de vos `.env` existants pour éviter une erreur d’initialisation.
+
 3) Redémarrez le backend. Posez une question libre dans le chat, par ex.:
 
 "Combien de sinistres ont été déclarés en août 2025 ?"
