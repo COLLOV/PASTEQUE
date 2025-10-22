@@ -21,6 +21,7 @@ uv.lock
 
 # Logs
 logs/
+.start.out
 
 # Data artifacts
 data/processed/*
