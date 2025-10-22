@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Card, Loader } from '@/components/ui'
-import { HiChartBar, HiClock, HiUsers, HiArrowTopRightOnSquare } from 'react-icons/hi2'
+import { Card, Loader, Button } from '@/components/ui'
+import { HiChartBar, HiClock, HiUsers, HiArrowTopRightOnSquare, HiTrash } from 'react-icons/hi2'
 import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
 import type { SavedChartResponse } from '@/types/chat'
@@ -14,7 +14,9 @@ function formatDate(value: string): string {
 export default function Dashboard() {
   const [charts, setCharts] = useState<SavedChartResponse[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [fetchError, setFetchError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(() => new Set())
   const auth = getAuth()
   const isAdmin = Boolean(auth?.isAdmin)
 
@@ -22,14 +24,14 @@ export default function Dashboard() {
     let active = true
     async function fetchCharts() {
       setLoading(true)
-      setError('')
+      setFetchError('')
       try {
         const res = await apiFetch<SavedChartResponse[]>('/charts')
         if (!active) return
         setCharts(res ?? [])
       } catch (err) {
         if (!active) return
-        setError(err instanceof Error ? err.message : 'Chargement impossible')
+        setFetchError(err instanceof Error ? err.message : 'Chargement impossible')
       } finally {
         if (active) {
           setLoading(false)
@@ -41,6 +43,36 @@ export default function Dashboard() {
       active = false
     }
   }, [])
+
+  async function handleDelete(chartId: number) {
+    const chart = charts.find(item => item.id === chartId)
+    if (!chart) return
+    const confirmation = window.confirm(
+      `Supprimer le graphique « ${chart.chart_title || 'sans titre'} » du dashboard ?`
+    )
+    if (!confirmation) return
+
+    setActionError('')
+    setDeletingIds(prev => {
+      const next = new Set(prev)
+      next.add(chartId)
+      return next
+    })
+
+    try {
+      await apiFetch<void>(`/charts/${chartId}`, { method: 'DELETE' })
+      setCharts(prev => prev.filter(item => item.id !== chartId))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Suppression impossible'
+      setActionError(message)
+    } finally {
+      setDeletingIds(prev => {
+        const next = new Set(prev)
+        next.delete(chartId)
+        return next
+      })
+    }
+  }
 
   const chartCount = charts.length
 
@@ -76,13 +108,19 @@ export default function Dashboard() {
         />
       </div>
 
+      {actionError && (
+        <Card variant="elevated" className="mb-6 border border-red-100 bg-red-50 text-red-700 text-sm">
+          <p>{actionError}</p>
+        </Card>
+      )}
+
       {loading ? (
         <Card variant="elevated" className="py-12 flex justify-center">
           <Loader text="Chargement des graphiques…" />
         </Card>
-      ) : error ? (
+      ) : fetchError ? (
         <Card variant="elevated" className="py-8 px-4">
-          <p className="text-sm text-red-600 text-center">{error}</p>
+          <p className="text-sm text-red-600 text-center">{fetchError}</p>
         </Card>
       ) : chartCount === 0 ? (
         <Card variant="elevated" className="text-center py-12">
@@ -107,14 +145,32 @@ export default function Dashboard() {
                     Enregistré le {formatDate(chart.created_at)}
                   </p>
                 </div>
-                <a
-                  href={chart.chart_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg border-2 border-primary-200 px-3 py-1.5 text-sm text-primary-950 hover:border-primary-300 hover:bg-primary-50 transition-colors"
-                >
-                  <HiArrowTopRightOnSquare className="w-4 h-4" />
-                </a>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={chart.chart_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-lg border-2 border-primary-200 px-3 py-1.5 text-sm text-primary-950 hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                  >
+                    <HiArrowTopRightOnSquare className="w-4 h-4" />
+                  </a>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    type="button"
+                    onClick={() => handleDelete(chart.id)}
+                    disabled={deletingIds.has(chart.id)}
+                    className="h-9 w-9 p-0 flex items-center justify-center"
+                    title="Supprimer du dashboard"
+                    aria-label="Supprimer du dashboard"
+                  >
+                    {deletingIds.has(chart.id) ? (
+                      <span className="inline-block h-4 w-4 rounded-full border-2 border-white/70 border-t-white animate-spin" />
+                    ) : (
+                      <HiTrash className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
               {isAdmin && (
                 <p className="text-xs text-primary-500">
