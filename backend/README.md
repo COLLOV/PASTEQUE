@@ -179,7 +179,7 @@ Vous pouvez activer un mode où le LLM génère le SQL automatiquement et l’ex
 
 ```
 NL2SQL_ENABLED=true
-NL2SQL_MAX_ROWS=50
+NL2SQL_MAX_ROWS=50  # nombre de lignes conservées pour les aperçus côté chat/MCP
 NL2SQL_DB_PREFIX=files
 ```
 
@@ -187,7 +187,7 @@ NL2SQL_DB_PREFIX=files
 
 "Combien de sinistres ont été déclarés en août 2025 ?"
 
-Le backend génère un `SELECT ... LIMIT 50` ciblant uniquement `files.*`, exécute la requête via MindsDB et affiche dans le chat la requête exécutée suivie du résultat synthétisé. Aucune réponse “fallback” n’est renvoyée si la génération échoue: l’erreur est affichée explicitement.
+Le backend génère une requête `SELECT` ciblant uniquement `files.*`, exécute la requête via MindsDB et affiche dans le chat la requête exécutée suivie du résultat synthétisé. Aucune réponse “fallback” n’est renvoyée si la génération échoue: l’erreur est affichée explicitement. Les résultats sont tronqués à `NL2SQL_MAX_ROWS` uniquement pour l’aperçu transmis au frontend; la requête SQL n’est plus modifiée pour ajouter un `LIMIT` automatique.
 
 Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL et les requêtes SQL envoyées à MindsDB, tandis que `insight.services.mindsdb_sync` détaille les fichiers synchronisés.
 
@@ -209,7 +209,7 @@ NL2SQL_PLAN_MAX_STEPS=3
 ```
 
 Fonctionnement:
-- Étape 1 (plan): le LLM propose jusqu’à 3 requêtes SQL (SELECT‑only, LIMIT appliqué).
+- Étape 1 (plan): le LLM propose jusqu’à 3 requêtes SQL (SELECT‑only).
 - Étape 2 (exécution): le backend exécute chaque SQL sur MindsDB et collecte les résultats (tronqués au besoin).
 - Étape 3 (synthèse): le LLM rédige une réponse finale en français à partir des résultats et le chat liste chaque requête exécutée avant la réponse finale.
 
