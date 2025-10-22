@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # Authentication
     jwt_secret_key: str = Field("change-me", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field("HS256", alias="JWT_ALGORITHM")
-    jwt_expiration_minutes: int = Field(60, alias="JWT_EXPIRATION_MINUTES")
+    jwt_expiration_minutes: int = Field(240, alias="JWT_EXPIRATION_MINUTES")
     admin_username: str = Field("admin", alias="ADMIN_USERNAME")
     admin_password: str = Field("admin", alias="ADMIN_PASSWORD")
 
