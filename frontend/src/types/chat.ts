@@ -56,6 +56,21 @@ export interface ChatStreamDone {
   elapsed_s?: number
 }
 
+export interface ChartDatasetPayload {
+  sql: string
+  columns: string[]
+  rows: Record<string, unknown>[]
+  row_count?: number
+  step?: number
+  description?: string
+}
+
+export interface ChartGenerationRequest {
+  prompt: string
+  answer?: string
+  dataset: ChartDatasetPayload
+}
+
 export interface ChartGenerationResponse {
   prompt: string
   chart_url: string
@@ -63,6 +78,8 @@ export interface ChartGenerationResponse {
   chart_title?: string
   chart_description?: string
   chart_spec?: Record<string, unknown>
+  source_sql?: string
+  source_row_count?: number
 }
 
 export interface SavedChartResponse {
