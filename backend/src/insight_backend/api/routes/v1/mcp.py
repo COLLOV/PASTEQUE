@@ -21,7 +21,11 @@ def list_mcp_servers() -> list[dict]:  # type: ignore[valid-type]
 async def generate_mcp_chart(payload: ChartRequest) -> ChartResponse:  # type: ignore[valid-type]
     service = ChartGenerationService()
     try:
-        result = await service.generate_chart(payload.prompt)
+        result = await service.generate_chart(
+            prompt=payload.prompt,
+            dataset=payload.dataset,
+            answer=payload.answer,
+        )
     except ChartGenerationError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -32,4 +36,6 @@ async def generate_mcp_chart(payload: ChartRequest) -> ChartResponse:  # type: i
         chart_title=result.chart_title,
         chart_description=result.chart_description,
         chart_spec=result.chart_spec,
+        source_sql=result.source_sql,
+        source_row_count=result.source_row_count,
     )
