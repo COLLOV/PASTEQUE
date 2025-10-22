@@ -59,3 +59,15 @@ class ChartRepository:
         )
         log.info("Retrieved %d charts (admin scope)", len(charts))
         return charts
+
+    def get_by_id(self, chart_id: int) -> Chart | None:
+        return (
+            self.session.query(Chart)
+            .options(joinedload(Chart.user))
+            .filter(Chart.id == chart_id)
+            .one_or_none()
+        )
+
+    def delete(self, chart: Chart) -> None:
+        self.session.delete(chart)
+        log.info("Chart queued for removal (chart_id=%s)", chart.id)
