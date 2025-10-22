@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Card, Loader } from '@/components/ui'
+import { Card, Loader, Button } from '@/components/ui'
 import { HiChartBar, HiClock, HiUsers, HiArrowTopRightOnSquare } from 'react-icons/hi2'
 import { apiFetch } from '@/services/api'
-import { getAuth } from '@/services/auth'
+import { getAuth, updateDashboardPreference } from '@/services/auth'
 import type { SavedChartResponse } from '@/types/chat'
 
 function formatDate(value: string): string {
@@ -12,15 +12,28 @@ function formatDate(value: string): string {
 }
 
 export default function Dashboard() {
+  const [auth, setAuth] = useState(() => getAuth())
   const [charts, setCharts] = useState<SavedChartResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const auth = getAuth()
+  const [preferenceError, setPreferenceError] = useState('')
+  const [savingPreference, setSavingPreference] = useState(false)
   const isAdmin = Boolean(auth?.isAdmin)
+  const showCharts = auth?.showDashboardCharts ?? true
 
   useEffect(() => {
     let active = true
+
     async function fetchCharts() {
+      if (!showCharts) {
+        if (active) {
+          setCharts([])
+          setLoading(false)
+          setError('')
+        }
+        return
+      }
+
       setLoading(true)
       setError('')
       try {
@@ -36,13 +49,43 @@ export default function Dashboard() {
         }
       }
     }
+
     fetchCharts()
+
     return () => {
       active = false
     }
-  }, [])
+  }, [showCharts])
 
-  const chartCount = charts.length
+  const chartCount = showCharts ? charts.length : 0
+  const chartSubtitle = showCharts
+    ? isAdmin
+      ? 'Total (tous utilisateurs)'
+      : 'Total (vos graphiques)'
+    : 'Affichage désactivé'
+  const lastUpdateValue =
+    showCharts && chartCount > 0 ? formatDate(charts[0].created_at) : showCharts ? '—' : 'Masqués'
+  const lastUpdateSubtitle = showCharts
+    ? chartCount > 0
+      ? 'Graphique le plus récent'
+      : 'En attente de sauvegardes'
+    : 'Préférence utilisateur active'
+
+  async function handleToggleCharts() {
+    if (!auth) return
+    setPreferenceError('')
+    setSavingPreference(true)
+    try {
+      const updated = await updateDashboardPreference(!showCharts)
+      if (updated) {
+        setAuth(updated)
+      }
+    } catch (err) {
+      setPreferenceError(err instanceof Error ? err.message : 'Mise à jour impossible')
+    } finally {
+      setSavingPreference(false)
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto animate-fade-in">
@@ -53,6 +96,22 @@ export default function Dashboard() {
             ? 'Vue globale des graphiques sauvegardés par tous les utilisateurs.'
             : 'Vue d’ensemble de vos graphiques sauvegardés.'}
         </p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={savingPreference}
+            onClick={handleToggleCharts}
+            className="!rounded-full"
+          >
+            {savingPreference
+              ? 'Enregistrement…'
+              : showCharts
+              ? 'Masquer les graphiques'
+              : 'Afficher les graphiques'}
+          </Button>
+          {preferenceError && <p className="text-sm text-red-600">{preferenceError}</p>}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -60,7 +119,7 @@ export default function Dashboard() {
           icon={HiChartBar}
           title="Graphiques enregistrés"
           value={String(chartCount)}
-          subtitle={isAdmin ? 'Total (tous utilisateurs)' : 'Total (vos graphiques)'}
+          subtitle={chartSubtitle}
         />
         <StatCard
           icon={HiUsers}
@@ -71,12 +130,22 @@ export default function Dashboard() {
         <StatCard
           icon={HiClock}
           title="Dernière mise à jour"
-          value={chartCount > 0 ? formatDate(charts[0].created_at) : '—'}
-          subtitle={chartCount > 0 ? 'Graphique le plus récent' : 'En attente de sauvegardes'}
+          value={lastUpdateValue}
+          subtitle={lastUpdateSubtitle}
         />
       </div>
 
-      {loading ? (
+      {!showCharts ? (
+        <Card variant="elevated" className="text-center py-12">
+          <HiChartBar className="w-16 h-16 mx-auto mb-4 text-primary-300" />
+          <h3 className="text-xl font-semibold text-primary-950 mb-2">
+            Affichage des graphiques désactivé
+          </h3>
+          <p className="text-primary-600">
+            Réactivez l’option pour voir vos graphiques sauvegardés directement dans le dashboard.
+          </p>
+        </Card>
+      ) : loading ? (
         <Card variant="elevated" className="py-12 flex justify-center">
           <Loader text="Chargement des graphiques…" />
         </Card>

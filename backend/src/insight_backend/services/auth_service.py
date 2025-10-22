@@ -21,7 +21,12 @@ class AuthService:
         if existing:
             return False
         password_hash = hash_password(password)
-        self.repo.create_user(username=username, password_hash=password_hash, is_active=True)
+        self.repo.create_user(
+            username=username,
+            password_hash=password_hash,
+            is_active=True,
+            show_dashboard_charts=True,
+        )
         log.info("Initial admin user ensured: %s", username)
         return True
 
@@ -39,6 +44,18 @@ class AuthService:
         if existing:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
         password_hash = hash_password(password)
-        user = self.repo.create_user(username=username, password_hash=password_hash, is_active=True)
+        user = self.repo.create_user(
+            username=username,
+            password_hash=password_hash,
+            is_active=True,
+            show_dashboard_charts=True,
+        )
         log.info("User created via admin API: %s", username)
         return user
+
+    def update_dashboard_visibility(self, user: User, *, show_dashboard_charts: bool) -> User:
+        updated = self.repo.update_dashboard_visibility(
+            user,
+            show_dashboard_charts=show_dashboard_charts,
+        )
+        return updated

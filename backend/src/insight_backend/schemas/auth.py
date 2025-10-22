@@ -19,6 +19,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     username: str
     is_admin: bool
+    show_dashboard_charts: bool
 
 
 class CreateUserRequest(BaseModel):
@@ -30,7 +31,25 @@ class UserResponse(BaseModel):
     username: str
     is_active: bool
     created_at: datetime
+    show_dashboard_charts: bool
 
     @classmethod
     def from_model(cls, user: "User") -> "UserResponse":
-        return cls(username=user.username, is_active=user.is_active, created_at=user.created_at)
+        return cls(
+            username=user.username,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            show_dashboard_charts=user.show_dashboard_charts,
+        )
+
+
+class UpdateUserPreferencesRequest(BaseModel):
+    show_dashboard_charts: bool
+
+
+class UserPreferencesResponse(BaseModel):
+    show_dashboard_charts: bool
+
+    @classmethod
+    def from_model(cls, user: "User") -> "UserPreferencesResponse":
+        return cls(show_dashboard_charts=user.show_dashboard_charts)

@@ -21,9 +21,32 @@ class UserRepository:
             .one_or_none()
         )
 
-    def create_user(self, username: str, password_hash: str, is_active: bool = True) -> User:
-        user = User(username=username, password_hash=password_hash, is_active=is_active)
+    def create_user(
+        self,
+        username: str,
+        password_hash: str,
+        *,
+        is_active: bool = True,
+        show_dashboard_charts: bool = True,
+    ) -> User:
+        user = User(
+            username=username,
+            password_hash=password_hash,
+            is_active=is_active,
+            show_dashboard_charts=show_dashboard_charts,
+        )
         self.session.add(user)
         self.session.flush()
         log.info("User created: %s", username)
+        return user
+
+    def update_dashboard_visibility(self, user: User, *, show_dashboard_charts: bool) -> User:
+        user.show_dashboard_charts = show_dashboard_charts
+        self.session.add(user)
+        self.session.flush()
+        log.info(
+            "Dashboard visibility updated for user=%s show_dashboard_charts=%s",
+            user.username,
+            show_dashboard_charts,
+        )
         return user
