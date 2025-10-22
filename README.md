@@ -92,10 +92,11 @@ data/
 ### Visualisations (NL→SQL & MCP Chart)
 
 - Deux boutons icônes sont intégrés à l’intérieur de la zone d’input du chat :
-  - « Activer NL→SQL (MindsDB) » envoie `metadata.nl2sql=true` à `POST /api/v1/chat/stream` pour demander explicitement le mode NL→SQL à la place du mode LLM standard.
-  - « Activer MCP Chart » route la requête vers `POST /api/v1/mcp/chart`. Le backend démarre un agent `pydantic-ai` qui prépare les données locales et pilote le serveur MCP `chart` en tool‑calling natif.
-- Les CSV de `data/raw/` sont accessibles via des outils internes (`load_dataset`, `aggregate_counts`) avant l’appel à l’outil MCP (`generate_*_chart`). Aucun graphique n’est pré-calculé : le résultat dépend intégralement de la consigne utilisateur.
-- La réponse API contient uniquement l’URL du graphique généré (plus le titre, la description et la spec JSON fournie). Le frontend affiche l’URL et un aperçu de l’image dans le flux de conversation.
+  - « Activer NL→SQL (MindsDB) » envoie `metadata.nl2sql=true` à `POST /api/v1/chat/stream` pour demander explicitement le mode NL→SQL à la place du mode LLM standard (override per‑requête sans toucher `.env`).
+  - « Activer MCP Chart » déclenche deux appels successifs: d’abord le chat (`POST /api/v1/chat/stream`) pour obtenir la réponse NL→SQL et son résultat SQL; ensuite `POST /api/v1/mcp/chart` avec le prompt initial, la réponse textuelle et le dataset SQL (colonnes + lignes) collecté pendant le streaming.
+- Le frontend capture le dernier jeu de données NL→SQL (SQL, colonnes, lignes tronquées à `NL2SQL_MAX_ROWS`) et l’envoie tel quel au backend. Sans résultat exploitable, aucun graphique n’est généré et un message explicite est renvoyé.
+- Le backend n’explore plus les CSV `data/raw/` lors de cette étape : l’agent `pydantic-ai` consomme uniquement le dataset transmis via l’outil `get_sql_result` pour piloter le serveur MCP Chart et produire la visualisation adaptée.
+- La réponse API contient l’URL du graphique généré, les métadonnées (titre, description, spec JSON) ainsi que la requête SQL source et son volume de lignes pour garder la traçabilité avec la réponse NL→SQL.
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
 
 ### Sauvegarde des graphiques MCP

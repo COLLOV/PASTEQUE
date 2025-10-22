@@ -4,6 +4,8 @@ import { Button, Textarea, Loader } from '@/components/ui'
 import type {
   Message,
   ChatCompletionRequest,
+  ChartDatasetPayload,
+  ChartGenerationRequest,
   ChartGenerationResponse,
   ChatStreamMeta,
   ChatStreamDelta,
@@ -12,6 +14,27 @@ import type {
 } from '@/types/chat'
 import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
 import clsx from 'clsx'
+
+function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
+  const headings = columns.length > 0 ? columns : ['value']
+  return rows.map(row => {
+    if (Array.isArray(row)) {
+      const obj: Record<string, unknown> = {}
+      headings.forEach((col, idx) => {
+        obj[col] = row[idx] ?? null
+      })
+      return obj
+    }
+    if (row && typeof row === 'object') {
+      const obj: Record<string, unknown> = {}
+      headings.forEach(col => {
+        obj[col] = (row as Record<string, unknown>)[col]
+      })
+      return obj
+    }
+    return { [headings[0]]: row }
+  })
+}
 
 function createMessageId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -66,147 +89,207 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
-    try {
-      if (chartMode) {
-        const res = await apiFetch<ChartGenerationResponse>('/mcp/chart', {
-          method: 'POST',
-          body: JSON.stringify({ prompt: text })
-        })
-        const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
-        const assistantMessage: Message = chartUrl
-          ? {
-              id: createMessageId(),
-              role: 'assistant',
-              content: chartUrl,
-              chartUrl,
-              chartTitle: res?.chart_title,
-              chartDescription: res?.chart_description,
-              chartTool: res?.tool_name,
-              chartPrompt: text,
-              chartSpec: res?.chart_spec
-            }
-          : {
-              id: createMessageId(),
-              role: 'assistant',
-              content: "Impossible de générer un graphique."
-            }
-        setMessages(prev => [...prev, assistantMessage])
-      } else {
-        // Streaming via SSE over POST
-        const controller = new AbortController()
-        abortRef.current = controller
-        // Insert ephemeral assistant message placeholder
-        setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
 
-        const payload: ChatCompletionRequest = sqlMode
-          ? { messages: next, metadata: { nl2sql: true } }
-          : { messages: next }
-        await streamSSE('/chat/stream', payload, (type, data) => {
-          if (type === 'meta') {
-            const meta = data as ChatStreamMeta
-            // Attach meta onto the ephemeral assistant message details
-            setMessages(prev => {
-              const copy = [...prev]
-              const idx = copy.findIndex(m => m.ephemeral)
-              if (idx >= 0) {
-                copy[idx] = {
-                  ...copy[idx],
-                  details: {
-                    ...(copy[idx].details || {}),
-                    requestId: meta.request_id,
-                    provider: meta.provider,
-                    model: meta.model,
-                  }
-                }
-              }
-              return copy
-            })
-          } else if (type === 'plan') {
-            setMessages(prev => {
-              const copy = [...prev]
-              const idx = copy.findIndex(m => m.ephemeral)
-              if (idx >= 0) {
-                copy[idx] = {
-                  ...copy[idx],
-                  details: { ...(copy[idx].details || {}), plan: data }
-                }
-              }
-              return copy
-            })
-          } else if (type === 'sql') {
-            const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql }
-            // Show SQL as interim content in the ephemeral bubble (grayed)
-            setMessages(prev => {
-              const copy = [...prev]
-              const idx = copy.findIndex(m => m.ephemeral)
-              const target = idx >= 0 ? idx : copy.length - 1
-              const interimText = String(data?.sql || '')
-              copy[target] = {
-                ...copy[target],
-                content: interimText,
-                interimSql: interimText,
+    const isChartMode = chartMode
+    const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
+    let latestDataset: ChartDatasetPayload | null = null
+    let finalAnswer = ''
+
+    try {
+      const controller = new AbortController()
+      abortRef.current = controller
+      setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
+
+      // Force NL→SQL when SQL toggle or Chart mode is active
+      const payload: ChatCompletionRequest = (sqlMode || isChartMode)
+        ? { messages: next, metadata: { nl2sql: true } }
+        : { messages: next }
+
+      await streamSSE('/chat/stream', payload, (type, data) => {
+        if (type === 'meta') {
+          const meta = data as ChatStreamMeta
+          setMessages(prev => {
+            const copy = [...prev]
+            const idx = copy.findIndex(m => m.ephemeral)
+            if (idx >= 0) {
+              copy[idx] = {
+                ...copy[idx],
                 details: {
-                  ...(copy[target].details || {}),
-                  steps: [ ...((copy[target].details?.steps) || []), step ]
+                  ...(copy[idx].details || {}),
+                  requestId: meta.request_id,
+                  provider: meta.provider,
+                  model: meta.model,
                 }
               }
-              return copy
-            })
-          } else if (type === 'rows') {
-            const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
-            setMessages(prev => {
-              const copy = [...prev]
-              const idx = copy.findIndex(m => m.ephemeral)
-              if (idx >= 0) {
-                copy[idx] = {
-                  ...copy[idx],
-                  details: {
-                    ...(copy[idx].details || {}),
-                    samples: [ ...((copy[idx].details?.samples) || []), sample ]
-                  }
+            }
+            return copy
+          })
+        } else if (type === 'plan') {
+          setMessages(prev => {
+            const copy = [...prev]
+            const idx = copy.findIndex(m => m.ephemeral)
+            if (idx >= 0) {
+              copy[idx] = {
+                ...copy[idx],
+                details: { ...(copy[idx].details || {}), plan: data }
+              }
+            }
+            return copy
+          })
+        } else if (type === 'sql') {
+          const stepKey = typeof data?.step !== 'undefined' ? String(data.step) : 'default'
+          const sqlText = String(data?.sql || '')
+          const entry = { sql: sqlText, purpose: data?.purpose ? String(data.purpose) : undefined }
+          sqlByStep.set(stepKey, entry)
+          sqlByStep.set('latest', entry)
+          const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql }
+          setMessages(prev => {
+            const copy = [...prev]
+            const idx = copy.findIndex(m => m.ephemeral)
+            const target = idx >= 0 ? idx : copy.length - 1
+            const interimText = sqlText
+            copy[target] = {
+              ...copy[target],
+              content: interimText,
+              interimSql: interimText,
+              details: {
+                ...(copy[target].details || {}),
+                steps: [ ...((copy[target].details?.steps) || []), step ]
+              }
+            }
+            return copy
+          })
+        } else if (type === 'rows') {
+          const columns = Array.isArray(data?.columns)
+            ? (data.columns as unknown[]).filter((col): col is string => typeof col === 'string')
+            : []
+          const rows = Array.isArray(data?.rows) ? data.rows : []
+          const normalizedRows = normaliseRows(columns, rows)
+          const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
+          setMessages(prev => {
+            const copy = [...prev]
+            const idx = copy.findIndex(m => m.ephemeral)
+            if (idx >= 0) {
+              copy[idx] = {
+                ...copy[idx],
+                details: {
+                  ...(copy[idx].details || {}),
+                  samples: [ ...((copy[idx].details?.samples) || []), sample ]
                 }
               }
-              return copy
-            })
-          } else if (type === 'delta') {
-            const delta = data as ChatStreamDelta
-            setMessages(prev => {
-              const copy = [...prev]
-              const idx = copy.findIndex(m => m.ephemeral)
-              const target = idx >= 0 ? idx : copy.length - 1
-              const wasInterim = Boolean(copy[target].interimSql)
-              copy[target] = {
-                ...copy[target],
-                content: wasInterim ? (delta.content || '') : ((copy[target].content || '') + (delta.content || '')),
-                interimSql: undefined,
-                ephemeral: true,
-              }
-              return copy
-            })
-          } else if (type === 'done') {
-            const done = data as ChatStreamDone
-            // Replace ephemeral with final
-            setMessages(prev => {
-              const copy = [...prev]
-              const idx = copy.findIndex(m => m.ephemeral)
-              if (idx >= 0) {
-                copy[idx] = {
-                  role: 'assistant',
-                  content: done.content_full,
-                  details: {
-                    ...(copy[idx].details || {}),
-                    elapsed: done.elapsed_s
-                  }
-                }
-              } else {
-                copy.push({ role: 'assistant', content: done.content_full })
-              }
-              return copy
-            })
-          } else if (type === 'error') {
-            setError(data?.message || 'Erreur streaming')
+            }
+            return copy
+          })
+          const stepKey = typeof data?.step !== 'undefined' ? String(data.step) : 'default'
+          const sqlInfo = sqlByStep.get(stepKey) ?? sqlByStep.get('latest') ?? { sql: '' }
+          const rowCount = typeof data?.row_count === 'number' ? data.row_count : normalizedRows.length
+          latestDataset = {
+            sql: sqlInfo.sql,
+            columns,
+            rows: normalizedRows,
+            row_count: rowCount,
+            step: typeof data?.step === 'number' ? data.step : undefined,
+            description: sqlInfo.purpose,
           }
-        }, { signal: controller.signal })
+        } else if (type === 'delta') {
+          const delta = data as ChatStreamDelta
+          setMessages(prev => {
+            const copy = [...prev]
+            const idx = copy.findIndex(m => m.ephemeral)
+            const target = idx >= 0 ? idx : copy.length - 1
+            const wasInterim = Boolean(copy[target].interimSql)
+            copy[target] = {
+              ...copy[target],
+              content: wasInterim ? (delta.content || '') : ((copy[target].content || '') + (delta.content || '')),
+              interimSql: undefined,
+              ephemeral: true,
+            }
+            return copy
+          })
+        } else if (type === 'done') {
+          const done = data as ChatStreamDone
+          finalAnswer = done.content_full || ''
+          setMessages(prev => {
+            const copy = [...prev]
+            const idx = copy.findIndex(m => m.ephemeral)
+            if (idx >= 0) {
+              copy[idx] = {
+                role: 'assistant',
+                content: done.content_full,
+                details: {
+                  ...(copy[idx].details || {}),
+                  elapsed: done.elapsed_s
+                }
+              }
+            } else {
+              copy.push({ role: 'assistant', content: done.content_full })
+            }
+            return copy
+          })
+        } else if (type === 'error') {
+          setError(data?.message || 'Erreur streaming')
+        }
+      }, { signal: controller.signal })
+
+      abortRef.current = null
+
+      if (isChartMode) {
+        if (!latestDataset || !latestDataset.sql || latestDataset.columns.length === 0 || latestDataset.rows.length === 0) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: createMessageId(),
+              role: 'assistant',
+              content: "Aucun résultat SQL exploitable pour générer un graphique."
+            }
+          ])
+          return
+        }
+
+        const chartPayload: ChartGenerationRequest = {
+          prompt: text,
+          answer: finalAnswer || undefined,
+          dataset: latestDataset
+        }
+
+        try {
+          const res = await apiFetch<ChartGenerationResponse>('/mcp/chart', {
+            method: 'POST',
+            body: JSON.stringify(chartPayload)
+          })
+          const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
+          const assistantMessage: Message = chartUrl
+            ? {
+                id: createMessageId(),
+                role: 'assistant',
+                content: chartUrl,
+                chartUrl,
+                chartTitle: res?.chart_title,
+                chartDescription: res?.chart_description,
+                chartTool: res?.tool_name,
+                chartPrompt: text,
+                chartSpec: res?.chart_spec
+              }
+            : {
+                id: createMessageId(),
+                role: 'assistant',
+                content: "Impossible de générer un graphique."
+              }
+          setMessages(prev => [...prev, assistantMessage])
+        } catch (chartErr) {
+          console.error(chartErr)
+          setMessages(prev => [
+            ...prev,
+            {
+              id: createMessageId(),
+              role: 'assistant',
+              content: "Erreur lors de la génération du graphique."
+            }
+          ])
+          if (chartErr instanceof Error) {
+            setError(chartErr.message)
+          }
+        }
       }
     } catch (e) {
       console.error(e)
