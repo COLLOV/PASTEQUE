@@ -160,16 +160,14 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => handleDelete(chart.id)}
                     disabled={deletingIds.has(chart.id)}
-                    className="gap-1"
+                    className="h-9 w-9 p-0 flex items-center justify-center"
                     title="Supprimer du dashboard"
+                    aria-label="Supprimer du dashboard"
                   >
                     {deletingIds.has(chart.id) ? (
-                      <span>Suppression…</span>
+                      <span className="inline-block h-4 w-4 rounded-full border-2 border-white/70 border-t-white animate-spin" />
                     ) : (
-                      <>
-                        <HiTrash className="w-4 h-4" />
-                        <span>Supprimer</span>
-                      </>
+                      <HiTrash className="w-4 h-4" />
                     )}
                   </Button>
                 </div>
