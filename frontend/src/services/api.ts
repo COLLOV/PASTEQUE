@@ -1,4 +1,4 @@
-import { getAuth } from './auth'
+import { clearAuth, getAuth } from './auth'
 
 export function getApiBaseUrl(): string {
   const url = import.meta.env.VITE_API_URL
@@ -31,6 +31,14 @@ export async function apiFetch<T = any>(path: string, options: ApiFetchOptions =
     headers,
     ...options,
   })
+
+  if (res.status === 401) {
+    clearAuth()
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login'
+    }
+    throw new Error('Session expirée, veuillez vous reconnecter')
+  }
 
   if (!res.ok) {
     const body = await res.text()
@@ -71,6 +79,14 @@ export async function streamSSE(
     body: JSON.stringify(body),
     signal: options.signal,
   })
+
+  if (res.status === 401) {
+    clearAuth()
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login'
+    }
+    throw new Error('Session expirée, veuillez vous reconnecter')
+  }
 
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
