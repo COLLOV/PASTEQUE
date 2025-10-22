@@ -144,8 +144,13 @@ class ChatService:
                     context="completion done (mindsdb-sql)",
                 )
 
-        # NL→SQL (optional, explicit opt-in via env)
-        if payload.messages and settings.nl2sql_enabled:
+        # NL→SQL (optional): per-request override via payload.metadata.nl2sql,
+        # falling back to env `NL2SQL_ENABLED` when not specified.
+        meta = payload.metadata or {}
+        nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
+        nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
+
+        if payload.messages and nl2sql_enabled:
             last = payload.messages[-1]
             if last.role == "user":
                 # Build schema from local CSV headers
