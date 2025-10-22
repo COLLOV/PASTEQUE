@@ -54,7 +54,6 @@ class Settings(BaseSettings):
 
     # NL→SQL generation (optional)
     nl2sql_enabled: bool = Field(False, alias="NL2SQL_ENABLED")
-    nl2sql_max_rows: int = Field(50, alias="NL2SQL_MAX_ROWS")
     nl2sql_db_prefix: str = Field("files", alias="NL2SQL_DB_PREFIX")
     nl2sql_include_samples: bool = Field(False, alias="NL2SQL_INCLUDE_SAMPLES")
     nl2sql_rows_per_table: int = Field(3, alias="NL2SQL_ROWS_PER_TABLE")
