@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from ....core.database import get_session
@@ -52,3 +52,15 @@ def list_charts(  # type: ignore[valid-type]
         for chart in charts
     ]
     return responses
+
+
+@router.delete("/{chart_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_chart(  # type: ignore[valid-type]
+    chart_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Response:
+    service = ChartService(ChartRepository(session))
+    service.delete_chart(chart_id=chart_id, user=current_user)
+    session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

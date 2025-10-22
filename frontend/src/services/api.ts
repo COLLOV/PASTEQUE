@@ -16,7 +16,7 @@ export async function apiFetch<T = any>(path: string, options: ApiFetchOptions =
   const base = getApiBaseUrl()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers || {})
+    ...(options.headers || {}),
   }
 
   const auth = getAuth()
@@ -40,12 +40,21 @@ export async function apiFetch<T = any>(path: string, options: ApiFetchOptions =
     throw new Error('Session expirée, veuillez vous reconnecter')
   }
 
+  const raw = await res.text()
   if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`API ${res.status}: ${body}`)
+    throw new Error(`API ${res.status}: ${raw}`)
   }
 
-  return res.json() as Promise<T>
+  const text = raw.trim()
+  if (!text) {
+    return undefined as T
+  }
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error(`API ${res.status}: Réponse JSON invalide`)
+  }
 }
 
 export interface StreamSSEOptions {
@@ -62,8 +71,8 @@ export async function streamSSE(
   const base = getApiBaseUrl()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Accept': 'text/event-stream',
-    ...(options.headers || {})
+    Accept: 'text/event-stream',
+    ...(options.headers || {}),
   }
 
   const auth = getAuth()
