@@ -134,7 +134,13 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
                 )
                 return
 
-            if settings.nl2sql_enabled and last and last.role == "user":
+            # Per-request override: if payload.metadata.nl2sql is explicitly set, use it;
+            # otherwise fall back to settings.nl2sql_enabled.
+            meta = payload.metadata or {}
+            nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
+            nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
+
+            if nl2sql_enabled and last and last.role == "user":
                 prov = "nl2sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
