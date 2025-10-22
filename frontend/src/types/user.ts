@@ -5,5 +5,4 @@ export interface CreateUserRequest {
 
 export interface CreateUserResponse {
   username: string
-  show_dashboard_charts?: boolean
 }

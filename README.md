@@ -105,7 +105,6 @@ data/
 - Chaque graphique généré via le chat peut être sauvegardé grâce au bouton **Enregistrer dans le dashboard**. Le backend persiste l’URL, le prompt, les métadonnées et la spec JSON.
 - Les routes `POST /api/v1/charts` et `GET /api/v1/charts` (token Bearer requis) gèrent respectivement l’enregistrement et la consultation. Les utilisateurs ne voient que leurs propres graphiques, tandis que l’administrateur (`ADMIN_USERNAME`) accède à l’ensemble des sauvegardes.
 - Le dashboard liste désormais ces graphiques, affiche l’aperçu, le prompt associé, et expose un lien direct vers l’URL du rendu. Les administrateurs voient en plus l’utilisateur auteur.
-- Chaque utilisateur peut masquer ou ré-afficher les graphiques dans son dashboard via un bouton dédié. La préférence est stockée dans la colonne `users.show_dashboard_charts` (créée automatiquement au démarrage pour les bases existantes) et exposée via `PATCH /api/v1/auth/users/preferences`.
 
 ## Notes UI
 

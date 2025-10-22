@@ -8,14 +8,7 @@ from ....core.database import get_session
 from ....core.security import get_current_user
 from ....models.user import User
 from ....repositories.user_repository import UserRepository
-from ....schemas.auth import (
-    CreateUserRequest,
-    LoginRequest,
-    TokenResponse,
-    UpdateUserPreferencesRequest,
-    UserPreferencesResponse,
-    UserResponse,
-)
+from ....schemas.auth import CreateUserRequest, LoginRequest, TokenResponse, UserResponse
 from ....services.auth_service import AuthService
 
 
@@ -27,13 +20,7 @@ async def login(payload: LoginRequest, session: Session = Depends(get_session)) 
     service = AuthService(UserRepository(session))
     user, token = service.authenticate(username=payload.username, password=payload.password)
     is_admin = user.username == settings.admin_username
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        username=user.username,
-        is_admin=is_admin,
-        show_dashboard_charts=user.show_dashboard_charts,
-    )
+    return TokenResponse(access_token=token, token_type="bearer", username=user.username, is_admin=is_admin)
 
 
 @router.post("/auth/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -49,19 +36,3 @@ async def create_user(
     session.commit()
     session.refresh(user)
     return UserResponse.from_model(user)
-
-
-@router.patch("/auth/users/preferences", response_model=UserPreferencesResponse)
-async def update_preferences(
-    payload: UpdateUserPreferencesRequest,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-) -> UserPreferencesResponse:
-    service = AuthService(UserRepository(session))
-    updated_user = service.update_dashboard_visibility(
-        current_user,
-        show_dashboard_charts=payload.show_dashboard_charts,
-    )
-    session.commit()
-    session.refresh(updated_user)
-    return UserPreferencesResponse.from_model(updated_user)

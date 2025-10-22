@@ -3,7 +3,6 @@ export interface AuthState {
   tokenType: string
   username: string
   isAdmin: boolean
-  showDashboardCharts: boolean
 }
 
 export interface LoginResponse {
@@ -11,5 +10,4 @@ export interface LoginResponse {
   token_type?: string
   username: string
   is_admin?: boolean
-  show_dashboard_charts?: boolean
 }
