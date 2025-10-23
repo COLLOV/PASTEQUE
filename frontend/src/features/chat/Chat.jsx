@@ -8,6 +8,7 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [ticketPanel, setTicketPanel] = useState({ open: false })
   const listRef = useRef(null)
 
   useEffect(() => {
@@ -48,43 +49,54 @@ export default function Chat() {
   function onReset() {
     setMessages([{ role: 'assistant', content: 'Conversation réinitialisée. Que puis-je faire ?' }])
     setError('')
+    setTicketPanel({ open: false })
   }
 
   return (
     <section>
       <h2>Chat</h2>
-      <div style={styles.container}>
-        <div ref={listRef} style={styles.list}>
-          {messages.map((m, i) => (
-            <Message key={i} role={m.role} content={m.content} />
-          ))}
-          {loading && <div style={styles.loading}>Le modèle écrit…</div>}
-        </div>
-
-        {error && (
-          <div style={styles.error}>
-            {error}
+      <div style={styles.shell}>
+        <div style={styles.container}>
+          <div ref={listRef} style={styles.list}>
+            {messages.map((m, i) => (
+              <Message key={i} role={m.role} content={m.content} />
+            ))}
+            {loading && <div style={styles.loading}>Le modèle écrit…</div>}
           </div>
-        )}
 
-        <div style={styles.inputBox}>
-          <textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Écrivez votre message…"
-            rows={3}
-            style={styles.textarea}
-          />
-          <div style={styles.actions}>
-            <button onClick={onSend} disabled={loading || !input.trim()} style={styles.buttonPrimary}>
-              Envoyer
-            </button>
-            <button onClick={onReset} disabled={loading} style={styles.buttonSecondary}>
-              Réinitialiser
-            </button>
+          {error && (
+            <div style={styles.error}>
+              {error}
+            </div>
+          )}
+
+          <div style={styles.inputBox}>
+            <textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Écrivez votre message…"
+              rows={3}
+              style={styles.textarea}
+            />
+            <div style={styles.actions}>
+              <button onClick={onSend} disabled={loading || !input.trim()} style={styles.buttonPrimary}>
+                Envoyer
+              </button>
+              <button onClick={onReset} disabled={loading} style={styles.buttonSecondary}>
+                Réinitialiser
+              </button>
+            </div>
           </div>
         </div>
+        <aside style={styles.panel}>
+          <div style={styles.panelHeader}>Tickets interrogés</div>
+          <div style={styles.panelBody}>
+            {ticketPanel.open ? null : (
+              <p style={styles.panelEmpty}>En attente d’une requête</p>
+            )}
+          </div>
+        </aside>
       </div>
     </section>
   )
@@ -104,7 +116,14 @@ function Message({ role, content }) {
 }
 
 const styles = {
+  shell: {
+    display: 'flex',
+    alignItems: 'stretch',
+    gap: 16,
+    width: '100%'
+  },
   container: {
+    flex: '1 1 0%',
     border: '1px solid #e5e7eb',
     borderRadius: 8,
     padding: 12,
@@ -186,6 +205,33 @@ const styles = {
     border: '1px solid #fecaca',
     borderRadius: 6,
     padding: 8
+  },
+  panel: {
+    flex: '0 0 280px',
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    padding: 12,
+    background: '#f9fafb',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8
+  },
+  panelHeader: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: '#111827'
+  },
+  panelBody: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center'
+  },
+  panelEmpty: {
+    color: '#6b7280',
+    fontSize: 14,
+    margin: 0
   }
 }
 

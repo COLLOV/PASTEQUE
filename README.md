@@ -3,6 +3,7 @@
 Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, actions).
 
 - Frontend: React (Vite). Tout ce qui est visuel vit ici.
+  - L’interface de chat expose un panneau latéral « Tickets interrogés » affichant l’état courant.
 - Backend: Python (FastAPI), packagé avec `uv`. Toute la logique, l’accès aux données et les services.
 - Data: stockage des données sources et dérivées (pas de code ici).
 
