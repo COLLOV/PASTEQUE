@@ -1,4 +1,5 @@
 import logging
+import re
 from pathlib import Path
 from typing import Protocol, Callable, Optional, Dict, Any, Iterable
 
@@ -122,20 +123,33 @@ class ChatService:
                         pass
 
                 # Emit evidence contract + dataset (generic) so the front can open the panel
-                if events and columns and rows:
+                if events:
                     try:
-                        spec = self._build_evidence_spec(columns, label_hint=sql)
-                        events("meta", {"evidence_spec": spec})
-                        events(
-                            "rows",
-                            {
-                                "purpose": "evidence",
-                                "columns": columns,
-                                "rows": rows,
-                                "row_count": len(rows),
-                            },
-                        )
-                        log.info("Emitted evidence_spec (passthrough): label=%s cols=%d rows=%d", spec.get("entity_label"), len(columns), len(rows))
+                        evidence_sql = self._derive_evidence_sql(sql)
+                        ev_cols, ev_rows = [], []
+                        if evidence_sql:
+                            ev = client.sql(evidence_sql)
+                            ev_cols, ev_rows = self._normalize_result(ev)
+                        else:
+                            ev_cols, ev_rows = columns, rows
+                        if ev_cols and ev_rows:
+                            spec = self._build_evidence_spec(ev_cols, label_hint=sql)
+                            events("meta", {"evidence_spec": spec})
+                            events(
+                                "rows",
+                                {
+                                    "purpose": "evidence",
+                                    "columns": ev_cols,
+                                    "rows": ev_rows,
+                                    "row_count": len(ev_rows),
+                                },
+                            )
+                            log.info(
+                                "Emitted evidence_spec (passthrough): label=%s cols=%d rows=%d",
+                                spec.get("entity_label"),
+                                len(ev_cols),
+                                len(ev_rows),
+                            )
                     except Exception as e:  # pragma: no cover - defensive
                         log.warning("Failed to emit evidence for passthrough: %s", e)
 
@@ -270,25 +284,38 @@ class ChatService:
                         answer = nl2sql.synthesize(question=last.content.strip(), evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
                         # Provide an evidence_spec + evidence rows, if we have any dataset
-                        if events and last_columns and last_rows:
+                        if events:
                             try:
-                                spec = self._build_evidence_spec(last_columns, label_hint=last.content)
-                                events("meta", {"evidence_spec": spec})
-                                events(
-                                    "rows",
-                                    {
-                                        "purpose": "evidence",
-                                        "columns": last_columns,
-                                        "rows": last_rows,
-                                        "row_count": len(last_rows),
-                                    },
-                                )
-                                log.info(
-                                    "Emitted evidence_spec (plan): label=%s cols=%d rows=%d",
-                                    spec.get("entity_label"),
-                                    len(last_columns),
-                                    len(last_rows),
-                                )
+                                ev_cols, ev_rows = [], []
+                                target_sql = plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
+                                # Prefer derived details for last step
+                                if isinstance(target_sql, str):
+                                    derived = self._derive_evidence_sql(target_sql)
+                                else:
+                                    derived = None
+                                if derived:
+                                    ev = client.sql(derived)
+                                    ev_cols, ev_rows = self._normalize_result(ev)
+                                elif last_columns and last_rows:
+                                    ev_cols, ev_rows = last_columns, last_rows
+                                if ev_cols and ev_rows:
+                                    spec = self._build_evidence_spec(ev_cols, label_hint=last.content)
+                                    events("meta", {"evidence_spec": spec})
+                                    events(
+                                        "rows",
+                                        {
+                                            "purpose": "evidence",
+                                            "columns": ev_cols,
+                                            "rows": ev_rows,
+                                            "row_count": len(ev_rows),
+                                        },
+                                    )
+                                    log.info(
+                                        "Emitted evidence_spec (plan): label=%s cols=%d rows=%d",
+                                        spec.get("entity_label"),
+                                        len(ev_cols),
+                                        len(ev_rows),
+                                    )
                             except Exception as ee:  # pragma: no cover - defensive
                                 log.warning("Failed to emit evidence (plan): %s", ee)
                         return self._log_completion(
@@ -348,25 +375,33 @@ class ChatService:
                         except Exception:  # pragma: no cover
                             pass
                     # Emit evidence contract + dataset for the front panel
-                    if events and columns and rows:
+                    if events:
                         try:
-                            spec = self._build_evidence_spec(columns, label_hint=last.content)
-                            events("meta", {"evidence_spec": spec})
-                            events(
-                                "rows",
-                                {
-                                    "purpose": "evidence",
-                                    "columns": columns,
-                                    "rows": rows,
-                                    "row_count": len(rows),
-                                },
-                            )
-                            log.info(
-                                "Emitted evidence_spec (single-shot): label=%s cols=%d rows=%d",
-                                spec.get("entity_label"),
-                                len(columns),
-                                len(rows),
-                            )
+                            evidence_sql = self._derive_evidence_sql(sql)
+                            ev_cols, ev_rows = [], []
+                            if evidence_sql:
+                                ev = client.sql(evidence_sql)
+                                ev_cols, ev_rows = self._normalize_result(ev)
+                            else:
+                                ev_cols, ev_rows = columns, rows
+                            if ev_cols and ev_rows:
+                                spec = self._build_evidence_spec(ev_cols, label_hint=last.content)
+                                events("meta", {"evidence_spec": spec})
+                                events(
+                                    "rows",
+                                    {
+                                        "purpose": "evidence",
+                                        "columns": ev_cols,
+                                        "rows": ev_rows,
+                                        "row_count": len(ev_rows),
+                                    },
+                                )
+                                log.info(
+                                    "Emitted evidence_spec (single-shot): label=%s cols=%d rows=%d",
+                                    spec.get("entity_label"),
+                                    len(ev_cols),
+                                    len(ev_rows),
+                                )
                         except Exception as ee:  # pragma: no cover - defensive
                             log.warning("Failed to emit evidence (single): %s", ee)
                     evidence = [{
@@ -450,3 +485,55 @@ class ChatService:
             "limit": 100,
         }
         return spec
+
+    def _normalize_result(self, data: Any) -> tuple[list[Any], list[Any]]:
+        """Extract columns and rows from MindsDB result payloads."""
+        rows: list[Any] = []
+        columns: list[Any] = []
+        if isinstance(data, dict):
+            if data.get("type") == "table":
+                columns = data.get("column_names") or []
+                rows = data.get("data") or []
+            if not rows:
+                rows = data.get("result", {}).get("rows") or data.get("rows") or rows
+            if not columns:
+                columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+        return columns or [], rows or []
+
+    def _derive_evidence_sql(self, sql: str, *, limit: int = 100) -> Optional[str]:
+        """Attempt to derive a detail-level SELECT from an aggregate SQL.
+
+        This is a best-effort utility and logs on failure without masking errors.
+        Strategy: extract FROM ... [WHERE ...] then build SELECT * with same filters.
+        """
+        try:
+            s = sql.strip()
+            # Quick bail if looks like detail already (select * or explicit columns without COUNT/AVG/etc.)
+            if re.search(r"\bselect\s+\*", s, re.I):
+                return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
+            if not re.search(r"\bcount\s*\(|\bavg\s*\(|\bmin\s*\(|\bmax\s*\(|\bsum\s*\(", s, re.I):
+                # Non-aggregate: just cap the limit
+                return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
+            # Extract FROM ... tail
+            m_from = re.search(r"\bfrom\b\s+(.*)$", s, re.I | re.S)
+            if not m_from:
+                return None
+            tail = m_from.group(1)
+            # Cut at ORDER BY / LIMIT / OFFSET
+            tail = re.split(r"\border\s+by\b|\blimit\b|\boffset\b", tail, flags=re.I)[0].strip()
+            # Extract WHERE if present
+            where = None
+            m_where = re.search(r"\bwhere\b\s+(.*)$", tail, re.I | re.S)
+            if m_where:
+                where = re.split(r"\bgroup\s+by\b|\border\s+by\b|\blimit\b|\boffset\b", m_where.group(1), flags=re.I)[0].strip()
+                from_part = tail[: m_where.start()].strip()
+            else:
+                from_part = tail
+            base = f"SELECT * FROM {from_part}"
+            if where:
+                base += f" WHERE {where}"
+            base += f" LIMIT {limit}"
+            return base
+        except Exception as e:  # pragma: no cover - defensive
+            log.warning("_derive_evidence_sql failed: %s", e)
+            return None
