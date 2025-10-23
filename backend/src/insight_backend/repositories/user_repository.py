@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.orm import Session, selectinload
 
 from ..models.user import User
+from ..core.config import settings
 
 
 log = logging.getLogger("insight.repositories.user")
@@ -21,11 +22,25 @@ class UserRepository:
             .one_or_none()
         )
 
-    def create_user(self, username: str, password_hash: str, is_active: bool = True) -> User:
-        user = User(username=username, password_hash=password_hash, is_active=is_active)
+    def create_user(
+        self,
+        username: str,
+        password_hash: str,
+        *,
+        is_active: bool = True,
+        is_admin: bool = False,
+    ) -> User:
+        if is_admin and username != settings.admin_username:
+            raise ValueError("Admin flag reserved for configured admin username")
+        user = User(
+            username=username,
+            password_hash=password_hash,
+            is_active=is_active,
+            is_admin=is_admin,
+        )
         self.session.add(user)
         self.session.flush()
-        log.info("User created: %s", username)
+        log.info("User created: %s (admin=%s)", username, is_admin)
         return user
 
     def list_all(self) -> list[User]:

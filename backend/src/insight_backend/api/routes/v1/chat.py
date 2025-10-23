@@ -12,7 +12,7 @@ from starlette.responses import StreamingResponse
 from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
 from ....core.database import get_session
-from ....core.security import get_current_user
+from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....services.chat_service import ChatService
 from ....engines.openai_engine import OpenAIChatEngine
@@ -52,7 +52,7 @@ def chat_completion(  # type: ignore[valid-type]
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
     allowed_tables = None
-    if current_user.username != settings.admin_username:
+    if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     try:
         return service.completion(payload, allowed_tables=allowed_tables)
@@ -95,7 +95,7 @@ def chat_stream(  # type: ignore[valid-type]
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
     allowed_tables = None
-    if current_user.username != settings.admin_username:
+    if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
 
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"

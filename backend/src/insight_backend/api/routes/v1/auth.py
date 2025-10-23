@@ -3,9 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ....core.config import settings
 from ....core.database import get_session
-from ....core.security import get_current_user
+from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....repositories.user_repository import UserRepository
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
@@ -29,7 +28,7 @@ router = APIRouter()
 async def login(payload: LoginRequest, session: Session = Depends(get_session)) -> TokenResponse:
     service = AuthService(UserRepository(session))
     user, token = service.authenticate(username=payload.username, password=payload.password)
-    is_admin = user.username == settings.admin_username
+    is_admin = user_is_admin(user)
     return TokenResponse(access_token=token, token_type="bearer", username=user.username, is_admin=is_admin)
 
 
@@ -38,7 +37,7 @@ async def list_users_with_permissions(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> UserPermissionsOverviewResponse:
-    if current_user.username != settings.admin_username:
+    if not user_is_admin(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
     user_repo = UserRepository(session)
@@ -48,7 +47,7 @@ async def list_users_with_permissions(
 
     responses: list[UserWithPermissionsResponse] = []
     for user in users:
-        if user.username == settings.admin_username:
+        if user_is_admin(user):
             allowed = tables
         else:
             allowed = [perm.table_name for perm in user.table_permissions]
@@ -63,7 +62,7 @@ async def create_user(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> UserResponse:
-    if current_user.username != settings.admin_username:
+    if not user_is_admin(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     service = AuthService(UserRepository(session))
     user = service.create_user(username=payload.username, password=payload.password)
@@ -79,14 +78,14 @@ async def update_user_table_permissions(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> UserWithPermissionsResponse:
-    if current_user.username != settings.admin_username:
+    if not user_is_admin(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
     user_repo = UserRepository(session)
     target = user_repo.get_by_username(username)
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    if target.username == settings.admin_username:
+    if user_is_admin(target):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot change admin permissions")
 
     data_service = DataService()

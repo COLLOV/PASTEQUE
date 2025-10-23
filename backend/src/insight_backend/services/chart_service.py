@@ -5,10 +5,10 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from ..core.config import settings
 from ..models.chart import Chart
 from ..models.user import User
 from ..repositories.chart_repository import ChartRepository
+from ..core.security import user_is_admin
 
 
 log = logging.getLogger("insight.services.chart")
@@ -44,7 +44,7 @@ class ChartService:
         return chart
 
     def list_charts(self, user: User) -> list[Chart]:
-        if user.username == settings.admin_username:
+        if user_is_admin(user):
             charts = self.repo.list_all()
         else:
             charts = self.repo.list_by_user(user.id)
@@ -56,7 +56,7 @@ class ChartService:
         if not chart:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chart not found")
 
-        is_admin = user.username == settings.admin_username
+        is_admin = user_is_admin(user)
         if not is_admin and chart.user_id != user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to delete chart")
 

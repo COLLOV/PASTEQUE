@@ -58,3 +58,7 @@ def get_current_user(
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     return user
+
+
+def user_is_admin(user: User | None) -> bool:
+    return bool(user and user.is_admin and user.username == settings.admin_username)

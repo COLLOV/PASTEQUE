@@ -4,8 +4,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from ....core.database import get_session
-from ....core.security import get_current_user
-from ....core.config import settings
+from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....repositories.chart_repository import ChartRepository
 from ....schemas.chart import ChartResponse, ChartSaveRequest
@@ -43,7 +42,7 @@ def list_charts(  # type: ignore[valid-type]
 ) -> list[ChartResponse]:
     service = ChartService(ChartRepository(session))
     charts = service.list_charts(current_user)
-    is_admin = current_user.username == settings.admin_username
+    is_admin = user_is_admin(current_user)
     responses = [
         ChartResponse.from_model(
             chart,
