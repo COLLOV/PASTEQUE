@@ -195,6 +195,8 @@ export default function Chat() {
               purpose
             }
             setEvidenceData(evid)
+            // Open the sidebar as soon as evidence arrives
+            setShowEvidence(true)
           } else {
             // Regular NL→SQL samples for charting/debug
             const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
@@ -259,12 +261,11 @@ export default function Chat() {
             }
             return copy
           })
-          // Auto-open evidence panel if any evidence present and spec provided
-          const hasEvidence = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
-          if (hasEvidence && evidenceSpec) {
-            setShowEvidence(true)
-            if (import.meta.env.MODE === 'development') {
-              console.info('[evidence_panel] opened', {
+          // Keep open state; no overlay — sidebar remains integrated
+          if (import.meta.env.MODE === 'development') {
+            const hasEvidence = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
+            if (hasEvidence && evidenceSpec) {
+              console.info('[evidence_sidebar] ready', {
                 count: evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0,
                 entity: evidenceSpec?.entity_label,
                 sourceMode: (sqlMode || isChartMode) ? 'sql' : 'graph'
@@ -434,76 +435,76 @@ export default function Chat() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in">
+    <div className={clsx('mx-auto flex flex-col animate-fade-in', showEvidence ? 'max-w-6xl' : 'max-w-3xl')}>
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      {/* Evidence toggle (always visible area; button disabled when no spec/data) */}
-      <div className="sticky top-0 z-30 flex justify-end px-4 pt-3 bg-gradient-to-b from-white to-transparent">
-        <EvidenceButton
-          ref={evidenceBtnRef}
-          spec={evidenceSpec}
-          data={evidenceData}
-          onClick={() => setShowEvidence(true)}
-        />
-      </div>
+      {/* Layout en colonnes: panneau gauche intégré + zone chat */}
+      <div className={clsx('grid gap-4', showEvidence ? 'grid-cols-[320px_1fr]' : 'grid-cols-1')}>
+        {showEvidence && (
+          <EvidenceSidebar
+            spec={evidenceSpec}
+            data={evidenceData}
+            onClose={() => setShowEvidence(false)}
+          />
+        )}
 
-      {messages.length === 0 ? (
-        // État vide: contenu figé au centre de l'écran, sans scroll
-        <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
-          {loading ? (
-            <div className="flex justify-center py-2">
-              <Loader text="Streaming…" />
+        <div className="min-w-0">
+          {/* Evidence toggle (intégré, discret) */}
+          <div className="sticky top-0 z-10 flex justify-end px-2 pt-2">
+            <EvidenceButton
+              ref={evidenceBtnRef}
+              spec={evidenceSpec}
+              data={evidenceData}
+              onClick={() => setShowEvidence(v => !v)}
+            />
+          </div>
+
+          {messages.length === 0 ? (
+            // État vide: contenu figé au centre de l'écran, sans scroll
+            <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
+              {loading ? (
+                <div className="flex justify-center py-2">
+                  <Loader text="Streaming…" />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 animate-fade-in">
+                  <img
+                    src={`${import.meta.env.BASE_URL}insight.svg`}
+                    alt="Logo FoyerInsight"
+                    className="h-12 w-12 md:h-16 md:w-16 opacity-80"
+                  />
+                  <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
+                    Discutez avec vos données
+                  </h2>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 animate-fade-in">
-              <img
-                src={`${import.meta.env.BASE_URL}insight.svg`}
-                alt="Logo FoyerInsight"
-                className="h-12 w-12 md:h-16 md:w-16 opacity-80"
-              />
-              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
-                Discutez avec vos données
-              </h2>
+            <div ref={listRef} className="p-4 space-y-4 pb-32">
+              <>
+                {messages.map((message, index) => (
+                  <MessageBubble
+                    key={message.id ?? index}
+                    message={message}
+                    onSaveChart={onSaveChart}
+                  />
+                ))}
+                {loading && (
+                  <div className="flex justify-center py-2">
+                    <Loader text="Streaming…" />
+                  </div>
+                )}
+              </>
+            </div>
+          )}
+
+          {error && (
+            <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
+              <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
         </div>
-      ) : (
-        <div ref={listRef} className="p-4 space-y-4 pb-32">
-          <>
-            {messages.map((message, index) => (
-              <MessageBubble
-                key={message.id ?? index}
-                message={message}
-                onSaveChart={onSaveChart}
-              />
-            ))}
-            {loading && (
-              <div className="flex justify-center py-2">
-                <Loader text="Streaming…" />
-              </div>
-            )}
-          </>
-        </div>
-      )}
-
-      {error && (
-        <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      {/* Evidence slide-over panel */}
-      <EvidencePanel
-        open={showEvidence}
-        onClose={() => {
-          setShowEvidence(false)
-          evidenceBtnRef.current?.focus()
-        }}
-        spec={evidenceSpec}
-        data={evidenceData}
-        buttonRef={evidenceBtnRef}
-        panelRef={panelRef}
-      />
+      </div>
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
@@ -770,16 +771,13 @@ const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(functi
   )
 })
 
-type EvidencePanelProps = {
-  open: boolean
-  onClose: () => void
+type EvidenceSidebarProps = {
   spec: EvidenceSpec | null
   data: EvidenceRowsPayload | null
-  buttonRef: RefObject<HTMLButtonElement>
-  panelRef: RefObject<HTMLDivElement>
+  onClose: () => void
 }
 
-function EvidencePanel({ open, onClose, spec, data, panelRef }: EvidencePanelProps) {
+function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const limit = spec?.limit ?? 100
   const rows = (data?.rows || []).slice(0, limit)
@@ -806,97 +804,74 @@ function EvidencePanel({ open, onClose, spec, data, panelRef }: EvidencePanelPro
   }
 
   return (
-    <>
-      {/* Overlay */}
-      <div
-        className={clsx('fixed inset-0 z-40 bg-black/20 transition-opacity', open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
-        onClick={onClose}
-        aria-hidden
-      />
-      {/* Panel */}
-      <aside
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className={clsx(
-          'fixed top-0 right-0 z-50 h-full w-[90vw] sm:w-[420px] max-w-[90vw] bg-white shadow-xl border-l border-primary-100 transform transition-transform',
-          open ? 'translate-x-0' : 'translate-x-full'
-        )}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') onClose()
-        }}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-primary-100">
-          <div>
-            <div className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
-            {spec?.period && (
-              <div className="text-[11px] text-primary-500">{typeof spec.period === 'string' ? spec.period : `${spec.period.from ?? ''}${spec.period.to ? ` → ${spec.period.to}` : ''}`}</div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
-            aria-label="Fermer"
-          >
-            <HiXMark className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="h-[calc(100%-48px)] overflow-auto p-3 space-y-2">
-          {(!spec || !data || count === 0) && (
-            <div className="text-sm text-primary-500">Aucun élément de preuve</div>
+    <aside className="border border-primary-100 bg-white rounded-lg h-full max-h-[calc(100vh-180px)] sticky top-24 overflow-auto p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <div className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
+          {spec?.period && (
+            <div className="text-[11px] text-primary-500">{typeof spec.period === 'string' ? spec.period : `${spec.period.from ?? ''}${spec.period.to ? ` → ${spec.period.to}` : ''}`}</div>
           )}
-          {spec && data && count > 0 && (
-            <div className="space-y-2">
-              {sortedRows.map((row, idx) => {
-                const title = titleKey ? (row as any)?.[titleKey] : undefined
-                const status = statusKey ? (row as any)?.[statusKey] : undefined
-                const created = createdAtKey ? (row as any)?.[createdAtKey] : undefined
-                const pk = pkKey ? (row as any)?.[pkKey] : undefined
-                const link = linkTpl ? buildLink(linkTpl, row as any) : undefined
-                return (
-                  <div key={idx} className="border border-primary-100 rounded-md p-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium text-primary-900 truncate">
-                        {title ?? (pk ?? `#${idx + 1}`)}
-                      </div>
-                      {status && (
-                        <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-xs text-primary-500">
-                      {created ? new Date(String(created)).toLocaleString() : null}
-                    </div>
-                    {link && (
-                      <div className="mt-1 text-xs">
-                        <a href={link} target="_blank" rel="noreferrer" className="underline text-primary-600 break-all">{link}</a>
-                      </div>
-                    )}
-                    {columns && columns.length > 0 && (
-                      <div className="mt-2 overflow-auto">
-                        <table className="min-w-full text-[11px]">
-                          <tbody>
-                            {columns.map((c) => (
-                              <tr key={c} className="border-t border-primary-100">
-                                <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
-                                <td className="py-1 text-primary-800 break-all">{String((row as any)?.[c] ?? '')}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
+          aria-label="Fermer"
+        >
+          <HiXMark className="w-4 h-4" />
+        </button>
+      </div>
+      {(!spec || !data || count === 0) && (
+        <div className="text-sm text-primary-500">Aucun élément de preuve</div>
+      )}
+      {spec && data && count > 0 && (
+        <div className="space-y-2">
+          {sortedRows.map((row, idx) => {
+            const title = titleKey ? (row as any)?.[titleKey] : undefined
+            const status = statusKey ? (row as any)?.[statusKey] : undefined
+            const created = createdAtKey ? (row as any)?.[createdAtKey] : undefined
+            const pk = pkKey ? (row as any)?.[pkKey] : undefined
+            const link = linkTpl ? buildLink(linkTpl, row as any) : undefined
+            return (
+              <div key={idx} className="border border-primary-100 rounded-md p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-primary-900 truncate">
+                    {title ?? (pk ?? `#${idx + 1}`)}
                   </div>
-                )
-              })}
-              {extra > 0 && (
-                <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
-              )}
-            </div>
+                  {status && (
+                    <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-primary-500">
+                  {created ? new Date(String(created)).toLocaleString() : null}
+                </div>
+                {link && (
+                  <div className="mt-1 text-xs">
+                    <a href={link} target="_blank" rel="noreferrer" className="underline text-primary-600 break-all">{link}</a>
+                  </div>
+                )}
+                {columns && columns.length > 0 && (
+                  <div className="mt-2 overflow-auto">
+                    <table className="min-w-full text-[11px]">
+                      <tbody>
+                        {columns.map((c) => (
+                          <tr key={c} className="border-t border-primary-100">
+                            <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
+                            <td className="py-1 text-primary-800 break-all">{String((row as any)?.[c] ?? '')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {extra > 0 && (
+            <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
           )}
         </div>
-      </aside>
-    </>
+      )}
+    </aside>
   )
 }
