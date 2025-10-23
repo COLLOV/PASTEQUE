@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, KeyboardEvent, forwardRef } from 'react'
-import type { RefObject } from 'react'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -58,7 +57,6 @@ export default function Chat() {
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showEvidence, setShowEvidence] = useState(false)
   const evidenceBtnRef = useRef<HTMLButtonElement | null>(null)
-  const panelRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
