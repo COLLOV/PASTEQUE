@@ -4,7 +4,7 @@ import logging
 from contextlib import contextmanager
 from typing import Iterator, Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
 from .config import settings
@@ -27,6 +27,7 @@ def init_database() -> None:
     from .. import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _ensure_user_password_reset_column()
     log.info("Database initialized (tables ensured).")
 
 
@@ -51,3 +52,17 @@ def session_scope() -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+def _ensure_user_password_reset_column() -> None:
+    """Ensure the must_reset_password column exists on the users table."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("users")}
+        if "must_reset_password" in columns:
+            return
+        connection.execute(
+            text("ALTER TABLE users ADD COLUMN must_reset_password BOOLEAN NOT NULL DEFAULT TRUE")
+        )
+        connection.execute(text("UPDATE users SET must_reset_password = FALSE"))
+        log.info("Added must_reset_password column to users table.")
