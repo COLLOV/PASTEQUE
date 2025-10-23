@@ -116,3 +116,53 @@ data/
 
 - 2025-10-21: L'état vide du chat (« Discutez avec vos données ») est maintenant centré via un overlay `fixed` non interactif: pas de scroll tant qu'aucun message n'est présent; la barre de saisie reste accessible.
  - 2025-10-21: Ajout d'un petit avertissement sous la zone de saisie: « L'IA peut faire des erreurs, FoyerInsight aussi. »
+
+## Plan UI — Panneau « Tickets interrogés » (/chat)
+
+- Objectif: après une requête sur les données (mode SQL MindsDB ou Graph), afficher un panneau latéral listant les tickets effectivement utilisés pour produire la réponse.
+- Hypothèses: le flux `/chat/stream` émet déjà des événements `rows` (colonnes + lignes) provenant d'une requête SQL sur une table « tickets »; pas de fetch additionnel si dataset absent (pas de mécanisme de secours).
+- Cible visuelle: panneau droit coulissant, bouton contextuel « Tickets (N) », liste scrollable de tickets avec colonnes essentielles, ouverture automatique quand des tickets sont présents.
+
+### Sous‑tâches front (testables visuellement)
+
+- Détection dataset: dans `frontend/src/features/chat/Chat.tsx`, conserver le dernier dataset reçu via l'event `rows` (colonnes + lignes + row_count) dans l'état du message final; marquer `sourceMode = 'sql' | 'graph'`.
+- Bouton contextuel: afficher « Tickets (N) » dans l'entête/zone d'action du chat quand `dataset.table ~ /tickets/i` ou colonnes clés (`ticket_id`, `created_at`, `status`) sont présentes; caché sinon.
+- Panneau latéral: slide‑over à droite (min‑w 320px, max‑w 40vw), overlay cliquable, fermeture par `Esc` et bouton croix; titre « Tickets interrogés » + sous‑titre avec période détectée et mode (SQL MindsDB | Graph).
+- Liste tickets: rendu en liste/table simple en réutilisant `Card`/styles locaux; colonnes: `ticket_id`, `title`, `created_at`, `status`. Tri par `created_at` décroissant; limiter l'affichage à 100 lignes max avec badge « +N » si tronqué.
+- États UI: `loading` (squelettes), `vide` (texte: « Aucun ticket extrait »), `erreur` (texte clair); messages discrets uniquement, pas d'alertes bloquantes.
+- Accessibilité: focus piégé dans le panneau, navigation clavier complète, contraste AA; responsive ≥ 360px.
+
+### Câblage de données (sans fallback)
+
+- NL→SQL: utiliser le dernier `rows` stocké pendant le streaming comme unique source; si absent au `done`, afficher le bouton désactivé avec tooltip explicite (pas de requête additionnelle).
+- Mode Graph: si le pipeline Graph fournit un dataset similaire, suivre le même chemin; sinon, bouton non affiché.
+- Normalisation: mapper colonnes vers un type `Ticket` local avec heuristiques (« id » → `ticket_id`, « created_at » datetime ISO, « subject/title » → `title`).
+- Réinitialisation: vider le dataset à l'envoi d'une nouvelle question; éviter toute fuite d’état entre requêtes.
+
+### Triggers & UX
+
+- Auto‑ouverture: ouvrir le panneau quand au moins 1 ticket est détecté et que l’utilisateur n’a pas explicitement fermé la vue lors de la requête précédente.
+- Résumé: afficher « N tickets » et, si possible, la période détectée depuis la requête (ex: « mai 2025 ») extraite du prompt ou des colonnes `created_at`.
+- Actions: lien « Ouvrir le ticket » (si une route existe) laissé inactif tant que la navigation ticket n’est pas définie; pas de placeholders techniques visibles.
+- Journalisation: en dev, `console.info('[tickets_panel] opened', { count, sourceMode })`; en prod, événement analytics « tickets_panel_opened » (si télémétrie existante).
+
+### Scénarios de test visuel (acceptation)
+
+- Question: « Combien de tickets en mai 2025 ? » → réponse texte « il y a 5 tickets »; le bouton « Tickets (5) » apparaît et le panneau s’ouvre avec 5 lignes, toutes datées en 2025‑05.
+- Question hors tickets: aucune colonne `ticket_*` → aucun bouton ni panneau; UI du chat inchangée.
+- Dataset volumineux: 250 lignes → panneau affiche 100 lignes + badge « +150 »; scrolling fluide sans jank.
+- Accessibilité: `Tab` circule dans le panneau, `Esc` le ferme, retour du focus sur le bouton d’ouverture.
+- Erreur/absent: si aucun `rows` reçu au `done`, bouton désactivé avec tooltip « Aucun ticket extrait pour cette réponse ».
+
+### Impact fichiers (prévision)
+
+- `frontend/src/features/chat/Chat.tsx`: stocker `latestDataset` dans le message final, exposer un état `showTickets` et le bouton d’ouverture.
+- `frontend/src/features/chat/TicketsPanel.tsx` (léger, optionnel): composant présentational réutilisable pour la liste/entête/états; sinon implémenter inline pour limiter les artefacts.
+- Réutiliser `frontend/src/components/ui/Card.tsx` et styles existants; aucun nouveau design system.
+
+### Définition de fait (DoD)
+
+- Le panneau s’ouvre automatiquement quand des tickets sont détectés et peut être rouvert via un bouton visible.
+- La liste affiche les colonnes clés correctement mappées et triées, avec gestion des 100 premières lignes.
+- Aucun appel réseau supplémentaire n’est déclenché par l’ouverture du panneau.
+- Les scénarios de test visuel ci‑dessus passent sur desktop et mobile.
