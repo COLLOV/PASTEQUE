@@ -53,12 +53,21 @@ def _ensure_admin_column() -> None:
                     "ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE"
                 )
             )
-        conn.execute(
-            text("UPDATE users SET is_admin = TRUE WHERE username = :admin_username"),
+        previous_admins = conn.execute(
+            text(
+                "SELECT username FROM users "
+                "WHERE is_admin = TRUE AND username <> :admin_username"
+            ),
             {"admin_username": settings.admin_username},
-        )
+        ).fetchall()
+        if previous_admins:
+            names = ", ".join(row[0] for row in previous_admins)
+            log.warning("Resetting admin flag for unexpected users: %s", names)
         conn.execute(
-            text("UPDATE users SET is_admin = FALSE WHERE username <> :admin_username"),
+            text(
+                "UPDATE users "
+                "SET is_admin = CASE WHEN username = :admin_username THEN TRUE ELSE FALSE END"
+            ),
             {"admin_username": settings.admin_username},
         )
     log.info("Admin flag column ensured on users table.")

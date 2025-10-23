@@ -31,11 +31,8 @@ export default function AdminPanel() {
   const [permissionsLoading, setPermissionsLoading] = useState(true)
   const [permissionsError, setPermissionsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
-  const [adminUsername, setAdminUsername] = useState(() => getAuth()?.username ?? '')
-
-  useEffect(() => {
-    setAdminUsername(getAuth()?.username ?? '')
-  }, [])
+  const auth = getAuth()
+  const adminUsername = auth?.username ?? ''
 
   const loadPermissions = useCallback(async () => {
     setPermissionsLoading(true)

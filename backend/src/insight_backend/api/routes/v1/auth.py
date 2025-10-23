@@ -94,7 +94,10 @@ async def update_user_table_permissions(
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if user_is_admin(target):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot change admin permissions")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify permissions for admin user",
+        )
 
     data_service = DataService()
     available_tables = [info.name for info in data_service.list_tables()]
