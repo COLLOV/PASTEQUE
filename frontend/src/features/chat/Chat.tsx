@@ -737,7 +737,7 @@ const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(functi
 ) {
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const label = spec?.entity_label || 'Éléments'
-  const limit = spec?.limit ?? 100
+  const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
   const shown = Math.min(count, limit)
   const extra = Math.max(count - limit, 0)
   const disabled = !spec || count === 0
