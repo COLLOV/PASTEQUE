@@ -112,7 +112,7 @@ class ChatService:
                 if events:
                     snapshot = {
                         "columns": columns,
-                        "rows": (rows[: settings.nl2sql_max_rows] if isinstance(rows, list) else []),
+                        "rows": rows if isinstance(rows, list) else [],
                         "row_count": len(rows) if isinstance(rows, list) else 0,
                     }
                     try:
@@ -215,7 +215,7 @@ class ChatService:
                                     {
                                         "step": idx,
                                         "columns": columns,
-                                        "rows": rows[: settings.nl2sql_max_rows],
+                                        "rows": rows,
                                         "row_count": len(rows),
                                     },
                                 )
@@ -225,7 +225,7 @@ class ChatService:
                             "purpose": purpose,
                             "sql": sql,
                             "columns": columns,
-                            "rows": rows[: settings.nl2sql_max_rows],
+                            "rows": rows,
                         })
                     try:
                         answer = nl2sql.synthesize(question=last.content.strip(), evidence=evidence).strip()
@@ -280,7 +280,7 @@ class ChatService:
                                 "rows",
                                 {
                                     "columns": columns,
-                                    "rows": rows[: settings.nl2sql_max_rows],
+                                    "rows": rows,
                                     "row_count": len(rows),
                                 },
                             )
@@ -290,7 +290,7 @@ class ChatService:
                         "purpose": "answer",
                         "sql": sql,
                         "columns": columns,
-                        "rows": rows[: settings.nl2sql_max_rows],
+                        "rows": rows,
                     }]
                     try:
                         answer = nl2sql.synthesize(question=last.content.strip(), evidence=evidence).strip()

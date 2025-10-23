@@ -154,9 +154,9 @@ def _ensure_required_prefix(sql: str) -> None:
 
 @dataclass
 class NL2SQLService:
-    """Generate SQL from NL using the configured OpenAI‑compatible LLM.
+    """Generate SQL from NL using the configured OpenAI-compatible LLM.
 
-    Strict rules: SELECT‑only, target DB prefix (e.g., files.), row limit.
+    Strict rules: SELECT-only and target DB prefix (e.g., files.).
     """
 
     def _client_and_model(self) -> tuple[OpenAICompatibleClient, str]:
@@ -188,7 +188,6 @@ class NL2SQLService:
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
-        limit = settings.nl2sql_max_rows
         # Hints for date-like columns
         date_hints: Dict[str, List[str]] = {}
         for t, cols in schema.items():
@@ -225,7 +224,7 @@ class NL2SQLService:
         system = (
             "You are a strict SQL generator. Dialect: MindsDB SQL (MySQL-like).\n"
             f"Use only the tables listed below under the '{settings.nl2sql_db_prefix}.' schema.\n"
-            f"Return exactly ONE SELECT query with LIMIT {limit}. No comments. No explanations.\n"
+            "Return exactly ONE SELECT query. No comments. No explanations.\n"
             "Rules: SELECT-only; never modify data. Date-like columns are TEXT in 'YYYY-MM-DD'.\n"
             "Always CAST(NULLIF(date_col,'None') AS DATE) before date filters and use EXTRACT(YEAR|MONTH FROM ...).\n"
             f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
@@ -240,7 +239,7 @@ class NL2SQLService:
         user = (
             f"Available tables and columns:\n{tables_blob}{hints}{samples_section}\n\n"
             f"Question: {question}\n"
-            f"Produce a single SQL query using only {settings.nl2sql_db_prefix}.* tables. Always include LIMIT {limit}."
+            f"Produce a single SQL query using only {settings.nl2sql_db_prefix}.* tables."
         )
         resp = client.chat_completions(
             model=model,
@@ -252,14 +251,6 @@ class NL2SQLService:
         sql = _rewrite_date_functions(sql)
         if not _is_select_only(sql):
             raise RuntimeError("Generated SQL is invalid or not SELECT-only")
-        # Enforce LIMIT if missing (belt & suspenders) and avoid duplicates
-        low = sql.lower()
-        if re.search(r"\blimit\b", low) is None:
-            sql = f"{sql} LIMIT {limit}"
-        else:
-            # If a trailing duplicate LIMIT was accidentally appended by a prior run, drop the last one
-            if re.search(r"\blimit\b.*\blimit\b", low):
-                sql = re.sub(r"(?is)\s+limit\s+\d+\s*$", "", sql)
         _ensure_required_prefix(sql)
         return sql
 
@@ -270,7 +261,6 @@ class NL2SQLService:
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
-        limit = settings.nl2sql_max_rows
         # Optional samples
         samples_blob = ""
         if settings.nl2sql_include_samples:
@@ -300,7 +290,7 @@ class NL2SQLService:
         system = (
             "You are a query planner for analytics. \n"
             "Goal: break the question into up to N SQL queries (SELECT-only) that run on MindsDB (MySQL-like).\n"
-            f"Use only tables under '{settings.nl2sql_db_prefix}.' and always include LIMIT {limit}.\n"
+            f"Use only tables under '{settings.nl2sql_db_prefix}.' schema.\n"
             "Date columns are TEXT 'YYYY-MM-DD'; CAST(NULLIF(col,'None') AS DATE) and EXTRACT(YEAR|MONTH ...) must be used.\n"
             f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
             "After introducing an alias, reuse it everywhere (SELECT, WHERE, subqueries) instead of the raw table name.\n"
@@ -342,9 +332,6 @@ class NL2SQLService:
             sql = _rewrite_date_functions(sql)
             if not _is_select_only(sql):
                 raise RuntimeError("Une requête du plan n'est pas un SELECT")
-            low = sql.lower()
-            if re.search(r"\blimit\b", low) is None:
-                sql = f"{sql} LIMIT {limit}"
             _ensure_required_prefix(sql)
             out.append({"purpose": purpose, "sql": sql})
         if not out:
