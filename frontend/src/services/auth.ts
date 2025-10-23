@@ -45,6 +45,10 @@ function extractErrorMessage(raw: string): string {
     if (typeof parsed === 'string') return parsed
     if (typeof parsed?.message === 'string') return parsed.message
     if (typeof parsed?.detail === 'string') return parsed.detail
+    if (parsed?.detail && typeof parsed.detail === 'object') {
+      if (typeof parsed.detail.message === 'string') return parsed.detail.message
+      if (typeof parsed.detail.detail === 'string') return parsed.detail.detail
+    }
     if (typeof parsed?.error === 'string') return parsed.error
   } catch {
     // ignore parsing failure
@@ -61,18 +65,22 @@ export async function login(username: string, password: string): Promise<AuthSta
 
   if (!res.ok) {
     const text = await res.text()
+    let parsed: any = null
     try {
-      const parsed = JSON.parse(text)
-      if (
-        res.status === 403 &&
-        parsed &&
-        typeof parsed === 'object' &&
-        parsed.code === 'PASSWORD_RESET_REQUIRED'
-      ) {
-        throw new PasswordResetRequiredError(username)
-      }
+      parsed = JSON.parse(text)
     } catch {
-      // fall through to message extraction
+      // ignore parsing error
+    }
+    if (res.status === 403 && parsed) {
+      const detail = typeof parsed.detail === 'object' ? parsed.detail : undefined
+      const code = parsed.code ?? detail?.code
+      if (code === 'PASSWORD_RESET_REQUIRED') {
+        const message =
+          parsed.message ??
+          detail?.message ??
+          'Vous devez définir un nouveau mot de passe.'
+        throw new PasswordResetRequiredError(username, message)
+      }
     }
     throw new Error(extractErrorMessage(text) || 'Échec de la connexion')
   }
