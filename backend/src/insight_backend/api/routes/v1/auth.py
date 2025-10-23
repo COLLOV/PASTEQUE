@@ -15,6 +15,7 @@ from ....schemas.auth import (
     UpdateUserPermissionsRequest,
     UserPermissionsOverviewResponse,
     UserResponse,
+    ResetPasswordRequest,
     UserWithPermissionsResponse,
 )
 from ....services.auth_service import AuthService
@@ -98,3 +99,14 @@ async def update_user_table_permissions(
     session.commit()
     session.refresh(target)
     return UserWithPermissionsResponse.from_model(target, allowed_tables=updated)
+
+
+@router.post("/auth/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(payload: ResetPasswordRequest, session: Session = Depends(get_session)) -> None:
+    service = AuthService(UserRepository(session))
+    service.reset_password(
+        username=payload.username,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+    )
+    session.commit()

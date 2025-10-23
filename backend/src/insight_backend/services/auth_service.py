@@ -30,6 +30,7 @@ class AuthService:
             password_hash=password_hash,
             is_active=True,
             is_admin=True,
+            must_reset_password=True,
         )
         log.info("Initial admin user ensured: %s", username)
         return True
@@ -40,6 +41,11 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         if not verify_password(password, user.password_hash):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        if user.must_reset_password:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "PASSWORD_RESET_REQUIRED", "message": "Password reset required"},
+            )
         token = create_access_token(subject=user.username)
         return user, token
 
@@ -52,6 +58,17 @@ class AuthService:
             username=username,
             password_hash=password_hash,
             is_active=True,
+            must_reset_password=True,
         )
         log.info("User created via admin API: %s", username)
         return user
+
+    def reset_password(self, username: str, current_password: str, new_password: str) -> None:
+        user = self.repo.get_by_username(username)
+        if not user or not user.is_active:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        if not verify_password(current_password, user.password_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        user.password_hash = hash_password(new_password)
+        user.must_reset_password = False
+        log.info("Password reset for user: %s", username)

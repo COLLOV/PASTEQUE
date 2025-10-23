@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 if TYPE_CHECKING:
     from ..models.user import User
@@ -24,6 +24,19 @@ class TokenResponse(BaseModel):
 class CreateUserRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=64)
     password: str = Field(..., min_length=1, max_length=128)
+
+
+class ResetPasswordRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    current_password: str = Field(..., min_length=1, max_length=128)
+    new_password: str = Field(..., min_length=1, max_length=128)
+    confirm_password: str = Field(..., min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_passwords(self) -> "ResetPasswordRequest":
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
 
 
 class UserResponse(BaseModel):

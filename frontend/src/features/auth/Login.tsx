@@ -1,7 +1,9 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login } from '@/services/auth'
+import { login, resetPassword, PasswordResetRequiredError } from '@/services/auth'
 import { Button, Input, Card } from '@/components/ui'
+
+type Mode = 'login' | 'reset'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -9,8 +11,12 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<Mode>('login')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [pendingReset, setPendingReset] = useState<{ username: string; currentPassword: string } | null>(null)
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setLoading(true)
@@ -20,10 +26,58 @@ export default function Login() {
       setPassword('')
       navigate('/chat')
     } catch (err) {
+      if (err instanceof PasswordResetRequiredError) {
+        const trimmed = username.trim()
+        setPendingReset({ username: trimmed, currentPassword: password })
+        setMode('reset')
+        setPassword('')
+        setError(err.message)
+        return
+      }
       setError(err instanceof Error ? err.message : 'Échec de la connexion')
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleResetSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!pendingReset) return
+    if (newPassword !== confirmPassword) {
+      setError('Les deux mots de passe doivent être identiques.')
+      return
+    }
+    setError(null)
+    setLoading(true)
+    try {
+      await resetPassword({
+        username: pendingReset.username,
+        currentPassword: pendingReset.currentPassword,
+        newPassword,
+        confirmPassword,
+      })
+      await login(pendingReset.username, newPassword)
+      setUsername('')
+      setPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPendingReset(null)
+      setMode('login')
+      navigate('/chat')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de mettre à jour le mot de passe.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleCancelReset() {
+    setMode('login')
+    setPendingReset(null)
+    setNewPassword('')
+    setConfirmPassword('')
+    setPassword('')
+    setError(null)
   }
 
   return (
@@ -34,32 +88,74 @@ export default function Login() {
             FoyerInsight
           </h1>
           <p className="text-primary-600">
-            Veuillez vous connecter pour accéder à la plateforme.
+            {mode === 'login'
+              ? 'Veuillez vous connecter pour accéder à la plateforme.'
+              : 'Définissez un nouveau mot de passe pour finaliser votre première connexion.'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Utilisateur"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoComplete="username"
-            fullWidth
-            placeholder="Entrez votre nom d'utilisateur"
-          />
+        <form
+          onSubmit={mode === 'login' ? handleLoginSubmit : handleResetSubmit}
+          className="space-y-4"
+        >
+          {mode === 'login' ? (
+            <>
+              <Input
+                label="Utilisateur"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoComplete="username"
+                fullWidth
+                placeholder="Entrez votre nom d'utilisateur"
+              />
 
-          <Input
-            label="Mot de passe"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            fullWidth
-            placeholder="Entrez votre mot de passe"
-          />
+              <Input
+                label="Mot de passe"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                fullWidth
+                placeholder="Entrez votre mot de passe"
+              />
+            </>
+          ) : (
+            <>
+              <Input
+                label="Utilisateur"
+                type="text"
+                value={pendingReset?.username ?? username}
+                readOnly
+                disabled
+                fullWidth
+              />
+
+              <Input
+                label="Nouveau mot de passe"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                fullWidth
+                placeholder="Saisissez votre nouveau mot de passe"
+              />
+
+              <Input
+                label="Confirmez le mot de passe"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                fullWidth
+                placeholder="Répétez votre nouveau mot de passe"
+              />
+            </>
+          )}
 
           {error && (
             <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
@@ -67,15 +163,36 @@ export default function Login() {
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            fullWidth
-            size="lg"
-            className="mt-6"
-          >
-            {loading ? 'Connexion en cours…' : 'Se connecter'}
-          </Button>
+          {mode === 'login' ? (
+            <Button
+              type="submit"
+              disabled={loading}
+              fullWidth
+              size="lg"
+              className="mt-6"
+            >
+              {loading ? 'Connexion en cours…' : 'Se connecter'}
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-3 pt-2">
+              <Button
+                type="submit"
+                disabled={loading}
+                fullWidth
+                size="lg"
+              >
+                {loading ? 'Mise à jour…' : 'Valider le nouveau mot de passe'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleCancelReset}
+                disabled={loading}
+              >
+                Annuler
+              </Button>
+            </div>
+          )}
         </form>
       </Card>
     </div>

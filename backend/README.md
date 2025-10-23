@@ -30,6 +30,7 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
   ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(256);
   ```
 - L’endpoint `POST /api/v1/auth/login` vérifie les identifiants et retourne un jeton `Bearer` (JWT HS256).
+- La colonne `must_reset_password` est ajoutée automatiquement au démarrage si elle n’existe pas encore. Elle force chaque nouvel utilisateur à passer par `POST /api/v1/auth/reset-password` (payload : `username`, `current_password`, `new_password`, `confirm_password`) avant d’obtenir un jeton. La réponse de login renvoie un code d’erreur `PASSWORD_RESET_REQUIRED` tant que le mot de passe n’a pas été mis à jour.
 
 ### Journalisation
 
