@@ -435,80 +435,76 @@ export default function Chat() {
   }
 
   return (
-    <div className={clsx('mx-auto flex flex-col animate-fade-in', showEvidence ? 'max-w-6xl' : 'max-w-3xl')}>
+    <div className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}>
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      {/* Layout en colonnes: panneau gauche intégré + zone chat */}
-      <div className={clsx('grid gap-4', showEvidence ? 'grid-cols-[360px_1fr] lg:grid-cols-[420px_1fr]' : 'grid-cols-1')}>
-        {showEvidence && (
-          <EvidenceSidebar
-            spec={evidenceSpec}
-            data={evidenceData}
-            onClose={() => setShowEvidence(false)}
-          />
-        )}
+      {/* Evidence toggle (intégré, discret) */}
+      <div className="sticky top-0 z-10 flex justify-end px-2 pt-2">
+        <EvidenceButton
+          ref={evidenceBtnRef}
+          spec={evidenceSpec}
+          data={evidenceData}
+          onClick={() => setShowEvidence(v => !v)}
+        />
+      </div>
 
-        <div className="min-w-0">
-          {/* Evidence toggle (intégré, discret) */}
-          <div className="sticky top-0 z-10 flex justify-end px-2 pt-2">
-            <EvidenceButton
-              ref={evidenceBtnRef}
-              spec={evidenceSpec}
-              data={evidenceData}
-              onClick={() => setShowEvidence(v => !v)}
-            />
-          </div>
-
-          {messages.length === 0 ? (
-            // État vide: contenu figé au centre de l'écran, sans scroll
-            <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
-              {loading ? (
-                <div className="flex justify-center py-2">
-                  <Loader text="Streaming…" />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2 animate-fade-in">
-                  <img
-                    src={`${import.meta.env.BASE_URL}insight.svg`}
-                    alt="Logo FoyerInsight"
-                    className="h-12 w-12 md:h-16 md:w-16 opacity-80"
-                  />
-                  <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
-                    Discutez avec vos données
-                  </h2>
-                </div>
-              )}
+      {messages.length === 0 ? (
+        // État vide: contenu figé au centre de l'écran, sans scroll
+        <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
+          {loading ? (
+            <div className="flex justify-center py-2">
+              <Loader text="Streaming…" />
             </div>
           ) : (
-            <div ref={listRef} className="p-4 space-y-4 pb-32">
-              <>
-                {messages.map((message, index) => (
-                  <MessageBubble
-                    key={message.id ?? index}
-                    message={message}
-                    onSaveChart={onSaveChart}
-                  />
-                ))}
-                {loading && (
-                  <div className="flex justify-center py-2">
-                    <Loader text="Streaming…" />
-                  </div>
-                )}
-              </>
-            </div>
-          )}
-
-          {error && (
-            <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="flex flex-col items-center gap-2 animate-fade-in">
+              <img
+                src={`${import.meta.env.BASE_URL}insight.svg`}
+                alt="Logo FoyerInsight"
+                className="h-12 w-12 md:h-16 md:w-16 opacity-80"
+              />
+              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
+                Discutez avec vos données
+              </h2>
             </div>
           )}
         </div>
-      </div>
+      ) : (
+        <div ref={listRef} className="p-4 space-y-4 pb-32">
+          <>
+            {messages.map((message, index) => (
+              <MessageBubble
+                key={message.id ?? index}
+                message={message}
+                onSaveChart={onSaveChart}
+              />
+            ))}
+            {loading && (
+              <div className="flex justify-center py-2">
+                <Loader text="Streaming…" />
+              </div>
+            )}
+          </>
+        </div>
+      )}
+
+      {error && (
+        <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Evidence sidebar fixed (left), non intrusive */}
+      {showEvidence && (
+        <EvidenceSidebar
+          spec={evidenceSpec}
+          data={evidenceData}
+          onClose={() => setShowEvidence(false)}
+        />
+      )}
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
-        <div className={clsx(showEvidence ? 'max-w-6xl' : 'max-w-3xl', 'mx-auto px-4 py-2')}>
+        <div className={clsx('max-w-3xl mx-auto px-4 py-2')}>
           <div className="relative">
             <Textarea
               value={input}
@@ -804,7 +800,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   }
 
   return (
-    <aside className="border border-primary-100 bg-white rounded-lg h-[calc(100vh-140px)] sticky top-24 overflow-auto p-3">
+    <aside className="fixed left-4 md:left-6 top-24 z-40 w-[320px] sm:w-[360px] lg:w-[420px] h-[calc(100vh-140px)] border border-primary-100 bg-white rounded-lg overflow-auto p-3 shadow-md">
       <div className="flex items-center justify-between mb-2">
         <div>
           <div className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
