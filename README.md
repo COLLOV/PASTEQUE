@@ -48,9 +48,6 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Chat**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 - Les tokens d’authentification expirent désormais au bout de 4 heures. Si un token devient invalide, le frontend purge la session et redirige automatiquement vers la page de connexion pour éviter les erreurs silencieuses côté utilisateur.
-- Le panneau admin inclut maintenant une matrice des droits sur les tables CSV/TSV présentes dans `data/raw/`. Chaque case permet d’autoriser ou de retirer l’accès par utilisateur; l’administrateur conserve un accès complet par défaut.
-- Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.
-- Le backend applique ces restrictions pour les listings/ schémas (`GET /api/v1/data/...`) ainsi que pour le NL→SQL et les graphiques via `/api/v1/chat/*`: un utilisateur ne voit ni n’utilise de table qui ne lui a pas été accordée.
 
 ## Principes d’architecture
 

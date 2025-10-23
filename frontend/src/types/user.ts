@@ -6,19 +6,3 @@ export interface CreateUserRequest {
 export interface CreateUserResponse {
   username: string
 }
-
-export interface UserWithPermissionsResponse {
-  username: string
-  is_active: boolean
-  created_at: string
-  allowed_tables: string[]
-}
-
-export interface UserPermissionsOverviewResponse {
-  tables: string[]
-  users: UserWithPermissionsResponse[]
-}
-
-export interface UpdateUserPermissionsRequest {
-  allowed_tables: string[]
-}
