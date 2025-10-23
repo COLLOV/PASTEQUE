@@ -17,6 +17,9 @@ import type {
 import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
 import clsx from 'clsx'
 
+// Evidence defaults
+const DEFAULT_EVIDENCE_LIMIT = 100
+
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
   const headings = columns.length > 0 ? columns : ['value']
   return rows.map(row => {
@@ -136,7 +139,7 @@ export default function Chat() {
             return copy
           })
           // Capture optional evidence spec from meta
-          const spec = (meta as any)?.evidence_spec as EvidenceSpec | undefined
+          const spec = meta?.evidence_spec as EvidenceSpec | undefined
           if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
             setEvidenceSpec(spec)
           }
@@ -773,28 +776,31 @@ type EvidenceSidebarProps = {
 
 function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   const count = data?.row_count ?? data?.rows?.length ?? 0
-  const limit = spec?.limit ?? 100
-  const rows = (data?.rows || []).slice(0, limit)
+  const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
+  const allRows: Record<string, unknown>[] = data?.rows ?? []
+  const rows = allRows.slice(0, limit)
   const extra = Math.max(count - rows.length, 0)
-  const columns = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns || [])
+  const columns: string[] = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns ?? [])
   const createdAtKey = spec?.display?.created_at
   const titleKey = spec?.display?.title
   const statusKey = spec?.display?.status
   const pkKey = spec?.pk
   const linkTpl = spec?.display?.link_template
 
-  const sortedRows = createdAtKey
-    ? [...rows].sort((a, b) => {
-        const va = (a as any)?.[createdAtKey]
-        const vb = (b as any)?.[createdAtKey]
-        const da = va ? new Date(va as string).getTime() : 0
-        const db = vb ? new Date(vb as string).getTime() : 0
-        return db - da
-      })
-    : rows
+  let sortedRows = rows
+  if (createdAtKey) {
+    const key = createdAtKey
+    sortedRows = [...rows].sort((a, b) => {
+      const va = a[key]
+      const vb = b[key]
+      const da = va ? new Date(String(va)).getTime() : 0
+      const db = vb ? new Date(String(vb)).getTime() : 0
+      return db - da
+    })
+  }
 
   function buildLink(tpl: string, row: Record<string, unknown>) {
-    return tpl.replace(/\{(\w+)\}/g, (_, k) => String((row as any)?.[k] ?? ''))
+    return tpl.replace(/\{(\w+)\}/g, (_, k) => String(row[k] ?? ''))
   }
 
   return (
@@ -821,20 +827,20 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
       {spec && data && count > 0 && (
         <div className="space-y-2">
           {sortedRows.map((row, idx) => {
-            const title = titleKey ? (row as any)?.[titleKey] : undefined
-            const status = statusKey ? (row as any)?.[statusKey] : undefined
-            const created = createdAtKey ? (row as any)?.[createdAtKey] : undefined
-            const pk = pkKey ? (row as any)?.[pkKey] : undefined
-            const link = linkTpl ? buildLink(linkTpl, row as any) : undefined
+            const title = titleKey ? row[titleKey] : undefined
+            const status = statusKey ? row[statusKey] : undefined
+            const created = createdAtKey ? row[createdAtKey] : undefined
+            const pk = pkKey ? row[pkKey] : undefined
+            const link = linkTpl ? buildLink(linkTpl, row) : undefined
             return (
               <div key={idx} className="border border-primary-100 rounded-md p-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-sm font-medium text-primary-900 truncate">
-                    {title ?? (pk ?? `#${idx + 1}`)}
+                    {String(title ?? (pk ?? `#${idx + 1}`))}
                   </div>
-                  {status && (
+                  {status != null ? (
                     <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
-                  )}
+                  ) : null}
                 </div>
                 <div className="mt-1 text-xs text-primary-500">
                   {created ? new Date(String(created)).toLocaleString() : null}
@@ -851,7 +857,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
                         {columns.map((c) => (
                           <tr key={c} className="border-t border-primary-100">
                             <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
-                            <td className="py-1 text-primary-800 break-all">{String((row as any)?.[c] ?? '')}</td>
+                            <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
                           </tr>
                         ))}
                       </tbody>
