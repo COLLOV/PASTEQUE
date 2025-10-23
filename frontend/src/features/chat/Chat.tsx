@@ -234,7 +234,20 @@ export default function Chat() {
       abortRef.current = null
 
       if (isChartMode) {
-        if (!latestDataset || !latestDataset.sql || latestDataset.columns.length === 0 || latestDataset.rows.length === 0) {
+        if (!latestDataset) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: createMessageId(),
+              role: 'assistant',
+              content: "Aucun résultat SQL exploitable pour générer un graphique."
+            }
+          ])
+          return
+        }
+
+        const dataset = latestDataset as ChartDatasetPayload
+        if (!dataset.sql || dataset.columns.length === 0 || dataset.rows.length === 0) {
           setMessages(prev => [
             ...prev,
             {
