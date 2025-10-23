@@ -128,6 +128,11 @@ class ChatService:
                         evidence_sql = self._derive_evidence_sql(sql)
                         ev_cols, ev_rows = [], []
                         if evidence_sql:
+                            if events:
+                                try:
+                                    events("sql", {"sql": evidence_sql, "purpose": "evidence"})
+                                except Exception:
+                                    pass
                             ev = client.sql(evidence_sql)
                             ev_cols, ev_rows = self._normalize_result(ev)
                         else:
@@ -294,6 +299,11 @@ class ChatService:
                                 else:
                                     derived = None
                                 if derived:
+                                    if events:
+                                        try:
+                                            events("sql", {"sql": derived, "purpose": "evidence"})
+                                        except Exception:
+                                            pass
                                     ev = client.sql(derived)
                                     ev_cols, ev_rows = self._normalize_result(ev)
                                 elif last_columns and last_rows:
@@ -380,6 +390,11 @@ class ChatService:
                             evidence_sql = self._derive_evidence_sql(sql)
                             ev_cols, ev_rows = [], []
                             if evidence_sql:
+                                if events:
+                                    try:
+                                        events("sql", {"sql": evidence_sql, "purpose": "evidence"})
+                                    except Exception:
+                                        pass
                                 ev = client.sql(evidence_sql)
                                 ev_cols, ev_rows = self._normalize_result(ev)
                             else:
