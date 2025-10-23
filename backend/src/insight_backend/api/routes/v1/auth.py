@@ -48,11 +48,18 @@ async def list_users_with_permissions(
 
     responses: list[UserWithPermissionsResponse] = []
     for user in users:
-        if user_is_admin(user):
+        is_admin = user_is_admin(user)
+        if is_admin:
             allowed = tables
         else:
             allowed = [perm.table_name for perm in user.table_permissions]
-        responses.append(UserWithPermissionsResponse.from_model(user, allowed_tables=allowed))
+        responses.append(
+            UserWithPermissionsResponse.from_model(
+                user,
+                allowed_tables=allowed,
+                is_admin=is_admin,
+            )
+        )
 
     return UserPermissionsOverviewResponse(tables=tables, users=responses)
 
@@ -98,7 +105,11 @@ async def update_user_table_permissions(
     updated = permissions_repo.set_allowed_tables(target.id, filtered)
     session.commit()
     session.refresh(target)
-    return UserWithPermissionsResponse.from_model(target, allowed_tables=updated)
+    return UserWithPermissionsResponse.from_model(
+        target,
+        allowed_tables=updated,
+        is_admin=user_is_admin(target),
+    )
 
 
 @router.post("/auth/reset-password", status_code=status.HTTP_204_NO_CONTENT)

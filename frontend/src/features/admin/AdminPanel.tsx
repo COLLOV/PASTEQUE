@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { apiFetch } from '@/services/api'
+import { getAuth } from '@/services/auth'
 import { Button, Input, Card, Loader } from '@/components/ui'
 import type {
   CreateUserRequest,
@@ -9,10 +10,6 @@ import type {
   UserWithPermissionsResponse
 } from '@/types/user'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
-
-interface AdminPanelProps {
-  adminUsername: string
-}
 
 interface Status {
   type: 'success' | 'error'
@@ -25,7 +22,7 @@ function formatDate(value: string): string {
   return date.toLocaleString()
 }
 
-export default function AdminPanel({ adminUsername }: AdminPanelProps) {
+export default function AdminPanel() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<Status | null>(null)
@@ -34,6 +31,11 @@ export default function AdminPanel({ adminUsername }: AdminPanelProps) {
   const [permissionsLoading, setPermissionsLoading] = useState(true)
   const [permissionsError, setPermissionsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
+  const [adminUsername, setAdminUsername] = useState(() => getAuth()?.username ?? '')
+
+  useEffect(() => {
+    setAdminUsername(getAuth()?.username ?? '')
+  }, [])
 
   const loadPermissions = useCallback(async () => {
     setPermissionsLoading(true)
@@ -86,9 +88,9 @@ export default function AdminPanel({ adminUsername }: AdminPanelProps) {
   }
 
   async function handleTogglePermission(username: string, table: string, nextChecked: boolean) {
-    if (!overview || username === adminUsername || updatingUsers.has(username)) return
+    if (!overview || updatingUsers.has(username)) return
     const target = overview.users.find(user => user.username === username)
-    if (!target) return
+    if (!target || target.is_admin) return
 
     const tableKey = table.toLowerCase()
     const filtered = target.allowed_tables.filter(value => value.toLowerCase() !== tableKey)
@@ -273,7 +275,7 @@ export default function AdminPanel({ adminUsername }: AdminPanelProps) {
               </thead>
               <tbody>
                 {users.map(user => {
-                  const isAdminRow = user.username === adminUsername
+                  const isAdminRow = Boolean(user.is_admin)
                   const isUpdating = updatingUsers.has(user.username)
                   const allowedSet = new Set(
                     user.allowed_tables.map(name => name.toLowerCase())
