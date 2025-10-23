@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, KeyboardEvent, forwardRef } from 'react'
+import { useState, useRef, useEffect, useMemo, KeyboardEvent, forwardRef } from 'react'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -59,6 +59,9 @@ export default function Chat() {
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showEvidence, setShowEvidence] = useState(false)
+  // Keep live refs to avoid stale closures in streaming callbacks
+  const evidenceSpecRef = useRef<EvidenceSpec | null>(null)
+  const evidenceDataRef = useRef<EvidenceRowsPayload | null>(null)
   const evidenceBtnRef = useRef<HTMLButtonElement | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -71,6 +74,19 @@ export default function Chat() {
       })
     }
   }, [messages, loading])
+
+  // Keep latest evidence refs in sync
+  useEffect(() => { evidenceSpecRef.current = evidenceSpec }, [evidenceSpec])
+  useEffect(() => { evidenceDataRef.current = evidenceData }, [evidenceData])
+
+  // Open evidence panel only when both spec and rows are available to avoid race conditions
+  useEffect(() => {
+    const hasSpec = Boolean(evidenceSpec)
+    const hasRows = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
+    if (!showEvidence && hasSpec && hasRows) {
+      setShowEvidence(true)
+    }
+  }, [evidenceSpec, evidenceData, showEvidence])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
@@ -196,8 +212,6 @@ export default function Chat() {
               purpose
             }
             setEvidenceData(evid)
-            // Open the sidebar as soon as evidence arrives
-            setShowEvidence(true)
           } else {
             // Regular NL→SQL samples for charting/debug
             const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
@@ -264,11 +278,13 @@ export default function Chat() {
           })
           // Keep open state; no overlay — sidebar remains integrated
           if (import.meta.env.MODE === 'development') {
-            const hasEvidence = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
-            if (hasEvidence && evidenceSpec) {
+            const spec = evidenceSpecRef.current
+            const evid = evidenceDataRef.current
+            const hasEvidence = (evid?.row_count ?? evid?.rows?.length ?? 0) > 0
+            if (hasEvidence && spec) {
               console.info('[evidence_sidebar] ready', {
-                count: evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0,
-                entity: evidenceSpec?.entity_label,
+                count: evid?.row_count ?? evid?.rows?.length ?? 0,
+                entity: spec?.entity_label,
                 sourceMode: (sqlMode || isChartMode) ? 'sql' : 'graph'
               })
             }
@@ -787,27 +803,51 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   const pkKey = spec?.pk
   const linkTpl = spec?.display?.link_template
 
-  let sortedRows = rows
-  if (createdAtKey) {
+  const sortedRows = useMemo(() => {
+    if (!createdAtKey) return rows
     const key = createdAtKey
-    sortedRows = [...rows].sort((a, b) => {
+    return [...rows].sort((a, b) => {
       const va = a[key]
       const vb = b[key]
-      const da = va ? new Date(String(va)).getTime() : 0
-      const db = vb ? new Date(String(vb)).getTime() : 0
-      return db - da
+      const da = va ? new Date(String(va)) : null
+      const db = vb ? new Date(String(vb)) : null
+      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0
+      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0
+      return tb - ta
     })
-  }
+  }, [rows, createdAtKey])
+
+  // Close on Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [onClose])
 
   function buildLink(tpl: string, row: Record<string, unknown>) {
-    return tpl.replace(/\{(\w+)\}/g, (_, k) => String(row[k] ?? ''))
+    try {
+      if (typeof tpl !== 'string' || tpl.length === 0) return undefined
+      const out = tpl.replace(/\{(\w+)\}/g, (_, k) => String(row[k] ?? ''))
+      // Basic URL validation: allow http(s) and absolute/relative paths
+      const safe = out.startsWith('http://') || out.startsWith('https://') || out.startsWith('/')
+      return safe ? out : undefined
+    } catch {
+      return undefined
+    }
   }
 
   return (
-    <aside className="fixed left-4 md:left-6 top-24 z-40 w-[320px] sm:w-[360px] lg:w-[420px] h-[calc(100vh-140px)] border border-primary-100 bg-white rounded-lg overflow-auto p-3 shadow-md">
+    <aside
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="evidence-panel-title"
+      className="fixed left-4 md:left-6 top-24 z-40 w-[320px] sm:w-[360px] lg:w-[420px] h-[calc(100vh-140px)] border border-primary-100 bg-white rounded-lg overflow-auto p-3 shadow-md"
+    >
       <div className="flex items-center justify-between mb-2">
         <div>
-          <div className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
+          <div id="evidence-panel-title" className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
           {spec?.period && (
             <div className="text-[11px] text-primary-500">{typeof spec.period === 'string' ? spec.period : `${spec.period.from ?? ''}${spec.period.to ? ` → ${spec.period.to}` : ''}`}</div>
           )}

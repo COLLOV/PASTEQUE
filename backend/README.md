@@ -215,3 +215,8 @@ Fonctionnement:
 - Étape 3 (synthèse): le LLM rédige une réponse finale en français à partir des résultats et le chat liste chaque requête exécutée avant la réponse finale.
 
 En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimulation, un message d’erreur explicite est renvoyé.
+# Backend
+
+## Evidence panel defaults
+
+- `EVIDENCE_LIMIT_DEFAULT` (int, default: 100): limite de lignes envoyées via SSE pour l’aperçu « evidence ». Utilisée à la fois pour la construction du `evidence_spec.limit` et pour la dérivation de SQL détaillé.

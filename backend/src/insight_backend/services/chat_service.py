@@ -1,7 +1,7 @@
 import logging
 import re
 from pathlib import Path
-from typing import Protocol, Callable, Optional, Dict, Any, Iterable
+from typing import Protocol, Callable, Dict, Any, Iterable
 
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..core.config import settings
@@ -59,7 +59,7 @@ class ChatService:
         self,
         payload: ChatRequest,
         *,
-        events: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        events: Callable[[str, Dict[str, Any]], None] | None = None,
         allowed_tables: Iterable[str] | None = None,
     ) -> ChatResponse:  # type: ignore[valid-type]
         metadata_keys = list((payload.metadata or {}).keys())
@@ -123,40 +123,14 @@ class ChatService:
                         pass
 
                 # Emit evidence contract + dataset (generic) so the front can open the panel
-                if events:
-                    try:
-                        evidence_sql = self._derive_evidence_sql(sql)
-                        ev_cols, ev_rows = [], []
-                        if evidence_sql:
-                            if events:
-                                try:
-                                    events("sql", {"sql": evidence_sql, "purpose": "evidence"})
-                                except Exception:
-                                    pass
-                            ev = client.sql(evidence_sql)
-                            ev_cols, ev_rows = self._normalize_result(ev)
-                        else:
-                            ev_cols, ev_rows = columns, rows
-                        if ev_cols and ev_rows:
-                            spec = self._build_evidence_spec(ev_cols, label_hint=sql)
-                            events("meta", {"evidence_spec": spec})
-                            events(
-                                "rows",
-                                {
-                                    "purpose": "evidence",
-                                    "columns": ev_cols,
-                                    "rows": ev_rows,
-                                    "row_count": len(ev_rows),
-                                },
-                            )
-                            log.info(
-                                "Emitted evidence_spec (passthrough): label=%s cols=%d rows=%d",
-                                spec.get("entity_label"),
-                                len(ev_cols),
-                                len(ev_rows),
-                            )
-                    except Exception as e:  # pragma: no cover - defensive
-                        log.warning("Failed to emit evidence for passthrough: %s", e)
+                self._emit_evidence(
+                    events=events,
+                    client=client,
+                    label_hint=sql,
+                    base_sql=sql,
+                    fallback_columns=columns,
+                    fallback_rows=rows,
+                )
 
                 if rows and columns:
                     header = " | ".join(str(c) for c in columns)
@@ -248,8 +222,8 @@ class ChatService:
                         if events:
                             try:
                                 events("sql", {"sql": sql, "purpose": purpose, "step": idx})
-                            except Exception:  # pragma: no cover
-                                pass
+                            except Exception:
+                                log.warning("Failed to emit sql event (plan step)", exc_info=True)
                         data = client.sql(sql)
                         # Normalize
                         rows: list = []
@@ -273,8 +247,8 @@ class ChatService:
                                         "row_count": len(rows),
                                     },
                                 )
-                            except Exception:  # pragma: no cover
-                                pass
+                            except Exception:
+                                log.warning("Failed to emit rows event (plan step)", exc_info=True)
                         evidence.append({
                             "purpose": purpose,
                             "sql": sql,
@@ -288,46 +262,18 @@ class ChatService:
                     try:
                         answer = nl2sql.synthesize(question=last.content.strip(), evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        # Provide an evidence_spec + evidence rows, if we have any dataset
-                        if events:
-                            try:
-                                ev_cols, ev_rows = [], []
-                                target_sql = plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
-                                # Prefer derived details for last step
-                                if isinstance(target_sql, str):
-                                    derived = self._derive_evidence_sql(target_sql)
-                                else:
-                                    derived = None
-                                if derived:
-                                    if events:
-                                        try:
-                                            events("sql", {"sql": derived, "purpose": "evidence"})
-                                        except Exception:
-                                            pass
-                                    ev = client.sql(derived)
-                                    ev_cols, ev_rows = self._normalize_result(ev)
-                                elif last_columns and last_rows:
-                                    ev_cols, ev_rows = last_columns, last_rows
-                                if ev_cols and ev_rows:
-                                    spec = self._build_evidence_spec(ev_cols, label_hint=last.content)
-                                    events("meta", {"evidence_spec": spec})
-                                    events(
-                                        "rows",
-                                        {
-                                            "purpose": "evidence",
-                                            "columns": ev_cols,
-                                            "rows": ev_rows,
-                                            "row_count": len(ev_rows),
-                                        },
-                                    )
-                                    log.info(
-                                        "Emitted evidence_spec (plan): label=%s cols=%d rows=%d",
-                                        spec.get("entity_label"),
-                                        len(ev_cols),
-                                        len(ev_rows),
-                                    )
-                            except Exception as ee:  # pragma: no cover - defensive
-                                log.warning("Failed to emit evidence (plan): %s", ee)
+                        # Provide an evidence_spec + evidence rows via helper
+                        target_sql = (
+                            plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
+                        )
+                        self._emit_evidence(
+                            events=events,
+                            client=client,
+                            label_hint=last.content,
+                            base_sql=target_sql if isinstance(target_sql, str) else None,
+                            fallback_columns=last_columns,
+                            fallback_rows=last_rows,
+                        )
                         return self._log_completion(
                             ChatResponse(reply=reply_text, metadata={"provider": "nl2sql-plan+mindsdb", "plan": plan}),
                             context="completion done (nl2sql-plan)",
@@ -349,8 +295,8 @@ class ChatService:
                         if events:
                             try:
                                 events("sql", {"sql": sql})
-                            except Exception:  # pragma: no cover
-                                pass
+                            except Exception:
+                                log.warning("Failed to emit sql event (single-shot)", exc_info=True)
                     except Exception as e:
                         log.error("NL2SQL generation failed: %s", e)
                         return self._log_completion(
@@ -382,43 +328,17 @@ class ChatService:
                                     "row_count": len(rows),
                                 },
                             )
-                        except Exception:  # pragma: no cover
-                            pass
-                    # Emit evidence contract + dataset for the front panel
-                    if events:
-                        try:
-                            evidence_sql = self._derive_evidence_sql(sql)
-                            ev_cols, ev_rows = [], []
-                            if evidence_sql:
-                                if events:
-                                    try:
-                                        events("sql", {"sql": evidence_sql, "purpose": "evidence"})
-                                    except Exception:
-                                        pass
-                                ev = client.sql(evidence_sql)
-                                ev_cols, ev_rows = self._normalize_result(ev)
-                            else:
-                                ev_cols, ev_rows = columns, rows
-                            if ev_cols and ev_rows:
-                                spec = self._build_evidence_spec(ev_cols, label_hint=last.content)
-                                events("meta", {"evidence_spec": spec})
-                                events(
-                                    "rows",
-                                    {
-                                        "purpose": "evidence",
-                                        "columns": ev_cols,
-                                        "rows": ev_rows,
-                                        "row_count": len(ev_rows),
-                                    },
-                                )
-                                log.info(
-                                    "Emitted evidence_spec (single-shot): label=%s cols=%d rows=%d",
-                                    spec.get("entity_label"),
-                                    len(ev_cols),
-                                    len(ev_rows),
-                                )
-                        except Exception as ee:  # pragma: no cover - defensive
-                            log.warning("Failed to emit evidence (single): %s", ee)
+                        except Exception:
+                            log.warning("Failed to emit rows event", exc_info=True)
+                    # Emit evidence contract + dataset for the front panel (consolidated)
+                    self._emit_evidence(
+                        events=events,
+                        client=client,
+                        label_hint=last.content,
+                        base_sql=sql,
+                        fallback_columns=columns,
+                        fallback_rows=rows,
+                    )
                     evidence = [{
                         "purpose": "answer",
                         "sql": sql,
@@ -469,7 +389,7 @@ class ChatService:
         """
         cols_lc = [str(c) for c in columns]
         cols_set = {c.casefold() for c in cols_lc}
-        def pick(*candidates: str) -> Optional[str]:
+        def pick(*candidates: str) -> str | None:
             for c in candidates:
                 if c.casefold() in cols_set:
                     return c
@@ -497,7 +417,7 @@ class ChatService:
                 **({"created_at": created_at} if created_at else {}),
             },
             "columns": cols_lc,
-            "limit": 100,
+            "limit": settings.evidence_limit_default,
         }
         return spec
 
@@ -515,13 +435,15 @@ class ChatService:
                 columns = data.get("result", {}).get("columns") or data.get("columns") or columns
         return columns or [], rows or []
 
-    def _derive_evidence_sql(self, sql: str, *, limit: int = 100) -> Optional[str]:
+    def _derive_evidence_sql(self, sql: str, *, limit: int | None = None) -> str | None:
         """Attempt to derive a detail-level SELECT from an aggregate SQL.
 
         This is a best-effort utility and logs on failure without masking errors.
         Strategy: extract FROM ... [WHERE ...] then build SELECT * with same filters.
         """
         try:
+            if limit is None:
+                limit = settings.evidence_limit_default
             s = sql.strip()
             # Quick bail if looks like detail already (select * or explicit columns without COUNT/AVG/etc.)
             if re.search(r"\bselect\s+\*", s, re.I):
@@ -548,7 +470,69 @@ class ChatService:
             if where:
                 base += f" WHERE {where}"
             base += f" LIMIT {limit}"
+            # Ensure SELECT-only (no accidental DML)
+            if not re.match(r"^\s*select\b", base, re.I):
+                return None
+            if re.search(r";|\b(insert|update|delete|alter|drop|create)\b", base, re.I):
+                return None
             return base
         except Exception as e:  # pragma: no cover - defensive
-            log.warning("_derive_evidence_sql failed: %s", e)
+            log.warning("_derive_evidence_sql failed", exc_info=True)
             return None
+
+    def _emit_evidence(
+        self,
+        *,
+        events: Callable[[str, Dict[str, Any]], None] | None,
+        client: MindsDBClient,
+        label_hint: str,
+        base_sql: str | None = None,
+        fallback_columns: list[Any] | None = None,
+        fallback_rows: list[Any] | None = None,
+    ) -> None:
+        """Consolidated evidence emission.
+
+        Emits:
+          - optional "sql" event with purpose:"evidence" for the derived detail query
+          - "meta" with evidence_spec
+          - "rows" with purpose:"evidence"
+        """
+        if not events:
+            return
+        try:
+            ev_cols: list[Any] = []
+            ev_rows: list[Any] = []
+            derived: str | None = None
+            if base_sql:
+                derived = self._derive_evidence_sql(base_sql)
+            if derived:
+                try:
+                    events("sql", {"sql": derived, "purpose": "evidence"})
+                except Exception:
+                    log.warning("Failed to emit evidence SQL event", exc_info=True)
+                ev = client.sql(derived)
+                ev_cols, ev_rows = self._normalize_result(ev)
+            else:
+                if fallback_columns and fallback_rows:
+                    ev_cols, ev_rows = fallback_columns, fallback_rows
+            if ev_cols and ev_rows:
+                spec = self._build_evidence_spec(ev_cols, label_hint=label_hint)
+                events("meta", {"evidence_spec": spec})
+                events(
+                    "rows",
+                    {
+                        "purpose": "evidence",
+                        "columns": ev_cols,
+                        "rows": ev_rows,
+                        "row_count": len(ev_rows),
+                    },
+                )
+                log.info(
+                    "Emitted evidence_spec: label=%s cols=%d rows=%d",
+                    spec.get("entity_label"),
+                    len(ev_cols),
+                    len(ev_rows),
+                )
+        except Exception:
+            # Defensive: do not break the main flow, but keep traceback
+            log.warning("Failed to emit evidence (helper)", exc_info=True)
