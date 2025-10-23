@@ -439,7 +439,7 @@ export default function Chat() {
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
       {/* Layout en colonnes: panneau gauche intégré + zone chat */}
-      <div className={clsx('grid gap-4', showEvidence ? 'grid-cols-[320px_1fr]' : 'grid-cols-1')}>
+      <div className={clsx('grid gap-4', showEvidence ? 'grid-cols-[360px_1fr] lg:grid-cols-[420px_1fr]' : 'grid-cols-1')}>
         {showEvidence && (
           <EvidenceSidebar
             spec={evidenceSpec}
@@ -508,7 +508,7 @@ export default function Chat() {
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
-        <div className="max-w-3xl mx-auto px-4 py-2">
+        <div className={clsx(showEvidence ? 'max-w-6xl' : 'max-w-3xl', 'mx-auto px-4 py-2')}>
           <div className="relative">
             <Textarea
               value={input}
@@ -804,7 +804,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   }
 
   return (
-    <aside className="border border-primary-100 bg-white rounded-lg h-full max-h-[calc(100vh-180px)] sticky top-24 overflow-auto p-3">
+    <aside className="border border-primary-100 bg-white rounded-lg h-[calc(100vh-140px)] sticky top-24 overflow-auto p-3">
       <div className="flex items-center justify-between mb-2">
         <div>
           <div className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
