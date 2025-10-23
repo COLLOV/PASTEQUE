@@ -121,6 +121,24 @@ class ChatService:
                     except Exception:  # pragma: no cover - defensive
                         pass
 
+                # Emit evidence contract + dataset (generic) so the front can open the panel
+                if events and columns and rows:
+                    try:
+                        spec = self._build_evidence_spec(columns, label_hint=sql)
+                        events("meta", {"evidence_spec": spec})
+                        events(
+                            "rows",
+                            {
+                                "purpose": "evidence",
+                                "columns": columns,
+                                "rows": rows,
+                                "row_count": len(rows),
+                            },
+                        )
+                        log.info("Emitted evidence_spec (passthrough): label=%s cols=%d rows=%d", spec.get("entity_label"), len(columns), len(rows))
+                    except Exception as e:  # pragma: no cover - defensive
+                        log.warning("Failed to emit evidence for passthrough: %s", e)
+
                 if rows and columns:
                     header = " | ".join(str(c) for c in columns)
                     lines = [header, "-" * len(header)]
@@ -198,6 +216,8 @@ class ChatService:
                             context="completion done (nl2sql-plan-error)",
                         )
                     evidence: list[dict[str, object]] = []
+                    last_columns: list[Any] = []
+                    last_rows: list[Any] = []
                     for idx, item in enumerate(plan, start=1):
                         sql = item["sql"]
                         purpose = item.get("purpose", "")
@@ -242,9 +262,35 @@ class ChatService:
                             "columns": columns,
                             "rows": rows,
                         })
+                        # retain last non-empty dataset as evidence surface
+                        if columns and rows:
+                            last_columns = columns
+                            last_rows = rows
                     try:
                         answer = nl2sql.synthesize(question=last.content.strip(), evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                        # Provide an evidence_spec + evidence rows, if we have any dataset
+                        if events and last_columns and last_rows:
+                            try:
+                                spec = self._build_evidence_spec(last_columns, label_hint=last.content)
+                                events("meta", {"evidence_spec": spec})
+                                events(
+                                    "rows",
+                                    {
+                                        "purpose": "evidence",
+                                        "columns": last_columns,
+                                        "rows": last_rows,
+                                        "row_count": len(last_rows),
+                                    },
+                                )
+                                log.info(
+                                    "Emitted evidence_spec (plan): label=%s cols=%d rows=%d",
+                                    spec.get("entity_label"),
+                                    len(last_columns),
+                                    len(last_rows),
+                                )
+                            except Exception as ee:  # pragma: no cover - defensive
+                                log.warning("Failed to emit evidence (plan): %s", ee)
                         return self._log_completion(
                             ChatResponse(reply=reply_text, metadata={"provider": "nl2sql-plan+mindsdb", "plan": plan}),
                             context="completion done (nl2sql-plan)",
@@ -301,6 +347,28 @@ class ChatService:
                             )
                         except Exception:  # pragma: no cover
                             pass
+                    # Emit evidence contract + dataset for the front panel
+                    if events and columns and rows:
+                        try:
+                            spec = self._build_evidence_spec(columns, label_hint=last.content)
+                            events("meta", {"evidence_spec": spec})
+                            events(
+                                "rows",
+                                {
+                                    "purpose": "evidence",
+                                    "columns": columns,
+                                    "rows": rows,
+                                    "row_count": len(rows),
+                                },
+                            )
+                            log.info(
+                                "Emitted evidence_spec (single-shot): label=%s cols=%d rows=%d",
+                                spec.get("entity_label"),
+                                len(columns),
+                                len(rows),
+                            )
+                        except Exception as ee:  # pragma: no cover - defensive
+                            log.warning("Failed to emit evidence (single): %s", ee)
                     evidence = [{
                         "purpose": "answer",
                         "sql": sql,
@@ -339,3 +407,46 @@ class ChatService:
                         )
         response = self.engine.run(payload)
         return self._log_completion(response, context="completion done (engine)")
+
+    # ----------------------
+    # Helpers
+    # ----------------------
+    def _build_evidence_spec(self, columns: list[Any], *, label_hint: str | None = None) -> dict[str, Any]:
+        """Build a generic evidence spec from available columns.
+
+        Not a UI heuristic: this is an explicit contract so the front can render
+        a generic panel for any entity. We pick commonly used field names when present.
+        """
+        cols_lc = [str(c) for c in columns]
+        cols_set = {c.casefold() for c in cols_lc}
+        def pick(*candidates: str) -> Optional[str]:
+            for c in candidates:
+                if c.casefold() in cols_set:
+                    return c
+            return None
+
+        # Label guessing based on hint/columns (transparent; only used for labeling)
+        label = "Éléments"
+        text = (label_hint or "").casefold()
+        if "ticket" in text or any("ticket" in c for c in cols_set):
+            label = "Tickets"
+        elif "feedback" in text or any("feedback" in c for c in cols_set):
+            label = "Feedback"
+
+        pk = pick("ticket_id", "feedback_id", "id", "pk") or (cols_lc[0] if cols_lc else "id")
+        created_at = pick("created_at", "createdAt", "date", "timestamp", "createdon", "created")
+        status = pick("status", "state")
+        title = pick("title", "subject", "name")
+
+        spec: dict[str, Any] = {
+            "entity_label": label,
+            "pk": pk,
+            "display": {
+                **({"title": title} if title else {}),
+                **({"status": status} if status else {}),
+                **({"created_at": created_at} if created_at else {}),
+            },
+            "columns": cols_lc,
+            "limit": 100,
+        }
+        return spec
