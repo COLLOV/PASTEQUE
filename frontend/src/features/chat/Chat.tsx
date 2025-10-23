@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, KeyboardEvent } from 'react'
+import { useState, useRef, useEffect, KeyboardEvent, forwardRef } from 'react'
+import type { RefObject } from 'react'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -10,7 +11,9 @@ import type {
   ChatStreamMeta,
   ChatStreamDelta,
   ChatStreamDone,
-  SavedChartResponse
+  SavedChartResponse,
+  EvidenceSpec,
+  EvidenceRowsPayload
 } from '@/types/chat'
 import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
 import clsx from 'clsx'
@@ -50,6 +53,12 @@ export default function Chat() {
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
   const [sqlMode, setSqlMode] = useState(false)
+  // Evidence panel state (generic, driven by MCP spec)
+  const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
+  const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
+  const [showEvidence, setShowEvidence] = useState(false)
+  const evidenceBtnRef = useRef<HTMLButtonElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -89,6 +98,10 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
+    // Reset evidence state for the new question
+    setEvidenceSpec(null)
+    setEvidenceData(null)
+    setShowEvidence(false)
 
     const isChartMode = chartMode
     const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
@@ -124,6 +137,11 @@ export default function Chat() {
             }
             return copy
           })
+          // Capture optional evidence spec from meta
+          const spec = (meta as any)?.evidence_spec as EvidenceSpec | undefined
+          if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
+            setEvidenceSpec(spec)
+          }
         } else if (type === 'plan') {
           setMessages(prev => {
             const copy = [...prev]
@@ -160,36 +178,51 @@ export default function Chat() {
             return copy
           })
         } else if (type === 'rows') {
+          const purpose: string | undefined = typeof (data?.purpose) === 'string' ? String(data.purpose) : undefined
           const columns = Array.isArray(data?.columns)
             ? (data.columns as unknown[]).filter((col): col is string => typeof col === 'string')
             : []
           const rows = Array.isArray(data?.rows) ? data.rows : []
           const normalizedRows = normaliseRows(columns, rows)
-          const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
-          setMessages(prev => {
-            const copy = [...prev]
-            const idx = copy.findIndex(m => m.ephemeral)
-            if (idx >= 0) {
-              copy[idx] = {
-                ...copy[idx],
-                details: {
-                  ...(copy[idx].details || {}),
-                  samples: [ ...((copy[idx].details?.samples) || []), sample ]
+
+          if (purpose === 'evidence') {
+            // Evidence dataset (generic)
+            const evid: EvidenceRowsPayload = {
+              columns,
+              rows: normalizedRows,
+              row_count: typeof data?.row_count === 'number' ? data.row_count : normalizedRows.length,
+              step: typeof data?.step === 'number' ? data.step : undefined,
+              purpose
+            }
+            setEvidenceData(evid)
+          } else {
+            // Regular NL→SQL samples for charting/debug
+            const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
+            setMessages(prev => {
+              const copy = [...prev]
+              const idx = copy.findIndex(m => m.ephemeral)
+              if (idx >= 0) {
+                copy[idx] = {
+                  ...copy[idx],
+                  details: {
+                    ...(copy[idx].details || {}),
+                    samples: [ ...((copy[idx].details?.samples) || []), sample ]
+                  }
                 }
               }
+              return copy
+            })
+            const stepKey = typeof data?.step !== 'undefined' ? String(data.step) : 'default'
+            const sqlInfo = sqlByStep.get(stepKey) ?? sqlByStep.get('latest') ?? { sql: '' }
+            const rowCount = typeof data?.row_count === 'number' ? data.row_count : normalizedRows.length
+            latestDataset = {
+              sql: sqlInfo.sql,
+              columns,
+              rows: normalizedRows,
+              row_count: rowCount,
+              step: typeof data?.step === 'number' ? data.step : undefined,
+              description: sqlInfo.purpose,
             }
-            return copy
-          })
-          const stepKey = typeof data?.step !== 'undefined' ? String(data.step) : 'default'
-          const sqlInfo = sqlByStep.get(stepKey) ?? sqlByStep.get('latest') ?? { sql: '' }
-          const rowCount = typeof data?.row_count === 'number' ? data.row_count : normalizedRows.length
-          latestDataset = {
-            sql: sqlInfo.sql,
-            columns,
-            rows: normalizedRows,
-            row_count: rowCount,
-            step: typeof data?.step === 'number' ? data.step : undefined,
-            description: sqlInfo.purpose,
           }
         } else if (type === 'delta') {
           const delta = data as ChatStreamDelta
@@ -226,6 +259,18 @@ export default function Chat() {
             }
             return copy
           })
+          // Auto-open evidence panel if any evidence present and spec provided
+          const hasEvidence = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
+          if (hasEvidence && evidenceSpec) {
+            setShowEvidence(true)
+            if (import.meta.env.MODE === 'development') {
+              console.info('[evidence_panel] opened', {
+                count: evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0,
+                entity: evidenceSpec?.entity_label,
+                sourceMode: (sqlMode || isChartMode) ? 'sql' : 'graph'
+              })
+            }
+          }
         } else if (type === 'error') {
           setError(data?.message || 'Erreur streaming')
         }
@@ -392,6 +437,16 @@ export default function Chat() {
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in">
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
+      {/* Evidence toggle (always visible area; button disabled when no spec/data) */}
+      <div className="sticky top-0 z-30 flex justify-end px-4 pt-3 bg-gradient-to-b from-white to-transparent">
+        <EvidenceButton
+          ref={evidenceBtnRef}
+          spec={evidenceSpec}
+          data={evidenceData}
+          onClick={() => setShowEvidence(true)}
+        />
+      </div>
+
       {messages.length === 0 ? (
         // État vide: contenu figé au centre de l'écran, sans scroll
         <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
@@ -436,6 +491,19 @@ export default function Chat() {
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
+
+      {/* Evidence slide-over panel */}
+      <EvidencePanel
+        open={showEvidence}
+        onClose={() => {
+          setShowEvidence(false)
+          evidenceBtnRef.current?.focus()
+        }}
+        spec={evidenceSpec}
+        data={evidenceData}
+        buttonRef={evidenceBtnRef}
+        panelRef={panelRef}
+      />
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
@@ -656,5 +724,179 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
         ) : null}
       </div>
     </div>
+  )
+}
+
+// ============ Evidence UI (generic) ============
+type EvidenceButtonProps = {
+  spec: EvidenceSpec | null
+  data: EvidenceRowsPayload | null
+  onClick: () => void
+}
+
+const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(function EvidenceButton (
+  { spec, data, onClick }, ref
+) {
+  const count = data?.row_count ?? data?.rows?.length ?? 0
+  const label = spec?.entity_label || 'Éléments'
+  const limit = spec?.limit ?? 100
+  const shown = Math.min(count, limit)
+  const extra = Math.max(count - limit, 0)
+  const disabled = !spec || count === 0
+  const badge = extra > 0 ? `${shown}+` : `${shown}`
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={!spec ? 'Aucun evidence_spec reçu' : (count === 0 ? 'Aucun élément de preuve' : `${label}`)}
+      className={clsx(
+        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
+        disabled
+          ? 'bg-white text-primary-300 border-primary-200 cursor-not-allowed'
+          : 'bg-white text-primary-700 border-primary-300 hover:bg-primary-50'
+      )}
+      aria-disabled={disabled}
+    >
+      <span className="font-medium">{label}</span>
+      <span className={clsx(
+        'inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full text-[11px] px-1',
+        disabled ? 'bg-primary-100 text-primary-400' : 'bg-primary-600 text-white'
+      )}>
+        {badge}
+      </span>
+    </button>
+  )
+})
+
+type EvidencePanelProps = {
+  open: boolean
+  onClose: () => void
+  spec: EvidenceSpec | null
+  data: EvidenceRowsPayload | null
+  buttonRef: RefObject<HTMLButtonElement>
+  panelRef: RefObject<HTMLDivElement>
+}
+
+function EvidencePanel({ open, onClose, spec, data, panelRef }: EvidencePanelProps) {
+  const count = data?.row_count ?? data?.rows?.length ?? 0
+  const limit = spec?.limit ?? 100
+  const rows = (data?.rows || []).slice(0, limit)
+  const extra = Math.max(count - rows.length, 0)
+  const columns = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns || [])
+  const createdAtKey = spec?.display?.created_at
+  const titleKey = spec?.display?.title
+  const statusKey = spec?.display?.status
+  const pkKey = spec?.pk
+  const linkTpl = spec?.display?.link_template
+
+  const sortedRows = createdAtKey
+    ? [...rows].sort((a, b) => {
+        const va = (a as any)?.[createdAtKey]
+        const vb = (b as any)?.[createdAtKey]
+        const da = va ? new Date(va as string).getTime() : 0
+        const db = vb ? new Date(vb as string).getTime() : 0
+        return db - da
+      })
+    : rows
+
+  function buildLink(tpl: string, row: Record<string, unknown>) {
+    return tpl.replace(/\{(\w+)\}/g, (_, k) => String((row as any)?.[k] ?? ''))
+  }
+
+  return (
+    <>
+      {/* Overlay */}
+      <div
+        className={clsx('fixed inset-0 z-40 bg-black/20 transition-opacity', open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
+        onClick={onClose}
+        aria-hidden
+      />
+      {/* Panel */}
+      <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className={clsx(
+          'fixed top-0 right-0 z-50 h-full w-[90vw] sm:w-[420px] max-w-[90vw] bg-white shadow-xl border-l border-primary-100 transform transition-transform',
+          open ? 'translate-x-0' : 'translate-x-full'
+        )}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose()
+        }}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-primary-100">
+          <div>
+            <div className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
+            {spec?.period && (
+              <div className="text-[11px] text-primary-500">{typeof spec.period === 'string' ? spec.period : `${spec.period.from ?? ''}${spec.period.to ? ` → ${spec.period.to}` : ''}`}</div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
+            aria-label="Fermer"
+          >
+            <HiXMark className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="h-[calc(100%-48px)] overflow-auto p-3 space-y-2">
+          {(!spec || !data || count === 0) && (
+            <div className="text-sm text-primary-500">Aucun élément de preuve</div>
+          )}
+          {spec && data && count > 0 && (
+            <div className="space-y-2">
+              {sortedRows.map((row, idx) => {
+                const title = titleKey ? (row as any)?.[titleKey] : undefined
+                const status = statusKey ? (row as any)?.[statusKey] : undefined
+                const created = createdAtKey ? (row as any)?.[createdAtKey] : undefined
+                const pk = pkKey ? (row as any)?.[pkKey] : undefined
+                const link = linkTpl ? buildLink(linkTpl, row as any) : undefined
+                return (
+                  <div key={idx} className="border border-primary-100 rounded-md p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium text-primary-900 truncate">
+                        {title ?? (pk ?? `#${idx + 1}`)}
+                      </div>
+                      {status && (
+                        <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-primary-500">
+                      {created ? new Date(String(created)).toLocaleString() : null}
+                    </div>
+                    {link && (
+                      <div className="mt-1 text-xs">
+                        <a href={link} target="_blank" rel="noreferrer" className="underline text-primary-600 break-all">{link}</a>
+                      </div>
+                    )}
+                    {columns && columns.length > 0 && (
+                      <div className="mt-2 overflow-auto">
+                        <table className="min-w-full text-[11px]">
+                          <tbody>
+                            {columns.map((c) => (
+                              <tr key={c} className="border-t border-primary-100">
+                                <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
+                                <td className="py-1 text-primary-800 break-all">{String((row as any)?.[c] ?? '')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {extra > 0 && (
+                <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
+              )}
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
   )
 }
