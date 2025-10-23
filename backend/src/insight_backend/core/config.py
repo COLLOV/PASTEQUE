@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     mindsdb_base_url: str = Field("http://127.0.0.1:47334/api", alias="MINDSDB_BASE_URL")
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
 
+    # Evidence panel / dataset defaults
+    evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
+
     # Database
     database_url: str = Field(
         "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",
