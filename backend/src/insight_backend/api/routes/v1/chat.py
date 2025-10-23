@@ -1,23 +1,33 @@
+import json
+import threading
+import queue
 import time
 import uuid
 from typing import Iterator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from starlette.responses import StreamingResponse
-import json
-import threading
-import queue
+
 from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
+from ....core.database import get_session
+from ....core.security import get_current_user
+from ....models.user import User
 from ....services.chat_service import ChatService
 from ....engines.openai_engine import OpenAIChatEngine
 from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
+from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 
 router = APIRouter(prefix="/chat")
 
 
 @router.post("/completions", response_model=ChatResponse)
-def chat_completion(payload: ChatRequest) -> ChatResponse:  # type: ignore[valid-type]
+def chat_completion(  # type: ignore[valid-type]
+    payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> ChatResponse:
     """Chat completions via moteur OpenAI‑compatible.
 
     - En mode local (`LLM_MODE=local`): utilise `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
@@ -41,8 +51,11 @@ def chat_completion(payload: ChatRequest) -> ChatResponse:  # type: ignore[valid
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
+    allowed_tables = None
+    if current_user.username != settings.admin_username:
+        allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     try:
-        return service.completion(payload)
+        return service.completion(payload, allowed_tables=allowed_tables)
     except OpenAIBackendError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -52,7 +65,11 @@ def _sse(event: str, data: dict) -> bytes:
 
 
 @router.post("/stream")
-def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
+def chat_stream(  # type: ignore[valid-type]
+    payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
     """SSE streaming for chat completions.
 
     Emits events: meta → delta* → done, or error on failure.
@@ -77,6 +94,9 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
+    allowed_tables = None
+    if current_user.username != settings.admin_username:
+        allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
 
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"
     started = time.perf_counter()
@@ -97,7 +117,7 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
                 result_holder: dict[str, object] = {}
 
                 def worker() -> None:
-                    resp = service.completion(payload, events=emit)
+                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
                     result_holder["resp"] = resp
                     q.put(("__final__", resp))
 
@@ -151,7 +171,7 @@ def chat_stream(payload: ChatRequest):  # type: ignore[valid-type]
                 result_holder: dict[str, object] = {}
 
                 def worker() -> None:
-                    resp = service.completion(payload, events=emit)
+                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
                     result_holder["resp"] = resp
                     q.put(("__final__", resp))
 

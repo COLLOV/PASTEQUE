@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Protocol, Callable, Optional, Dict, Any
+from typing import Protocol, Callable, Optional, Dict, Any, Iterable
 
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..core.config import settings
@@ -59,6 +59,7 @@ class ChatService:
         payload: ChatRequest,
         *,
         events: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        allowed_tables: Iterable[str] | None = None,
     ) -> ChatResponse:  # type: ignore[valid-type]
         metadata_keys = list((payload.metadata or {}).keys())
         message_count = len(payload.messages)
@@ -155,8 +156,22 @@ class ChatService:
             if last.role == "user":
                 # Build schema from local CSV headers
                 repo = DataRepository(tables_dir=Path(settings.tables_dir))
+                tables = repo.list_tables()
+                allowed_lookup = {name.casefold() for name in allowed_tables} if allowed_tables is not None else None
+                if allowed_lookup is not None:
+                    tables = [name for name in tables if name.casefold() in allowed_lookup]
+                if not tables:
+                    message = (
+                        "Aucune table n'est disponible pour vos requêtes. "
+                        "Contactez un administrateur pour obtenir les accès nécessaires."
+                    )
+                    log.info("NL2SQL aborted: no tables available for user")
+                    return self._log_completion(
+                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl"}),
+                        context="completion denied (no tables)",
+                    )
                 schema: dict[str, list[str]] = {}
-                for name in repo.list_tables():
+                for name in tables:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
                 nl2sql = NL2SQLService()

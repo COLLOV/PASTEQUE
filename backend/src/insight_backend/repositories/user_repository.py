@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from ..models.user import User
 
@@ -27,3 +27,13 @@ class UserRepository:
         self.session.flush()
         log.info("User created: %s", username)
         return user
+
+    def list_all(self) -> list[User]:
+        users = (
+            self.session.query(User)
+            .options(selectinload(User.table_permissions))
+            .order_by(User.username.asc())
+            .all()
+        )
+        log.debug("Loaded %d users (admin scope)", len(users))
+        return users
