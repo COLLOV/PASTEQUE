@@ -64,6 +64,7 @@ export default function Chat() {
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showEvidence, setShowEvidence] = useState(false)
   const [canShowEvidenceUI, setCanShowEvidenceUI] = useState(true)
+  const [userCollapsed, setUserCollapsed] = useState(false)
   // Keep live refs to avoid stale closures in streaming callbacks
   const evidenceSpecRef = useRef<EvidenceSpec | null>(null)
   const evidenceDataRef = useRef<EvidenceRowsPayload | null>(null)
@@ -84,16 +85,26 @@ export default function Chat() {
   useEffect(() => { evidenceSpecRef.current = evidenceSpec }, [evidenceSpec])
   useEffect(() => { evidenceDataRef.current = evidenceData }, [evidenceData])
 
-  // Open evidence panel only when both spec and rows are available AND viewport large enough
+  function openEvidence() {
+    setShowEvidence(true)
+    setUserCollapsed(false)
+  }
+
+  function closeEvidence() {
+    setShowEvidence(false)
+    setUserCollapsed(true)
+  }
+
+  // Open evidence panel only when both spec and rows are available AND viewport large enough and not manually collapsed
   useEffect(() => {
     const hasSpec = Boolean(evidenceSpec)
     const hasRows = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
     const w = typeof window !== 'undefined' ? window.innerWidth : 0
     const fitsDesktop = w >= LG && (w - PANEL_W) >= MIN_CHAT_W
-    if (!showEvidence && hasSpec && hasRows && fitsDesktop) {
-      setShowEvidence(true)
+    if (!userCollapsed && !showEvidence && hasSpec && hasRows && fitsDesktop) {
+      openEvidence()
     }
-  }, [evidenceSpec, evidenceData, showEvidence])
+  }, [evidenceSpec, evidenceData, showEvidence, userCollapsed])
 
   // Auto-close sidebar when viewport is too small (or on mobile) to preserve chat readability
   useEffect(() => {
@@ -103,6 +114,7 @@ export default function Chat() {
         const canShow = (w >= LG) && ((w - PANEL_W) >= MIN_CHAT_W)
         setCanShowEvidenceUI(canShow)
         if (showEvidence && !canShow) {
+          // auto-close due to space, but do not mark as userCollapsed
           setShowEvidence(false)
         }
       } catch {
@@ -113,6 +125,13 @@ export default function Chat() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [showEvidence])
+
+  // Default: open the panel (even empty) when there is enough space and user didn't collapse it
+  useEffect(() => {
+    if (canShowEvidenceUI && !showEvidence && !userCollapsed) {
+      openEvidence()
+    }
+  }, [canShowEvidenceUI])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
@@ -487,37 +506,31 @@ export default function Chat() {
     >
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      {/* Evidence toggle (intégré, responsive) */}
-      <div className="sticky top-0 z-20 flex justify-between items-center px-2 pt-2">
-        {/* Toggle compact (icône) pour écrans étroits */}
+      {/* Evidence toggle pill (sticky, right) */}
+      <div className="sticky top-0 z-20 flex justify-end items-center px-2 pt-2">
+        <EvidenceButton
+          ref={evidenceBtnRef}
+          spec={evidenceSpec}
+          data={evidenceData}
+          open={showEvidence}
+          canOpen={canShowEvidenceUI}
+          onClick={() => (showEvidence ? closeEvidence() : openEvidence())}
+        />
+      </div>
+
+      {/* Hamburger toggle fixed on the far left when collapsed and space allows */}
+      {!showEvidence && canShowEvidenceUI && (
         <button
           type="button"
-          onClick={() => setShowEvidence(v => !v)}
-          aria-pressed={showEvidence}
+          onClick={openEvidence}
+          aria-pressed={false}
           aria-controls="evidence-drawer"
-          className={clsx(
-            // Masqué quand le panneau est ouvert OU quand l'UI est indisponible (pas assez de place)
-            (showEvidence || !canShowEvidenceUI) ? 'hidden' : 'inline-flex',
-            'shrink-0 items-center justify-center h-9 w-9 rounded-full border',
-            showEvidence ? 'bg-primary-900 text-white border-primary-900' : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
-          )}
-          title={showEvidence ? 'Fermer la barre latérale' : 'Ouvrir la barre latérale'}
+          className="fixed left-2 md:left-4 top-24 z-30 inline-flex items-center justify-center h-9 w-9 rounded-full border bg-white text-primary-700 border-primary-200 hover:bg-primary-50"
+          title="Ouvrir la barre latérale"
         >
           <HiBars3 className="w-5 h-5" />
         </button>
-
-        {/* Bouton pilule détaillé (desktop + tablette) */}
-        <div className="ml-auto">
-          <EvidenceButton
-            ref={evidenceBtnRef}
-            spec={evidenceSpec}
-            data={evidenceData}
-            open={showEvidence}
-            canOpen={canShowEvidenceUI}
-            onClick={() => setShowEvidence(v => !v)}
-          />
-        </div>
-      </div>
+      )}
 
       {messages.length === 0 ? (
         // État vide: contenu figé au centre de l'écran, sans scroll
@@ -569,7 +582,7 @@ export default function Chat() {
         <EvidenceSidebar
           spec={evidenceSpec}
           data={evidenceData}
-          onClose={() => setShowEvidence(false)}
+          onClose={closeEvidence}
         />
       )}
 
