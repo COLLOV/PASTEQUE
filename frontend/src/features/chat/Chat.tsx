@@ -452,11 +452,17 @@ export default function Chat() {
   }
 
   return (
-    <div className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}>
+    <div
+      className={clsx(
+        'mx-auto flex flex-col animate-fade-in max-w-3xl',
+        // Réserve l'espace du panneau sur desktop quand ouvert
+        showEvidence && 'md:pl-[460px]'
+      )}
+    >
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
       {/* Evidence toggle (intégré, responsive) */}
-      <div className="sticky top-0 z-10 flex justify-between items-center px-2 pt-2">
+      <div className="sticky top-0 z-20 flex justify-between items-center px-2 pt-2">
         {/* Toggle compact (icône) pour écrans étroits */}
         <button
           type="button"
@@ -539,7 +545,7 @@ export default function Chat() {
       )}
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
+      <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent', showEvidence && 'md:pl-[460px]')}>
         <div className={clsx('max-w-3xl mx-auto px-4 py-2')}>
           <div className="relative">
             <Textarea
