@@ -79,23 +79,29 @@ export default function Chat() {
   useEffect(() => { evidenceSpecRef.current = evidenceSpec }, [evidenceSpec])
   useEffect(() => { evidenceDataRef.current = evidenceData }, [evidenceData])
 
-  // Open evidence panel only when both spec and rows are available to avoid race conditions
+  // Open evidence panel only when both spec and rows are available AND viewport large enough
   useEffect(() => {
     const hasSpec = Boolean(evidenceSpec)
     const hasRows = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
-    if (!showEvidence && hasSpec && hasRows) {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 0
+    const PANEL_W = 460
+    const MIN_CHAT_W = 680
+    const LG = 1024 // open automatically only from lg and above
+    const fitsDesktop = w >= LG && (w - PANEL_W) >= MIN_CHAT_W
+    if (!showEvidence && hasSpec && hasRows && fitsDesktop) {
       setShowEvidence(true)
     }
   }, [evidenceSpec, evidenceData, showEvidence])
 
-  // Auto-close sidebar when viewport is too small to preserve chat readability
+  // Auto-close sidebar when viewport is too small (or on mobile) to preserve chat readability
   useEffect(() => {
     const handleResize = () => {
       try {
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
         const PANEL_W = 460 // width reserved for the sidebar on desktop
         const MIN_CHAT_W = 680 // minimal comfortable width for chat
-        if (showEvidence && w > 0 && (w - PANEL_W) < MIN_CHAT_W) {
+        const LG = 1024
+        if (showEvidence && w > 0 && (w < LG || (w - PANEL_W) < MIN_CHAT_W)) {
           setShowEvidence(false)
         }
       } catch {
