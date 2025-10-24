@@ -14,8 +14,9 @@ export interface Message {
   chartRecordId?: number
   // Streaming placeholder (ephemeral) removed at end
   ephemeral?: boolean
-  // When streaming NL→SQL, show SQL first then final answer
+  // When streaming NL→SQL ou Cypher, show query first then final answer
   interimSql?: string
+  interimQueryKind?: 'sql' | 'cypher'
   // Optional per-message details shown on toggle inside the bubble
   details?: {
     requestId?: string
@@ -23,7 +24,7 @@ export interface Message {
     model?: string
     elapsed?: number
     plan?: any
-    steps?: Array<{ step?: number; purpose?: string; sql?: string }>
+    steps?: Array<{ step?: number; purpose?: string; sql?: string; language?: 'sql' | 'cypher' }>
     samples?: Array<{ step?: number; columns?: string[]; row_count?: number }>
   }
 }
@@ -32,6 +33,7 @@ export interface ChatCompletionRequest {
   messages: Message[]
   metadata?: {
     nl2sql?: boolean
+    neo4j?: boolean
     [key: string]: unknown
   }
 }
@@ -52,6 +54,10 @@ export interface ChatStreamMeta {
 export interface ChatStreamDelta {
   seq: number
   content: string
+}
+
+export interface ChatStreamCypher {
+  query?: string
 }
 
 export interface ChatStreamDone {

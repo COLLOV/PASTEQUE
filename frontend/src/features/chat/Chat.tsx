@@ -10,11 +10,12 @@ import type {
   ChatStreamMeta,
   ChatStreamDelta,
   ChatStreamDone,
+  ChatStreamCypher,
   SavedChartResponse,
   EvidenceSpec,
   EvidenceRowsPayload
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack, HiGlobeAlt } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 // Evidence defaults
@@ -55,6 +56,7 @@ export default function Chat() {
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
   const [sqlMode, setSqlMode] = useState(false)
+  const [neo4jMode, setNeo4jMode] = useState(false)
   // Evidence panel state (generic, driven by MCP spec)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
@@ -91,7 +93,22 @@ export default function Chat() {
   function onToggleChartModeClick() {
     setChartMode(v => {
       const next = !v
-      if (next) setSqlMode(false) // exclusif: un seul mode à la fois
+      if (next) {
+        setSqlMode(false) // exclusif: un seul mode à la fois
+        setNeo4jMode(false)
+      }
+      return next
+    })
+    setError('')
+  }
+
+  function onToggleNeo4jModeClick() {
+    setNeo4jMode(v => {
+      const next = !v
+      if (next) {
+        setSqlMode(false)
+        setChartMode(false)
+      }
       return next
     })
     setError('')
@@ -100,7 +117,10 @@ export default function Chat() {
   function onToggleSqlModeClick() {
     setSqlMode(v => {
       const next = !v
-      if (next) setChartMode(false) // exclusif: un seul mode à la fois
+      if (next) {
+        setChartMode(false) // exclusif: un seul mode à la fois
+        setNeo4jMode(false)
+      }
       return next
     })
     setError('')
@@ -121,6 +141,8 @@ export default function Chat() {
     setShowEvidence(false)
 
     const isChartMode = chartMode
+    const isNeo4jMode = neo4jMode
+    const isSqlMode = sqlMode
     const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
     let latestDataset: ChartDatasetPayload | null = null
     let finalAnswer = ''
@@ -131,9 +153,11 @@ export default function Chat() {
       setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
 
       // Force NL→SQL when SQL toggle or Chart mode is active
-      const payload: ChatCompletionRequest = (sqlMode || isChartMode)
-        ? { messages: next, metadata: { nl2sql: true } }
-        : { messages: next }
+      const payload: ChatCompletionRequest = isNeo4jMode
+        ? { messages: next, metadata: { neo4j: true } }
+        : ((isSqlMode || isChartMode)
+            ? { messages: next, metadata: { nl2sql: true } }
+            : { messages: next })
 
       await streamSSE('/chat/stream', payload, (type, data) => {
         if (type === 'meta') {
@@ -171,22 +195,26 @@ export default function Chat() {
             }
             return copy
           })
-        } else if (type === 'sql') {
+        } else if (type === 'sql' || type === 'cypher') {
+          const isCypher = type === 'cypher'
+          const cypherPayload = data as ChatStreamCypher
           const stepKey = typeof data?.step !== 'undefined' ? String(data.step) : 'default'
-          const sqlText = String(data?.sql || '')
-          const entry = { sql: sqlText, purpose: data?.purpose ? String(data.purpose) : undefined }
-          sqlByStep.set(stepKey, entry)
-          sqlByStep.set('latest', entry)
-          const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql }
+          const queryText = isCypher ? String(cypherPayload?.query || '') : String(data?.sql || '')
+          if (!isCypher) {
+            const entry = { sql: queryText, purpose: data?.purpose ? String(data.purpose) : undefined }
+            sqlByStep.set(stepKey, entry)
+            sqlByStep.set('latest', entry)
+          }
+          const step = { step: data?.step, purpose: data?.purpose, sql: queryText, language: isCypher ? 'cypher' : 'sql' }
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
             const target = idx >= 0 ? idx : copy.length - 1
-            const interimText = sqlText
             copy[target] = {
               ...copy[target],
-              content: interimText,
-              interimSql: interimText,
+              content: queryText,
+              interimSql: queryText,
+              interimQueryKind: isCypher ? 'cypher' : 'sql',
               details: {
                 ...(copy[target].details || {}),
                 steps: [ ...((copy[target].details?.steps) || []), step ]
@@ -252,6 +280,7 @@ export default function Chat() {
               ...copy[target],
               content: wasInterim ? (delta.content || '') : ((copy[target].content || '') + (delta.content || '')),
               interimSql: undefined,
+              interimQueryKind: undefined,
               ephemeral: true,
             }
             return copy
@@ -282,10 +311,11 @@ export default function Chat() {
             const evid = evidenceDataRef.current
             const hasEvidence = (evid?.row_count ?? evid?.rows?.length ?? 0) > 0
             if (hasEvidence && spec) {
+              const sourceMode = isNeo4jMode ? 'neo4j' : ((isSqlMode || isChartMode) ? 'sql' : 'graph')
               console.info('[evidence_sidebar] ready', {
                 count: evid?.row_count ?? evid?.rows?.length ?? 0,
                 entity: spec?.entity_label,
-                sourceMode: (sqlMode || isChartMode) ? 'sql' : 'graph'
+                sourceMode
               })
             }
           }
@@ -531,7 +561,7 @@ export default function Chat() {
               rows={1}
               fullWidth
               className={clsx(
-                'pl-24 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
+                'pl-36 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
                 // Neutralise toute variation visuelle au focus
                 'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
                 'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
@@ -555,6 +585,20 @@ export default function Chat() {
             >
               <HiCircleStack className="w-5 h-5" />
             </button>
+            <button
+              type="button"
+              onClick={onToggleNeo4jModeClick}
+              aria-pressed={neo4jMode}
+              title="Activer Neo4j (Cypher)"
+              className={clsx(
+                'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                neo4jMode
+                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
+              )}
+            >
+              <HiGlobeAlt className="w-5 h-5" />
+            </button>
             {/* Toggle MCP Chart intégré dans la zone de saisie */}
             <button
               type="button"
@@ -562,7 +606,7 @@ export default function Chat() {
               aria-pressed={chartMode}
               title="Activer MCP Chart"
               className={clsx(
-                'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                'absolute left-[5.5rem] top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
                 chartMode
                   ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
                   : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
@@ -710,11 +754,26 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
                 {/* Métadonnées masquées (request_id/provider/model/elapsed) pour alléger l'affichage */}
                 {message.details.steps && message.details.steps.length > 0 && (
                   <div className="text-[11px]">
-                    <div className="uppercase tracking-wide text-primary-500 mb-1">SQL exécuté</div>
+                    {(() => {
+                      const steps = message.details?.steps || []
+                      const hasCypher = steps.some(step => step.language === 'cypher')
+                      const hasSql = steps.some(step => !step.language || step.language === 'sql')
+                      const label = hasCypher && hasSql
+                        ? 'Requêtes exécutées'
+                        : hasCypher
+                          ? 'Cypher exécuté'
+                          : 'SQL exécuté'
+                      return (
+                        <div className="uppercase tracking-wide text-primary-500 mb-1">{label}</div>
+                      )
+                    })()}
                     <ul className="list-disc ml-5 space-y-1 max-h-40 overflow-auto">
                       {message.details.steps.map((s, i) => (
                         <li key={i} className="break-all">
-                          {s.step ? `#${s.step} ` : ''}{s.purpose ? `[${s.purpose}] ` : ''}{s.sql}
+                          {s.step ? `#${s.step} ` : ''}
+                          {s.language ? `[${s.language.toUpperCase()}] ` : ''}
+                          {s.purpose ? `[${s.purpose}] ` : ''}
+                          {s.sql}
                         </li>
                       ))}
                     </ul>
