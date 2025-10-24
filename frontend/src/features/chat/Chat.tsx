@@ -470,7 +470,7 @@ export default function Chat() {
           aria-pressed={showEvidence}
           aria-controls="evidence-drawer"
           className={clsx(
-            'shrink-0 inline-flex md:hidden items-center justify-center h-9 w-9 rounded-full border',
+            'shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-full border',
             showEvidence ? 'bg-primary-900 text-white border-primary-900' : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
           )}
           title={showEvidence ? 'Fermer la barre latérale' : 'Ouvrir la barre latérale'}
