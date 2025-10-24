@@ -14,7 +14,7 @@ import type {
   EvidenceSpec,
   EvidenceRowsPayload
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack, HiBars3 } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack, HiBars3, HiChevronLeft } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 // Evidence defaults
@@ -87,6 +87,25 @@ export default function Chat() {
       setShowEvidence(true)
     }
   }, [evidenceSpec, evidenceData, showEvidence])
+
+  // Auto-close sidebar when viewport is too small to preserve chat readability
+  useEffect(() => {
+    const handleResize = () => {
+      try {
+        const w = typeof window !== 'undefined' ? window.innerWidth : 0
+        const PANEL_W = 460 // width reserved for the sidebar on desktop
+        const MIN_CHAT_W = 680 // minimal comfortable width for chat
+        if (showEvidence && w > 0 && (w - PANEL_W) < MIN_CHAT_W) {
+          setShowEvidence(false)
+        }
+      } catch {
+        // noop
+      }
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [showEvidence])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
@@ -873,7 +892,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40" id="evidence-drawer">
+    <div className="fixed inset-0 z-40 md:pointer-events-none" id="evidence-drawer">
       {/* Overlay (clic pour fermer) uniquement sur mobile/tablette */}
       <button
         type="button"
@@ -890,7 +909,9 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
           // Mobile: bottom sheet plein largeur
           'absolute left-0 right-0 bottom-0 h-[70vh] w-full rounded-t-2xl border-t border-x bg-white p-3 shadow-lg transition-transform duration-200 ease-out',
           // Desktop: panneau latéral fixe à gauche
-          'md:left-6 md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[420px] md:rounded-lg md:border md:p-3 md:shadow-md'
+          'md:left-6 md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[420px] md:rounded-lg md:border md:p-3 md:shadow-md',
+          // Ensure interactions on desktop when wrapper ignores pointer events
+          'pointer-events-auto'
         )}
       >
       <div className="flex items-center justify-between mb-2">
@@ -904,9 +925,11 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
           type="button"
           onClick={onClose}
           className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
-          aria-label="Fermer"
+          aria-label="Fermer le panneau"
+          title="Fermer le panneau"
         >
-          <HiXMark className="w-4 h-4" />
+          <span className="md:hidden"><HiXMark className="w-4 h-4" /></span>
+          <span className="hidden md:inline"><HiChevronLeft className="w-4 h-4" /></span>
         </button>
       </div>
       {(!spec || !data || count === 0) && (
