@@ -14,7 +14,7 @@ import type {
   EvidenceSpec,
   EvidenceRowsPayload
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack, HiBars3 } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 // Evidence defaults
@@ -455,14 +455,33 @@ export default function Chat() {
     <div className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}>
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      {/* Evidence toggle (intégré, discret) */}
-      <div className="sticky top-0 z-10 flex justify-end px-2 pt-2">
-        <EvidenceButton
-          ref={evidenceBtnRef}
-          spec={evidenceSpec}
-          data={evidenceData}
+      {/* Evidence toggle (intégré, responsive) */}
+      <div className="sticky top-0 z-10 flex justify-between items-center px-2 pt-2">
+        {/* Toggle compact (icône) pour écrans étroits */}
+        <button
+          type="button"
           onClick={() => setShowEvidence(v => !v)}
-        />
+          aria-pressed={showEvidence}
+          aria-controls="evidence-drawer"
+          className={clsx(
+            'shrink-0 inline-flex md:hidden items-center justify-center h-9 w-9 rounded-full border',
+            showEvidence ? 'bg-primary-900 text-white border-primary-900' : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+          )}
+          title={showEvidence ? 'Fermer la barre latérale' : 'Ouvrir la barre latérale'}
+        >
+          <HiBars3 className="w-5 h-5" />
+        </button>
+
+        {/* Bouton pilule détaillé (desktop + tablette) */}
+        <div className="ml-auto">
+          <EvidenceButton
+            ref={evidenceBtnRef}
+            spec={evidenceSpec}
+            data={evidenceData}
+            open={showEvidence}
+            onClick={() => setShowEvidence(v => !v)}
+          />
+        </div>
       </div>
 
       {messages.length === 0 ? (
@@ -745,11 +764,12 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
 type EvidenceButtonProps = {
   spec: EvidenceSpec | null
   data: EvidenceRowsPayload | null
+  open?: boolean
   onClick: () => void
 }
 
 const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(function EvidenceButton (
-  { spec, data, onClick }, ref
+  { spec, data, open = false, onClick }, ref
 ) {
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const label = spec?.entity_label || 'Éléments'
@@ -764,19 +784,27 @@ const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(functi
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={!spec ? 'Aucun evidence_spec reçu' : (count === 0 ? 'Aucun élément de preuve' : `${label}`)}
+      aria-pressed={open}
+      aria-expanded={open}
+      title={
+        !spec ? 'Aucun evidence_spec reçu'
+        : (count === 0 ? 'Aucun élément de preuve'
+        : (open ? `Fermer ${label.toLowerCase()}` : `Ouvrir ${label.toLowerCase()}`))
+      }
       className={clsx(
         'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
         disabled
           ? 'bg-white text-primary-300 border-primary-200 cursor-not-allowed'
-          : 'bg-white text-primary-700 border-primary-300 hover:bg-primary-50'
+          : (open
+              ? 'bg-primary-900 text-white border-primary-900'
+              : 'bg-white text-primary-700 border-primary-300 hover:bg-primary-50')
       )}
       aria-disabled={disabled}
     >
       <span className="font-medium">{label}</span>
       <span className={clsx(
         'inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full text-[11px] px-1',
-        disabled ? 'bg-primary-100 text-primary-400' : 'bg-primary-600 text-white'
+        disabled ? 'bg-primary-100 text-primary-400' : (open ? 'bg-primary-700 text-white' : 'bg-primary-600 text-white')
       )}>
         {badge}
       </span>
@@ -839,12 +867,26 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   }
 
   return (
-    <aside
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="evidence-panel-title"
-      className="fixed left-4 md:left-6 top-24 z-40 w-[320px] sm:w-[360px] lg:w-[420px] h-[calc(100vh-140px)] border border-primary-100 bg-white rounded-lg overflow-auto p-3 shadow-md"
-    >
+    <div className="fixed inset-0 z-40" id="evidence-drawer">
+      {/* Overlay (clic pour fermer) uniquement sur mobile/tablette */}
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/20 md:hidden"
+        aria-label="Fermer l'overlay"
+        onClick={onClose}
+      />
+
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="evidence-panel-title"
+        className={clsx(
+          // Mobile: bottom sheet plein largeur
+          'absolute left-0 right-0 bottom-0 h-[70vh] w-full rounded-t-2xl border-t border-x bg-white p-3 shadow-lg transition-transform duration-200 ease-out',
+          // Desktop: panneau latéral fixe à gauche
+          'md:left-6 md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[420px] md:rounded-lg md:border md:p-3 md:shadow-md'
+        )}
+      >
       <div className="flex items-center justify-between mb-2">
         <div>
           <div id="evidence-panel-title" className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
@@ -912,6 +954,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
           )}
         </div>
       )}
-    </aside>
+      </aside>
+    </div>
   )
 }
