@@ -49,6 +49,10 @@ function createMessageId(): string {
 }
 
 export default function Chat() {
+  // Layout thresholds (desktop sidebar width and minimal chat width)
+  const PANEL_W = 460
+  const MIN_CHAT_W = 680
+  const LG = 1024
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -59,6 +63,7 @@ export default function Chat() {
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showEvidence, setShowEvidence] = useState(false)
+  const [canShowEvidenceUI, setCanShowEvidenceUI] = useState(true)
   // Keep live refs to avoid stale closures in streaming callbacks
   const evidenceSpecRef = useRef<EvidenceSpec | null>(null)
   const evidenceDataRef = useRef<EvidenceRowsPayload | null>(null)
@@ -84,9 +89,6 @@ export default function Chat() {
     const hasSpec = Boolean(evidenceSpec)
     const hasRows = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
     const w = typeof window !== 'undefined' ? window.innerWidth : 0
-    const PANEL_W = 460
-    const MIN_CHAT_W = 680
-    const LG = 1024 // open automatically only from lg and above
     const fitsDesktop = w >= LG && (w - PANEL_W) >= MIN_CHAT_W
     if (!showEvidence && hasSpec && hasRows && fitsDesktop) {
       setShowEvidence(true)
@@ -98,10 +100,9 @@ export default function Chat() {
     const handleResize = () => {
       try {
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
-        const PANEL_W = 460 // width reserved for the sidebar on desktop
-        const MIN_CHAT_W = 680 // minimal comfortable width for chat
-        const LG = 1024
-        if (showEvidence && w > 0 && (w < LG || (w - PANEL_W) < MIN_CHAT_W)) {
+        const canShow = (w >= LG) && ((w - PANEL_W) >= MIN_CHAT_W)
+        setCanShowEvidenceUI(canShow)
+        if (showEvidence && !canShow) {
           setShowEvidence(false)
         }
       } catch {
@@ -495,8 +496,8 @@ export default function Chat() {
           aria-pressed={showEvidence}
           aria-controls="evidence-drawer"
           className={clsx(
-            // Masqué quand le panneau est ouvert pour éviter l'icône au milieu
-            showEvidence ? 'hidden' : 'inline-flex',
+            // Masqué quand le panneau est ouvert OU quand l'UI est indisponible (pas assez de place)
+            (showEvidence || !canShowEvidenceUI) ? 'hidden' : 'inline-flex',
             'shrink-0 items-center justify-center h-9 w-9 rounded-full border',
             showEvidence ? 'bg-primary-900 text-white border-primary-900' : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
           )}
@@ -512,6 +513,7 @@ export default function Chat() {
             spec={evidenceSpec}
             data={evidenceData}
             open={showEvidence}
+            canOpen={canShowEvidenceUI}
             onClick={() => setShowEvidence(v => !v)}
           />
         </div>
@@ -798,18 +800,19 @@ type EvidenceButtonProps = {
   spec: EvidenceSpec | null
   data: EvidenceRowsPayload | null
   open?: boolean
+  canOpen?: boolean
   onClick: () => void
 }
 
 const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(function EvidenceButton (
-  { spec, data, open = false, onClick }, ref
+  { spec, data, open = false, canOpen = true, onClick }, ref
 ) {
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const label = spec?.entity_label || 'Éléments'
   const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
   const shown = Math.min(count, limit)
   const extra = Math.max(count - limit, 0)
-  const disabled = !spec || count === 0
+  const disabled = !spec || count === 0 || !canOpen
   const badge = extra > 0 ? `${shown}+` : `${shown}`
   return (
     <button
@@ -821,8 +824,9 @@ const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(functi
       aria-expanded={open}
       title={
         !spec ? 'Aucun evidence_spec reçu'
+        : (!canOpen ? 'Panneau indisponible: espace insuffisant'
         : (count === 0 ? 'Aucun élément de preuve'
-        : (open ? `Fermer ${label.toLowerCase()}` : `Ouvrir ${label.toLowerCase()}`))
+        : (open ? `Fermer ${label.toLowerCase()}` : `Ouvrir ${label.toLowerCase()}`)))
       }
       className={clsx(
         'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
