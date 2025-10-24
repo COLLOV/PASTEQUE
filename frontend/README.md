@@ -153,6 +153,16 @@ import { login } from '@/services/auth'
   - Remplacement automatique par le message final à la fin
   - Panneau d’inspection repliable (SQL et échantillons; métadonnées techniques masquées)
 
+#### Panneau Tickets/Evidence (Responsive) — Oct. 2025
+
+- Le panneau des tickets s’ouvre désormais en « bottom sheet » sur mobile (70% de la hauteur) avec un overlay cliquable pour fermer.
+- Sur desktop, il reste une barre latérale à gauche, largeur fixe, non intrusive.
+- Un bouton toggle est disponible:
+  - Icône hamburger en haut à gauche sur mobile.
+  - Pilule « Tickets » en haut (sticky) avec badge et état actif.
+- Accessibilité: `aria-pressed`, `aria-expanded`, `role="dialog"`, `aria-modal` et fermeture au clavier via `Escape`.
+- Les liens de chaque ticket s’ouvrent dans un nouvel onglet et les colonnes restent scrollables.
+
 #### Composer (Mise à jour)
 
 - Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
