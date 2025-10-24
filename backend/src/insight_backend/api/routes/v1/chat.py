@@ -157,6 +157,54 @@ def chat_stream(  # type: ignore[valid-type]
             # Per-request override: if payload.metadata.nl2sql is explicitly set, use it;
             # otherwise fall back to settings.nl2sql_enabled.
             meta = payload.metadata or {}
+            graph_flag = meta.get("neo4j") if isinstance(meta, dict) else None
+            if graph_flag and last and last.role == "user":
+                yield _sse("meta", {"request_id": trace_id, "provider": "neo4j-graph", "model": model})
+                q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+
+                def emit(evt: str, data: dict) -> None:
+                    q.put((evt, data))
+
+                result_holder: dict[str, object] = {}
+
+                def worker() -> None:
+                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
+                    result_holder["resp"] = resp
+                    q.put(("__final__", resp))
+
+                th = threading.Thread(target=worker, daemon=True)
+                th.start()
+                while True:
+                    item = q.get()
+                    if not isinstance(item, tuple) or len(item) != 2:
+                        continue
+                    kind, data = item
+                    if kind == "__final__":
+                        break
+                    yield _sse(kind, data)  # 'meta' | 'cypher' | 'rows'
+                resp = result_holder.get("resp")
+                if isinstance(resp, ChatResponse):
+                    text = resp.reply or ""
+                else:
+                    text = ""
+                for line in text.splitlines(True):
+                    if not line:
+                        continue
+                    seq += 1
+                    yield _sse("delta", {"seq": seq, "content": line})
+                elapsed = max(time.perf_counter() - started, 1e-6)
+                yield _sse(
+                    "done",
+                    {
+                        "id": trace_id,
+                        "content_full": text,
+                        "usage": None,
+                        "finish_reason": "stop",
+                        "elapsed_s": round(elapsed, 3),
+                    },
+                )
+                return
+
             nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
             nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
 

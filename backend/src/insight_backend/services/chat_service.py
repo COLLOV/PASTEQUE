@@ -8,6 +8,7 @@ from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
 from .nl2sql_service import NL2SQLService
+from .neo4j_graph_service import Neo4jGraphError, Neo4jGraphService
 
 
 log = logging.getLogger("insight.services.chat")
@@ -156,9 +157,66 @@ class ChatService:
                     context="completion done (mindsdb-sql)",
                 )
 
+        meta = payload.metadata or {}
+        neo4j_flag = meta.get("neo4j") if isinstance(meta, dict) else None
+        neo4j_enabled = bool(neo4j_flag)
+
+        if payload.messages and neo4j_enabled:
+            last = payload.messages[-1]
+            if last.role == "user":
+                raw_question, contextual_question = self._prepare_nl2sql_question(payload.messages)
+                graph_service = Neo4jGraphService()
+                log.info(
+                    "Neo4j graph question prepared: raw=\"%s\" enriched_preview=\"%s\"",
+                    _preview_text(raw_question, limit=200),
+                    _preview_text(contextual_question, limit=200),
+                )
+                try:
+                    result = graph_service.run(contextual_question or raw_question)
+                except Neo4jGraphError as exc:
+                    message = f"Erreur Neo4j: {exc}"
+                    log.info("Neo4j graph generation failed: %s", exc)
+                    return self._log_completion(
+                        ChatResponse(reply=message, metadata={"provider": "neo4j-error"}),
+                        context="completion done (neo4j-error)",
+                    )
+
+                if events:
+                    try:
+                        events(
+                            "meta",
+                            {
+                                "provider": "neo4j-graph",
+                                "model": result.model,
+                            },
+                        )
+                        events("cypher", {"query": result.cypher})
+                    except Exception:
+                        log.warning("Failed to emit Neo4j meta/cypher events", exc_info=True)
+                    if result.columns and result.rows:
+                        spec = self._build_evidence_spec(result.columns, label_hint=result.cypher)
+                        try:
+                            events("meta", {"evidence_spec": spec})
+                            events(
+                                "rows",
+                                {
+                                    "purpose": "evidence",
+                                    "columns": result.columns,
+                                    "rows": result.rows,
+                                    "row_count": result.row_count,
+                                },
+                            )
+                        except Exception:
+                            log.warning("Failed to emit Neo4j evidence events", exc_info=True)
+
+                response = ChatResponse(
+                    reply=result.answer or "(Aucune réponse)",
+                    metadata={"provider": "neo4j", "cypher": result.cypher},
+                )
+                return self._log_completion(response, context="completion done (neo4j)")
+
         # NL→SQL (optional): per-request override via payload.metadata.nl2sql,
         # falling back to env `NL2SQL_ENABLED` when not specified.
-        meta = payload.metadata or {}
         nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
         nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
 
