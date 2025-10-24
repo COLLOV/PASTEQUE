@@ -4,8 +4,8 @@ import csv
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
-
+from typing import Dict, List, Optional, Tuple
+from datetime import date, datetime
 from ..core.config import settings
 from ..integrations.neo4j_client import Neo4jClient, Neo4jClientError
 
@@ -25,6 +25,7 @@ class ClientDatasetSpec:
     relationship: str
     date_field: Optional[str] = None
     source: str = "import"
+    date_fields: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class DepartmentDatasetSpec:
     department_field: str
     relationship: str
     source: str = "import"
+    date_fields: Tuple[str, ...] = ()
 
 
 class Neo4jIngestionService:
@@ -48,6 +50,7 @@ class Neo4jIngestionService:
             relationship="HAS_AGENCY_FEEDBACK",
             date_field="date_feedback",
             source="myfeelback_agences",
+            date_fields=("date_feedback",),
         ),
         ClientDatasetSpec(
             filename="myfeelback_app_mobile.csv",
@@ -56,6 +59,7 @@ class Neo4jIngestionService:
             relationship="HAS_APP_FEEDBACK",
             date_field="date_feedback",
             source="myfeelback_app_mobile",
+            date_fields=("date_feedback",),
         ),
         ClientDatasetSpec(
             filename="myfeelback_nps.csv",
@@ -64,6 +68,7 @@ class Neo4jIngestionService:
             relationship="HAS_NPS_FEEDBACK",
             date_field="date_feedback",
             source="myfeelback_nps",
+            date_fields=("date_feedback",),
         ),
         ClientDatasetSpec(
             filename="myfeelback_service_client.csv",
@@ -72,6 +77,7 @@ class Neo4jIngestionService:
             relationship="HAS_SERVICE_FEEDBACK",
             date_field="date_feedback",
             source="myfeelback_service_client",
+            date_fields=("date_feedback",),
         ),
         ClientDatasetSpec(
             filename="myfeelback_souscriptions.csv",
@@ -80,6 +86,7 @@ class Neo4jIngestionService:
             relationship="HAS_SUBSCRIPTION_FEEDBACK",
             date_field="date_feedback",
             source="myfeelback_souscriptions",
+            date_fields=("date_feedback",),
         ),
         ClientDatasetSpec(
             filename="myfeelback_remboursements.csv",
@@ -88,6 +95,7 @@ class Neo4jIngestionService:
             relationship="HAS_CLAIM",
             date_field="date_declaration",
             source="myfeelback_remboursements",
+            date_fields=("date_declaration", "date_remboursement"),
         ),
     )
 
@@ -167,7 +175,7 @@ class Neo4jIngestionService:
             client_id = self._clean_value(raw.get("client_id"))
             if not identifier:
                 continue
-            props = {k: self._clean_value(v) for k, v in raw.items() if k != "client_id"}
+            props = self._prepare_props(raw, date_fields=spec.date_fields, skip_fields={"client_id"})
             props["source"] = spec.source
             payload.append(
                 {
@@ -207,7 +215,7 @@ class Neo4jIngestionService:
             ticket_id = raw.get("ticket_id")
             if not ticket_id:
                 continue
-            props = {k: self._clean_value(v) for k, v in raw.items()}
+            props = self._prepare_props(raw, date_fields=("creation_date",), skip_fields=set())
             props["source"] = "tickets_jira"
             payload.append(
                 {
@@ -262,6 +270,35 @@ class Neo4jIngestionService:
             """
             self.client.run_write(query, parameters={"rows": payload})
             log.info("Relations %s -> Department: %d", spec.label, len(payload))
+
+    @staticmethod
+    def _prepare_props(
+        row: Dict[str, str],
+        *,
+        date_fields: Tuple[str, ...],
+        skip_fields: set[str],
+    ) -> Dict[str, object]:
+        props: Dict[str, object] = {}
+        for key, raw in row.items():
+            if key in skip_fields:
+                continue
+            props[key] = Neo4jIngestionService._coerce_value(key, raw, date_fields)
+        return props
+
+    @staticmethod
+    def _coerce_value(key: str, value: Optional[str], date_fields: Tuple[str, ...]) -> object:
+        text = Neo4jIngestionService._clean_value(value)
+        if text is None:
+            return None
+
+        if key in date_fields:
+            try:
+                if len(text) == 10:
+                    return date.fromisoformat(text)
+                return datetime.fromisoformat(text)
+            except ValueError:
+                log.debug("Neo4j ingestion: failed to parse temporal value for %s=%s", key, text)
+        return text
 
     def _read_csv(self, name: str) -> List[Dict[str, str]]:
         path = self.data_dir / name
