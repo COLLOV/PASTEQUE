@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import Protocol, Callable, Dict, Any, Iterable
 
-from ..schemas.chat import ChatRequest, ChatResponse
+from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
@@ -165,6 +165,7 @@ class ChatService:
         if payload.messages and nl2sql_enabled:
             last = payload.messages[-1]
             if last.role == "user":
+                raw_question, contextual_question = self._prepare_nl2sql_question(payload.messages)
                 # Build schema from local CSV headers
                 repo = DataRepository(tables_dir=Path(settings.tables_dir))
                 tables = repo.list_tables()
@@ -186,13 +187,17 @@ class ChatService:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
                 nl2sql = NL2SQLService()
-                log.info("NL2SQL question: %s", _preview_text(last.content.strip(), limit=200))
+                log.info(
+                    "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
+                    _preview_text(raw_question, limit=200),
+                    _preview_text(contextual_question, limit=200),
+                )
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
 
                 # Multi-step planning if enabled
                 if settings.nl2sql_plan_enabled:
                     try:
-                        plan = nl2sql.plan(question=last.content.strip(), schema=schema, max_steps=settings.nl2sql_plan_max_steps)
+                        plan = nl2sql.plan(question=contextual_question, schema=schema, max_steps=settings.nl2sql_plan_max_steps)
                         log.info("NL2SQL plan (%d steps)", len(plan))
                         if events:
                             try:
@@ -260,7 +265,7 @@ class ChatService:
                             last_columns = columns
                             last_rows = rows
                     try:
-                        answer = nl2sql.synthesize(question=last.content.strip(), evidence=evidence).strip()
+                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
                         # Provide an evidence_spec + evidence rows via helper
                         target_sql = (
@@ -269,7 +274,7 @@ class ChatService:
                         self._emit_evidence(
                             events=events,
                             client=client,
-                            label_hint=last.content,
+                            label_hint=raw_question,
                             base_sql=target_sql if isinstance(target_sql, str) else None,
                             fallback_columns=last_columns,
                             fallback_rows=last_rows,
@@ -290,7 +295,7 @@ class ChatService:
                 else:
                     # Single-shot NL→SQL with natural-language synthesis
                     try:
-                        sql = nl2sql.generate(question=last.content.strip(), schema=schema)
+                        sql = nl2sql.generate(question=contextual_question, schema=schema)
                         log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
                         if events:
                             try:
@@ -334,7 +339,7 @@ class ChatService:
                     self._emit_evidence(
                         events=events,
                         client=client,
-                        label_hint=last.content,
+                        label_hint=raw_question,
                         base_sql=sql,
                         fallback_columns=columns,
                         fallback_rows=rows,
@@ -346,7 +351,7 @@ class ChatService:
                         "rows": rows,
                     }]
                     try:
-                        answer = nl2sql.synthesize(question=last.content.strip(), evidence=evidence).strip()
+                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
                         return self._log_completion(
                             ChatResponse(reply=reply_text, metadata={"provider": "nl2sql+mindsdb", "sql": sql}),
@@ -381,6 +386,34 @@ class ChatService:
     # ----------------------
     # Helpers
     # ----------------------
+    def _prepare_nl2sql_question(self, messages: list[ChatMessage]) -> tuple[str, str]:
+        """Return the raw user question plus a context-enriched variant for NL→SQL."""
+        if not messages:
+            return "", ""
+        last = messages[-1]
+        question = last.content.strip()
+        if not question:
+            return "", ""
+
+        history: list[str] = []
+        for msg in messages[:-1]:
+            text = msg.content.strip()
+            if not text:
+                continue
+            if msg.role == "system":
+                continue
+            speaker = "User" if msg.role == "user" else "Assistant"
+            history.append(f"{speaker}: {text}")
+        if not history:
+            return question, question
+        context = "\n".join(history[-8:])
+        enriched = (
+            "Conversation history (keep implicit references consistent):\n"
+            f"{context}\n"
+            f"Current user question: {question}"
+        )
+        return question, enriched
+
     def _build_evidence_spec(self, columns: list[Any], *, label_hint: str | None = None) -> dict[str, Any]:
         """Build a generic evidence spec from available columns.
 
