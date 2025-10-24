@@ -474,8 +474,8 @@ export default function Chat() {
     <div
       className={clsx(
         'mx-auto flex flex-col animate-fade-in max-w-3xl',
-        // Réserve l'espace du panneau sur desktop quand ouvert
-        showEvidence && 'md:pl-[460px]'
+        // Décale tout le chat vers la droite quand le panneau est ouvert (desktop)
+        showEvidence && 'md:ml-[460px]'
       )}
     >
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
@@ -489,7 +489,9 @@ export default function Chat() {
           aria-pressed={showEvidence}
           aria-controls="evidence-drawer"
           className={clsx(
-            'shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-full border',
+            // Masqué quand le panneau est ouvert pour éviter l'icône au milieu
+            showEvidence ? 'hidden' : 'inline-flex',
+            'shrink-0 items-center justify-center h-9 w-9 rounded-full border',
             showEvidence ? 'bg-primary-900 text-white border-primary-900' : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
           )}
           title={showEvidence ? 'Fermer la barre latérale' : 'Ouvrir la barre latérale'}
