@@ -163,7 +163,6 @@ export default function Chat() {
     // Reset evidence state for the new question
     setEvidenceSpec(null)
     setEvidenceData(null)
-    setShowEvidence(false)
 
     const isChartMode = chartMode
     const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
