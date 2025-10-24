@@ -566,8 +566,8 @@ export default function Chat() {
       )}
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
-      <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent', showEvidence && 'md:pl-[460px]')}>
-        <div className={clsx('max-w-3xl mx-auto px-4 py-2')}>
+      <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent')}>
+        <div className={clsx('max-w-3xl mx-auto px-4 py-2', showEvidence && 'md:ml-[460px]')}>
           <div className="relative">
             <Textarea
               value={input}
