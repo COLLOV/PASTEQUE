@@ -1,9 +1,18 @@
+from datetime import date
+
 from insight_backend.services.neo4j_ingest import Neo4jIngestionService
 
 
-def test_coerce_value_date_returns_string():
+def test_coerce_value_date_returns_date():
     value = Neo4jIngestionService._coerce_value("created", "2025-03-01", ("created",))
-    assert value == "2025-03-01"
+    assert isinstance(value, date)
+    assert value == date(2025, 3, 1)
+
+
+def test_coerce_value_datetime_string_normalised_to_date():
+    value = Neo4jIngestionService._coerce_value("created", "2025-03-01 11:22:18", ("created",))
+    assert isinstance(value, date)
+    assert value == date(2025, 3, 1)
 
 
 def test_coerce_value_integer():
@@ -35,5 +44,5 @@ def test_prepare_props_skips_fields_and_trims():
         skip_fields={"ticket_id"},
     )
     assert "ticket_id" not in props
-    assert props["creation_date"] == "2025-02-03"
+    assert props["creation_date"] == date(2025, 2, 3)
     assert props["amount"] == 123

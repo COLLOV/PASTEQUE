@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from datetime import date, datetime
 from ..core.config import settings
 from ..integrations.neo4j_client import Neo4jClient, Neo4jClientError
 
@@ -291,7 +292,13 @@ class Neo4jIngestionService:
             return None
 
         if key in date_fields:
-            return text
+            try:
+                if len(text) == 10:
+                    return date.fromisoformat(text)
+                return datetime.fromisoformat(text).date()
+            except ValueError:
+                log.debug("Neo4j ingestion: failed to parse date for %s=%s", key, text)
+                return text
 
         try:
             if text.startswith("-") and text[1:].isdigit():
