@@ -10,6 +10,7 @@ export interface CreateUserResponse {
 export interface UserWithPermissionsResponse {
   username: string
   is_active: boolean
+  is_admin: boolean
   created_at: string
   allowed_tables: string[]
 }

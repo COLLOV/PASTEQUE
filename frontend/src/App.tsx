@@ -5,11 +5,8 @@ import Login from '@/features/auth/Login'
 import Chat from '@/features/chat/Chat'
 import Dashboard from '@/features/dashboard/Dashboard'
 import AdminPanel from '@/features/admin/AdminPanel'
-import { getAuth } from '@/services/auth'
 
 export default function App() {
-  const auth = getAuth()
-
   return (
     <BrowserRouter>
       <Routes>
@@ -30,7 +27,7 @@ export default function App() {
             path="admin"
             element={
               <ProtectedRoute requireAdmin>
-                <AdminPanel adminUsername={auth?.username || ''} />
+                <AdminPanel />
               </ProtectedRoute>
             }
           />

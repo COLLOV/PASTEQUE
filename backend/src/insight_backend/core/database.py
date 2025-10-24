@@ -29,6 +29,7 @@ def init_database() -> None:
 
     Base.metadata.create_all(bind=engine)
     _ensure_user_password_reset_column()
+    _ensure_admin_column()
     log.info("Database initialized (tables ensured).")
 
 
@@ -39,6 +40,37 @@ def get_session() -> Generator[Session, None, None]:
         yield session
     finally:
         session.close()
+
+
+def _ensure_admin_column() -> None:
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("users")}
+    with engine.begin() as conn:
+        if "is_admin" not in columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE users "
+                    "ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE"
+                )
+            )
+        previous_admins = conn.execute(
+            text(
+                "SELECT username FROM users "
+                "WHERE is_admin = TRUE AND username <> :admin_username"
+            ),
+            {"admin_username": settings.admin_username},
+        ).fetchall()
+        if previous_admins:
+            names = ", ".join(row[0] for row in previous_admins)
+            log.warning("Resetting admin flag for unexpected users: %s", names)
+        conn.execute(
+            text(
+                "UPDATE users "
+                "SET is_admin = CASE WHEN username = :admin_username THEN TRUE ELSE FALSE END"
+            ),
+            {"admin_username": settings.admin_username},
+        )
+    log.info("Admin flag column ensured on users table.")
 
 
 @contextmanager

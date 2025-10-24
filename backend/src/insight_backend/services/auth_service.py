@@ -19,12 +19,17 @@ class AuthService:
     def ensure_admin_user(self, username: str, password: str) -> bool:
         existing = self.repo.get_by_username(username)
         if existing:
+            if not existing.is_admin:
+                existing.is_admin = True
+                self.repo.session.flush()
+                log.info("Existing admin user flagged with admin privileges: %s", username)
             return False
         password_hash = hash_password(password)
         self.repo.create_user(
             username=username,
             password_hash=password_hash,
             is_active=True,
+            is_admin=True,
             must_reset_password=True,
         )
         log.info("Initial admin user ensured: %s", username)
