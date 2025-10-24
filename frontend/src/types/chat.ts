@@ -45,6 +45,8 @@ export interface ChatStreamMeta {
   request_id: string
   provider?: string
   model?: string
+  // Optional evidence spec provided by the pipeline (MCP/LLM)
+  evidence_spec?: EvidenceSpec
 }
 
 export interface ChatStreamDelta {
@@ -96,4 +98,29 @@ export interface SavedChartResponse {
   chart_spec?: Record<string, unknown> | null
   created_at: string
   owner_username: string
+}
+
+// Generic evidence contract (no hardcoding to "tickets")
+export interface EvidenceSpec {
+  entity_label: string
+  entity_name?: string
+  pk: string
+  display?: {
+    title?: string
+    status?: string
+    created_at?: string
+    link_template?: string
+  }
+  columns?: string[]
+  limit?: number
+  // Optional period hint for UI summary
+  period?: { from?: string; to?: string } | string
+}
+
+export interface EvidenceRowsPayload {
+  columns: string[]
+  rows: Record<string, unknown>[]
+  row_count?: number
+  step?: number
+  purpose?: string // expected: 'evidence'
 }
