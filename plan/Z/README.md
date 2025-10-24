@@ -99,9 +99,14 @@ Déclarez‑les via `MCP_SERVERS_JSON` (exemple minimal):
   },
   {
     "name": "neo4j",
-    "command": "mcp-neo4j",
-    "args": [],
-    "env": {"NEO4J_URI": "bolt://localhost:7687", "NEO4J_USER": "neo4j", "NEO4J_PASSWORD": "***"}
+    "command": "uvx",
+    "args": ["mcp-neo4j-cypher"],
+    "env": {
+      "NEO4J_URI": "bolt://localhost:7687",
+      "NEO4J_USERNAME": "neo4j",
+      "NEO4J_PASSWORD": "***",
+      "NEO4J_DATABASE": "neo4j"
+    }
   },
   {
     "name": "mindsdb",
@@ -125,4 +130,3 @@ Limité volontairement: le backend expose aujourd’hui la lecture de cette conf
 2) Mode API:
 - Exportez `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` et `LLM_MODE=api`.
 - Même appel HTTP que ci‑dessus.
-

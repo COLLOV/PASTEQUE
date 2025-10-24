@@ -173,6 +173,23 @@ Le backend exécutera la requête côté MindsDB et retournera un tableau texte.
 
 Note: cette commande n’implémente pas de NL→SQL; pour un flux LLM complet avec tool‑calling MCP, on l’ajoutera dans une itération suivante.
 
+### Neo4j – mode graphe
+
+- Variables requises (`.env`): `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`, `NEO4J_RESULT_LIMIT`.
+- Ingestion des CSV (`data/raw`) dans Neo4j:
+  ```bash
+  uv run python -m insight_backend.scripts.neo4j_ingest
+  ```
+  ou via HTTP: `POST /api/v1/neo4j/sync` renvoie le volume importé par dataset.
+- Le script racine `start.sh` déclenche automatiquement cette ingestion après la synchronisation MindsDB.
+- Côté chat, un nouveau toggle « Neo4j (Cypher) » force l’envoi d’un metadata `{ "neo4j": true }`. Le backend instancie un agent `pydantic-ai` connecté au serveur MCP `mcp-neo4j-cypher` (commande `uvx mcp-neo4j-cypher`).
+- La réponse streaming émet:
+  - `meta` (`provider=neo4j-graph`),
+  - `cypher` avec la requête générée,
+  - `rows` (`purpose: 'evidence'`) pour alimenter le panneau latéral,
+  - puis la réponse NL finale.
+- Les graphes reposent sur le schéma chargé: `Client`, `AgencyFeedback`, `AppFeedback`, `NPSFeedback`, `ServiceFeedback`, `SubscriptionFeedback`, `Claim`, `Ticket`, `Department` et les relations `HAS_*`, `HANDLED_BY`, `BELONGS_TO`.
+
 ### NL→SQL (questions en langage naturel)
 
 Vous pouvez activer un mode où le LLM génère le SQL automatiquement et l’exécute sur MindsDB:
