@@ -325,6 +325,15 @@ class Neo4jIngestionService:
         text = value.strip()
         return text or None
 
+    @classmethod
+    def date_field_names(cls) -> set[str]:
+        fields: set[str] = {"creation_date", "last_seen"}
+        for spec in cls._CLIENT_DATASETS:
+            fields.update(spec.date_fields)
+            if spec.date_field:
+                fields.add(spec.date_field)
+        return fields
+
 
 def sync_all() -> Dict[str, int]:
     service = Neo4jIngestionService()

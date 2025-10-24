@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import textwrap
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -16,9 +17,13 @@ from pydantic_ai.mcp import MCPServerStdio
 from ..core.config import settings
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
 from ..integrations.neo4j_client import Neo4jClient, Neo4jClientError
+from .neo4j_ingest import Neo4jIngestionService
 
 
 log = logging.getLogger("insight.services.neo4j_graph")
+
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_ISO_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2})?$")
 
 
 class Neo4jGraphError(RuntimeError):
@@ -90,6 +95,10 @@ class Neo4jGraphService:
         if not cypher:
             raise Neo4jGraphError("Le modèle n'a pas fourni de requête Cypher.")
 
+        sanitized_cypher = self._normalize_date_literals(cypher)
+        if sanitized_cypher != cypher:
+            log.debug("Normalisation des dates détectée dans la requête Cypher.")
+
         client = Neo4jClient(
             uri=settings.neo4j_uri,
             username=settings.neo4j_username,
@@ -98,20 +107,20 @@ class Neo4jGraphService:
             max_rows=settings.neo4j_result_limit,
         )
         try:
-            result = client.run_read(cypher, limit=settings.neo4j_result_limit)
+            result = client.run_read(sanitized_cypher, limit=settings.neo4j_result_limit)
         except Neo4jClientError as exc:
             raise Neo4jGraphError(f"Échec de l'exécution Cypher: {exc}") from exc
         finally:
             client.close()
 
-        snippet = " ".join(cypher.split())
+        snippet = " ".join(sanitized_cypher.split())
         if len(snippet) > 160:
             snippet = f"{snippet[:157]}..."
         log.info("Neo4j graph executed: rows=%d query=\"%s\"", result.row_count, snippet)
 
         return Neo4jGraphResult(
             answer=agent_output.answer.strip(),
-            cypher=cypher,
+            cypher=sanitized_cypher,
             columns=result.columns,
             rows=result.rows,
             row_count=result.row_count,
@@ -192,3 +201,65 @@ class Neo4jGraphService:
 
         provider = OpenAIProvider(base_url=base_url, api_key=api_key)
         return provider, str(model_name)
+
+    @classmethod
+    def _normalize_date_literals(cls, cypher: str) -> str:
+        if not cypher:
+            return cypher
+
+        date_fields = Neo4jIngestionService.date_field_names()
+        updated = cypher
+        for field in date_fields:
+            pattern = re.compile(
+                rf"(?P<lhs>(?:\b[\w`]+\.)?`?{re.escape(field)}`?\b\s*(?:=|<>|!=|<=|>=|<|>|IN)\s*)(?P<rhs>\[[^\]]*\]|'[^']*')",
+                flags=re.IGNORECASE,
+            )
+
+            def repl(match: re.Match[str]) -> str:
+                lhs = match.group("lhs")
+                rhs = match.group("rhs")
+                normalized_rhs = cls._normalize_date_rhs(rhs)
+                return f"{lhs}{normalized_rhs}"
+
+            updated = pattern.sub(repl, updated)
+        return updated
+
+    @staticmethod
+    def _normalize_date_rhs(raw_rhs: str) -> str:
+        stripped = raw_rhs.strip()
+        if not stripped:
+            return raw_rhs
+
+        prefix = raw_rhs[: len(raw_rhs) - len(raw_rhs.lstrip())]
+        suffix = raw_rhs[len(raw_rhs.rstrip()) :]
+
+        if stripped.startswith("[") and stripped.endswith("]"):
+            inner = stripped[1:-1]
+
+            def wrap_list_literal(match: re.Match[str]) -> str:
+                literal = match.group(0)
+                return Neo4jGraphService._wrap_date_literal(literal)
+
+            transformed_inner = re.sub(r"'[^']*'", wrap_list_literal, inner)
+            if transformed_inner == inner:
+                return raw_rhs
+            return f"{prefix}[{transformed_inner}]{suffix}"
+
+        normalized = Neo4jGraphService._wrap_date_literal(stripped)
+        if normalized == stripped:
+            return raw_rhs
+        return f"{prefix}{normalized}{suffix}"
+
+    @staticmethod
+    def _wrap_date_literal(literal: str) -> str:
+        trimmed = literal.strip()
+        lower = trimmed.lower()
+        if lower.startswith("date(") or lower.startswith("datetime("):
+            return literal
+        if len(trimmed) >= 2 and trimmed[0] == trimmed[-1] == "'":
+            value = trimmed[1:-1]
+            if _ISO_DATE_RE.match(value):
+                return f"date('{value}')"
+            if _ISO_DATETIME_RE.match(value):
+                return f"date('{value[:10]}')"
+        return literal
