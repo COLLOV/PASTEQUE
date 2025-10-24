@@ -5,7 +5,6 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from datetime import date, datetime
 from ..core.config import settings
 from ..integrations.neo4j_client import Neo4jClient, Neo4jClientError
 
@@ -292,12 +291,15 @@ class Neo4jIngestionService:
             return None
 
         if key in date_fields:
-            try:
-                if len(text) == 10:
-                    return date.fromisoformat(text)
-                return datetime.fromisoformat(text)
-            except ValueError:
-                log.debug("Neo4j ingestion: failed to parse temporal value for %s=%s", key, text)
+            return text
+
+        try:
+            if text.startswith("-") and text[1:].isdigit():
+                return int(text)
+            if text.isdigit():
+                return int(text)
+        except ValueError:
+            pass
         return text
 
     def _read_csv(self, name: str) -> List[Dict[str, str]]:
