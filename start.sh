@@ -147,6 +147,12 @@ else:
 PY
 )
 
+echo "[start] Syncing local tables into Neo4j"
+(
+  cd backend
+  uv run python -m insight_backend.scripts.neo4j_ingest
+)
+
 FRONTEND_ENV_FILE="frontend/.env.development"
 API_URL="http://localhost:${BACKEND_PORT}/api/v1"
 ALLOWED_ORIGINS_VALUE="http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}"

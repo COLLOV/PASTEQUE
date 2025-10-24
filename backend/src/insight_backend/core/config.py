@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     mindsdb_base_url: str = Field("http://127.0.0.1:47334/api", alias="MINDSDB_BASE_URL")
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
 
+    # Neo4j graph configuration
+    neo4j_uri: str = Field("bolt://localhost:7687", alias="NEO4J_URI")
+    neo4j_username: str = Field("neo4j", alias="NEO4J_USERNAME")
+    neo4j_password: str = Field("neo4j", alias="NEO4J_PASSWORD")
+    neo4j_database: str | None = Field("neo4j", alias="NEO4J_DATABASE")
+    neo4j_result_limit: int = Field(200, alias="NEO4J_RESULT_LIMIT")
+
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
 
