@@ -21,8 +21,20 @@ class UserRepository:
             .one_or_none()
         )
 
-    def create_user(self, username: str, password_hash: str, is_active: bool = True) -> User:
-        user = User(username=username, password_hash=password_hash, is_active=is_active)
+    def create_user(
+        self,
+        username: str,
+        password_hash: str,
+        *,
+        is_active: bool = True,
+        must_reset_password: bool = True,
+    ) -> User:
+        user = User(
+            username=username,
+            password_hash=password_hash,
+            is_active=is_active,
+            must_reset_password=must_reset_password,
+        )
         self.session.add(user)
         self.session.flush()
         log.info("User created: %s", username)
