@@ -129,7 +129,7 @@ data/
 
 - Capture dataset: dans `frontend/src/features/chat/Chat.tsx`, conserver le dernier `rows` dont `purpose: 'evidence'` (colonnes + lignes + `row_count`) + `evidence_spec`; marquer `sourceMode = 'sql' | 'graph'`.
 - Bouton contextuel: afficher « {entity_label} (N) » selon `evidence_spec.entity_label`; bouton désactivé + tooltip si spec absent.
-- Panneau latéral: slide‑over à droite (min‑w 320px, max‑w 40vw), overlay cliquable, fermeture `Esc` et croix; en‑tête avec `entity_label`, période éventuelle fournie par le spec, et mode (SQL MindsDB | Graph).
+- Panneau latéral: **desktop** → volet fixe à gauche (≈420px). **mobile** → bottom‑sheet (≈70% hauteur) avec overlay cliquable; fermeture `Esc` et croix; en‑tête avec `entity_label`, période éventuelle fournie par le spec, et mode (SQL MindsDB | Graph).
 - Liste générique: rendu simple réutilisant `Card`/styles locaux; champs pris dans `display.{title,created_at,status}` et `pk`; tri par `display.created_at` si fourni; max 100 lignes (ou `spec.limit`) avec badge « +N ».
 - États UI: `loading`, `vide` (« Aucun élément de preuve »), `erreur` (texte clair); messages discrets uniquement.
 - Accessibilité: focus piégé dans le panneau, navigation clavier complète, contraste AA; responsive ≥ 360px.
