@@ -63,6 +63,7 @@ export default function Chat() {
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showEvidence, setShowEvidence] = useState(false)
+  // hasRoomForSidebar: true only when we can keep chat and sidebar side-by-side (desktop)
   const [canShowEvidenceUI, setCanShowEvidenceUI] = useState(true)
   const [userCollapsed, setUserCollapsed] = useState(false)
   // Keep live refs to avoid stale closures in streaming callbacks
@@ -106,15 +107,15 @@ export default function Chat() {
     }
   }, [evidenceSpec, evidenceData, showEvidence, userCollapsed])
 
-  // Auto-close sidebar when viewport is too small (or on mobile) to preserve chat readability
+  // Auto-close sidebar only on desktop when remaining chat width becomes too small
   useEffect(() => {
     const handleResize = () => {
       try {
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
-        const canShow = (w >= LG) && ((w - PANEL_W) >= MIN_CHAT_W)
-        setCanShowEvidenceUI(canShow)
-        if (showEvidence && !canShow) {
-          // auto-close due to space, but do not mark as userCollapsed
+        const hasRoom = (w >= LG) && ((w - PANEL_W) >= MIN_CHAT_W)
+        setCanShowEvidenceUI(hasRoom)
+        // Only auto-close on desktop when sidebar layout would overlap the chat
+        if (showEvidence && w >= LG && !hasRoom) {
           setShowEvidence(false)
         }
       } catch {
@@ -505,20 +506,19 @@ export default function Chat() {
     >
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
-      {/* Evidence toggle pill (sticky, right) */}
+      {/* Evidence toggle pill (sticky, right). Always available; on small screens opens bottom sheet. */}
       <div className="sticky top-0 z-20 flex justify-end items-center px-2 pt-2">
         <EvidenceButton
           ref={evidenceBtnRef}
           spec={evidenceSpec}
           data={evidenceData}
           open={showEvidence}
-          canOpen={canShowEvidenceUI}
           onClick={() => (showEvidence ? closeEvidence() : openEvidence())}
         />
       </div>
 
-      {/* Hamburger toggle fixed on the far left when collapsed and space allows */}
-      {!showEvidence && canShowEvidenceUI && (
+      {/* Hamburger toggle fixed on the far left when collapsed (always offered, even on small screens) */}
+      {!showEvidence && (
         <button
           type="button"
           onClick={openEvidence}
@@ -812,19 +812,18 @@ type EvidenceButtonProps = {
   spec: EvidenceSpec | null
   data: EvidenceRowsPayload | null
   open?: boolean
-  canOpen?: boolean
   onClick: () => void
 }
 
 const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(function EvidenceButton (
-  { spec, data, open = false, canOpen = true, onClick }, ref
+  { spec, data, open = false, onClick }, ref
 ) {
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const label = spec?.entity_label || 'Éléments'
   const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
   const shown = Math.min(count, limit)
   const extra = Math.max(count - limit, 0)
-  const disabled = !spec || count === 0 || !canOpen
+  const disabled = false
   const badge = extra > 0 ? `${shown}+` : `${shown}`
   return (
     <button
@@ -835,10 +834,9 @@ const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(functi
       aria-pressed={open}
       aria-expanded={open}
       title={
-        !spec ? 'Aucun evidence_spec reçu'
-        : (!canOpen ? 'Panneau indisponible: espace insuffisant'
+        !spec ? 'Éléments (aucune donnée)'
         : (count === 0 ? 'Aucun élément de preuve'
-        : (open ? `Fermer ${label.toLowerCase()}` : `Ouvrir ${label.toLowerCase()}`)))
+        : (open ? `Fermer ${label.toLowerCase()}` : `Ouvrir ${label.toLowerCase()}`))
       }
       className={clsx(
         'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
