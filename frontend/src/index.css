@@ -7,6 +7,7 @@
     /* Evidence sidebar layout tokens (desktop) */
     --evidence-panel-w: 420px; /* visible width of the panel */
     --evidence-offset: 24px;   /* left offset (matches left-6) */
+    --evidence-gutter: 24px;   /* visual gap between panel and chat (overlay mode) */
   }
   * {
     @apply border-primary-200;

@@ -527,13 +527,7 @@ export default function Chat() {
   }
 
   return (
-    <div
-      className={clsx(
-        'mx-auto flex flex-col animate-fade-in max-w-3xl',
-        // Décale tout le chat vers la droite quand le panneau est ouvert (desktop)
-        showEvidence && 'md:ml-[var(--evidence-offset)+var(--evidence-panel-w)]'
-      )}
-    >
+    <div className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}> 
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
       {/* Evidence toggle pill (sticky, right). Always available; on small screens opens bottom sheet. */}
@@ -617,7 +611,7 @@ export default function Chat() {
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent')}>
-        <div className={clsx('max-w-3xl mx-auto px-4 py-2', showEvidence && 'md:ml-[var(--evidence-offset)+var(--evidence-panel-w)]')}>
+        <div className={clsx('max-w-3xl mx-auto px-4 py-2')}>
           <div className="relative">
             <Textarea
               value={input}
