@@ -162,6 +162,7 @@ import { login } from '@/services/auth'
   - Pilule « Tickets » en haut (sticky) avec badge et état actif.
 - Accessibilité: `aria-pressed`, `aria-expanded`, `role="dialog"`, `aria-modal` et fermeture au clavier via `Escape`.
 - Les liens de chaque ticket s’ouvrent dans un nouvel onglet et les colonnes restent scrollables.
+- Panneau scrollable: le tiroir « Tickets » possède désormais un `overflow-y-auto` pour permettre le défilement quand la liste est longue (mobile et desktop).
 
 #### Composer (Mise à jour)
 
