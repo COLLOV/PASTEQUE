@@ -144,7 +144,8 @@ export default function Chat() {
   // - auto-closes when not enough room
   // - can auto-open if there is room and evidence is available and user did not collapse manually
   useEffect(() => {
-    const handleResize = () => {
+    let raf = 0
+    const handleResizeWork = () => {
       try {
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
         const panelW = readCssPxVar('--evidence-panel-w')
@@ -190,18 +191,27 @@ export default function Chat() {
         }
       }
     }
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    const onResize = () => {
+      if (raf) return
+      raf = window.requestAnimationFrame(() => {
+        raf = 0
+        handleResizeWork()
+      })
+    }
+    handleResizeWork()
+    window.addEventListener('resize', onResize)
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener('resize', onResize)
+    }
   }, [])
 
   // Default: open the panel when there is enough space and user didn't collapse it.
-  // Use functional update to avoid stale state and unnecessary dependencies.
   useEffect(() => {
-    if (canShowEvidenceUI && !userCollapsed) {
-      setShowEvidence(prev => prev || true)
+    if (canShowEvidenceUI && !userCollapsed && !showEvidence) {
+      setShowEvidence(true)
     }
-  }, [canShowEvidenceUI, userCollapsed])
+  }, [canShowEvidenceUI, userCollapsed, showEvidence])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
@@ -1031,10 +1041,11 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   return (
     <div className="fixed inset-0 z-40 md:pointer-events-none" id="evidence-drawer">
       {/* Overlay (clic pour fermer) uniquement sur mobile/tablette */}
-      <button
-        type="button"
+      <div
+        role="presentation"
+        aria-hidden="true"
+        tabIndex={-1}
         className="absolute inset-0 bg-black/20 md:hidden"
-        aria-label="Fermer l'overlay"
         onClick={onClose}
       />
 
