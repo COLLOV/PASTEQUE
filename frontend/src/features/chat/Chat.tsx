@@ -929,9 +929,9 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
         aria-labelledby="evidence-panel-title"
         className={clsx(
           // Mobile: bottom sheet plein largeur
-          'absolute left-0 right-0 bottom-0 h-[70vh] w-full rounded-t-2xl border-t border-x bg-white p-3 shadow-lg transition-transform duration-200 ease-out',
+          'absolute left-0 right-0 bottom-0 h-[70vh] w-full rounded-t-2xl border-t border-x bg-white p-3 shadow-lg transition-transform duration-200 ease-out overflow-y-auto overscroll-contain',
           // Desktop: panneau latéral fixe à gauche
-          'md:left-6 md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[420px] md:rounded-lg md:border md:p-3 md:shadow-md',
+          'md:left-6 md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[420px] md:rounded-lg md:border md:p-3 md:shadow-md md:overflow-y-auto',
           // Ensure interactions on desktop when wrapper ignores pointer events
           'pointer-events-auto'
         )}
