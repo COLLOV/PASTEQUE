@@ -103,16 +103,14 @@ export default function Chat() {
     setUserCollapsed(true)
   }
 
-  // Open evidence panel only when both spec and rows are available AND viewport large enough and not manually collapsed
+  // Open evidence panel only when both spec and rows are available AND there is room (driven by canShowEvidenceUI), and not manually collapsed
   useEffect(() => {
     const hasSpec = Boolean(evidenceSpec)
     const hasRows = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
-    const w = typeof window !== 'undefined' ? window.innerWidth : 0
-    const fitsDesktop = w >= LG && (w - PANEL_W) >= MIN_CHAT_W
-    if (!userCollapsed && !showEvidence && hasSpec && hasRows && fitsDesktop) {
+    if (!userCollapsed && !showEvidence && hasSpec && hasRows && canShowEvidenceUI) {
       openEvidence()
     }
-  }, [evidenceSpec, evidenceData, showEvidence, userCollapsed])
+  }, [evidenceSpec, evidenceData, showEvidence, userCollapsed, canShowEvidenceUI])
 
   // Resize listener (register once):
   // - updates canShowEvidenceUI
