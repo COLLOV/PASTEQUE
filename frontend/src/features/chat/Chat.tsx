@@ -50,10 +50,6 @@ function createMessageId(): string {
 
 export default function Chat() {
   // Layout thresholds (desktop sidebar width and minimal chat width)
-  // PANEL_W represents the total horizontal occupancy of the evidence sidebar on desktop:
-  // 420px (panel width) + 24px (left offset) = 444px
-  // Chat content margin-left uses the same value to avoid mismatch.
-  const PANEL_W = 444
   const MIN_CHAT_W = 680
   const LG = 1024
   const [messages, setMessages] = useState<Message[]>([])
@@ -112,6 +108,17 @@ export default function Chat() {
     }
   }, [evidenceSpec, evidenceData, showEvidence, userCollapsed, canShowEvidenceUI])
 
+  // Helper to read CSS custom properties declared in index.css
+  const readCssPxVar = (name: string) => {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name)
+      const n = parseFloat(v)
+      return Number.isFinite(n) ? n : 0
+    } catch {
+      return 0
+    }
+  }
+
   // Resize listener (register once):
   // - updates canShowEvidenceUI
   // - auto-closes when not enough room
@@ -120,7 +127,8 @@ export default function Chat() {
     const handleResize = () => {
       try {
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
-        const hasRoom = (w >= LG) && ((w - PANEL_W) >= MIN_CHAT_W)
+        const panelTotal = readCssPxVar('--evidence-panel-w') + readCssPxVar('--evidence-offset')
+        const hasRoom = (w >= LG) && ((w - panelTotal) >= MIN_CHAT_W)
         setCanShowEvidenceUI(hasRoom)
         if (showEvidenceRef.current && w >= LG && !hasRoom) {
           setShowEvidence(false)
@@ -523,7 +531,7 @@ export default function Chat() {
       className={clsx(
         'mx-auto flex flex-col animate-fade-in max-w-3xl',
         // Décale tout le chat vers la droite quand le panneau est ouvert (desktop)
-        showEvidence && 'md:ml-[444px]'
+        showEvidence && 'md:ml-[var(--evidence-offset)+var(--evidence-panel-w)]'
       )}
     >
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
@@ -609,7 +617,7 @@ export default function Chat() {
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent')}>
-        <div className={clsx('max-w-3xl mx-auto px-4 py-2', showEvidence && 'md:ml-[444px]')}>
+        <div className={clsx('max-w-3xl mx-auto px-4 py-2', showEvidence && 'md:ml-[var(--evidence-offset)+var(--evidence-panel-w)]')}>
           <div className="relative">
             <Textarea
               value={input}
@@ -999,7 +1007,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
           // Mobile: bottom sheet plein largeur
           'absolute left-0 right-0 bottom-0 h-[70vh] w-full rounded-t-2xl border-t border-x bg-white p-3 shadow-lg transition-transform duration-200 ease-out overflow-y-auto overscroll-contain',
           // Desktop: panneau latéral fixe à gauche
-          'md:left-6 md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[420px] md:rounded-lg md:border md:p-3 md:shadow-md md:overflow-y-auto',
+          'md:left-[var(--evidence-offset)] md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[var(--evidence-panel-w)] md:rounded-lg md:border md:p-3 md:shadow-md md:overflow-y-auto',
           // Ensure interactions on desktop when wrapper ignores pointer events
           'pointer-events-auto'
         )}

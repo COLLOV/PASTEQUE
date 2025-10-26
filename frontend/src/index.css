@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Evidence sidebar layout tokens (desktop) */
+    --evidence-panel-w: 420px; /* visible width of the panel */
+    --evidence-offset: 24px;   /* left offset (matches left-6) */
+  }
   * {
     @apply border-primary-200;
   }
