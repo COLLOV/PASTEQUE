@@ -137,8 +137,11 @@ export default function Chat() {
             setShowEvidence(true)
           }
         }
-      } catch {
-        // noop
+      } catch (err) {
+        if (import.meta.env.MODE === 'development') {
+          // eslint-disable-next-line no-console
+          console.warn('[evidence] resize handler failed', err)
+        }
       }
     }
     handleResize()
@@ -928,7 +931,11 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
       // Basic URL validation: allow http(s) and absolute/relative paths
       const safe = out.startsWith('http://') || out.startsWith('https://') || out.startsWith('/')
       return safe ? out : undefined
-    } catch {
+    } catch (err) {
+      if (import.meta.env.MODE === 'development') {
+        // eslint-disable-next-line no-console
+        console.warn('[evidence] link_template build failed', err)
+      }
       return undefined
     }
   }
