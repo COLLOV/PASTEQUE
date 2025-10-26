@@ -70,9 +70,11 @@ export default function Chat() {
   const evidenceDataRef = useRef<EvidenceRowsPayload | null>(null)
   const evidenceBtnRef = useRef<HTMLButtonElement | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const chatRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const showEvidenceRef = useRef<boolean>(false)
   const userCollapsedRef = useRef<boolean>(false)
+  const [chatOffset, setChatOffset] = useState(0)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -106,6 +108,24 @@ export default function Chat() {
     if (!userCollapsed && !showEvidence && hasSpec && hasRows && canShowEvidenceUI) {
       openEvidence()
     }
+    // Recompute offset when evidence visibility or layout room changes
+    // next frame to ensure DOM has applied potential visibility updates
+    requestAnimationFrame(() => {
+      try {
+        const w = typeof window !== 'undefined' ? window.innerWidth : 0
+        const panelW = readCssPxVar('--evidence-panel-w')
+        const panelOffset = readCssPxVar('--evidence-offset')
+        const panelTotal = panelW + panelOffset
+        const gutter = readCssPxVar('--evidence-gutter')
+        if (w >= LG && showEvidenceRef.current && chatRef.current) {
+          const rect = chatRef.current.getBoundingClientRect()
+          const needed = Math.max(0, Math.ceil(panelTotal + gutter - rect.left))
+          setChatOffset(needed)
+        } else {
+          setChatOffset(0)
+        }
+      } catch {/* noop */}
+    })
   }, [evidenceSpec, evidenceData, showEvidence, userCollapsed, canShowEvidenceUI])
 
   // Helper to read CSS custom properties declared in index.css
@@ -127,7 +147,10 @@ export default function Chat() {
     const handleResize = () => {
       try {
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
-        const panelTotal = readCssPxVar('--evidence-panel-w') + readCssPxVar('--evidence-offset')
+        const panelW = readCssPxVar('--evidence-panel-w')
+        const panelOffset = readCssPxVar('--evidence-offset')
+        const panelTotal = panelW + panelOffset
+        const gutter = readCssPxVar('--evidence-gutter')
         const hasRoom = (w >= LG) && ((w - panelTotal) >= MIN_CHAT_W)
         setCanShowEvidenceUI(hasRoom)
         if (showEvidenceRef.current && w >= LG && !hasRoom) {
@@ -143,6 +166,22 @@ export default function Chat() {
           if (hasSpec && hasRows) {
             setShowEvidence(true)
           }
+        }
+
+        // Compute horizontal offset to keep chat centered but never under the panel
+        // Only on desktop and while panel is shown
+        if (w >= LG && showEvidenceRef.current) {
+          const el = chatRef.current
+          if (el) {
+            const rect = el.getBoundingClientRect()
+            const panelRight = panelTotal + gutter
+            const needed = Math.max(0, Math.ceil(panelRight - rect.left))
+            setChatOffset(needed)
+          } else {
+            setChatOffset(0)
+          }
+        } else {
+          setChatOffset(0)
         }
       } catch (err) {
         if (import.meta.env.MODE === 'development') {
@@ -527,7 +566,11 @@ export default function Chat() {
   }
 
   return (
-    <div className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}> 
+    <div
+      ref={chatRef}
+      className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}
+      style={chatOffset ? { transform: `translateX(${chatOffset}px)` } : undefined}
+    > 
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
 
       {/* Evidence toggle pill (sticky, right). Always available; on small screens opens bottom sheet. */}
@@ -611,7 +654,10 @@ export default function Chat() {
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent')}>
-        <div className={clsx('max-w-3xl mx-auto px-4 py-2')}>
+        <div
+          className={clsx('max-w-3xl mx-auto px-4 py-2')}
+          style={chatOffset ? { transform: `translateX(${chatOffset}px)` } : undefined}
+        >
           <div className="relative">
             <Textarea
               value={input}
