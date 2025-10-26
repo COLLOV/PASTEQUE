@@ -50,6 +50,8 @@ function createMessageId(): string {
 
 export default function Chat() {
   // Layout thresholds (desktop sidebar width and minimal chat width)
+  // PANEL_W represents the total horizontal occupancy of the evidence sidebar on desktop:
+  // ≈ 420px (panel width) + 24px (left offset) + ~16px safe gap → 460px
   const PANEL_W = 460
   const MIN_CHAT_W = 680
   const LG = 1024
@@ -72,6 +74,8 @@ export default function Chat() {
   const evidenceBtnRef = useRef<HTMLButtonElement | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const showEvidenceRef = useRef<boolean>(false)
+  const userCollapsedRef = useRef<boolean>(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -85,6 +89,8 @@ export default function Chat() {
   // Keep latest evidence refs in sync
   useEffect(() => { evidenceSpecRef.current = evidenceSpec }, [evidenceSpec])
   useEffect(() => { evidenceDataRef.current = evidenceData }, [evidenceData])
+  useEffect(() => { showEvidenceRef.current = showEvidence }, [showEvidence])
+  useEffect(() => { userCollapsedRef.current = userCollapsed }, [userCollapsed])
 
   function openEvidence() {
     setShowEvidence(true)
@@ -107,16 +113,29 @@ export default function Chat() {
     }
   }, [evidenceSpec, evidenceData, showEvidence, userCollapsed])
 
-  // Auto-close sidebar only on desktop when remaining chat width becomes too small
+  // Resize listener (register once):
+  // - updates canShowEvidenceUI
+  // - auto-closes when not enough room
+  // - can auto-open if there is room and evidence is available and user did not collapse manually
   useEffect(() => {
     const handleResize = () => {
       try {
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
         const hasRoom = (w >= LG) && ((w - PANEL_W) >= MIN_CHAT_W)
         setCanShowEvidenceUI(hasRoom)
-        // Only auto-close on desktop when sidebar layout would overlap the chat
-        if (showEvidence && w >= LG && !hasRoom) {
+        if (showEvidenceRef.current && w >= LG && !hasRoom) {
           setShowEvidence(false)
+        } else if (
+          !showEvidenceRef.current &&
+          hasRoom && w >= LG &&
+          !userCollapsedRef.current
+        ) {
+          const hasSpec = Boolean(evidenceSpecRef.current)
+          const d = evidenceDataRef.current
+          const hasRows = (d?.row_count ?? d?.rows?.length ?? 0) > 0
+          if (hasSpec && hasRows) {
+            setShowEvidence(true)
+          }
         }
       } catch {
         // noop
@@ -125,14 +144,15 @@ export default function Chat() {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [showEvidence])
+  }, [])
 
-  // Default: open the panel (even empty) when there is enough space and user didn't collapse it
+  // Default: open the panel when there is enough space and user didn't collapse it.
+  // Use functional update to avoid stale state and unnecessary dependencies.
   useEffect(() => {
-    if (canShowEvidenceUI && !showEvidence && !userCollapsed) {
-      openEvidence()
+    if (canShowEvidenceUI && !userCollapsed) {
+      setShowEvidence(prev => prev || true)
     }
-  }, [canShowEvidenceUI])
+  }, [canShowEvidenceUI, userCollapsed])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
