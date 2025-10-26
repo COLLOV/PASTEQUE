@@ -847,13 +847,14 @@ const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(functi
   const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
   const shown = Math.min(count, limit)
   const extra = Math.max(count - limit, 0)
-  const disabled = false
+  // Disabled only when panel is closed and there is no data/spec to show.
+  const disabled = !open && (!spec || count === 0)
   const badge = extra > 0 ? `${shown}+` : `${shown}`
   return (
     <button
       ref={ref}
       type="button"
-      onClick={onClick}
+      onClick={() => { if (!disabled) onClick() }}
       disabled={disabled}
       aria-pressed={open}
       aria-expanded={open}
@@ -890,6 +891,7 @@ type EvidenceSidebarProps = {
 }
 
 function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
+  const asideRef = useRef<HTMLElement | null>(null)
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
   const allRows: Record<string, unknown>[] = data?.rows ?? []
@@ -925,6 +927,45 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
     return () => window.removeEventListener('keydown', handleEscape)
   }, [onClose])
 
+  // Minimal focus trap inside the sidebar while it is mounted
+  useEffect(() => {
+    const root = asideRef.current
+    if (!root) return
+
+    const prevActive = (document.activeElement as HTMLElement | null) ?? null
+    const selector = 'a[href], area[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    const getFocusable = () => Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(el => !el.getAttribute('aria-hidden'))
+
+    // Try focusing the close button first, fallback to first focusable
+    const closeBtn = root.querySelector('button[aria-label="Fermer le panneau"]') as HTMLElement | null
+    ;(closeBtn ?? getFocusable()[0])?.focus()
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      const nodes = getFocusable()
+      if (nodes.length === 0) return
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      const active = document.activeElement as HTMLElement | null
+      if (e.shiftKey) {
+        if (!active || active === first || !root.contains(active)) {
+          last.focus()
+          e.preventDefault()
+        }
+      } else {
+        if (active === last) {
+          first.focus()
+          e.preventDefault()
+        }
+      }
+    }
+    root.addEventListener('keydown', onKeyDown)
+    return () => {
+      root.removeEventListener('keydown', onKeyDown)
+      if (prevActive && document.contains(prevActive)) prevActive.focus()
+    }
+  }, [spec, data])
+
   function buildLink(tpl: string, row: Record<string, unknown>) {
     try {
       if (typeof tpl !== 'string' || tpl.length === 0) return undefined
@@ -952,6 +993,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
       />
 
       <aside
+        ref={asideRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="evidence-panel-title"
@@ -1008,7 +1050,7 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
                 </div>
                 {link && (
                   <div className="mt-1 text-xs">
-                    <a href={link} target="_blank" rel="noreferrer" className="underline text-primary-600 break-all">{link}</a>
+                    <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all">{link}</a>
                   </div>
                 )}
                 {columns && columns.length > 0 && (
