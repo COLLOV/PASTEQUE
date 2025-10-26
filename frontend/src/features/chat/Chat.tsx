@@ -51,8 +51,9 @@ function createMessageId(): string {
 export default function Chat() {
   // Layout thresholds (desktop sidebar width and minimal chat width)
   // PANEL_W represents the total horizontal occupancy of the evidence sidebar on desktop:
-  // ≈ 420px (panel width) + 24px (left offset) + ~16px safe gap → 460px
-  const PANEL_W = 460
+  // 420px (panel width) + 24px (left offset) = 444px
+  // Chat content margin-left uses the same value to avoid mismatch.
+  const PANEL_W = 444
   const MIN_CHAT_W = 680
   const LG = 1024
   const [messages, setMessages] = useState<Message[]>([])
@@ -524,7 +525,7 @@ export default function Chat() {
       className={clsx(
         'mx-auto flex flex-col animate-fade-in max-w-3xl',
         // Décale tout le chat vers la droite quand le panneau est ouvert (desktop)
-        showEvidence && 'md:ml-[460px]'
+        showEvidence && 'md:ml-[444px]'
       )}
     >
       {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
@@ -610,7 +611,7 @@ export default function Chat() {
 
       {/* Barre de composition fixe en bas de page (container transparent) */}
       <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent')}>
-        <div className={clsx('max-w-3xl mx-auto px-4 py-2', showEvidence && 'md:ml-[460px]')}>
+        <div className={clsx('max-w-3xl mx-auto px-4 py-2', showEvidence && 'md:ml-[444px]')}>
           <div className="relative">
             <Textarea
               value={input}
