@@ -27,7 +27,12 @@ def session():
 def users(session):
     alice = User(username="alice", password_hash="hash", is_active=True)
     bob = User(username="bob", password_hash="hash", is_active=True)
-    admin = User(username=settings.admin_username, password_hash="hash", is_active=True)
+    admin = User(
+        username=settings.admin_username,
+        password_hash="hash",
+        is_active=True,
+        is_admin=True,
+    )
     session.add_all([alice, bob, admin])
     session.commit()
     session.refresh(alice)

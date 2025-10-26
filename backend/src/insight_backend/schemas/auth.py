@@ -56,14 +56,22 @@ class UpdateUserPermissionsRequest(BaseModel):
 class UserWithPermissionsResponse(BaseModel):
     username: str
     is_active: bool
+    is_admin: bool
     created_at: datetime
     allowed_tables: list[str]
 
     @classmethod
-    def from_model(cls, user: "User", *, allowed_tables: Iterable[str]) -> "UserWithPermissionsResponse":
+    def from_model(
+        cls,
+        user: "User",
+        *,
+        allowed_tables: Iterable[str],
+        is_admin: bool,
+    ) -> "UserWithPermissionsResponse":
         return cls(
             username=user.username,
             is_active=user.is_active,
+            is_admin=is_admin,
             created_at=user.created_at,
             allowed_tables=sorted(set(allowed_tables), key=str.casefold),
         )

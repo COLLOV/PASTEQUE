@@ -42,6 +42,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
 - Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL et échantillons (métadonnées techniques masquées pour alléger l’UI).
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
+- Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 
 ### Gestion des utilisateurs (admin)
 
@@ -49,6 +50,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Tout nouvel utilisateur (y compris l’administrateur initial) doit définir un mot de passe définitif lors de sa première connexion. Le backend retourne un code `PASSWORD_RESET_REQUIRED` si un utilisateur tente de se connecter avec son mot de passe provisoire: le frontend affiche alors un formulaire dédié qui impose la saisie du nouveau mot de passe deux fois avant de poursuivre.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 - L’API `POST /api/v1/auth/reset-password` (sans jeton) attend `{ username, current_password, new_password, confirm_password }`. En cas de succès elle renvoie `204` ; le frontend relance automatiquement la connexion avec le nouveau secret.
+- `GET /api/v1/auth/users` expose désormais un champ `is_admin` par utilisateur : l’interface s’en sert pour signaler l’administrateur réel et bloque toute modification de ses autorisations dans la matrice.
 - Les tokens d’authentification expirent désormais au bout de 4 heures. Si un token devient invalide, le frontend purge la session et redirige automatiquement vers la page de connexion pour éviter les erreurs silencieuses côté utilisateur.
 - Le panneau admin inclut maintenant une matrice des droits sur les tables CSV/TSV présentes dans `data/raw/`. Chaque case permet d’autoriser ou de retirer l’accès par utilisateur; l’administrateur conserve un accès complet par défaut.
 - Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.

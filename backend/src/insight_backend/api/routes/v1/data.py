@@ -10,7 +10,7 @@ from ....repositories.data_repository import DataRepository
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 from ....core.config import settings
 from ....core.database import get_session
-from ....core.security import get_current_user
+from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 
 router = APIRouter(prefix="/data")
@@ -31,7 +31,7 @@ def list_tables(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
 ) -> list[TableInfo]:
     allowed = None
-    if current_user.username != settings.admin_username:
+    if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     return _service.list_tables(allowed_tables=allowed)
 
@@ -43,7 +43,7 @@ def get_table_schema(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
 ) -> list[ColumnInfo]:
     allowed = None
-    if current_user.username != settings.admin_username:
+    if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     try:
         return _service.get_schema(table_name, allowed_tables=allowed)

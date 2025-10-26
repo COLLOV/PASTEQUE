@@ -24,11 +24,13 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
   DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/pasteque
   ```
 - Au démarrage, le backend crée la table `users` si nécessaire et provisionne un compte administrateur (`ADMIN_USERNAME` / `ADMIN_PASSWORD`). Les valeurs par défaut sont `admin / admin`; changez-les via l’environnement avant le premier lancement pour écraser la valeur stockée.
+- Une colonne booléenne `is_admin` sur la table `users` est forcée à `true` uniquement pour ce compte administrateur et à `false` pour tous les autres comptes à chaque démarrage. Les contrôles d’accès vérifient ce flag *et* le nom d’utilisateur pour éviter toute élévation de privilèges accidentelle.
 - Les mots de passe sont hachés avec Argon2 (`argon2-cffi`). Si vous avez déjà déployé la version bcrypt, exécutez la migration manuelle suivante pour élargir la colonne :
   ```
   ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(256);
   ```
 - L’endpoint `POST /api/v1/auth/login` vérifie les identifiants et retourne un jeton `Bearer` (JWT HS256).
+- L’endpoint `GET /api/v1/auth/users` inclut un champ booléen `is_admin` pour refléter l’état réel de l’utilisateur côté base; le frontend s’appuie dessus pour neutraliser toute modification des droits de l’administrateur.
 - La colonne `must_reset_password` est ajoutée automatiquement au démarrage si elle n’existe pas encore. Elle force chaque nouvel utilisateur à passer par `POST /api/v1/auth/reset-password` (payload : `username`, `current_password`, `new_password`, `confirm_password`) avant d’obtenir un jeton. La réponse de login renvoie un code d’erreur `PASSWORD_RESET_REQUIRED` tant que le mot de passe n’a pas été mis à jour.
 
 ### Journalisation
