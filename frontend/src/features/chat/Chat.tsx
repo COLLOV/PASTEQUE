@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent, forwardRef } from 'react'
+import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -17,8 +17,7 @@ import type {
 import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
 import clsx from 'clsx'
 
-// Evidence defaults
-const DEFAULT_EVIDENCE_LIMIT = 100
+//
 
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
   const headings = columns.length > 0 ? columns : ['value']
@@ -55,38 +54,38 @@ export default function Chat() {
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
   const [sqlMode, setSqlMode] = useState(false)
-  // Evidence panel state (generic, driven by MCP spec)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
-  const [showEvidence, setShowEvidence] = useState(false)
-  // Keep live refs to avoid stale closures in streaming callbacks
-  const evidenceSpecRef = useRef<EvidenceSpec | null>(null)
-  const evidenceDataRef = useRef<EvidenceRowsPayload | null>(null)
-  const evidenceBtnRef = useRef<HTMLButtonElement | null>(null)
+  const [showTicketsSheet, setShowTicketsSheet] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => {
-        const doc = document.documentElement
-        window.scrollTo({ top: doc.scrollHeight, behavior: 'smooth' })
-      })
+    // Auto‑scroll the internal messages list container instead of the window
+    const el = listRef.current
+    if (!el) return
+    try {
+      const top = el.scrollHeight
+      if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top, behavior: 'smooth' })
+      } else {
+        el.scrollTop = top
+      }
+    } catch {
+      /* noop */
     }
   }, [messages, loading])
 
-  // Keep latest evidence refs in sync
-  useEffect(() => { evidenceSpecRef.current = evidenceSpec }, [evidenceSpec])
-  useEffect(() => { evidenceDataRef.current = evidenceData }, [evidenceData])
-
-  // Open evidence panel only when both spec and rows are available to avoid race conditions
+  // (UI) effets Evidence supprimés dans la version split
+  // Fermer la sheet Tickets avec la touche Escape
   useEffect(() => {
-    const hasSpec = Boolean(evidenceSpec)
-    const hasRows = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
-    if (!showEvidence && hasSpec && hasRows) {
-      setShowEvidence(true)
+    if (!showTicketsSheet) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTicketsSheet(false)
     }
-  }, [evidenceSpec, evidenceData, showEvidence])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showTicketsSheet])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
@@ -115,10 +114,9 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
-    // Reset evidence state for the new question
+    // Reset uniquement l'état d'affichage du chat et du panneau Tickets
     setEvidenceSpec(null)
     setEvidenceData(null)
-    setShowEvidence(false)
 
     const isChartMode = chartMode
     const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
@@ -154,7 +152,7 @@ export default function Chat() {
             }
             return copy
           })
-          // Capture optional evidence spec from meta
+          // Capture la spec pour alimenter les tickets à gauche (si fournie)
           const spec = meta?.evidence_spec as EvidenceSpec | undefined
           if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
             setEvidenceSpec(spec)
@@ -203,7 +201,6 @@ export default function Chat() {
           const normalizedRows = normaliseRows(columns, rows)
 
           if (purpose === 'evidence') {
-            // Evidence dataset (generic)
             const evid: EvidenceRowsPayload = {
               columns,
               rows: normalizedRows,
@@ -276,19 +273,7 @@ export default function Chat() {
             }
             return copy
           })
-          // Keep open state; no overlay — sidebar remains integrated
-          if (import.meta.env.MODE === 'development') {
-            const spec = evidenceSpecRef.current
-            const evid = evidenceDataRef.current
-            const hasEvidence = (evid?.row_count ?? evid?.rows?.length ?? 0) > 0
-            if (hasEvidence && spec) {
-              console.info('[evidence_sidebar] ready', {
-                count: evid?.row_count ?? evid?.rows?.length ?? 0,
-                entity: spec?.entity_label,
-                sourceMode: (sqlMode || isChartMode) ? 'sql' : 'graph'
-              })
-            }
-          }
+          // Fin du streaming: message final fixé
         } else if (type === 'error') {
           setError(data?.message || 'Erreur streaming')
         }
@@ -452,42 +437,42 @@ export default function Chat() {
   }
 
   return (
-    <div className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}>
-      {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
-
-      {/* Evidence toggle (intégré, discret) */}
-      <div className="sticky top-0 z-10 flex justify-end px-2 pt-2">
-        <EvidenceButton
-          ref={evidenceBtnRef}
-          spec={evidenceSpec}
-          data={evidenceData}
-          onClick={() => setShowEvidence(v => !v)}
-        />
-      </div>
-
-      {messages.length === 0 ? (
-        // État vide: contenu figé au centre de l'écran, sans scroll
-        <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
-          {loading ? (
-            <div className="flex justify-center py-2">
-              <Loader text="Streaming…" />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 animate-fade-in">
-              <img
-                src={`${import.meta.env.BASE_URL}insight.svg`}
-                alt="Logo FoyerInsight"
-                className="h-12 w-12 md:h-16 md:w-16 opacity-80"
-              />
-              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
-                Discutez avec vos données
-              </h2>
-            </div>
-          )}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
+      {/* Colonne gauche: Ticket exploration */}
+      <aside className="hidden lg:block lg:col-span-5 xl:col-span-5 2xl:col-span-5">
+        <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</h2>
+          </div>
+          <TicketPanel spec={evidenceSpec} data={evidenceData} />
         </div>
-      ) : (
-        <div ref={listRef} className="p-4 space-y-4 pb-32">
-          <>
+      </aside>
+
+      {/* Colonne droite: Chat */}
+      <section className="lg:col-span-7 xl:col-span-7 2xl:col-span-7">
+        <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-120px)]">
+          {/* Messages */}
+          <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
+            {/* Mobile tickets button */}
+            <div className="sticky top-0 z-10 -mt-4 -mx-4 mb-2 px-4 pt-3 pb-2 bg-white/95 backdrop-blur border-b lg:hidden">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-primary-500">Discussion</div>
+                <button
+                  type="button"
+                  onClick={() => setShowTicketsSheet(true)}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                >
+                  <HiCircleStack className="w-4 h-4" />
+                  Exploration
+                  {(() => {
+                    const c = evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0
+                    return c > 0 ? (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{c}</span>
+                    ) : null
+                  })()}
+                </button>
+              </div>
+            </div>
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id ?? index}
@@ -495,103 +480,113 @@ export default function Chat() {
                 onSaveChart={onSaveChart}
               />
             ))}
-            {loading && (
-              <div className="flex justify-center py-2">
-                <Loader text="Streaming…" />
+            {messages.length === 0 && loading && (
+              <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
+            )}
+            {error && (
+              <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
-          </>
+          </div>
+
+          {/* Composer */}
+          <div className="p-3">
+            <div className="relative">
+              <Textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Posez votre question"
+                rows={1}
+                fullWidth
+                className={clsx(
+                  'pl-24 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
+                  'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
+                  'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
+                  'leading-[48px] placeholder:text-primary-400',
+                  'text-left whitespace-nowrap'
+                )}
+              />
+              {/* Toggle NL→SQL */}
+              <button
+                type="button"
+                onClick={onToggleSqlModeClick}
+                aria-pressed={sqlMode}
+                title="Activer NL→SQL (MindsDB)"
+                className={clsx(
+                  'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                  sqlMode
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                    : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
+                )}
+              >
+                <HiCircleStack className="w-5 h-5" />
+              </button>
+              {/* Toggle Graph */}
+              <button
+                type="button"
+                onClick={onToggleChartModeClick}
+                aria-pressed={chartMode}
+                title="Activer MCP Chart"
+                className={clsx(
+                  'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                  chartMode
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                    : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
+                )}
+              >
+                <HiChartBar className="w-5 h-5" />
+              </button>
+              {/* Envoyer/Annuler */}
+              <button
+                type="button"
+                onClick={loading ? onCancel : onSend}
+                disabled={loading ? false : !input.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+                aria-label={loading ? 'Annuler' : 'Envoyer le message'}
+                title={loading ? 'Annuler' : 'Envoyer'}
+              >
+                {loading ? (
+                  <HiXMark className="w-5 h-5" />
+                ) : (
+                  <HiPaperAirplane className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+            {null}
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom sheet (mobile) for tickets */}
+      {showTicketsSheet && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowTicketsSheet(false)} />
+          <div className="absolute left-0 right-0 bottom-0 max-h-[70vh] bg-white rounded-t-2xl border-t shadow-lg p-3 overflow-auto">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</div>
+                {evidenceSpec?.period && (
+                  <div className="text-[11px] text-primary-500">
+                    {typeof evidenceSpec.period === 'string' ? evidenceSpec.period : `${evidenceSpec.period.from ?? ''}${evidenceSpec.period.to ? ` → ${evidenceSpec.period.to}` : ''}`}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTicketsSheet(false)}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
+                aria-label="Fermer"
+                title="Fermer"
+              >
+                <HiXMark className="w-4 h-4" />
+              </button>
+            </div>
+            <TicketPanel spec={evidenceSpec} data={evidenceData} />
+          </div>
         </div>
       )}
-
-      {error && (
-        <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      {/* Evidence sidebar fixed (left), non intrusive */}
-      {showEvidence && (
-        <EvidenceSidebar
-          spec={evidenceSpec}
-          data={evidenceData}
-          onClose={() => setShowEvidence(false)}
-        />
-      )}
-
-      {/* Barre de composition fixe en bas de page (container transparent) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
-        <div className={clsx('max-w-3xl mx-auto px-4 py-2')}>
-          <div className="relative">
-            <Textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Posez votre question"
-              rows={1}
-              fullWidth
-              className={clsx(
-                'pl-24 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
-                // Neutralise toute variation visuelle au focus
-                'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
-                'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
-                // Centre verticalement le texte saisi comme le placeholder
-                'leading-[48px] placeholder:text-primary-400',
-                'text-left whitespace-nowrap'
-              )}
-            />
-            {/* Toggle NL→SQL (MindsDB) intégré dans la zone de saisie */}
-            <button
-              type="button"
-              onClick={onToggleSqlModeClick}
-              aria-pressed={sqlMode}
-              title="Activer NL→SQL (MindsDB)"
-              className={clsx(
-                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                sqlMode
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-              )}
-            >
-              <HiCircleStack className="w-5 h-5" />
-            </button>
-            {/* Toggle MCP Chart intégré dans la zone de saisie */}
-            <button
-              type="button"
-              onClick={onToggleChartModeClick}
-              aria-pressed={chartMode}
-              title="Activer MCP Chart"
-              className={clsx(
-                'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                chartMode
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-              )}
-            >
-              <HiChartBar className="w-5 h-5" />
-            </button>
-            {/* Bouton contextuel (même taille/emplacement): Envoyer ↔ Annuler */}
-            <button
-              type="button"
-              onClick={loading ? onCancel : onSend}
-              disabled={loading ? false : !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
-              aria-label={loading ? 'Annuler' : 'Envoyer le message'}
-              title={loading ? 'Annuler' : 'Envoyer'}
-            >
-              {loading ? (
-                <HiXMark className="w-5 h-5" />
-              ) : (
-                <HiPaperAirplane className="w-5 h-5" />
-              )}
-            </button>
-        </div>
-          {/* Bouton Annuler séparé supprimé: l'icône de droite devient Annuler pendant le streaming */}
-          <p className="mt-2 text-center text-[10px] md:text-xs text-primary-400 select-none">
-            L'IA peut faire des erreurs, FoyerInsight aussi.
-          </p>
-        </div>
-      </div>
     </div>
   )
 }
@@ -599,6 +594,117 @@ export default function Chat() {
 interface MessageBubbleProps {
   message: Message
   onSaveChart?: (messageId: string) => void
+}
+
+// -------- Left panel: Tickets from evidence --------
+type TicketPanelProps = {
+  spec: EvidenceSpec | null
+  data: EvidenceRowsPayload | null
+}
+
+function TicketPanel({ spec, data }: TicketPanelProps) {
+  const count = data?.row_count ?? data?.rows?.length ?? 0
+  const limit = spec?.limit ?? 100
+  const allRows: Record<string, unknown>[] = data?.rows ?? []
+  const rows = allRows.slice(0, limit)
+  const extra = Math.max((count || 0) - rows.length, 0)
+  const columns: string[] = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns ?? [])
+  const createdAtKey = spec?.display?.created_at
+  const titleKey = spec?.display?.title
+  const statusKey = spec?.display?.status
+  const pkKey = spec?.pk
+  const linkTpl = spec?.display?.link_template
+
+  const sorted = useMemo(() => {
+    if (!createdAtKey) return rows
+    const key = createdAtKey
+    return [...rows].sort((a, b) => {
+      const va = a[key]
+      const vb = b[key]
+      const da = va ? new Date(String(va)) : null
+      const db = vb ? new Date(String(vb)) : null
+      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0
+      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0
+      return tb - ta
+    })
+  }, [rows, createdAtKey])
+
+  function buildLink(tpl: string | undefined, row: Record<string, unknown>) {
+    if (!tpl) return undefined
+    try {
+      // Encode dynamic values to prevent injection into path/query
+      const replaced = tpl.replace(/\{(\w+)\}/g, (_, k) => encodeURIComponent(String(row[k] ?? '')))
+      // Build URL against current origin to validate protocol and normalize
+      const url = new URL(replaced, window.location.origin)
+      const allowed = ['http:', 'https:']
+      if (!allowed.includes(url.protocol)) return undefined
+      // Return relative path when template intended a relative URL
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(replaced)) {
+        return url.pathname + url.search + url.hash
+      }
+      return url.href
+    } catch {
+      return undefined
+    }
+  }
+
+  if (!spec || !data || (count ?? 0) === 0) {
+    return (
+      <div className="text-sm text-primary-500">
+        Aucun ticket détecté. Posez une question pour afficher les éléments concernés.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {sorted.map((row, idx) => {
+        const title = titleKey ? row[titleKey] : undefined
+        const status = statusKey ? row[statusKey] : undefined
+        const created = createdAtKey ? row[createdAtKey] : undefined
+        const pk = pkKey ? row[pkKey] : undefined
+        const link = buildLink(linkTpl, row)
+        const uniqueKey = pk != null ? String(pk) : `row-${idx}`
+        return (
+          <div key={uniqueKey} className="border border-primary-100 rounded-md p-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium text-primary-900 truncate">
+                {String(title ?? (pk ?? `#${idx + 1}`))}
+              </div>
+              {status != null ? (
+                <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
+              ) : null}
+            </div>
+            <div className="mt-1 text-xs text-primary-500">
+              {created ? new Date(String(created)).toLocaleString() : null}
+            </div>
+            {link && (
+              <div className="mt-1 text-xs">
+                <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all">{link}</a>
+              </div>
+            )}
+            {columns && columns.length > 0 && (
+              <div className="mt-2 overflow-auto">
+                <table className="min-w-full text-[11px]">
+                  <tbody>
+                    {columns.map((c) => (
+                      <tr key={c} className="border-t border-primary-100">
+                        <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
+                        <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {extra > 0 && (
+        <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
+      )}
+    </div>
+  )
 }
 
 function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
@@ -741,177 +847,4 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
   )
 }
 
-// ============ Evidence UI (generic) ============
-type EvidenceButtonProps = {
-  spec: EvidenceSpec | null
-  data: EvidenceRowsPayload | null
-  onClick: () => void
-}
-
-const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(function EvidenceButton (
-  { spec, data, onClick }, ref
-) {
-  const count = data?.row_count ?? data?.rows?.length ?? 0
-  const label = spec?.entity_label || 'Éléments'
-  const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
-  const shown = Math.min(count, limit)
-  const extra = Math.max(count - limit, 0)
-  const disabled = !spec || count === 0
-  const badge = extra > 0 ? `${shown}+` : `${shown}`
-  return (
-    <button
-      ref={ref}
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={!spec ? 'Aucun evidence_spec reçu' : (count === 0 ? 'Aucun élément de preuve' : `${label}`)}
-      className={clsx(
-        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
-        disabled
-          ? 'bg-white text-primary-300 border-primary-200 cursor-not-allowed'
-          : 'bg-white text-primary-700 border-primary-300 hover:bg-primary-50'
-      )}
-      aria-disabled={disabled}
-    >
-      <span className="font-medium">{label}</span>
-      <span className={clsx(
-        'inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full text-[11px] px-1',
-        disabled ? 'bg-primary-100 text-primary-400' : 'bg-primary-600 text-white'
-      )}>
-        {badge}
-      </span>
-    </button>
-  )
-})
-
-type EvidenceSidebarProps = {
-  spec: EvidenceSpec | null
-  data: EvidenceRowsPayload | null
-  onClose: () => void
-}
-
-function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
-  const count = data?.row_count ?? data?.rows?.length ?? 0
-  const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
-  const allRows: Record<string, unknown>[] = data?.rows ?? []
-  const rows = allRows.slice(0, limit)
-  const extra = Math.max(count - rows.length, 0)
-  const columns: string[] = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns ?? [])
-  const createdAtKey = spec?.display?.created_at
-  const titleKey = spec?.display?.title
-  const statusKey = spec?.display?.status
-  const pkKey = spec?.pk
-  const linkTpl = spec?.display?.link_template
-
-  const sortedRows = useMemo(() => {
-    if (!createdAtKey) return rows
-    const key = createdAtKey
-    return [...rows].sort((a, b) => {
-      const va = a[key]
-      const vb = b[key]
-      const da = va ? new Date(String(va)) : null
-      const db = vb ? new Date(String(vb)) : null
-      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0
-      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0
-      return tb - ta
-    })
-  }, [rows, createdAtKey])
-
-  // Close on Escape
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [onClose])
-
-  function buildLink(tpl: string, row: Record<string, unknown>) {
-    try {
-      if (typeof tpl !== 'string' || tpl.length === 0) return undefined
-      const out = tpl.replace(/\{(\w+)\}/g, (_, k) => String(row[k] ?? ''))
-      // Basic URL validation: allow http(s) and absolute/relative paths
-      const safe = out.startsWith('http://') || out.startsWith('https://') || out.startsWith('/')
-      return safe ? out : undefined
-    } catch {
-      return undefined
-    }
-  }
-
-  return (
-    <aside
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="evidence-panel-title"
-      className="fixed left-4 md:left-6 top-24 z-40 w-[320px] sm:w-[360px] lg:w-[420px] h-[calc(100vh-140px)] border border-primary-100 bg-white rounded-lg overflow-auto p-3 shadow-md"
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <div id="evidence-panel-title" className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
-          {spec?.period && (
-            <div className="text-[11px] text-primary-500">{typeof spec.period === 'string' ? spec.period : `${spec.period.from ?? ''}${spec.period.to ? ` → ${spec.period.to}` : ''}`}</div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
-          aria-label="Fermer"
-        >
-          <HiXMark className="w-4 h-4" />
-        </button>
-      </div>
-      {(!spec || !data || count === 0) && (
-        <div className="text-sm text-primary-500">Aucun élément de preuve</div>
-      )}
-      {spec && data && count > 0 && (
-        <div className="space-y-2">
-          {sortedRows.map((row, idx) => {
-            const title = titleKey ? row[titleKey] : undefined
-            const status = statusKey ? row[statusKey] : undefined
-            const created = createdAtKey ? row[createdAtKey] : undefined
-            const pk = pkKey ? row[pkKey] : undefined
-            const link = linkTpl ? buildLink(linkTpl, row) : undefined
-            return (
-              <div key={idx} className="border border-primary-100 rounded-md p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-primary-900 truncate">
-                    {String(title ?? (pk ?? `#${idx + 1}`))}
-                  </div>
-                  {status != null ? (
-                    <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
-                  ) : null}
-                </div>
-                <div className="mt-1 text-xs text-primary-500">
-                  {created ? new Date(String(created)).toLocaleString() : null}
-                </div>
-                {link && (
-                  <div className="mt-1 text-xs">
-                    <a href={link} target="_blank" rel="noreferrer" className="underline text-primary-600 break-all">{link}</a>
-                  </div>
-                )}
-                {columns && columns.length > 0 && (
-                  <div className="mt-2 overflow-auto">
-                    <table className="min-w-full text-[11px]">
-                      <tbody>
-                        {columns.map((c) => (
-                          <tr key={c} className="border-t border-primary-100">
-                            <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
-                            <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-          {extra > 0 && (
-            <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
-          )}
-        </div>
-      )}
-    </aside>
-  )
-}
+// Evidence UI supprimée (panneau remplacé par Ticket exploration à gauche)

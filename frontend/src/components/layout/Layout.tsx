@@ -36,7 +36,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white">
       <header className="border-b-2 border-primary-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+        <div className="mx-auto max-w-screen-2xl px-3 md:px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
@@ -54,6 +54,9 @@ export default function Layout() {
               <Button variant="secondary" size="sm" onClick={goTo('/chat')} className="!rounded-full">
                 Chat
               </Button>
+              <Button variant="secondary" size="sm" disabled title="Bientôt" className="!rounded-full">
+                Historique
+              </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">
                 Dashboard
               </Button>
@@ -70,7 +73,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="mx-auto max-w-screen-2xl px-3 md:px-4 py-4">
         <Outlet />
       </main>
     </div>

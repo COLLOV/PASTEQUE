@@ -143,22 +143,27 @@ import { login } from '@/services/auth'
 
 ### Chat
 
-- Interface de chat moderne
-- Bulles de messages distinctes pour utilisateur/assistant
-- Auto-scroll lors de nouveaux messages
-- Support du Shift+Enter pour nouvelles lignes
-- Gestion des états de chargement et d'erreur
-- Streaming en direct (SSE sur `POST /api/v1/chat/stream`)
-  - Affichage token‑par‑token dans une bulle éphémère
-  - Remplacement automatique par le message final à la fin
-  - Panneau d’inspection repliable (SQL et échantillons; métadonnées techniques masquées)
+- Deux panneaux: « Ticket exploration » à gauche et chat à droite.
+- Bulles de messages distinctes pour utilisateur/assistant.
+- Auto-scroll lors de nouveaux messages.
+- Support du Shift+Enter pour nouvelles lignes.
+- Gestion des états de chargement et d'erreur.
+- Streaming en direct (SSE sur `POST /api/v1/chat/stream`).
+
+#### Layout responsive — Oct. 2025
+
+- Desktop (≥ lg): grille en 12 colonnes avec un panneau gauche élargi (`lg:col-span-5`) et le chat à droite (`lg:col-span-7`).
+ - Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
+ - Un bouton « Exploration » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
+- Bouton « Historique » (stub) ajouté dans le header à côté de « Chat » (sera connecté plus tard).
+ - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
 #### Composer (Mise à jour)
 
-- Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
-- Bouton contextuel intégré en bas à droite (même place et taille):
+- Zone de saisie intégrée en bas de la colonne de droite (bord supérieur avec `border-t`).
+- Bouton contextuel intégré à droite:
   - Affiche « Envoyer » (icône avion) à l'arrêt.
-  - Se transforme en « Annuler » (icône croix) pendant le streaming, remplaçant l'ancien bouton Annuler séparé.
+  - Se transforme en « Annuler » (icône croix) pendant le streaming.
 - Entrée simple pour envoyer, `Maj+Entrée` pour aller à la ligne.
   
 Mise à jour d'harmonisation (oct. 2025):
@@ -175,6 +180,7 @@ Personnalisation rapide:
 
 - Ajuster `pl-14` / `pr-14` et `h-12` dans `src/features/chat/Chat.tsx`.
 - Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
+- Pour changer la largeur des colonnes: adapter les classes Tailwind `lg:col-span-*` dans `src/features/chat/Chat.tsx`.
 
 ### Dashboard
 
