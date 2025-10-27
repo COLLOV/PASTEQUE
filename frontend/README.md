@@ -143,35 +143,25 @@ import { login } from '@/services/auth'
 
 ### Chat
 
-- Interface de chat moderne
-- Bulles de messages distinctes pour utilisateur/assistant
-- Auto-scroll lors de nouveaux messages
-- Support du Shift+Enter pour nouvelles lignes
-- Gestion des états de chargement et d'erreur
-- Streaming en direct (SSE sur `POST /api/v1/chat/stream`)
-  - Affichage token‑par‑token dans une bulle éphémère
-  - Remplacement automatique par le message final à la fin
-  - Panneau d’inspection repliable (SQL et échantillons; métadonnées techniques masquées)
+- Deux panneaux: « Ticket exploration » à gauche et chat à droite.
+- Bulles de messages distinctes pour utilisateur/assistant.
+- Auto-scroll lors de nouveaux messages.
+- Support du Shift+Enter pour nouvelles lignes.
+- Gestion des états de chargement et d'erreur.
+- Streaming en direct (SSE sur `POST /api/v1/chat/stream`).
 
-#### Panneau Tickets/Evidence (Responsive) — Oct. 2025
+#### Layout responsive — Oct. 2025
 
-- Le panneau des tickets s’ouvre en « bottom sheet » (superposé) tant qu’il n’y a pas assez de place pour conserver au moins `680px` de largeur pour le chat.
-- Quand l’écran est suffisamment large, le panneau passe automatiquement en barre latérale fixe à gauche (largeur `--evidence-panel-w`, offset `--evidence-offset`). Le chat reste prioritaire; si l’espace devient insuffisant lors d’un redimensionnement, le panneau se referme et/ou redevient un bottom sheet.
-- Un bouton toggle est disponible:
-  - Icône hamburger en haut à gauche sur mobile.
-  - Pilule « Tickets » en haut (sticky) avec badge et état actif.
-- Accessibilité: `aria-pressed`, `aria-expanded`, `role="dialog"`, `aria-modal` et fermeture au clavier via `Escape`.
-- Les liens de chaque ticket s’ouvrent dans un nouvel onglet et les colonnes restent scrollables.
-- Panneau scrollable: le tiroir « Tickets » possède un `overflow-y-auto` (mobile et desktop).
-- Accessibilité: focus trap minimal (tabulation cyclée), focus initial sur « Fermer », restauration du focus à la fermeture.
-- Bouton « Tickets »: désactivé uniquement quand le panneau est fermé et qu’il n’y a aucune donnée à afficher.
+- Desktop (≥ lg): grille en 12 colonnes avec un panneau gauche (`lg:col-span-4`) et le chat à droite (`lg:col-span-8`).
+- Mobile/Tablette (< lg): empilement vertical — le panneau « Ticket exploration » s’affiche au-dessus du chat.
+- Bouton « Historique » (stub) dans le panneau gauche prêt à être connecté ultérieurement.
 
 #### Composer (Mise à jour)
 
-- Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
-- Bouton contextuel intégré en bas à droite (même place et taille):
+- Zone de saisie intégrée en bas de la colonne de droite (bord supérieur avec `border-t`).
+- Bouton contextuel intégré à droite:
   - Affiche « Envoyer » (icône avion) à l'arrêt.
-  - Se transforme en « Annuler » (icône croix) pendant le streaming, remplaçant l'ancien bouton Annuler séparé.
+  - Se transforme en « Annuler » (icône croix) pendant le streaming.
 - Entrée simple pour envoyer, `Maj+Entrée` pour aller à la ligne.
   
 Mise à jour d'harmonisation (oct. 2025):
@@ -188,6 +178,7 @@ Personnalisation rapide:
 
 - Ajuster `pl-14` / `pr-14` et `h-12` dans `src/features/chat/Chat.tsx`.
 - Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
+- Pour changer la largeur des colonnes: adapter les classes Tailwind `lg:col-span-*` dans `src/features/chat/Chat.tsx`.
 
 ### Dashboard
 

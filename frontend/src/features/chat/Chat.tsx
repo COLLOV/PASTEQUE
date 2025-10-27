@@ -50,7 +50,7 @@ function createMessageId(): string {
 
 export default function Chat() {
   // Layout thresholds (desktop sidebar width and minimal chat width)
-  const MIN_CHAT_W = 680
+  const MIN_CHAT_W = 768
   const LG = 1024
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -241,9 +241,7 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
-    // Reset evidence state for the new question
-    setEvidenceSpec(null)
-    setEvidenceData(null)
+    // Reset uniquement l'état d'affichage du chat
 
     const isChartMode = chartMode
     const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
@@ -279,11 +277,7 @@ export default function Chat() {
             }
             return copy
           })
-          // Capture optional evidence spec from meta
-          const spec = meta?.evidence_spec as EvidenceSpec | undefined
-          if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
-            setEvidenceSpec(spec)
-          }
+          // evidence_spec ignoré dans la nouvelle UI split
         } else if (type === 'plan') {
           setMessages(prev => {
             const copy = [...prev]
@@ -327,17 +321,7 @@ export default function Chat() {
           const rows = Array.isArray(data?.rows) ? data.rows : []
           const normalizedRows = normaliseRows(columns, rows)
 
-          if (purpose === 'evidence') {
-            // Evidence dataset (generic)
-            const evid: EvidenceRowsPayload = {
-              columns,
-              rows: normalizedRows,
-              row_count: typeof data?.row_count === 'number' ? data.row_count : normalizedRows.length,
-              step: typeof data?.step === 'number' ? data.step : undefined,
-              purpose
-            }
-            setEvidenceData(evid)
-          } else {
+          if (purpose !== 'evidence') {
             // Regular NL→SQL samples for charting/debug
             const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
             setMessages(prev => {
@@ -401,19 +385,7 @@ export default function Chat() {
             }
             return copy
           })
-          // Keep open state; no overlay — sidebar remains integrated
-          if (import.meta.env.MODE === 'development') {
-            const spec = evidenceSpecRef.current
-            const evid = evidenceDataRef.current
-            const hasEvidence = (evid?.row_count ?? evid?.rows?.length ?? 0) > 0
-            if (hasEvidence && spec) {
-              console.info('[evidence_sidebar] ready', {
-                count: evid?.row_count ?? evid?.rows?.length ?? 0,
-                entity: spec?.entity_label,
-                sourceMode: (sqlMode || isChartMode) ? 'sql' : 'graph'
-              })
-            }
-          }
+          // Fin du streaming: message final fixé
         } else if (type === 'error') {
           setError(data?.message || 'Erreur streaming')
         }
@@ -577,169 +549,138 @@ export default function Chat() {
   }
 
   return (
-    <div
-      ref={chatRef}
-      className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}
-      style={chatOffset ? { transform: `translateX(${chatOffset}px)` } : undefined}
-    > 
-      {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
-
-      {/* Evidence toggle pill (sticky, right). Always available; on small screens opens bottom sheet. */}
-      <div className="sticky top-0 z-20 flex justify-end items-center px-2 pt-2">
-        <EvidenceButton
-          ref={evidenceBtnRef}
-          spec={evidenceSpec}
-          data={evidenceData}
-          open={showEvidence}
-          onClick={() => (showEvidence ? closeEvidence() : openEvidence())}
-        />
-      </div>
-
-      {/* Hamburger toggle fixed on the far left when collapsed (always offered, even on small screens) */}
-      {!showEvidence && (
-        <button
-          type="button"
-          onClick={openEvidence}
-          aria-pressed={false}
-          aria-controls="evidence-drawer"
-          className="fixed left-2 md:left-4 top-24 z-30 inline-flex items-center justify-center h-9 w-9 rounded-full border bg-white text-primary-700 border-primary-200 hover:bg-primary-50"
-          title="Ouvrir la barre latérale"
-        >
-          <HiBars3 className="w-5 h-5" />
-        </button>
-      )}
-
-      {messages.length === 0 ? (
-        // État vide: contenu figé au centre de l'écran, sans scroll
-        <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
-          {loading ? (
-            <div className="flex justify-center py-2">
-              <Loader text="Streaming…" />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 animate-fade-in">
-              <img
-                src={`${import.meta.env.BASE_URL}insight.svg`}
-                alt="Logo FoyerInsight"
-                className="h-12 w-12 md:h-16 md:w-16 opacity-80"
-              />
-              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
-                Discutez avec vos données
-              </h2>
-            </div>
-          )}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Colonne gauche: Ticket exploration */}
+      <aside className="lg:col-span-4 xl:col-span-3 2xl:col-span-3">
+        <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-24">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-primary-900">Tickets</h2>
+            <Button size="sm" variant="secondary" onClick={() => { /* brancher plus tard */ }}>
+              <HiCircleStack className="w-4 h-4 mr-1" />
+              Historique
+            </Button>
+          </div>
+          <div className="text-sm text-primary-600">
+            Exploration des tickets (à connecter). Vous pourrez sélectionner un ticket pour contextualiser la discussion.
+          </div>
         </div>
-      ) : (
-        <div ref={listRef} className="p-4 space-y-4 pb-32">
-          <>
-            {messages.map((message, index) => (
-              <MessageBubble
-                key={message.id ?? index}
-                message={message}
-                onSaveChart={onSaveChart}
-              />
-            ))}
-            {loading && (
-              <div className="flex justify-center py-2">
-                <Loader text="Streaming…" />
+      </aside>
+
+      {/* Colonne droite: Chat */}
+      <section className="lg:col-span-8 xl:col-span-9 2xl:col-span-9">
+        <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[60vh]">
+          {/* Messages */}
+          <div ref={listRef} className="flex-1 p-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                {loading ? (
+                  <Loader text="Streaming…" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <img
+                      src={`${import.meta.env.BASE_URL}insight.svg`}
+                      alt="Logo FoyerInsight"
+                      className="h-12 w-12 md:h-16 md:w-16 opacity-80"
+                    />
+                    <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-primary-900 opacity-80">
+                      Discutez avec vos données
+                    </h2>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                {messages.map((message, index) => (
+                  <MessageBubble
+                    key={message.id ?? index}
+                    message={message}
+                    onSaveChart={onSaveChart}
+                  />
+                ))}
+                {loading && (
+                  <div className="flex justify-center py-2">
+                    <Loader text="Streaming…" />
+                  </div>
+                )}
+              </>
+            )}
+            {error && (
+              <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
-          </>
-        </div>
-      )}
+          </div>
 
-      {error && (
-        <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
-          <p className="text-sm text-red-700">{error}</p>
+          {/* Composer */}
+          <div className="border-t p-3">
+            <div className="relative max-w-3xl mx-auto">
+              <Textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Posez votre question"
+                rows={1}
+                fullWidth
+                className={clsx(
+                  'pl-24 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
+                  'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
+                  'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
+                  'leading-[48px] placeholder:text-primary-400',
+                  'text-left whitespace-nowrap'
+                )}
+              />
+              {/* Toggle NL→SQL */}
+              <button
+                type="button"
+                onClick={onToggleSqlModeClick}
+                aria-pressed={sqlMode}
+                title="Activer NL→SQL (MindsDB)"
+                className={clsx(
+                  'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                  sqlMode
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                    : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
+                )}
+              >
+                <HiCircleStack className="w-5 h-5" />
+              </button>
+              {/* Toggle Graph */}
+              <button
+                type="button"
+                onClick={onToggleChartModeClick}
+                aria-pressed={chartMode}
+                title="Activer MCP Chart"
+                className={clsx(
+                  'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                  chartMode
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                    : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
+                )}
+              >
+                <HiChartBar className="w-5 h-5" />
+              </button>
+              {/* Envoyer/Annuler */}
+              <button
+                type="button"
+                onClick={loading ? onCancel : onSend}
+                disabled={loading ? false : !input.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+                aria-label={loading ? 'Annuler' : 'Envoyer le message'}
+                title={loading ? 'Annuler' : 'Envoyer'}
+              >
+                {loading ? (
+                  <HiXMark className="w-5 h-5" />
+                ) : (
+                  <HiPaperAirplane className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+            <p className="mt-2 text-center text-[10px] md:text-xs text-primary-400 select-none">
+              L'IA peut faire des erreurs, FoyerInsight aussi.
+            </p>
+          </div>
         </div>
-      )}
-
-      {/* Evidence sidebar fixed (left), non intrusive */}
-      {showEvidence && (
-        <EvidenceSidebar
-          spec={evidenceSpec}
-          data={evidenceData}
-          onClose={closeEvidence}
-          sideBySide={canShowEvidenceUI}
-        />
-      )}
-
-      {/* Barre de composition fixe en bas de page (container transparent) */}
-      <div className={clsx('fixed bottom-0 left-0 right-0 z-40 bg-transparent')}>
-        <div
-          className={clsx('max-w-3xl mx-auto px-4 py-2')}
-          style={chatOffset ? { transform: `translateX(${chatOffset}px)` } : undefined}
-        >
-          <div className="relative">
-            <Textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Posez votre question"
-              rows={1}
-              fullWidth
-              className={clsx(
-                'pl-24 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
-                // Neutralise toute variation visuelle au focus
-                'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
-                'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
-                // Centre verticalement le texte saisi comme le placeholder
-                'leading-[48px] placeholder:text-primary-400',
-                'text-left whitespace-nowrap'
-              )}
-            />
-            {/* Toggle NL→SQL (MindsDB) intégré dans la zone de saisie */}
-            <button
-              type="button"
-              onClick={onToggleSqlModeClick}
-              aria-pressed={sqlMode}
-              title="Activer NL→SQL (MindsDB)"
-              className={clsx(
-                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                sqlMode
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-              )}
-            >
-              <HiCircleStack className="w-5 h-5" />
-            </button>
-            {/* Toggle MCP Chart intégré dans la zone de saisie */}
-            <button
-              type="button"
-              onClick={onToggleChartModeClick}
-              aria-pressed={chartMode}
-              title="Activer MCP Chart"
-              className={clsx(
-                'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                chartMode
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-              )}
-            >
-              <HiChartBar className="w-5 h-5" />
-            </button>
-            {/* Bouton contextuel (même taille/emplacement): Envoyer ↔ Annuler */}
-            <button
-              type="button"
-              onClick={loading ? onCancel : onSend}
-              disabled={loading ? false : !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
-              aria-label={loading ? 'Annuler' : 'Envoyer le message'}
-              title={loading ? 'Annuler' : 'Envoyer'}
-            >
-              {loading ? (
-                <HiXMark className="w-5 h-5" />
-              ) : (
-                <HiPaperAirplane className="w-5 h-5" />
-              )}
-            </button>
-        </div>
-          {/* Bouton Annuler séparé supprimé: l'icône de droite devient Annuler pendant le streaming */}
-          <p className="mt-2 text-center text-[10px] md:text-xs text-primary-400 select-none">
-            L'IA peut faire des erreurs, FoyerInsight aussi.
-          </p>
-        </div>
-      </div>
+      </section>
     </div>
   )
 }
