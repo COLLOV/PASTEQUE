@@ -1,8 +1,8 @@
 [
   {
-    "name": "chart",
+    "name": "gpt-vis-mcp",
     "command": "npx",
-    "args": ["-y", "@antv/mcp-server-chart"],
+    "args": ["-y", "@jsr2npm/yao__gpt-vis-mcp@latest"],
     "env": {}
   }
 ]
