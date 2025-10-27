@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import String, Boolean, DateTime, func, text
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.database import Base, USERS_TABLE
+from ..core.database import Base, USERS_TABLE, USER_ID_PK_KWARGS, user_id_type
 
 if TYPE_CHECKING:
     from .chart import Chart
@@ -17,7 +18,11 @@ if TYPE_CHECKING:
 class User(Base):
     __tablename__ = USERS_TABLE
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[UUID | int] = mapped_column(
+        user_id_type(),
+        primary_key=True,
+        **USER_ID_PK_KWARGS,
+    )
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

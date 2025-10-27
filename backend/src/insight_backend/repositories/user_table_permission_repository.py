@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Iterable
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,7 @@ class UserTablePermissionRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_allowed_tables(self, user_id: int) -> list[str]:
+    def get_allowed_tables(self, user_id: UUID | int) -> list[str]:
         rows = (
             self.session.query(UserTablePermission.table_name)
             .filter(UserTablePermission.user_id == user_id)
@@ -25,7 +26,7 @@ class UserTablePermissionRepository:
         log.debug("Loaded %d table permissions for user_id=%s", len(tables), user_id)
         return tables
 
-    def set_allowed_tables(self, user_id: int, table_names: Iterable[str]) -> list[str]:
+    def set_allowed_tables(self, user_id: UUID | int, table_names: Iterable[str]) -> list[str]:
         normalized: list[str] = []
         seen: set[str] = set()
         for name in table_names:
