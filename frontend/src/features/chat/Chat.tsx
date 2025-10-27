@@ -261,6 +261,7 @@ export default function Chat() {
             const idx = copy.findIndex(m => m.ephemeral)
             if (idx >= 0) {
               copy[idx] = {
+                id: createMessageId(),
                 role: 'assistant',
                 content: done.content_full,
                 // Attach latest NL→SQL dataset (if any) to allow on-demand charting
@@ -271,7 +272,7 @@ export default function Chat() {
                 }
               }
             } else {
-              copy.push({ role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
+              copy.push({ id: createMessageId(), role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
             }
             return copy
           })
