@@ -205,8 +205,9 @@ class ChartGenerationService:
 
     def _resolve_chart_spec(self) -> MCPServerSpec:
         manager = MCPManager()
+        valid_names = {"chart", "mcp-server-chart", "gpt-vis-mcp"}
         for spec in manager.list_servers():
-            if spec.name in {"chart", "mcp-server-chart"}:
+            if spec.name in valid_names:
                 return spec
         raise ChartGenerationError(
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
