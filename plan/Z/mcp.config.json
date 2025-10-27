@@ -1,8 +1,11 @@
 [
   {
     "name": "gpt-vis-mcp",
-    "command": "npx",
-    "args": ["-y", "@jsr2npm/yao__gpt-vis-mcp@latest"],
+    "command": "bash",
+    "args": [
+      "-lc",
+      "docker run --rm -i --network host -e VIS_REQUEST_SERVER=${VIS_REQUEST_SERVER:-http://localhost:3000/generate} -e RENDERED_IMAGE_PATH=${MCP_CHART_STORAGE_PATH:-/tmp/gpt-vis-charts} -e NODE_OPTIONS=\"--require /opt/mcp_console_stderr.cjs\" -v ${MCP_CHART_STORAGE_PATH:-/tmp/gpt-vis-charts}:${MCP_CHART_STORAGE_PATH:-/tmp/gpt-vis-charts} -v ${MCP_CONSOLE_PATCH:-/dev/null}:/opt/mcp_console_stderr.cjs:ro ghcr.io/yaonyan/gpt-vis-mcp:latest-mcp"
+    ],
     "env": {
       "VIS_REQUEST_SERVER": "http://localhost:3000/generate"
     }
