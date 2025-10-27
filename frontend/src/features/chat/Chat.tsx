@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -10,7 +10,9 @@ import type {
   ChatStreamMeta,
   ChatStreamDelta,
   ChatStreamDone,
-  SavedChartResponse
+  SavedChartResponse,
+  EvidenceSpec,
+  EvidenceRowsPayload
 } from '@/types/chat'
 import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
 import clsx from 'clsx'
@@ -52,6 +54,8 @@ export default function Chat() {
   const [error, setError] = useState('')
   const [chartMode, setChartMode] = useState(false)
   const [sqlMode, setSqlMode] = useState(false)
+  const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
+  const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -93,7 +97,9 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
-    // Reset uniquement l'état d'affichage du chat
+    // Reset uniquement l'état d'affichage du chat et du panneau Tickets
+    setEvidenceSpec(null)
+    setEvidenceData(null)
 
     const isChartMode = chartMode
     const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
@@ -129,7 +135,11 @@ export default function Chat() {
             }
             return copy
           })
-          // evidence_spec ignoré dans la nouvelle UI split
+          // Capture la spec pour alimenter les tickets à gauche (si fournie)
+          const spec = meta?.evidence_spec as EvidenceSpec | undefined
+          if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
+            setEvidenceSpec(spec)
+          }
         } else if (type === 'plan') {
           setMessages(prev => {
             const copy = [...prev]
@@ -173,7 +183,16 @@ export default function Chat() {
           const rows = Array.isArray(data?.rows) ? data.rows : []
           const normalizedRows = normaliseRows(columns, rows)
 
-          if (purpose !== 'evidence') {
+          if (purpose === 'evidence') {
+            const evid: EvidenceRowsPayload = {
+              columns,
+              rows: normalizedRows,
+              row_count: typeof data?.row_count === 'number' ? data.row_count : normalizedRows.length,
+              step: typeof data?.step === 'number' ? data.step : undefined,
+              purpose
+            }
+            setEvidenceData(evid)
+          } else {
             // Regular NL→SQL samples for charting/debug
             const sample = { step: data?.step, columns: data?.columns, row_count: data?.row_count }
             setMessages(prev => {
@@ -404,57 +423,32 @@ export default function Chat() {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Colonne gauche: Ticket exploration */}
       <aside className="lg:col-span-4 xl:col-span-3 2xl:col-span-3">
-        <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-24">
+        <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-24 max-h-[calc(100vh-140px)] overflow-auto">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-primary-900">Tickets</h2>
+            <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</h2>
             <Button size="sm" variant="secondary" onClick={() => { /* brancher plus tard */ }}>
               <HiCircleStack className="w-4 h-4 mr-1" />
               Historique
             </Button>
           </div>
-          <div className="text-sm text-primary-600">
-            Exploration des tickets (à connecter). Vous pourrez sélectionner un ticket pour contextualiser la discussion.
-          </div>
+          <TicketPanel spec={evidenceSpec} data={evidenceData} />
         </div>
       </aside>
 
       {/* Colonne droite: Chat */}
       <section className="lg:col-span-8 xl:col-span-9 2xl:col-span-9">
-        <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[60vh]">
+        <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-140px)]">
           {/* Messages */}
-          <div ref={listRef} className="flex-1 p-4 space-y-4">
-            {messages.length === 0 ? (
-              <div className="flex items-center justify-center h-64">
-                {loading ? (
-                  <Loader text="Streaming…" />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <img
-                      src={`${import.meta.env.BASE_URL}insight.svg`}
-                      alt="Logo FoyerInsight"
-                      className="h-12 w-12 md:h-16 md:w-16 opacity-80"
-                    />
-                    <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-primary-900 opacity-80">
-                      Discutez avec vos données
-                    </h2>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                {messages.map((message, index) => (
-                  <MessageBubble
-                    key={message.id ?? index}
-                    message={message}
-                    onSaveChart={onSaveChart}
-                  />
-                ))}
-                {loading && (
-                  <div className="flex justify-center py-2">
-                    <Loader text="Streaming…" />
-                  </div>
-                )}
-              </>
+          <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
+            {messages.map((message, index) => (
+              <MessageBubble
+                key={message.id ?? index}
+                message={message}
+                onSaveChart={onSaveChart}
+              />
+            ))}
+            {messages.length === 0 && loading && (
+              <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
             )}
             {error && (
               <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
@@ -540,6 +534,108 @@ export default function Chat() {
 interface MessageBubbleProps {
   message: Message
   onSaveChart?: (messageId: string) => void
+}
+
+// -------- Left panel: Tickets from evidence --------
+type TicketPanelProps = {
+  spec: EvidenceSpec | null
+  data: EvidenceRowsPayload | null
+}
+
+function TicketPanel({ spec, data }: TicketPanelProps) {
+  const count = data?.row_count ?? data?.rows?.length ?? 0
+  const limit = spec?.limit ?? 100
+  const allRows: Record<string, unknown>[] = data?.rows ?? []
+  const rows = allRows.slice(0, limit)
+  const extra = Math.max((count || 0) - rows.length, 0)
+  const columns: string[] = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns ?? [])
+  const createdAtKey = spec?.display?.created_at
+  const titleKey = spec?.display?.title
+  const statusKey = spec?.display?.status
+  const pkKey = spec?.pk
+  const linkTpl = spec?.display?.link_template
+
+  const sorted = useMemo(() => {
+    if (!createdAtKey) return rows
+    const key = createdAtKey
+    return [...rows].sort((a, b) => {
+      const va = a[key]
+      const vb = b[key]
+      const da = va ? new Date(String(va)) : null
+      const db = vb ? new Date(String(vb)) : null
+      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0
+      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0
+      return tb - ta
+    })
+  }, [rows, createdAtKey])
+
+  function buildLink(tpl: string | undefined, row: Record<string, unknown>) {
+    if (!tpl) return undefined
+    try {
+      const out = tpl.replace(/\{(\w+)\}/g, (_, k) => String(row[k] ?? ''))
+      const safe = out.startsWith('http://') || out.startsWith('https://') || out.startsWith('/')
+      return safe ? out : undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  if (!spec || !data || (count ?? 0) === 0) {
+    return (
+      <div className="text-sm text-primary-500">
+        Aucun ticket détecté. Posez une question pour afficher les éléments concernés.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {sorted.map((row, idx) => {
+        const title = titleKey ? row[titleKey] : undefined
+        const status = statusKey ? row[statusKey] : undefined
+        const created = createdAtKey ? row[createdAtKey] : undefined
+        const pk = pkKey ? row[pkKey] : undefined
+        const link = buildLink(linkTpl, row)
+        return (
+          <div key={idx} className="border border-primary-100 rounded-md p-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium text-primary-900 truncate">
+                {String(title ?? (pk ?? `#${idx + 1}`))}
+              </div>
+              {status != null ? (
+                <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
+              ) : null}
+            </div>
+            <div className="mt-1 text-xs text-primary-500">
+              {created ? new Date(String(created)).toLocaleString() : null}
+            </div>
+            {link && (
+              <div className="mt-1 text-xs">
+                <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all">{link}</a>
+              </div>
+            )}
+            {columns && columns.length > 0 && (
+              <div className="mt-2 overflow-auto">
+                <table className="min-w-full text-[11px]">
+                  <tbody>
+                    {columns.map((c) => (
+                      <tr key={c} className="border-t border-primary-100">
+                        <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
+                        <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {extra > 0 && (
+        <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
+      )}
+    </div>
+  )
 }
 
 function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
