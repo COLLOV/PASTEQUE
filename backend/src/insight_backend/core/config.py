@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # MCP configuration (declarative)
     mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
     mcp_servers_json: str | None = Field(None, alias="MCP_SERVERS_JSON")
+    mcp_chart_storage_path: str = Field("/tmp/gpt-vis-charts", alias="MCP_CHART_STORAGE_PATH")
 
     # MindsDB (HTTP API)
     mindsdb_base_url: str = Field("http://127.0.0.1:47334/api", alias="MINDSDB_BASE_URL")

@@ -20,7 +20,7 @@ class ChartRepository:
         *,
         user_id: int,
         prompt: str,
-        chart_url: str,
+        chart_path: str,
         tool_name: str | None,
         chart_title: str | None,
         chart_description: str | None,
@@ -29,14 +29,14 @@ class ChartRepository:
         chart = Chart(
             user_id=user_id,
             prompt=prompt,
-            chart_url=chart_url,
+            chart_path=chart_path,
             tool_name=tool_name,
             chart_title=chart_title,
             chart_description=chart_description,
             chart_spec=chart_spec,
         )
         self.session.add(chart)
-        log.info("Chart queued for persistence (user_id=%s, url=%s)", user_id, chart_url)
+        log.info("Chart queued for persistence (user_id=%s, path=%s)", user_id, chart_path)
         return chart
 
     def list_by_user(self, user_id: int) -> list[Chart]:
