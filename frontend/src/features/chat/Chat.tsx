@@ -56,6 +56,7 @@ export default function Chat() {
   const [sqlMode, setSqlMode] = useState(false)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
+  const [showTicketsSheet, setShowTicketsSheet] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -69,6 +70,15 @@ export default function Chat() {
   }, [messages, loading])
 
   // (UI) effets Evidence supprimés dans la version split
+  // Fermer la sheet Tickets avec la touche Escape
+  useEffect(() => {
+    if (!showTicketsSheet) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTicketsSheet(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showTicketsSheet])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
@@ -440,6 +450,26 @@ export default function Chat() {
         <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-140px)]">
           {/* Messages */}
           <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
+            {/* Mobile tickets button */}
+            <div className="sticky top-0 z-10 -mt-4 -mx-4 mb-2 px-4 pt-3 pb-2 bg-white/95 backdrop-blur border-b lg:hidden">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-primary-500">Discussion</div>
+                <button
+                  type="button"
+                  onClick={() => setShowTicketsSheet(true)}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                >
+                  <HiCircleStack className="w-4 h-4" />
+                  Tickets
+                  {(() => {
+                    const c = evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0
+                    return c > 0 ? (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{c}</span>
+                    ) : null
+                  })()}
+                </button>
+              </div>
+            </div>
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id ?? index}
@@ -527,6 +557,35 @@ export default function Chat() {
           </div>
         </div>
       </section>
+
+      {/* Bottom sheet (mobile) for tickets */}
+      {showTicketsSheet && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowTicketsSheet(false)} />
+          <div className="absolute left-0 right-0 bottom-0 max-h-[70vh] bg-white rounded-t-2xl border-t shadow-lg p-3 overflow-auto">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</div>
+                {evidenceSpec?.period && (
+                  <div className="text-[11px] text-primary-500">
+                    {typeof evidenceSpec.period === 'string' ? evidenceSpec.period : `${evidenceSpec.period.from ?? ''}${evidenceSpec.period.to ? ` → ${evidenceSpec.period.to}` : ''}`}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTicketsSheet(false)}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
+                aria-label="Fermer"
+                title="Fermer"
+              >
+                <HiXMark className="w-4 h-4" />
+              </button>
+            </div>
+            <TicketPanel spec={evidenceSpec} data={evidenceData} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

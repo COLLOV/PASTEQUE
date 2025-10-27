@@ -154,6 +154,7 @@ import { login } from '@/services/auth'
 
 - Desktop (≥ lg): grille en 12 colonnes avec un panneau gauche (`lg:col-span-4`) et le chat à droite (`lg:col-span-8`).
 - Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
+ - Un bouton « Tickets » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
 - Bouton « Historique » (stub) dans le panneau gauche prêt à être connecté ultérieurement.
 
 #### Composer (Mise à jour)
