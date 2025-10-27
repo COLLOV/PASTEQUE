@@ -6,6 +6,7 @@ build/
 .env
 .env.*
 !.env.example
+!backend/.env.example
 !.env.*.example
 
 # Python
