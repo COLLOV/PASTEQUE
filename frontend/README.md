@@ -150,6 +150,8 @@ import { login } from '@/services/auth'
 - Gestion des états de chargement et d'erreur.
 - Streaming en direct (SSE sur `POST /api/v1/chat/stream`).
 - Nouveau: barre d'actions sous chaque réponse de l'assistant avec deux boutons: « Graphique » et « Détails ».
+  - Taille réduite: `size="xs"` pour une empreinte visuelle minimale.
+  - Apparition différée: les boutons ne s'affichent qu'une fois la réponse finalisée (fin du streaming), jamais pendant l'écriture.
   - « Graphique » déclenche `/mcp/chart` et s'affiche dans un nouveau message (bouton « Enregistrer dans le dashboard » inclus). Le bouton est automatiquement désactivé si aucun jeu de données NL→SQL exploitable n'est associé au message.
   - « Détails » affiche/masque les informations de requête (SQL exécuté, échantillons, plan).
 

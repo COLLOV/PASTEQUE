@@ -873,11 +873,11 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             isUser ? '' : 'text-primary-950'
           )}>
             {content}
-            {/* Actions: Graphique + Détails */}
-            {!isUser && !chartUrl && (
-              <div className="mt-3 flex items-center gap-2">
+            {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
+            {!isUser && !chartUrl && !message.ephemeral && (
+              <div className="mt-2 flex items-center gap-2">
                 <Button
-                  size="sm"
+                  size="xs"
                   variant="secondary"
                   onClick={() => message.id && onGenerateChart && onGenerateChart(message.id)}
                   disabled={
@@ -896,7 +896,7 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                   {message.chartSaving ? 'Génération…' : 'Graphique'}
                 </Button>
                 <Button
-                  size="sm"
+                  size="xs"
                   variant="secondary"
                   onClick={() => setShowDetails(v => !v)}
                 >
@@ -906,7 +906,8 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             )}
           </div>
         )}
-        {!isUser && message.details && (message.details.steps?.length || message.details.plan) ? (
+        {/* Détails n'apparaissent que lorsque le message est finalisé */}
+        {!isUser && !message.ephemeral && message.details && (message.details.steps?.length || message.details.plan) ? (
           <div className="mt-2 text-xs">
             {showDetails && (
               <div className="mt-1 space-y-2 text-primary-700">
