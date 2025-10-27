@@ -117,7 +117,8 @@ export default function Chat() {
         const panelOffset = readCssPxVar('--evidence-offset')
         const panelTotal = panelW + panelOffset
         const gutter = readCssPxVar('--evidence-gutter')
-        if (w >= LG && showEvidenceRef.current && chatRef.current) {
+        // Only offset chat when the sidebar is actually side-by-side
+        if (w >= LG && canShowEvidenceUI && showEvidenceRef.current && chatRef.current) {
           const rect = chatRef.current.getBoundingClientRect()
           const needed = Math.max(0, Math.ceil(panelTotal + gutter - rect.left))
           setChatOffset(needed)
@@ -170,8 +171,8 @@ export default function Chat() {
         }
 
         // Compute horizontal offset to keep chat centered but never under the panel
-        // Only on desktop and while panel is shown
-        if (w >= LG && showEvidenceRef.current) {
+        // Only on desktop and while panel is shown AND when we actually render side-by-side
+        if (w >= LG && hasRoom && showEvidenceRef.current) {
           const el = chatRef.current
           if (el) {
             const rect = el.getBoundingClientRect()
@@ -659,6 +660,7 @@ export default function Chat() {
           spec={evidenceSpec}
           data={evidenceData}
           onClose={closeEvidence}
+          sideBySide={canShowEvidenceUI}
         />
       )}
 
@@ -944,9 +946,11 @@ type EvidenceSidebarProps = {
   spec: EvidenceSpec | null
   data: EvidenceRowsPayload | null
   onClose: () => void
+  // true when there is enough horizontal room to render a fixed sidebar without hurting chat width
+  sideBySide: boolean
 }
 
-function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
+function EvidenceSidebar({ spec, data, onClose, sideBySide }: EvidenceSidebarProps) {
   const asideRef = useRef<HTMLElement | null>(null)
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
@@ -1039,15 +1043,20 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 md:pointer-events-none" id="evidence-drawer">
-      {/* Overlay (clic pour fermer) uniquement sur mobile/tablette */}
-      <div
-        role="presentation"
-        aria-hidden="true"
-        tabIndex={-1}
-        className="absolute inset-0 bg-black/20 md:hidden"
-        onClick={onClose}
-      />
+    <div
+      className={clsx('fixed inset-0 z-40', sideBySide && 'pointer-events-none')}
+      id="evidence-drawer"
+    >
+      {/* Overlay (clic pour fermer) quand le panneau ne doit pas réduire le chat */}
+      {!sideBySide && (
+        <div
+          role="presentation"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="absolute inset-0 bg-black/20"
+          onClick={onClose}
+        />
+      )}
 
       <aside
         ref={asideRef}
@@ -1055,12 +1064,17 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
         aria-modal="true"
         aria-labelledby="evidence-panel-title"
         className={clsx(
-          // Mobile: bottom sheet plein largeur
-          'absolute left-0 right-0 bottom-0 h-[70vh] w-full rounded-t-2xl border-t border-x bg-white p-3 shadow-lg transition-transform duration-200 ease-out overflow-y-auto overscroll-contain',
-          // Desktop: panneau latéral fixe à gauche
-          'md:left-[var(--evidence-offset)] md:top-24 md:bottom-auto md:right-auto md:h-[calc(100vh-140px)] md:w-[var(--evidence-panel-w)] md:rounded-lg md:border md:p-3 md:shadow-md md:overflow-y-auto',
-          // Ensure interactions on desktop when wrapper ignores pointer events
-          'pointer-events-auto'
+          sideBySide
+            ? [
+                // Panneau latéral fixe à gauche (ne capte pas les clics hors panneau)
+                'absolute left-[var(--evidence-offset)] top-24 bottom-auto right-auto h-[calc(100vh-140px)] w-[var(--evidence-panel-w)] rounded-lg border bg-white p-3 shadow-md overflow-y-auto',
+              ]
+            : [
+                // Bottom sheet plein largeur
+                'absolute left-0 right-0 bottom-0 h-[70vh] w-full rounded-t-2xl border-t border-x bg-white p-3 shadow-lg overflow-y-auto overscroll-contain',
+              ],
+          // Ensure interactions on the panel remain enabled
+          'pointer-events-auto transition-transform duration-200 ease-out'
         )}
       >
       <div className="flex items-center justify-between mb-2">
@@ -1077,8 +1091,11 @@ function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
           aria-label="Fermer le panneau"
           title="Fermer le panneau"
         >
-          <span className="md:hidden"><HiXMark className="w-4 h-4" /></span>
-          <span className="hidden md:inline"><HiChevronLeft className="w-4 h-4" /></span>
+          {sideBySide ? (
+            <HiChevronLeft className="w-4 h-4" />
+          ) : (
+            <HiXMark className="w-4 h-4" />
+          )}
         </button>
       </div>
       {(!spec || !data || count === 0) && (

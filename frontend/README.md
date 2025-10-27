@@ -155,16 +155,16 @@ import { login } from '@/services/auth'
 
 #### Panneau Tickets/Evidence (Responsive) — Oct. 2025
 
-- Le panneau des tickets s’ouvre désormais en « bottom sheet » sur mobile (70% de la hauteur) avec un overlay cliquable pour fermer.
-- Sur desktop, il reste une barre latérale à gauche, largeur fixe, non intrusive.
+- Le panneau des tickets s’ouvre en « bottom sheet » (superposé) tant qu’il n’y a pas assez de place pour conserver au moins `680px` de largeur pour le chat.
+- Quand l’écran est suffisamment large, le panneau passe automatiquement en barre latérale fixe à gauche (largeur `--evidence-panel-w`, offset `--evidence-offset`). Le chat reste prioritaire; si l’espace devient insuffisant lors d’un redimensionnement, le panneau se referme et/ou redevient un bottom sheet.
 - Un bouton toggle est disponible:
   - Icône hamburger en haut à gauche sur mobile.
   - Pilule « Tickets » en haut (sticky) avec badge et état actif.
 - Accessibilité: `aria-pressed`, `aria-expanded`, `role="dialog"`, `aria-modal` et fermeture au clavier via `Escape`.
 - Les liens de chaque ticket s’ouvrent dans un nouvel onglet et les colonnes restent scrollables.
- - Panneau scrollable: le tiroir « Tickets » possède désormais un `overflow-y-auto` pour permettre le défilement quand la liste est longue (mobile et desktop).
- - Accessibilité: focus trap minimal dans le panneau (tabulation cyclée), focus initial sur « Fermer » et restauration du focus à la fermeture.
- - Bouton « Tickets »: désactivé uniquement quand le panneau est fermé et qu’il n’y a aucune donnée à afficher.
+- Panneau scrollable: le tiroir « Tickets » possède un `overflow-y-auto` (mobile et desktop).
+- Accessibilité: focus trap minimal (tabulation cyclée), focus initial sur « Fermer », restauration du focus à la fermeture.
+- Bouton « Tickets »: désactivé uniquement quand le panneau est fermé et qu’il n’y a aucune donnée à afficher.
 
 #### Composer (Mise à jour)
 
