@@ -16,7 +16,7 @@ from pydantic_ai.mcp import MCPServerStdio
 
 from ..core.config import settings
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
-from ..integrations.neo4j_client import Neo4jClient, Neo4jClientError
+from ..integrations.neo4j_client import Neo4jClient, Neo4jClientError, Neo4jResult
 from .neo4j_ingest import Neo4jIngestionService
 
 
@@ -118,8 +118,16 @@ class Neo4jGraphService:
             snippet = f"{snippet[:157]}..."
         log.info("Neo4j graph executed: rows=%d query=\"%s\"", result.row_count, snippet)
 
+        harmonized_answer = self._harmonize_answer(
+            question=prompt,
+            original_answer=agent_output.answer.strip(),
+            cypher=cypher,
+            sanitized_cypher=sanitized_cypher,
+            result=result,
+        )
+
         return Neo4jGraphResult(
-            answer=agent_output.answer.strip(),
+            answer=harmonized_answer,
             cypher=sanitized_cypher,
             columns=result.columns,
             rows=result.rows,
@@ -263,3 +271,63 @@ class Neo4jGraphService:
             if _ISO_DATETIME_RE.match(value):
                 return f"date('{value[:10]}')"
         return literal
+
+    @classmethod
+    def _harmonize_answer(
+        cls,
+        *,
+        question: str,
+        original_answer: str,
+        cypher: str,
+        sanitized_cypher: str,
+        result: Neo4jResult,
+    ) -> str:
+        if sanitized_cypher == cypher:
+            return original_answer
+
+        summary = cls._summarize_result(result)
+        if summary:
+            log.debug("Réponse recalculée après normalisation de la requête.")
+            return summary
+        return original_answer
+
+    @staticmethod
+    def _summarize_result(result: Neo4jResult) -> str:
+        row_count = result.row_count
+        columns = list(result.columns or [])
+        rows = result.rows or []
+
+        if row_count == 0:
+            return "Aucun enregistrement ne correspond à la requête normalisée."
+
+        # Aggregate-style result (single scalar)
+        if len(columns) == 1:
+            col = columns[0]
+            value = rows[0].get(col) if rows else None
+            if isinstance(value, (int, float)):
+                label = col.replace("_", " ")
+                return f"La requête normalisée renvoie {value} pour « {label} »."
+            if value is not None:
+                return f"La requête normalisée renvoie « {value} » pour la colonne « {col} »."
+
+        sample_rows = rows[: min(3, row_count)]
+        formatted_rows = []
+        for row in sample_rows:
+            parts = []
+            for col in columns[:3]:
+                parts.append(f"{col}={Neo4jGraphService._format_value(row.get(col))}")
+            formatted_rows.append(", ".join(parts))
+
+        sample_text = "; ".join(formatted_rows) if formatted_rows else ""
+        base = f"La requête normalisée a retourné {row_count} enregistrement(s)."
+        if sample_text:
+            return f"{base} Exemple: {sample_text}."
+        return base
+
+    @staticmethod
+    def _format_value(value: Any) -> str:
+        if value is None:
+            return "∅"
+        if isinstance(value, float):
+            return f"{value:.2f}"
+        return str(value)
