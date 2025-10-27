@@ -432,7 +432,7 @@ export default function Chat() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
       {/* Colonne gauche: Ticket exploration */}
-      <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 2xl:col-span-3">
+      <aside className="hidden lg:block lg:col-span-5 xl:col-span-5 2xl:col-span-5">
         <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</h2>
@@ -446,7 +446,7 @@ export default function Chat() {
       </aside>
 
       {/* Colonne droite: Chat */}
-      <section className="lg:col-span-8 xl:col-span-9 2xl:col-span-9">
+      <section className="lg:col-span-7 xl:col-span-7 2xl:col-span-7">
         <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-120px)]">
           {/* Messages */}
           <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
