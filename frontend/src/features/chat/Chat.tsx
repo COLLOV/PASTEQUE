@@ -778,7 +778,7 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
   )
 }
 
-function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
+function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleProps) {
   const {
     id,
     role,
