@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from ....core.database import get_session
@@ -9,6 +9,7 @@ from ....models.user import User
 from ....repositories.chart_repository import ChartRepository
 from ....schemas.chart import ChartResponse, ChartSaveRequest
 from ....services.chart_service import ChartService
+from ....services.chart_assets import decode_chart_token
 
 
 router = APIRouter(prefix="/charts")
@@ -21,10 +22,14 @@ def save_chart(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
 ) -> ChartResponse:
     service = ChartService(ChartRepository(session))
+    try:
+        relative_path = decode_chart_token(payload.chart_path_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     chart = service.save_chart(
         user=current_user,
         prompt=payload.prompt,
-        chart_url=payload.chart_url,
+        chart_path=relative_path,
         tool_name=payload.tool_name,
         chart_title=payload.chart_title,
         chart_description=payload.chart_description,

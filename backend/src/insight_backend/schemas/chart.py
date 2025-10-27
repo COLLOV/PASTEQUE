@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 class ChartSaveRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
-    chart_url: str = Field(..., min_length=1)
+    chart_path_token: str = Field(..., min_length=1)
     tool_name: str | None = None
     chart_title: str | None = None
     chart_description: str | None = None
@@ -22,6 +22,7 @@ class ChartResponse(BaseModel):
     id: int
     prompt: str
     chart_url: str
+    chart_preview_data_uri: str | None = None
     tool_name: str | None = None
     chart_title: str | None = None
     chart_description: str | None = None
@@ -31,11 +32,14 @@ class ChartResponse(BaseModel):
 
     @classmethod
     def from_model(cls, chart: "Chart", owner_username: str | None = None) -> "ChartResponse":
+        from ..services.chart_assets import build_chart_preview_data_uri, build_chart_view_url
+
         username = owner_username or (chart.user.username if chart.user else "")
         return cls(
             id=chart.id,
             prompt=chart.prompt,
-            chart_url=chart.chart_url,
+            chart_url=build_chart_view_url(chart.chart_path),
+            chart_preview_data_uri=build_chart_preview_data_uri(chart.chart_path),
             tool_name=chart.tool_name,
             chart_title=chart.chart_title,
             chart_description=chart.chart_description,
