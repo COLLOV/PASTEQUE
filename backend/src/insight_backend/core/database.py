@@ -3,17 +3,10 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 from typing import Iterator, Generator
-from uuid import UUID, uuid4
 
-from sqlalchemy import Integer, create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
-from sqlalchemy.types import TypeDecorator, CHAR
-
-try:
-    from sqlalchemy.dialects.postgresql import UUID as PGUUID
-except ImportError:  # pragma: no cover - optional import
-    PGUUID = None
 
 from .config import settings
 
@@ -23,34 +16,6 @@ log = logging.getLogger("insight.core.database")
 
 class Base(DeclarativeBase):
     """Base declarative class for SQLAlchemy models."""
-
-
-class GUID(TypeDecorator):
-    """Platform-independent GUID column."""
-
-    impl = CHAR
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        if dialect.name == "postgresql" and PGUUID is not None:
-            return dialect.type_descriptor(PGUUID(as_uuid=True))
-        return dialect.type_descriptor(CHAR(36))
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-        if not isinstance(value, UUID):
-            value = UUID(str(value))
-        if dialect.name == "postgresql":
-            return value
-        return str(value)
-
-    def process_result_value(self, value, dialect):
-        if value is None:
-            return value
-        if isinstance(value, UUID):
-            return value
-        return UUID(str(value))
 
 
 TABLE_PREFIX = "pasteque_"
@@ -67,53 +32,6 @@ LEGACY_TABLE_NAMES = {
 
 engine = create_engine(settings.database_url, echo=False, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-
-def _detect_user_id_kind() -> str:
-    inspector = inspect(engine)
-    try:
-        existing_tables = set(inspector.get_table_names())
-    except Exception:  # pragma: no cover - defensive guard
-        return "int"
-    for table_name in (USERS_TABLE, "users"):
-        if table_name not in existing_tables:
-            continue
-        try:
-            columns = inspector.get_columns(table_name)
-        except Exception:  # pragma: no cover - defensive guard
-            continue
-        for column in columns:
-            if column.get("name") != "id":
-                continue
-            col_type = column.get("type")
-            python_type = None
-            if col_type is not None:
-                try:
-                    python_type = col_type.python_type  # type: ignore[attr-defined]
-                except (NotImplementedError, AttributeError):  # pragma: no cover - dialect variance
-                    python_type = None
-            if python_type is UUID or (
-                col_type is not None and "uuid" in col_type.__class__.__name__.lower()
-            ):
-                return "uuid"
-            if python_type is int:
-                return "int"
-    return "int"
-
-
-USER_ID_KIND = _detect_user_id_kind()
-USE_UUID_USER_IDS = USER_ID_KIND == "uuid"
-
-
-def user_id_type():
-    return GUID() if USE_UUID_USER_IDS else Integer()
-
-
-USER_ID_PK_KWARGS = (
-    {"default": uuid4}
-    if USE_UUID_USER_IDS
-    else {"autoincrement": True}
-)
 
 
 def init_database() -> None:

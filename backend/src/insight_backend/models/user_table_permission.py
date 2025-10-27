@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.database import Base, USER_TABLE_PERMISSIONS_TABLE, USERS_TABLE, user_id_type
+from ..core.database import Base, USER_TABLE_PERMISSIONS_TABLE, USERS_TABLE
 
 
 class UserTablePermission(Base):
@@ -16,8 +15,7 @@ class UserTablePermission(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[UUID | int] = mapped_column(
-        user_id_type(),
+    user_id: Mapped[int] = mapped_column(
         ForeignKey(f"{USERS_TABLE}.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

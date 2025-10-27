@@ -2,9 +2,6 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from uuid import uuid4
-
-from insight_backend.core.database import USE_UUID_USER_IDS
 
 from insight_backend.core import database
 from insight_backend.core.config import settings
@@ -108,45 +105,28 @@ def test_ensure_admin_column_sets_only_configured_admin(monkeypatch, caplog):
 
     try:
         with engine.begin() as conn:
-            base_rows = [
-                {
-                    "username": settings.admin_username,
-                    "password_hash": "hash",
-                    "is_active": True,
-                    "is_admin": False,
-                    "must_reset_password": False,
-                },
-                {
-                    "username": "rogue",
-                    "password_hash": "hash",
-                    "is_active": True,
-                    "is_admin": True,
-                    "must_reset_password": False,
-                },
-            ]
-            if USE_UUID_USER_IDS:
-                for row in base_rows:
-                    row["id"] = str(uuid4())
-
-            columns = [
-                "username",
-                "password_hash",
-                "is_active",
-                "is_admin",
-                "must_reset_password",
-            ]
-            if USE_UUID_USER_IDS:
-                columns.insert(0, "id")
-
-            column_list = ", ".join(columns)
-            value_list = ", ".join(f":{column}" for column in columns)
-
             conn.execute(
                 text(
                     f"INSERT INTO {database.USERS_TABLE} "
-                    f"({column_list}) VALUES ({value_list})"
+                    "(username, password_hash, is_active, is_admin, must_reset_password) "
+                    "VALUES (:username, :password_hash, :is_active, :is_admin, :must_reset_password)"
                 ),
-                base_rows,
+                [
+                    {
+                        "username": settings.admin_username,
+                        "password_hash": "hash",
+                        "is_active": True,
+                        "is_admin": False,
+                        "must_reset_password": False,
+                    },
+                    {
+                        "username": "rogue",
+                        "password_hash": "hash",
+                        "is_active": True,
+                        "is_admin": True,
+                        "must_reset_password": False,
+                    },
+                ],
             )
 
         caplog.clear()

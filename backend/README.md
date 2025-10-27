@@ -23,7 +23,6 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
   ```
   DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/pasteque
   ```
-- Lors de l'initialisation, le backend inspecte `pasteque_users` (ou l'ancienne table `users`) pour réutiliser le type de clé primaire existant—entier auto-incrémenté ou UUID. Les colonnes de relation (ex. `pasteque_charts.user_id`) sont créées avec le même type afin d'éviter les erreurs `integer`/`uuid`. Les nouvelles entrées UUID sont générées via `uuid4` côté application.
 - Au démarrage, le backend crée (ou renomme) la table `pasteque_users` si nécessaire et provisionne un compte administrateur (`ADMIN_USERNAME` / `ADMIN_PASSWORD`). Les valeurs par défaut sont `admin / admin`; changez-les via l’environnement avant le premier lancement pour écraser la valeur stockée.
 - Une colonne booléenne `is_admin` sur la table `pasteque_users` est forcée à `true` uniquement pour ce compte administrateur et à `false` pour tous les autres comptes à chaque démarrage. Les contrôles d’accès vérifient ce flag *et* le nom d’utilisateur pour éviter toute élévation de privilèges accidentelle.
 - Les mots de passe sont hachés avec Argon2 (`argon2-cffi`). Si vous avez déjà déployé la version bcrypt, exécutez la migration manuelle suivante pour élargir la colonne :
