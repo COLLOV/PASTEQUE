@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from insight_backend.integrations.neo4j_client import Neo4jResult
 from insight_backend.services.neo4j_graph_service import Neo4jGraphService
@@ -51,6 +52,40 @@ def test_result_snapshot_truncation():
     assert payload["row_count"] == 25
     assert payload["truncated"] is True
     assert len(payload["rows"]) == 5
+
+
+def test_strip_limit_clauses():
+    query = "MATCH (t:Ticket) RETURN t LIMIT 200"
+    stripped = Neo4jGraphService._strip_limit_clauses(query)
+    assert "LIMIT" not in stripped.upper()
+    assert stripped.strip().endswith("RETURN t")
+
+
+def test_derive_detail_query_from_count():
+    query = "MATCH (t:Ticket) WHERE t.creation_date >= date('2025-01-01') RETURN count(t) AS total"
+    detail = Neo4jGraphService._derive_detail_query(query)
+    assert detail is not None
+    assert "RETURN *" in detail
+    assert "count" not in detail.lower()
+
+
+def test_derive_detail_query_without_aggregate_returns_none():
+    query = "MATCH (t:Ticket) RETURN t"
+    assert Neo4jGraphService._derive_detail_query(query) is None
+
+
+def test_prepare_evidence_result_flattens_nodes():
+    node_payload: dict[str, Any] = {
+        "id": "123",
+        "labels": ["Ticket"],
+        "ticket_id": "T-1",
+        "departement": "75",
+    }
+    detail = Neo4jResult(columns=["t"], rows=[{"t": node_payload}], row_count=1)
+    shaped = Neo4jGraphService._prepare_evidence_result(detail)
+    assert shaped is not None
+    assert "ticket_id" in shaped.columns
+    assert shaped.rows[0]["ticket_id"] == "T-1"
 
 
 def test_harmonize_answer_returns_original_when_same_query(monkeypatch):

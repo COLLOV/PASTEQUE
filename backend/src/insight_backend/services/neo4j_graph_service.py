@@ -79,11 +79,12 @@ class Neo4jGraphService:
         Règles essentielles:
         1. Utilise uniquement l'outil `read_neo4j_cypher` du serveur MCP pour exécuter des requêtes Cypher.
         2. Les requêtes doivent être strictement en lecture (MATCH/RETURN, éventuellement CALL ... YIELD). Aucune écriture.
-        3. Limite la taille des résultats avec LIMIT {limit} si la requête peut retourner beaucoup de lignes.
+        3. N'ajoute pas de clause LIMIT: la plateforme gère le volume de données et doit pouvoir accéder à toutes les lignes pertinentes.
         4. Offre une réponse synthétique en français basée UNIQUEMENT sur les résultats retournés.
         5. Fourni l'objet `GraphAgentOutput` avec:
            - `answer`: résumé clair de l'insight.
            - `cypher`: la requête exécutée exactement telle qu'elle a été lancée.
+        6. Retourne toujours les entités pertinentes avec leurs identifiants (ex: `t.ticket_id`, `t.creation_date`, `t.departement`) et évite d'ajouter des clauses LIMIT: la plateforme doit pouvoir afficher l'intégralité des lignes accessibles.
         """
     )
 
@@ -104,15 +105,22 @@ class Neo4jGraphService:
         if sanitized_cypher != cypher:
             log.debug("Normalisation des dates détectée dans la requête Cypher.")
 
+        sanitized_no_limit = self._strip_limit_clauses(sanitized_cypher)
+        if sanitized_no_limit != sanitized_cypher:
+            log.debug("Suppression des clauses LIMIT détectée dans la requête Cypher.")
+        sanitized_cypher = sanitized_no_limit
+
         client = Neo4jClient(
             uri=settings.neo4j_uri,
             username=settings.neo4j_username,
             password=settings.neo4j_password,
             database=settings.neo4j_database or None,
-            max_rows=settings.neo4j_result_limit,
+            max_rows=0,
         )
+        evidence_result: Optional[Neo4jResult] = None
         try:
-            result = client.run_read(sanitized_cypher, limit=settings.neo4j_result_limit)
+            result = client.run_read(sanitized_cypher, limit=None)
+            evidence_result = self._derive_detail_result(client, sanitized_cypher, result)
         except Neo4jClientError as exc:
             raise Neo4jGraphError(f"Échec de l'exécution Cypher: {exc}") from exc
         finally:
@@ -133,12 +141,14 @@ class Neo4jGraphService:
             provider=self._provider,
         )
 
+        display = evidence_result or result
+
         return Neo4jGraphResult(
             answer=harmonized_answer,
             cypher=sanitized_cypher,
-            columns=result.columns,
-            rows=result.rows,
-            row_count=result.row_count,
+            columns=display.columns,
+            rows=display.rows,
+            row_count=len(display.rows),
             model=self._model_name,
         )
 
@@ -278,6 +288,85 @@ class Neo4jGraphService:
             if _ISO_DATETIME_RE.match(value):
                 return f"date('{value[:10]}')"
         return literal
+
+    @staticmethod
+    def _strip_limit_clauses(cypher: str) -> str:
+        if not cypher:
+            return cypher
+        stripped = cypher
+        pattern = re.compile(r"\s+LIMIT\s+\S+\s*$", flags=re.IGNORECASE)
+        prev = None
+        while stripped != prev:
+            prev = stripped
+            stripped = pattern.sub("", stripped)
+        return stripped
+
+    @classmethod
+    def _derive_detail_result(
+        cls,
+        client: Neo4jClient,
+        cypher: str,
+    ) -> Optional[Neo4jResult]:
+        detail_query = cls._derive_detail_query(cypher)
+        if not detail_query:
+            return None
+        try:
+            detail = client.run_read(detail_query, limit=None)
+        except Neo4jClientError:
+            log.warning("Échec de la requête de détails Neo4j", exc_info=True)
+            return None
+        return cls._prepare_evidence_result(detail)
+
+    @classmethod
+    def _derive_detail_query(cls, cypher: str) -> Optional[str]:
+        s = cypher.strip()
+        if not s:
+            return None
+        if not re.search(r"\breturn\b", s, re.IGNORECASE):
+            return None
+
+        has_aggregate = re.search(r"\b(count|avg|sum|min|max|collect)\s*\(", s, re.IGNORECASE)
+        if not has_aggregate:
+            return None
+
+        parts = re.split(r"\breturn\b", s, maxsplit=1, flags=re.IGNORECASE)
+        if len(parts) != 2:
+            return None
+        prefix = parts[0].strip()
+        if not prefix:
+            return None
+        detail_query = f"{prefix} RETURN *"
+        return cls._strip_limit_clauses(detail_query)
+
+    @staticmethod
+    def _prepare_evidence_result(detail: Neo4jResult) -> Optional[Neo4jResult]:
+        if not detail.rows:
+            return None
+
+        ordered_keys: list[str] = []
+        shaped_rows: list[Dict[str, Any]] = []
+        for row in detail.rows:
+            shaped: Dict[str, Any] = {}
+            for key, value in row.items():
+                if isinstance(value, dict):
+                    for nested_key, nested_value in value.items():
+                        if nested_key not in ordered_keys:
+                            ordered_keys.append(nested_key)
+                        shaped.setdefault(nested_key, nested_value)
+                else:
+                    if key not in ordered_keys:
+                        ordered_keys.append(key)
+                    shaped.setdefault(key, value)
+            shaped_rows.append(shaped)
+
+        if not ordered_keys:
+            ordered_keys = list(detail.columns)
+
+        return Neo4jResult(
+            columns=ordered_keys,
+            rows=shaped_rows,
+            row_count=len(shaped_rows),
+        )
 
     @staticmethod
     def _harmonize_answer(
