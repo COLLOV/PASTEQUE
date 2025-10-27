@@ -149,6 +149,7 @@ import { login } from '@/services/auth'
 - Support du Shift+Enter pour nouvelles lignes.
 - Gestion des états de chargement et d'erreur.
 - Streaming en direct (SSE sur `POST /api/v1/chat/stream`).
+ - Nouveau: bouton « Générer un graphique » sur chaque réponse de l'assistant lorsque des données NL→SQL sont disponibles pour ce message. Le graphique est produit via `/mcp/chart` et s'affiche dans un nouveau message avec option d'enregistrement.
 
 #### Layout responsive — Oct. 2025
 
@@ -175,6 +176,13 @@ Mise à jour d'harmonisation (oct. 2025):
 - Input sur une seule ligne: `rows={1}`, `h-12` et `whitespace-nowrap` avec défilement horizontal.
 - Placeholder mis à jour: « Posez votre question », centré tant qu'il est visible.
 - Largeur du chat: `max-w-3xl` (modifiable dans `src/features/chat/Chat.tsx`).
+ 
+Fonctionnement du bouton « Générer un graphique » (oct. 2025):
+
+- Le bouton apparait sous une réponse de l'assistant si le pipeline a renvoyé un échantillon de données NL→SQL (colonnes + lignes) pour ce tour.
+- Le clic envoie `POST /mcp/chart` avec: `{ prompt: <message utilisateur précédent>, answer: <réponse>, dataset: { sql, columns, rows, row_count } }`.
+- Le graphique est affiché dans un nouveau message assistant, avec bouton « Enregistrer dans le dashboard ».
+- Si aucune donnée n'est disponible pour le message, le bouton n'est pas affiché (évite les faux-positifs et garde l'UX claire).
 
 Personnalisation rapide:
 
