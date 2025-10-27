@@ -488,7 +488,7 @@ export default function Chat() {
           </div>
 
           {/* Composer */}
-          <div className="border-t p-3">
+          <div className="p-3">
             <div className="relative">
               <Textarea
                 value={input}
