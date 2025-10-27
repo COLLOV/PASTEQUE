@@ -664,6 +664,7 @@ export default function Chat() {
 interface MessageBubbleProps {
   message: Message
   onSaveChart?: (messageId: string) => void
+  onGenerateChart?: (messageId: string) => void
 }
 
 // -------- Left panel: Tickets from evidence --------
@@ -871,6 +872,20 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
             isUser ? '' : 'text-primary-950'
           )}>
             {content}
+            {/* Inline action: generate a chart if dataset available */}
+            {!isUser && !chartUrl && message.chartDataset && message.chartDataset.sql && (message.chartDataset.columns?.length ?? 0) > 0 && (message.chartDataset.rows?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => message.id && onGenerateChart && onGenerateChart(message.id)}
+                  disabled={!message.id || Boolean(message.chartSaving)}
+                >
+                  <HiChartBar className="w-4 h-4 mr-2" />
+                  {message.chartSaving ? 'Génération…' : 'Générer un graphique'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
         {!isUser && message.details && (message.details.steps?.length || message.details.plan) ? (
