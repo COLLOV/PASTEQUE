@@ -54,6 +54,9 @@ export default function Layout() {
               <Button variant="secondary" size="sm" onClick={goTo('/chat')} className="!rounded-full">
                 Chat
               </Button>
+              <Button variant="secondary" size="sm" disabled title="Bientôt" className="!rounded-full">
+                Historique
+              </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">
                 Dashboard
               </Button>

@@ -436,10 +436,6 @@ export default function Chat() {
         <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</h2>
-            <Button size="sm" variant="secondary" onClick={() => { /* brancher plus tard */ }}>
-              <HiCircleStack className="w-4 h-4 mr-1" />
-              Historique
-            </Button>
           </div>
           <TicketPanel spec={evidenceSpec} data={evidenceData} />
         </div>
