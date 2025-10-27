@@ -430,10 +430,10 @@ export default function Chat() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
       {/* Colonne gauche: Ticket exploration */}
       <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 2xl:col-span-3">
-        <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-24 max-h-[calc(100vh-140px)] overflow-auto">
+        <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</h2>
             <Button size="sm" variant="secondary" onClick={() => { /* brancher plus tard */ }}>
@@ -447,7 +447,7 @@ export default function Chat() {
 
       {/* Colonne droite: Chat */}
       <section className="lg:col-span-8 xl:col-span-9 2xl:col-span-9">
-        <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-140px)]">
+        <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-120px)]">
           {/* Messages */}
           <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
             {/* Mobile tickets button */}
@@ -489,7 +489,7 @@ export default function Chat() {
 
           {/* Composer */}
           <div className="border-t p-3">
-            <div className="relative max-w-3xl mx-auto">
+            <div className="relative">
               <Textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}

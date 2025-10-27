@@ -156,6 +156,7 @@ import { login } from '@/services/auth'
 - Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
  - Un bouton « Tickets » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
 - Bouton « Historique » (stub) dans le panneau gauche prêt à être connecté ultérieurement.
+ - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
 #### Composer (Mise à jour)
 
