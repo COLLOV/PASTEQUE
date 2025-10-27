@@ -547,9 +547,7 @@ export default function Chat() {
                 )}
               </button>
             </div>
-            <p className="mt-2 text-center text-[10px] md:text-xs text-primary-400 select-none">
-              L'IA peut faire des erreurs, FoyerInsight aussi.
-            </p>
+            {null}
           </div>
         </div>
       </section>
