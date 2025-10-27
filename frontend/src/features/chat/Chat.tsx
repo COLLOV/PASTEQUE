@@ -271,7 +271,7 @@ export default function Chat() {
                 }
               }
             } else {
-              copy.push({ role: 'assistant', content: done.content_full })
+              copy.push({ role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
             }
             return copy
           })
