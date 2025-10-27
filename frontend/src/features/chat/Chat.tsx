@@ -261,15 +261,18 @@ export default function Chat() {
             const idx = copy.findIndex(m => m.ephemeral)
             if (idx >= 0) {
               copy[idx] = {
+                id: createMessageId(),
                 role: 'assistant',
                 content: done.content_full,
+                // Attach latest NL→SQL dataset (if any) to allow on-demand charting
+                ...(latestDataset ? { chartDataset: latestDataset } : {}),
                 details: {
                   ...(copy[idx].details || {}),
                   elapsed: done.elapsed_s
                 }
               }
             } else {
-              copy.push({ role: 'assistant', content: done.content_full })
+              copy.push({ id: createMessageId(), role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
             }
             return copy
           })
@@ -358,6 +361,73 @@ export default function Chat() {
     } finally {
       setLoading(false)
       abortRef.current = null
+    }
+  }
+
+  async function onGenerateChart(messageId: string) {
+    const index = messages.findIndex(m => m.id === messageId)
+    if (index < 0) return
+    const msg = messages[index]
+    // Prevent duplicate clicks while in-flight
+    if (msg.chartSaving) return
+    const dataset = msg.chartDataset
+    if (!dataset || !dataset.sql || (dataset.columns?.length ?? 0) === 0 || (dataset.rows?.length ?? 0) === 0) {
+      setError("Aucune donnée SQL exploitable pour ce message.")
+      return
+    }
+    // Derive prompt from the closest preceding user message
+    let prompt = ''
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        prompt = messages[i].content || ''
+        break
+      }
+    }
+    // Mark generating on the source message
+    setMessages(prev => {
+      const copy = [...prev]
+      const i = copy.findIndex(m => m.id === messageId)
+      if (i >= 0) copy[i] = { ...copy[i], chartSaving: true }
+      return copy
+    })
+    try {
+      const payload: ChartGenerationRequest = { prompt: prompt || 'Générer un graphique', answer: msg.content, dataset }
+      const res = await apiFetch<ChartGenerationResponse>('/mcp/chart', { method: 'POST', body: JSON.stringify(payload) })
+      const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
+      const assistantMessage: Message = chartUrl
+        ? {
+            id: createMessageId(),
+            role: 'assistant',
+            content: chartUrl,
+            chartUrl,
+            chartTitle: res?.chart_title,
+            chartDescription: res?.chart_description,
+            chartTool: res?.tool_name,
+            chartPrompt: prompt || undefined,
+            chartSpec: res?.chart_spec
+          }
+        : {
+            id: createMessageId(),
+            role: 'assistant',
+            content: 'Impossible de générer un graphique.'
+          }
+      setMessages(prev => {
+        const copy = [...prev]
+        // Clear generating flag on the source message and append the chart message
+        const i = copy.findIndex(m => m.id === messageId)
+        if (i >= 0) copy[i] = { ...copy[i], chartSaving: false }
+        copy.push(assistantMessage)
+        return copy
+      })
+    } catch (err) {
+      console.error(err)
+      setMessages(prev => {
+        const copy = [...prev]
+        const i = copy.findIndex(m => m.id === messageId)
+        if (i >= 0) copy[i] = { ...copy[i], chartSaving: false }
+        return copy
+      })
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération du graphique')
     }
   }
 
@@ -478,6 +548,7 @@ export default function Chat() {
                 key={message.id ?? index}
                 message={message}
                 onSaveChart={onSaveChart}
+                onGenerateChart={onGenerateChart}
               />
             ))}
             {messages.length === 0 && loading && (
@@ -594,6 +665,7 @@ export default function Chat() {
 interface MessageBubbleProps {
   message: Message
   onSaveChart?: (messageId: string) => void
+  onGenerateChart?: (messageId: string) => void
 }
 
 // -------- Left panel: Tickets from evidence --------
@@ -707,7 +779,7 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
   )
 }
 
-function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
+function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleProps) {
   const {
     id,
     role,
@@ -801,16 +873,42 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
             isUser ? '' : 'text-primary-950'
           )}>
             {content}
+            {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
+            {!isUser && !chartUrl && !message.ephemeral && (
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => message.id && onGenerateChart && onGenerateChart(message.id)}
+                  disabled={
+                    !message.id || Boolean(message.chartSaving) ||
+                    !(message.chartDataset && message.chartDataset.sql &&
+                      (message.chartDataset.columns?.length ?? 0) > 0 &&
+                      (message.chartDataset.rows?.length ?? 0) > 0)
+                  }
+                  title={
+                    message.chartDataset && (message.chartDataset.columns?.length ?? 0) > 0 && (message.chartDataset.rows?.length ?? 0) > 0
+                      ? 'Générer un graphique à partir du jeu de données'
+                      : 'Aucun jeu de données exploitable pour le graphique'
+                  }
+                >
+                  <HiChartBar className="w-4 h-4 mr-2" />
+                  {message.chartSaving ? 'Génération…' : 'Graphique'}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => setShowDetails(v => !v)}
+                >
+                  {showDetails ? 'Masquer' : 'Détails'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
-        {!isUser && message.details && (message.details.steps?.length || message.details.plan) ? (
+        {/* Détails n'apparaissent que lorsque le message est finalisé */}
+        {!isUser && !message.ephemeral && message.details && (message.details.steps?.length || message.details.plan) ? (
           <div className="mt-2 text-xs">
-            <button
-              className="underline text-primary-600"
-              onClick={() => setShowDetails(v => !v)}
-            >
-              {showDetails ? 'Masquer' : 'Afficher'} les détails de la requête
-            </button>
             {showDetails && (
               <div className="mt-1 space-y-2 text-primary-700">
                 {/* Métadonnées masquées (request_id/provider/model/elapsed) pour alléger l'affichage */}

@@ -2,6 +2,9 @@ export interface Message {
   id?: string
   role: 'user' | 'assistant'
   content: string
+  // Optional dataset captured during NL→SQL streaming for this answer
+  // Enables one-click chart generation from the assistant message bubble
+  chartDataset?: ChartDatasetPayload
   chartUrl?: string
   chartTitle?: string
   chartDescription?: string
