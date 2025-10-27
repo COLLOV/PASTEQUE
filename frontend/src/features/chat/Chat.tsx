@@ -873,17 +873,34 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             isUser ? '' : 'text-primary-950'
           )}>
             {content}
-            {/* Inline action: generate a chart if dataset available */}
-            {!isUser && !chartUrl && message.chartDataset && message.chartDataset.sql && (message.chartDataset.columns?.length ?? 0) > 0 && (message.chartDataset.rows?.length ?? 0) > 0 && (
-              <div className="mt-3">
+            {/* Actions: Graphique + Détails */}
+            {!isUser && !chartUrl && (
+              <div className="mt-3 flex items-center gap-2">
                 <Button
                   size="sm"
                   variant="secondary"
                   onClick={() => message.id && onGenerateChart && onGenerateChart(message.id)}
-                  disabled={!message.id || Boolean(message.chartSaving)}
+                  disabled={
+                    !message.id || Boolean(message.chartSaving) ||
+                    !(message.chartDataset && message.chartDataset.sql &&
+                      (message.chartDataset.columns?.length ?? 0) > 0 &&
+                      (message.chartDataset.rows?.length ?? 0) > 0)
+                  }
+                  title={
+                    message.chartDataset && (message.chartDataset.columns?.length ?? 0) > 0 && (message.chartDataset.rows?.length ?? 0) > 0
+                      ? 'Générer un graphique à partir du jeu de données'
+                      : 'Aucun jeu de données exploitable pour le graphique'
+                  }
                 >
                   <HiChartBar className="w-4 h-4 mr-2" />
-                  {message.chartSaving ? 'Génération…' : 'Générer un graphique'}
+                  {message.chartSaving ? 'Génération…' : 'Graphique'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowDetails(v => !v)}
+                >
+                  {showDetails ? 'Masquer' : 'Détails'}
                 </Button>
               </div>
             )}
@@ -891,12 +908,6 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
         )}
         {!isUser && message.details && (message.details.steps?.length || message.details.plan) ? (
           <div className="mt-2 text-xs">
-            <button
-              className="underline text-primary-600"
-              onClick={() => setShowDetails(v => !v)}
-            >
-              {showDetails ? 'Masquer' : 'Afficher'} les détails de la requête
-            </button>
             {showDetails && (
               <div className="mt-1 space-y-2 text-primary-700">
                 {/* Métadonnées masquées (request_id/provider/model/elapsed) pour alléger l'affichage */}

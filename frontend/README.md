@@ -149,7 +149,9 @@ import { login } from '@/services/auth'
 - Support du Shift+Enter pour nouvelles lignes.
 - Gestion des états de chargement et d'erreur.
 - Streaming en direct (SSE sur `POST /api/v1/chat/stream`).
- - Nouveau: bouton « Générer un graphique » sur chaque réponse de l'assistant lorsque des données NL→SQL sont disponibles pour ce message. Le graphique est produit via `/mcp/chart` et s'affiche dans un nouveau message avec option d'enregistrement.
+- Nouveau: barre d'actions sous chaque réponse de l'assistant avec deux boutons: « Graphique » et « Détails ».
+  - « Graphique » déclenche `/mcp/chart` et s'affiche dans un nouveau message (bouton « Enregistrer dans le dashboard » inclus). Le bouton est automatiquement désactivé si aucun jeu de données NL→SQL exploitable n'est associé au message.
+  - « Détails » affiche/masque les informations de requête (SQL exécuté, échantillons, plan).
 
 #### Layout responsive — Oct. 2025
 
@@ -177,12 +179,12 @@ Mise à jour d'harmonisation (oct. 2025):
 - Placeholder mis à jour: « Posez votre question », centré tant qu'il est visible.
 - Largeur du chat: `max-w-3xl` (modifiable dans `src/features/chat/Chat.tsx`).
  
-Fonctionnement du bouton « Générer un graphique » (oct. 2025):
+Fonctionnement du bouton « Graphique » (oct. 2025):
 
-- Le bouton apparait sous une réponse de l'assistant si le pipeline a renvoyé un échantillon de données NL→SQL (colonnes + lignes) pour ce tour.
+- Le bouton est visible sur chaque réponse de l'assistant et s'active uniquement si un échantillon NL→SQL (colonnes + lignes) est disponible pour ce tour.
 - Le clic envoie `POST /mcp/chart` avec: `{ prompt: <message utilisateur précédent>, answer: <réponse>, dataset: { sql, columns, rows, row_count } }`.
 - Le graphique est affiché dans un nouveau message assistant, avec bouton « Enregistrer dans le dashboard ».
-- Si aucune donnée n'est disponible pour le message, le bouton n'est pas affiché (évite les faux-positifs et garde l'UX claire).
+- S'il n'y a pas de données, le bouton reste désactivé (UX plus claire et cohérente).
 
 Personnalisation rapide:
 
