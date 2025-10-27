@@ -435,7 +435,7 @@ export default function Chat() {
       <aside className="hidden lg:block lg:col-span-5 xl:col-span-5 2xl:col-span-5">
         <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</h2>
+            <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</h2>
           </div>
           <TicketPanel spec={evidenceSpec} data={evidenceData} />
         </div>
@@ -456,7 +456,7 @@ export default function Chat() {
                   className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
                 >
                   <HiCircleStack className="w-4 h-4" />
-                  Tickets
+                  Exploration
                   {(() => {
                     const c = evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0
                     return c > 0 ? (
@@ -561,7 +561,7 @@ export default function Chat() {
           <div className="absolute left-0 right-0 bottom-0 max-h-[70vh] bg-white rounded-t-2xl border-t shadow-lg p-3 overflow-auto">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <div className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</div>
+                <div className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</div>
                 {evidenceSpec?.period && (
                   <div className="text-[11px] text-primary-500">
                     {typeof evidenceSpec.period === 'string' ? evidenceSpec.period : `${evidenceSpec.period.from ?? ''}${evidenceSpec.period.to ? ` → ${evidenceSpec.period.to}` : ''}`}
