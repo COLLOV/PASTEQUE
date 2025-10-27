@@ -1,10 +1,15 @@
 [
   {
     "name": "gpt-vis-mcp",
-    "command": "npx",
-    "args": ["-y", "@jsr2npm/yao__gpt-vis-mcp@latest"],
-    "env": {
-      "VIS_REQUEST_SERVER": "http://localhost:3000/generate"
-    }
+    "command": "docker",
+    "args": [
+      "run",
+      "--interactive",
+      "--rm",
+      "-v",
+      "/tmp/gpt-vis-charts:/tmp/gpt-vis-charts",
+      "ghcr.io/yaonyan/gpt-vis-mcp:latest-mcp"
+    ],
+    "env": {}
   }
 ]
