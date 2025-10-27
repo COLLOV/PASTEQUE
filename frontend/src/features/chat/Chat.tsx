@@ -61,11 +61,18 @@ export default function Chat() {
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => {
-        const doc = document.documentElement
-        window.scrollTo({ top: doc.scrollHeight, behavior: 'smooth' })
-      })
+    // Auto‑scroll the internal messages list container instead of the window
+    const el = listRef.current
+    if (!el) return
+    try {
+      const top = el.scrollHeight
+      if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top, behavior: 'smooth' })
+      } else {
+        el.scrollTop = top
+      }
+    } catch {
+      /* noop */
     }
   }, [messages, loading])
 
@@ -625,9 +632,17 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
   function buildLink(tpl: string | undefined, row: Record<string, unknown>) {
     if (!tpl) return undefined
     try {
-      const out = tpl.replace(/\{(\w+)\}/g, (_, k) => String(row[k] ?? ''))
-      const safe = out.startsWith('http://') || out.startsWith('https://') || out.startsWith('/')
-      return safe ? out : undefined
+      // Encode dynamic values to prevent injection into path/query
+      const replaced = tpl.replace(/\{(\w+)\}/g, (_, k) => encodeURIComponent(String(row[k] ?? '')))
+      // Build URL against current origin to validate protocol and normalize
+      const url = new URL(replaced, window.location.origin)
+      const allowed = ['http:', 'https:']
+      if (!allowed.includes(url.protocol)) return undefined
+      // Return relative path when template intended a relative URL
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(replaced)) {
+        return url.pathname + url.search + url.hash
+      }
+      return url.href
     } catch {
       return undefined
     }
@@ -649,8 +664,9 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
         const created = createdAtKey ? row[createdAtKey] : undefined
         const pk = pkKey ? row[pkKey] : undefined
         const link = buildLink(linkTpl, row)
+        const uniqueKey = pk != null ? String(pk) : `row-${idx}`
         return (
-          <div key={idx} className="border border-primary-100 rounded-md p-2">
+          <div key={uniqueKey} className="border border-primary-100 rounded-md p-2">
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-medium text-primary-900 truncate">
                 {String(title ?? (pk ?? `#${idx + 1}`))}
