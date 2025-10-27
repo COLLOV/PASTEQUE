@@ -103,7 +103,8 @@ data/
 
 - Deux boutons icônes vivent dans la zone d’input :
   - « Activer NL→SQL (MindsDB) » envoie `metadata.nl2sql=true` à `POST /api/v1/chat/stream` pour déclencher ponctuellement le mode NL→SQL sans modifier l’environnement.
-  - « Activer MCP Chart » lance le flux complet : streaming du chat pour récupérer SQL + dataset, puis `POST /api/v1/mcp/chart` avec le prompt, la réponse textuelle et les données collectées.
+- « Activer MCP Chart » lance le flux complet : streaming du chat pour récupérer SQL + dataset, puis `POST /api/v1/mcp/chart` avec le prompt, la réponse textuelle et les données collectées.
+- Nouveau (2025‑10‑27): un bouton « Générer un graphique » apparait désormais sous chaque réponse de l’assistant quand un dataset NL→SQL a été reçu pour ce tour. Le clic déclenche `POST /api/v1/mcp/chart` avec le dataset mémorisé, et le graphique s’affiche dans un nouveau message avec l’option d’enregistrement.
 - Le frontend capture le dernier dataset NL→SQL (SQL, colonnes, lignes tronquées à `NL2SQL_MAX_ROWS`) et le transmet tel quel au backend; sans résultat exploitable, aucun graphique n’est généré et un message explicite est renvoyé.
 - Le backend n’explore plus les CSV `data/raw/` pendant cette étape : l’agent `pydantic-ai` exploite exclusivement les données reçues via l’outil `get_sql_result`. Les helpers `load_dataset` / `aggregate_counts` restent disponibles avant l’appel `generate_*_chart` si besoin.
 - La réponse API inclut l’URL du rendu, les métadonnées (titre, description, spec JSON) ainsi que la requête SQL source et son volume de lignes pour garder la traçabilité côté frontend.
