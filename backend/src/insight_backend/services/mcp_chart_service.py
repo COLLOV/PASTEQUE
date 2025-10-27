@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 import logging
@@ -152,6 +153,11 @@ class ChartGenerationService:
         env = os.environ.copy()
         env.update(self._chart_spec.env or {})
         env["RENDERED_IMAGE_PATH"] = settings.mcp_chart_storage_path
+        patch_module = Path(__file__).resolve().parent / "mcp_console_stderr.cjs"
+        node_options = env.get("NODE_OPTIONS", "").strip()
+        inject_flag = f"--require {patch_module}"
+        if inject_flag not in node_options:
+            env["NODE_OPTIONS"] = f"{node_options} {inject_flag}".strip()
 
         server = MCPServerStdio(
             self._chart_spec.command,
