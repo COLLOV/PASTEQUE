@@ -120,7 +120,7 @@ class Neo4jGraphService:
         evidence_result: Optional[Neo4jResult] = None
         try:
             result = client.run_read(sanitized_cypher, limit=None)
-            evidence_result = self._derive_detail_result(client, sanitized_cypher, result)
+            evidence_result = self._derive_detail_result(client, sanitized_cypher)
         except Neo4jClientError as exc:
             raise Neo4jGraphError(f"Échec de l'exécution Cypher: {exc}") from exc
         finally:
@@ -361,6 +361,21 @@ class Neo4jGraphService:
 
         if not ordered_keys:
             ordered_keys = list(detail.columns)
+        else:
+            preferred = [
+                "ticket_id",
+                "feedback_id",
+                "sinistre_id",
+                "client_id",
+                "creation_date",
+                "date_feedback",
+                "last_seen",
+                "departement",
+                "source",
+            ]
+            prioritized = [key for key in preferred if key in ordered_keys]
+            others = [key for key in ordered_keys if key not in preferred]
+            ordered_keys = prioritized + others
 
         return Neo4jResult(
             columns=ordered_keys,
