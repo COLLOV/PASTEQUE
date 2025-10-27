@@ -263,6 +263,8 @@ export default function Chat() {
               copy[idx] = {
                 role: 'assistant',
                 content: done.content_full,
+                // Attach latest NL→SQL dataset (if any) to allow on-demand charting
+                ...(latestDataset ? { chartDataset: latestDataset } : {}),
                 details: {
                   ...(copy[idx].details || {}),
                   elapsed: done.elapsed_s
@@ -358,6 +360,73 @@ export default function Chat() {
     } finally {
       setLoading(false)
       abortRef.current = null
+    }
+  }
+
+  async function onGenerateChart(messageId: string) {
+    const index = messages.findIndex(m => m.id === messageId)
+    if (index < 0) return
+    const msg = messages[index]
+    // Prevent duplicate clicks while in-flight
+    if (msg.chartSaving) return
+    const dataset = msg.chartDataset
+    if (!dataset || !dataset.sql || (dataset.columns?.length ?? 0) === 0 || (dataset.rows?.length ?? 0) === 0) {
+      setError("Aucune donnée SQL exploitable pour ce message.")
+      return
+    }
+    // Derive prompt from the closest preceding user message
+    let prompt = ''
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        prompt = messages[i].content || ''
+        break
+      }
+    }
+    // Mark generating on the source message
+    setMessages(prev => {
+      const copy = [...prev]
+      const i = copy.findIndex(m => m.id === messageId)
+      if (i >= 0) copy[i] = { ...copy[i], chartSaving: true }
+      return copy
+    })
+    try {
+      const payload: ChartGenerationRequest = { prompt: prompt || 'Générer un graphique', answer: msg.content, dataset }
+      const res = await apiFetch<ChartGenerationResponse>('/mcp/chart', { method: 'POST', body: JSON.stringify(payload) })
+      const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
+      const assistantMessage: Message = chartUrl
+        ? {
+            id: createMessageId(),
+            role: 'assistant',
+            content: chartUrl,
+            chartUrl,
+            chartTitle: res?.chart_title,
+            chartDescription: res?.chart_description,
+            chartTool: res?.tool_name,
+            chartPrompt: prompt || undefined,
+            chartSpec: res?.chart_spec
+          }
+        : {
+            id: createMessageId(),
+            role: 'assistant',
+            content: 'Impossible de générer un graphique.'
+          }
+      setMessages(prev => {
+        const copy = [...prev]
+        // Clear generating flag on the source message and append the chart message
+        const i = copy.findIndex(m => m.id === messageId)
+        if (i >= 0) copy[i] = { ...copy[i], chartSaving: false }
+        copy.push(assistantMessage)
+        return copy
+      })
+    } catch (err) {
+      console.error(err)
+      setMessages(prev => {
+        const copy = [...prev]
+        const i = copy.findIndex(m => m.id === messageId)
+        if (i >= 0) copy[i] = { ...copy[i], chartSaving: false }
+        return copy
+      })
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération du graphique')
     }
   }
 
@@ -478,6 +547,7 @@ export default function Chat() {
                 key={message.id ?? index}
                 message={message}
                 onSaveChart={onSaveChart}
+                onGenerateChart={onGenerateChart}
               />
             ))}
             {messages.length === 0 && loading && (
