@@ -152,11 +152,12 @@ class ChartGenerationService:
         provider, model_name = self._build_provider()
         env = os.environ.copy()
         env.update(self._chart_spec.env or {})
-        storage_path = Path(settings.mcp_chart_storage_path).expanduser().resolve()
-        env["RENDERED_IMAGE_PATH"] = str(storage_path)
-        env["MCP_CHART_STORAGE_PATH"] = str(storage_path)
+        env["RENDERED_IMAGE_PATH"] = settings.mcp_chart_storage_path
         patch_module = Path(__file__).resolve().parent / "mcp_console_stderr.cjs"
-        env["MCP_CONSOLE_PATCH"] = str(patch_module)
+        node_options = env.get("NODE_OPTIONS", "").strip()
+        inject_flag = f"--require {patch_module}"
+        if inject_flag not in node_options:
+            env["NODE_OPTIONS"] = f"{node_options} {inject_flag}".strip()
 
         server = MCPServerStdio(
             self._chart_spec.command,
