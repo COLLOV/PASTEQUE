@@ -422,7 +422,7 @@ export default function Chat() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Colonne gauche: Ticket exploration */}
-      <aside className="lg:col-span-4 xl:col-span-3 2xl:col-span-3">
+      <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 2xl:col-span-3">
         <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-24 max-h-[calc(100vh-140px)] overflow-auto">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Tickets'}</h2>

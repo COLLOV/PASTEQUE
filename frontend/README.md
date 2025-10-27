@@ -153,7 +153,7 @@ import { login } from '@/services/auth'
 #### Layout responsive — Oct. 2025
 
 - Desktop (≥ lg): grille en 12 colonnes avec un panneau gauche (`lg:col-span-4`) et le chat à droite (`lg:col-span-8`).
-- Mobile/Tablette (< lg): empilement vertical — le panneau « Ticket exploration » s’affiche au-dessus du chat.
+- Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
 - Bouton « Historique » (stub) dans le panneau gauche prêt à être connecté ultérieurement.
 
 #### Composer (Mise à jour)
