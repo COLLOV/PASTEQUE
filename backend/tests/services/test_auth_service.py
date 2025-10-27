@@ -107,7 +107,8 @@ def test_ensure_admin_column_sets_only_configured_admin(monkeypatch, caplog):
         with engine.begin() as conn:
             conn.execute(
                 text(
-                    "INSERT INTO users (username, password_hash, is_active, is_admin, must_reset_password) "
+                    f"INSERT INTO {database.USERS_TABLE} "
+                    "(username, password_hash, is_active, is_admin, must_reset_password) "
                     "VALUES (:username, :password_hash, :is_active, :is_admin, :must_reset_password)"
                 ),
                 [
@@ -133,7 +134,9 @@ def test_ensure_admin_column_sets_only_configured_admin(monkeypatch, caplog):
             database._ensure_admin_column()
 
         with engine.connect() as conn:
-            rows = conn.execute(text("SELECT username, is_admin FROM users")).fetchall()
+            rows = conn.execute(
+                text(f"SELECT username, is_admin FROM {database.USERS_TABLE}")
+            ).fetchall()
         states = {row[0]: bool(row[1]) for row in rows}
 
         assert states[settings.admin_username] is True
