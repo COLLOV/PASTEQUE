@@ -5,18 +5,18 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.database import Base
+from ..core.database import Base, USER_TABLE_PERMISSIONS_TABLE, USERS_TABLE
 
 
 class UserTablePermission(Base):
-    __tablename__ = "user_table_permissions"
+    __tablename__ = USER_TABLE_PERMISSIONS_TABLE
     __table_args__ = (
         UniqueConstraint("user_id", "table_name", name="uq_user_table_permissions_user_table"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(f"{USERS_TABLE}.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -28,4 +28,3 @@ class UserTablePermission(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="table_permissions")
-
