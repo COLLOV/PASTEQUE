@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import textwrap
 import re
@@ -33,6 +34,10 @@ class Neo4jGraphError(RuntimeError):
 class GraphAgentOutput(BaseModel):
     answer: str
     cypher: str
+
+
+class GraphAnswerRewrite(BaseModel):
+    answer: str
 
 
 @dataclass(slots=True)
@@ -124,6 +129,8 @@ class Neo4jGraphService:
             cypher=cypher,
             sanitized_cypher=sanitized_cypher,
             result=result,
+            model_name=self._model_name,
+            provider=self._provider,
         )
 
         return Neo4jGraphResult(
@@ -272,62 +279,93 @@ class Neo4jGraphService:
                 return f"date('{value[:10]}')"
         return literal
 
-    @classmethod
+    @staticmethod
     def _harmonize_answer(
-        cls,
         *,
         question: str,
         original_answer: str,
         cypher: str,
         sanitized_cypher: str,
         result: Neo4jResult,
+        model_name: str,
+        provider: OpenAIProvider,
     ) -> str:
         if sanitized_cypher == cypher:
             return original_answer
 
-        summary = cls._summarize_result(result)
-        if summary:
-            log.debug("Réponse recalculée après normalisation de la requête.")
-            return summary
+        regenerated = Neo4jGraphService._regenerate_answer(
+            question=question,
+            sanitized_cypher=sanitized_cypher,
+            result=result,
+            model_name=model_name,
+            provider=provider,
+        )
+        if regenerated:
+            log.debug("Réponse recalculée via le modèle après normalisation de la requête.")
+            return regenerated
         return original_answer
 
     @staticmethod
-    def _summarize_result(result: Neo4jResult) -> str:
-        row_count = result.row_count
-        columns = list(result.columns or [])
-        rows = result.rows or []
+    def _regenerate_answer(
+        *,
+        question: str,
+        sanitized_cypher: str,
+        result: Neo4jResult,
+        model_name: str,
+        provider: OpenAIProvider,
+    ) -> str:
+        snapshot = Neo4jGraphService._result_snapshot(result)
+        if snapshot is None:
+            return ""
 
-        if row_count == 0:
-            return "Aucun enregistrement ne correspond à la requête normalisée."
+        instructions = textwrap.dedent(
+            f"""
+            Tu es un assistant Neo4j. Ne lance aucun outil.
+            Utilise les informations suivantes pour répondre en français à la question utilisateur.
 
-        # Aggregate-style result (single scalar)
-        if len(columns) == 1:
-            col = columns[0]
-            value = rows[0].get(col) if rows else None
-            if isinstance(value, (int, float)):
-                label = col.replace("_", " ")
-                return f"La requête normalisée renvoie {value} pour « {label} »."
-            if value is not None:
-                return f"La requête normalisée renvoie « {value} » pour la colonne « {col} »."
+            Question: {question}
+            Requête exécutée:
+            {sanitized_cypher}
 
-        sample_rows = rows[: min(3, row_count)]
-        formatted_rows = []
-        for row in sample_rows:
-            parts = []
-            for col in columns[:3]:
-                parts.append(f"{col}={Neo4jGraphService._format_value(row.get(col))}")
-            formatted_rows.append(", ".join(parts))
+            Résultats (colonnes, lignes limitées):
+            {snapshot}
+            """
+        ).strip()
 
-        sample_text = "; ".join(formatted_rows) if formatted_rows else ""
-        base = f"La requête normalisée a retourné {row_count} enregistrement(s)."
-        if sample_text:
-            return f"{base} Exemple: {sample_text}."
-        return base
+        model = OpenAIChatModel(model_name=model_name, provider=provider)
+        agent = Agent(
+            model,
+            name="neo4j-graph-rewrite",
+            instructions=instructions,
+            output_type=GraphAnswerRewrite,
+        )
+
+        async def runner() -> str:
+            async with agent:
+                result_obj = await agent.run("Fournis la réponse finale en français.")
+            return result_obj.output.answer.strip()
+
+        try:
+            return asyncio.run(runner())
+        except Exception:  # pragma: no cover - dépendances externes
+            log.exception("Impossible de recalculer la réponse Neo4j après normalisation.")
+            return ""
 
     @staticmethod
-    def _format_value(value: Any) -> str:
-        if value is None:
-            return "∅"
-        if isinstance(value, float):
-            return f"{value:.2f}"
-        return str(value)
+    def _result_snapshot(result: Neo4jResult, *, max_rows: int = 20) -> Optional[str]:
+        rows = result.rows or []
+        columns = result.columns or []
+        if not columns:
+            return None
+        preview = rows[:max_rows]
+        payload = {
+            "columns": columns,
+            "row_count": result.row_count,
+            "rows": preview,
+            "truncated": len(rows) > len(preview),
+        }
+        try:
+            return json.dumps(payload, ensure_ascii=False)
+        except Exception:
+            log.exception("Échec de la sérialisation des résultats Neo4j.")
+            return None
