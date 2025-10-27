@@ -5,6 +5,9 @@ dist/
 build/
 .env
 .env.*
+!.env.example
+!backend/.env.example
+!.env.*.example
 
 # Python
 __pycache__/
@@ -19,6 +22,7 @@ uv.lock
 
 # Logs
 logs/
+.start.out
 
 # Data artifacts
 data/processed/*

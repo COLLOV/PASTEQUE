@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..core.config import settings
 
@@ -69,4 +69,3 @@ class MCPManager:
 
     def list_servers(self) -> List[MCPServerSpec]:
         return list(self._servers)
-

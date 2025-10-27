@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-primary-200;
+  }
+
+  body {
+    @apply bg-white text-primary-950 antialiased;
+  }
+
+  /* Scrollbar personnalisé noir et blanc */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-primary-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary-400 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary-500;
+  }
+}
+
+@layer components {
+  /* Transitions globales */
+  button,
+  a,
+  input,
+  textarea {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  /* Focus states élégants */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    @apply outline-none ring-2 ring-primary-400 ring-offset-2;
+  }
+}
+
+/* Utilitaires personnalisés */
+@layer utilities {
+  /* Masquer proprement les barres de défilement sur un élément précis */
+  .scrollbar-none {
+    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  /* Neutraliser les styles de focus additionnels quand requis */
+  .no-focus-ring:focus,
+  .no-focus-ring:focus-visible {
+    outline: none;
+    --tw-ring-offset-width: 0px;
+    --tw-ring-color: transparent;
+    --tw-ring-shadow: 0 0 #0000;
+    box-shadow: 0 0 #0000; /* fallback */
+  }
+  .no-focus-border:focus,
+  .no-focus-border:focus-visible {
+    border-color: inherit; /* évite le changement de couleur au focus */
+  }
+}

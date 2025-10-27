@@ -9,11 +9,17 @@ dependencies = [
   "uvicorn[standard]>=0.30.0",
   "pydantic>=2.5.0",
   "pydantic-settings>=2.2.0",
+  "pydantic-ai-slim[openai,mcp]>=1.2.0",
   "python-dotenv>=1.0.1",
   "httpx>=0.27.0",
   "python-multipart>=0.0.9",
   # Optional: YAML for MCP config files
   "pyyaml>=6.0.0",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]>=3.2",
+  "passlib[bcrypt]>=1.7",
+  "python-jose[cryptography]>=3.3",
+  "argon2-cffi>=23.1",
 ]
 
 [build-system]

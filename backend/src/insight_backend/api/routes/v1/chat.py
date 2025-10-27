@@ -1,15 +1,33 @@
-from fastapi import APIRouter, HTTPException
+import json
+import threading
+import queue
+import time
+import uuid
+from typing import Iterator
+
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from starlette.responses import StreamingResponse
+
 from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
+from ....core.database import get_session
+from ....core.security import get_current_user, user_is_admin
+from ....models.user import User
 from ....services.chat_service import ChatService
 from ....engines.openai_engine import OpenAIChatEngine
-from ....integrations.openai_client import OpenAICompatibleClient
+from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
+from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 
 router = APIRouter(prefix="/chat")
 
 
 @router.post("/completions", response_model=ChatResponse)
-def chat_completion(payload: ChatRequest) -> ChatResponse:  # type: ignore[valid-type]
+def chat_completion(  # type: ignore[valid-type]
+    payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> ChatResponse:
     """Chat completions via moteur OpenAI‑compatible.
 
     - En mode local (`LLM_MODE=local`): utilise `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
@@ -33,4 +51,203 @@ def chat_completion(payload: ChatRequest) -> ChatResponse:  # type: ignore[valid
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
-    return service.completion(payload)
+    allowed_tables = None
+    if not user_is_admin(current_user):
+        allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    try:
+        return service.completion(payload, allowed_tables=allowed_tables)
+    except OpenAIBackendError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+def _sse(event: str, data: dict) -> bytes:
+    return f"event: {event}\n".encode("utf-8") + f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
+
+
+@router.post("/stream")
+def chat_stream(  # type: ignore[valid-type]
+    payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """SSE streaming for chat completions.
+
+    Emits events: meta → delta* → done, or error on failure.
+    """
+    if settings.llm_mode not in {"local", "api"}:
+        raise HTTPException(status_code=500, detail="Invalid LLM_MODE; expected 'local' or 'api'")
+
+    if settings.llm_mode == "local":
+        base_url = settings.vllm_base_url
+        model = settings.z_local_model
+        api_key = None
+        provider = "vllm-local"
+    else:
+        base_url = settings.openai_base_url
+        model = settings.llm_model
+        api_key = settings.openai_api_key
+        provider = "openai-api"
+
+    if not base_url or not model:
+        raise HTTPException(status_code=500, detail="LLM base_url/model not configured")
+
+    client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
+    engine = OpenAIChatEngine(client=client, model=model)
+    service = ChatService(engine)
+    allowed_tables = None
+    if not user_is_admin(current_user):
+        allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+
+    trace_id = f"chat-{uuid.uuid4().hex[:8]}"
+    started = time.perf_counter()
+
+    def generate() -> Iterator[bytes]:
+        seq = 0
+        try:
+            # 1) MindsDB passthrough (/sql ...) or NL→SQL mode
+            last = payload.messages[-1] if payload.messages else None
+            if last and last.role == "user" and last.content.strip().casefold().startswith("/sql "):
+                prov = "mindsdb-sql"
+                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
+                q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+
+                def emit(evt: str, data: dict) -> None:
+                    q.put((evt, data))
+
+                result_holder: dict[str, object] = {}
+
+                def worker() -> None:
+                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
+                    result_holder["resp"] = resp
+                    q.put(("__final__", resp))
+
+                th = threading.Thread(target=worker, daemon=True)
+                th.start()
+                while True:
+                    item = q.get()
+                    if not isinstance(item, tuple) or len(item) != 2:
+                        continue
+                    kind, data = item
+                    if kind == "__final__":
+                        break
+                    yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | etc.
+                resp = result_holder.get("resp")
+                if isinstance(resp, ChatResponse):
+                    text = resp.reply or ""
+                else:
+                    text = ""
+                for line in text.splitlines(True):
+                    if not line:
+                        continue
+                    seq += 1
+                    yield _sse("delta", {"seq": seq, "content": line})
+                elapsed = max(time.perf_counter() - started, 1e-6)
+                yield _sse(
+                    "done",
+                    {
+                        "id": trace_id,
+                        "content_full": text,
+                        "usage": None,
+                        "finish_reason": "stop",
+                        "elapsed_s": round(elapsed, 3),
+                    },
+                )
+                return
+
+            # Per-request override: if payload.metadata.nl2sql is explicitly set, use it;
+            # otherwise fall back to settings.nl2sql_enabled.
+            meta = payload.metadata or {}
+            nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
+            nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
+
+            if nl2sql_enabled and last and last.role == "user":
+                prov = "nl2sql"
+                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
+                q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+
+                def emit(evt: str, data: dict) -> None:
+                    q.put((evt, data))
+
+                result_holder: dict[str, object] = {}
+
+                def worker() -> None:
+                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
+                    result_holder["resp"] = resp
+                    q.put(("__final__", resp))
+
+                th = threading.Thread(target=worker, daemon=True)
+                th.start()
+                while True:
+                    item = q.get()
+                    if not isinstance(item, tuple) or len(item) != 2:
+                        continue
+                    kind, data = item
+                    if kind == "__final__":
+                        break
+                    yield _sse(kind, data)  # 'plan' | 'sql' | 'rows'
+                resp = result_holder.get("resp")
+                if isinstance(resp, ChatResponse):
+                    text = resp.reply or ""
+                else:
+                    text = ""
+                for line in text.splitlines(True):
+                    if not line:
+                        continue
+                    seq += 1
+                    yield _sse("delta", {"seq": seq, "content": line})
+                elapsed = max(time.perf_counter() - started, 1e-6)
+                yield _sse(
+                    "done",
+                    {
+                        "id": trace_id,
+                        "content_full": text,
+                        "usage": None,
+                        "finish_reason": "stop",
+                        "elapsed_s": round(elapsed, 3),
+                    },
+                )
+                return
+
+            # 2) Default LLM streaming
+            # Default LLM streaming branch
+            yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model})
+            full: list[str] = []
+            for event in engine.stream(payload):
+                if event.get("type") == "delta":
+                    text = event.get("content") or ""
+                    if not text:
+                        continue
+                    seq += 1
+                    full.append(text)
+                    yield _sse("delta", {"seq": seq, "content": text})
+                elif event.get("type") == "finish":
+                    # ignore here; finalization below
+                    pass
+            content_full = "".join(full)
+            elapsed = max(time.perf_counter() - started, 1e-6)
+            # Logging via ChatService for consistency
+            service._log_completion(  # noqa: SLF001 — intentional internal reuse for logging
+                ChatResponse(reply=content_full, metadata={"provider": provider}),
+                context="stream done (engine)",
+            )
+            yield _sse(
+                "done",
+                {
+                    "id": trace_id,
+                    "content_full": content_full,
+                    "usage": None,
+                    "finish_reason": "stop",
+                    "elapsed_s": round(elapsed, 3),
+                },
+            )
+        except OpenAIBackendError as exc:
+            yield _sse("error", {"code": "backend_error", "message": str(exc)})
+        except Exception as exc:  # pragma: no cover - unexpected
+            yield _sse("error", {"code": "internal_error", "message": str(exc)})
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(generate(), media_type="text/event-stream", headers=headers)

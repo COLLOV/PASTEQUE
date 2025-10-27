@@ -10,6 +10,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
     env: str = Field("development", alias="ENV")
     api_prefix: str = Field("/api", alias="API_PREFIX")
@@ -26,21 +27,37 @@ class Settings(BaseSettings):
     openai_base_url: str | None = Field(None, alias="OPENAI_BASE_URL")
     openai_api_key: str | None = Field(None, alias="OPENAI_API_KEY")
     llm_model: str | None = Field(None, alias="LLM_MODEL")
+    openai_timeout_s: int = Field(90, alias="OPENAI_TIMEOUT_S")
     # vLLM local
     vllm_base_url: str | None = Field("http://localhost:8000/v1", alias="VLLM_BASE_URL")
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
 
     # MCP configuration (declarative)
-    mcp_config_path: str | None = Field(None, alias="MCP_CONFIG_PATH")
+    mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
     mcp_servers_json: str | None = Field(None, alias="MCP_SERVERS_JSON")
 
     # MindsDB (HTTP API)
     mindsdb_base_url: str = Field("http://127.0.0.1:47334/api", alias="MINDSDB_BASE_URL")
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
 
+    # Evidence panel / dataset defaults
+    evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
+
+    # Database
+    database_url: str = Field(
+        "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",
+        alias="DATABASE_URL",
+    )
+
+    # Authentication
+    jwt_secret_key: str = Field("change-me", alias="JWT_SECRET_KEY")
+    jwt_algorithm: str = Field("HS256", alias="JWT_ALGORITHM")
+    jwt_expiration_minutes: int = Field(240, alias="JWT_EXPIRATION_MINUTES")
+    admin_username: str = Field("admin", alias="ADMIN_USERNAME")
+    admin_password: str = Field("admin", alias="ADMIN_PASSWORD")
+
     # NL→SQL generation (optional)
     nl2sql_enabled: bool = Field(False, alias="NL2SQL_ENABLED")
-    nl2sql_max_rows: int = Field(50, alias="NL2SQL_MAX_ROWS")
     nl2sql_db_prefix: str = Field("files", alias="NL2SQL_DB_PREFIX")
     nl2sql_include_samples: bool = Field(False, alias="NL2SQL_INCLUDE_SAMPLES")
     nl2sql_rows_per_table: int = Field(3, alias="NL2SQL_ROWS_PER_TABLE")

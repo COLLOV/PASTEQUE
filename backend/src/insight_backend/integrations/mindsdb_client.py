@@ -40,6 +40,9 @@ class MindsDBClient:
         resp.raise_for_status()
         return resp.json()
 
+    def close(self) -> None:
+        self.client.close()
+
     def sql(self, query: str) -> Dict[str, Any]:
         """Execute a SQL query via REST API.
 
