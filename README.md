@@ -28,6 +28,7 @@ Backend (depuis `backend/`):
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
 4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence.
+5. Au premier démarrage après une mise à jour, le backend détecte automatiquement si la table `pasteque_users` (ou `users`) stocke des `id` entiers ou UUID et ajuste les relations (ex. `pasteque_charts.user_id`) pour éviter les conflits de type.
 
 Frontend (depuis `frontend/`):
 

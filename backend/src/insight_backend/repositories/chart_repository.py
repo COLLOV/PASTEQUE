@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -18,7 +19,7 @@ class ChartRepository:
     def create(
         self,
         *,
-        user_id: int,
+        user_id: UUID | int,
         prompt: str,
         chart_url: str,
         tool_name: str | None,
@@ -39,7 +40,7 @@ class ChartRepository:
         log.info("Chart queued for persistence (user_id=%s, url=%s)", user_id, chart_url)
         return chart
 
-    def list_by_user(self, user_id: int) -> list[Chart]:
+    def list_by_user(self, user_id: UUID | int) -> list[Chart]:
         charts = (
             self.session.query(Chart)
             .filter(Chart.user_id == user_id)
