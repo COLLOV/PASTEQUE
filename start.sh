@@ -8,9 +8,44 @@ fi
 
 FRONTEND_PORT="$1"
 BACKEND_PORT="$2"
+SSR_DIR="vis-ssr"
+SSR_ENV_FILE="${SSR_DIR}/.env"
+SSR_ENV_TEMPLATE="${SSR_DIR}/.env.ssr.example"
 
 is_number() {
   [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+read_env_var() {
+  local file="$1"
+  local key="$2"
+
+  ENV_FILE="$file" ENV_KEY="$key" python3 <<'PY'
+import os
+from pathlib import Path
+
+path = Path(os.environ["ENV_FILE"])
+key = os.environ["ENV_KEY"]
+value = ""
+
+if path.exists():
+    for raw in path.read_text().splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, val = stripped.split("=", 1)
+        if name.strip() == key:
+            val = val.strip()
+            if (
+                (val.startswith('"') and val.endswith('"'))
+                or (val.startswith("'") and val.endswith("'"))
+            ):
+                val = val[1:-1]
+            value = val
+            break
+
+print(value)
+PY
 }
 
 require_command() {
@@ -52,6 +87,12 @@ free_port() {
 cleanup() {
   local code=$?
 
+  if [[ -n "${SSR_PID:-}" ]] && kill -0 "$SSR_PID" >/dev/null 2>&1; then
+    echo "[start] Stopping GPT-Vis SSR (PID $SSR_PID)"
+    kill "$SSR_PID" >/dev/null 2>&1 || true
+    wait "$SSR_PID" 2>/dev/null || true
+  fi
+
   if [[ -n "${BACKEND_PID:-}" ]] && kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
     echo "[start] Stopping backend (PID $BACKEND_PID)"
     kill "$BACKEND_PID" >/dev/null 2>&1 || true
@@ -69,7 +110,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for cmd in lsof uv npm python3 docker curl; do
+for cmd in lsof uv npm python3 docker curl node; do
   require_command "$cmd"
 done
 
@@ -80,6 +121,30 @@ for port in "$FRONTEND_PORT" "$BACKEND_PORT"; do
   fi
   free_port "$port"
 done
+
+if [[ ! -d "$SSR_DIR" ]]; then
+  echo "ERROR: SSR directory '$SSR_DIR' is missing." >&2
+  exit 1
+fi
+
+if [[ ! -f "$SSR_ENV_FILE" ]]; then
+  echo "ERROR: GPT-Vis SSR configuration '$SSR_ENV_FILE' not found. Copy '$SSR_ENV_TEMPLATE' and set GPT_VIS_SSR_PORT." >&2
+  exit 1
+fi
+
+SSR_PORT="$(read_env_var "$SSR_ENV_FILE" "GPT_VIS_SSR_PORT")"
+
+if [[ -z "$SSR_PORT" ]]; then
+  echo "ERROR: GPT_VIS_SSR_PORT must be defined in '$SSR_ENV_FILE'." >&2
+  exit 1
+fi
+
+if ! is_number "$SSR_PORT"; then
+  echo "ERROR: GPT_VIS_SSR_PORT must be numeric. Got '$SSR_PORT'." >&2
+  exit 1
+fi
+
+free_port "$SSR_PORT"
 
 ensure_mindsdb() {
   local container="mindsdb_container"
@@ -199,6 +264,40 @@ else
   echo "[start] Frontend dependencies already installed"
 fi
 
+if [[ ! -f "${SSR_DIR}/package.json" ]]; then
+  echo "ERROR: Missing package.json in '$SSR_DIR'." >&2
+  exit 1
+fi
+
+if [[ ! -d ${SSR_DIR}/node_modules ]]; then
+  echo "[start] Installing GPT-Vis SSR dependencies (npm install)"
+  (
+    cd "$SSR_DIR"
+    npm install
+  )
+else
+  echo "[start] GPT-Vis SSR dependencies already installed"
+fi
+
+SSR_IMAGE_DIR="$(read_env_var "$SSR_ENV_FILE" "VIS_IMAGE_DIR")"
+if [[ -n "$SSR_IMAGE_DIR" ]]; then
+  echo "[start] GPT-Vis SSR images -> $SSR_IMAGE_DIR"
+else
+  SSR_IMAGE_DIR_DISPLAY="$(cd "$SSR_DIR" && pwd)/charts"
+  echo "[start] GPT-Vis SSR images -> $SSR_IMAGE_DIR_DISPLAY (default)"
+fi
+
+echo "[start] Launching GPT-Vis SSR on port $SSR_PORT"
+(
+  cd "$SSR_DIR"
+  if [[ -n "$SSR_IMAGE_DIR" ]]; then
+    GPT_VIS_SSR_PORT="$SSR_PORT" VIS_IMAGE_DIR="$SSR_IMAGE_DIR" exec npm run start
+  else
+    GPT_VIS_SSR_PORT="$SSR_PORT" exec npm run start
+  fi
+) &
+SSR_PID=$!
+
 echo "[start] Launching backend on port $BACKEND_PORT"
 (
   cd backend
@@ -218,3 +317,4 @@ FRONTEND_PID=$!
 
 wait "$BACKEND_PID"
 wait "$FRONTEND_PID"
+wait "$SSR_PID"

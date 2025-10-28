@@ -10,15 +10,18 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 
 - `frontend/` – UI React, pages, composants, services d’appel API.
 - `backend/` – API FastAPI, routes -> services -> dépôts, schémas.
+- `vis-ssr/` – serveur Express pour GPT-Vis (SSR) qui génère les visuels côté serveur.
 - `data/` – `raw/`, `processed/`, `interim/`, `vector_store/`, `models/`.
 
 ## Démarrage rapide
 
 Script combiné (depuis la racine):
 
-- `./start.sh <port_frontend> <port_backend>` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), met à jour `frontend/.env.development` (`VITE_API_URL`), recrée systématiquement le conteneur Docker `mindsdb_container` via la commande `docker run …` (avec affichage du statut et des derniers logs), **attend que l’API HTTP de MindsDB réponde avant de poursuivre**, synchronise toutes les tables locales dans MindsDB, puis configure `ALLOWED_ORIGINS` côté backend pour accepter le port front choisi avant de lancer le backend via `uv` et le frontend Vite.
+- `./start.sh <port_frontend> <port_backend>` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), met à jour `frontend/.env.development` (`VITE_API_URL`), recrée systématiquement le conteneur Docker `mindsdb_container` via la commande `docker run …` (avec affichage du statut et des derniers logs), **attend que l’API HTTP de MindsDB réponde avant de poursuivre**, synchronise toutes les tables locales dans MindsDB, puis configure `ALLOWED_ORIGINS` côté backend pour accepter le port front choisi avant de lancer le backend via `uv`, le frontend Vite et le serveur SSR GPT-Vis (`vis-ssr/`, port défini par `GPT_VIS_SSR_PORT` dans `vis-ssr/.env`).
 - `./start_full.sh <port_frontend> <port_backend>` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
 - Exemple: `./start.sh 5173 8000` (ou `./start.sh 8080 8081` selon vos besoins).
+
+Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production.
 
 Lancer manuellement si besoin:
 
@@ -33,6 +36,12 @@ Frontend (depuis `frontend/`):
 
 1. Installer deps: `npm i` ou `pnpm i` ou `yarn`
 2. Lancer: `npm run dev`
+
+SSR GPT-Vis (depuis `vis-ssr/`):
+
+1. Installer deps: `npm install`
+2. Copier `.env.ssr.example` en `.env` et ajuster `GPT_VIS_SSR_PORT` / `VIS_IMAGE_DIR`
+3. Lancer: `npm run start` (endpoint `POST /generate` + statiques `/charts/*`, PNG rendu via `@antv/gpt-vis-ssr`)
 
 Configurer l’URL d’API côté front via `frontend/.env.development` (voir `.example`).
 Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
