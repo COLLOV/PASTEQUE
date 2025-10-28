@@ -150,18 +150,12 @@ class ChartGenerationService:
         )
 
         provider, model_name = self._build_provider()
-        env = os.environ.copy()
-        env.update(self._chart_spec.env or {})
-        env["RENDERED_IMAGE_PATH"] = settings.mcp_chart_storage_path
-        patch_module = Path(__file__).resolve().parent / "mcp_console_stderr.cjs"
-        node_options = env.get("NODE_OPTIONS", "").strip()
-        inject_flag = f"--require {patch_module}"
-        if inject_flag not in node_options:
-            env["NODE_OPTIONS"] = f"{node_options} {inject_flag}".strip()
+        command = self._chart_spec.command
+        args, env = self._prepare_server_args(command)
 
         server = MCPServerStdio(
-            self._chart_spec.command,
-            self._chart_spec.args,
+            command,
+            args,
             env=env,
             tool_prefix=self._chart_spec.name,
             timeout=30,
@@ -246,6 +240,90 @@ class ChartGenerationService:
         raise ChartGenerationError(
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
         )
+
+    def _prepare_server_args(self, command: str) -> tuple[List[str], Dict[str, str]]:
+        env = os.environ.copy()
+        env.update(self._chart_spec.env or {})
+
+        storage_root = Path(settings.mcp_chart_storage_path).resolve()
+        try:
+            storage_root.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:  # pragma: no cover - dépend du FS
+            raise ChartGenerationError("Impossible de créer le dossier MCP_CHART_STORAGE_PATH.") from exc
+
+        patch_source = Path(__file__).resolve().parent / "mcp_console_stderr.cjs"
+        patch_target = storage_root / patch_source.name
+        try:
+            patch_target.write_text(patch_source.read_text(encoding="utf-8"), encoding="utf-8")
+        except OSError as exc:  # pragma: no cover - dépend du FS
+            raise ChartGenerationError("Impossible de préparer le patch console MCP.") from exc
+
+        node_inject = f"--require {patch_target}"
+        existing_node = env.get("NODE_OPTIONS", "").strip()
+        if node_inject not in existing_node:
+            env["NODE_OPTIONS"] = f"{existing_node} {node_inject}".strip()
+        env["RENDERED_IMAGE_PATH"] = str(storage_root)
+
+        args = list(self._chart_spec.args)
+        if command == "docker" and args and args[0] == "run":
+            args = self._inject_docker_env(args, {
+                "NODE_OPTIONS": env["NODE_OPTIONS"],
+                "RENDERED_IMAGE_PATH": env["RENDERED_IMAGE_PATH"],
+            })
+
+        return args, env
+
+    @staticmethod
+    def _inject_docker_env(args: List[str], env_values: Dict[str, str]) -> List[str]:
+        # Copy to avoid mutating caller
+        result: List[str] = []
+        idx = 0
+        n = len(args)
+
+        if n == 0:
+            return result
+
+        # Preserve the initial 'run' subcommand if present.
+        result.append(args[0])
+        idx = 1
+
+        # Preserve initial docker flags until we hit the image name.
+        while idx < n:
+            current = args[idx]
+            if not current.startswith("-"):
+                break
+            result.append(current)
+            idx += 1
+            if current in {
+                "-e",
+                "--env",
+                "-v",
+                "--volume",
+                "--mount",
+                "--name",
+                "--hostname",
+                "--network",
+                "--entrypoint",
+                "--user",
+                "-w",
+                "--workdir",
+                "--add-host",
+                "--device",
+                "--group-add",
+                "--env-file",
+            } and idx < n:
+                result.append(args[idx])
+                idx += 1
+
+        # Append env overrides before Docker image.
+        for key, value in env_values.items():
+            result.extend(["--env", f"{key}={value}"])
+
+        # Append remaining args (image + command)
+        if idx < n:
+            result.extend(args[idx:])
+
+        return result
 
     def _build_provider(self) -> tuple[OpenAIProvider, str]:
         if settings.llm_mode not in {"local", "api"}:

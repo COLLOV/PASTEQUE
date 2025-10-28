@@ -48,7 +48,7 @@ def test_save_chart_persists_and_scopes_to_owner(session, users):
     chart = service.save_chart(
         user=alice,
         prompt="Bar chart for sales",
-        chart_url="http://example.com/chart.png",
+        chart_path="charts/example-bar.png",
         tool_name="generate_bar_chart",
         chart_title="Sales by Region",
         chart_description="Comparaison des ventes par région.",
@@ -75,7 +75,7 @@ def test_admin_can_see_all_charts(session, users):
     chart = service.save_chart(
         user=alice,
         prompt="Line chart",
-        chart_url="http://example.com/line.png",
+        chart_path="charts/example-line.png",
         tool_name=None,
         chart_title=None,
         chart_description=None,
