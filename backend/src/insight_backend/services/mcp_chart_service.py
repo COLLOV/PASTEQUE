@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 import logging
+import sys
+import sys
 
 from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel
@@ -42,6 +44,23 @@ class ChartAgentOutput(BaseModel):
     chart_title: str | None = None
     chart_description: str | None = None
     chart_spec: Dict[str, Any] | None = None
+
+
+def wrap_mcp_stdio_spec(spec: MCPServerSpec) -> MCPServerSpec:
+    """Wrap an MCP stdio server command so non-JSON logs are redirected to stderr."""
+    wrapper = Path(__file__).resolve().parent / "mcp_stdio_filter.py"
+    python_executable = sys.executable or "python3"
+    env = dict(spec.env or {})
+    env.setdefault("PYTHONUNBUFFERED", "1")
+    env.setdefault("MCP_STDOUT_SUPPRESS_PREFIXES", "Saving chart to")
+    env.setdefault("MCP_STDOUT_JSON_PREFIXES", "{[")
+    env.setdefault("MCP_STDOUT_FILTER_LABEL", spec.name or "mcp")
+    return MCPServerSpec(
+        name=spec.name,
+        command=python_executable,
+        args=[str(wrapper), "--", spec.command, *spec.args],
+        env=env,
+    )
 
 
 @dataclass(slots=True)
@@ -118,7 +137,7 @@ class ChartGenerationService:
     _DEFAULT_MAX_ROWS = 400
 
     def __init__(self) -> None:
-        self._chart_spec = self._resolve_chart_spec()
+        self._chart_spec = wrap_mcp_stdio_spec(self._resolve_chart_spec())
 
     async def generate_chart(
         self,
