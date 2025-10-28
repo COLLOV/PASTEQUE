@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 import logging
-import sys
 
 from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel
@@ -160,11 +159,9 @@ class ChartGenerationService:
         if inject_flag not in node_options:
             env["NODE_OPTIONS"] = f"{node_options} {inject_flag}".strip()
 
-        server_command, server_args = self._build_server_command(self._chart_spec)
-
         server = MCPServerStdio(
-            server_command,
-            server_args,
+            self._chart_spec.command,
+            self._chart_spec.args,
             env=env,
             tool_prefix=self._chart_spec.name,
             timeout=30,
@@ -249,19 +246,6 @@ class ChartGenerationService:
         raise ChartGenerationError(
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
         )
-
-    @staticmethod
-    def _build_server_command(spec: MCPServerSpec) -> tuple[str, List[str]]:
-        module = "insight_backend.integrations.mcp_stdout_filter"
-        if (
-            spec.command == sys.executable
-            and len(spec.args) >= 2
-            and spec.args[0] == "-m"
-            and spec.args[1] == module
-        ):
-            return spec.command, list(spec.args)
-        wrapped_args = ["-m", module, "--", spec.command, *spec.args]
-        return sys.executable, wrapped_args
 
     def _build_provider(self) -> tuple[OpenAIProvider, str]:
         if settings.llm_mode not in {"local", "api"}:
