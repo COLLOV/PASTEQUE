@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List
 import logging
 
 from openai.types.chat import ChatCompletion as OpenAIChatCompletion
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.mcp import MCPServerStdio
@@ -42,6 +42,26 @@ class ChartAgentOutput(BaseModel):
     chart_title: str | None = None
     chart_description: str | None = None
     chart_spec: Dict[str, Any] | None = None
+
+    @field_validator("chart_spec", mode="before")
+    @classmethod
+    def _parse_chart_spec(cls, value: Any) -> Dict[str, Any] | None:
+        if value is None or isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return None
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"chart_spec JSON invalide: {exc.msg}") from exc
+            if parsed is None:
+                return None
+            if not isinstance(parsed, dict):
+                raise ValueError("chart_spec JSON doit contenir un objet.")
+            return parsed
+        raise ValueError("chart_spec doit être un objet JSON ou une chaîne JSON.")
 
 
 @dataclass(slots=True)
