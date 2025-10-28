@@ -8,18 +8,6 @@ export function getApiBaseUrl(): string {
   return url
 }
 
-export function resolveApiUrl(path: string): string {
-  if (!path) return path
-  if (/^https?:\/\//i.test(path)) {
-    return path
-  }
-  try {
-    return new URL(path, getApiBaseUrl()).toString()
-  } catch {
-    return path
-  }
-}
-
 interface ApiFetchOptions extends RequestInit {
   headers?: Record<string, string>
 }

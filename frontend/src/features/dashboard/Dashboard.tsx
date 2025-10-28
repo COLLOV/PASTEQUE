@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, Loader, Button } from '@/components/ui'
 import { HiChartBar, HiClock, HiUsers, HiArrowTopRightOnSquare, HiTrash } from 'react-icons/hi2'
-import { apiFetch, resolveApiUrl } from '@/services/api'
+import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
 import type { SavedChartResponse } from '@/types/chat'
 
@@ -28,11 +28,7 @@ export default function Dashboard() {
       try {
         const res = await apiFetch<SavedChartResponse[]>('/charts')
         if (!active) return
-        const normalised = (res ?? []).map(chart => ({
-          ...chart,
-          chart_url: resolveApiUrl(chart.chart_url)
-        })) as SavedChartResponse[]
-        setCharts(normalised)
+        setCharts(res ?? [])
       } catch (err) {
         if (!active) return
         setFetchError(err instanceof Error ? err.message : 'Chargement impossible')
@@ -182,7 +178,7 @@ export default function Dashboard() {
                 </p>
               )}
               <img
-                src={chart.chart_preview_data_uri || chart.chart_url}
+                src={chart.chart_url}
                 alt={chart.chart_title || 'Aperçu du graphique'}
                 className="w-full rounded-md border border-primary-100 object-cover"
               />

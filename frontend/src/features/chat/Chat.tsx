@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { apiFetch, streamSSE, resolveApiUrl } from '@/services/api'
+import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
   Message,
@@ -321,20 +321,13 @@ export default function Chat() {
             method: 'POST',
             body: JSON.stringify(chartPayload)
           })
-          const rawChartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
-          const chartUrl = resolveApiUrl(rawChartUrl)
-          const chartPathToken = typeof res?.chart_path_token === 'string' ? res.chart_path_token : ''
-          const chartPreviewDataUri = typeof res?.chart_preview_data_uri === 'string'
-            ? res.chart_preview_data_uri
-            : undefined
-          const assistantMessage: Message = chartUrl && chartPathToken
+          const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
+          const assistantMessage: Message = chartUrl
             ? {
                 id: createMessageId(),
                 role: 'assistant',
                 content: chartUrl,
                 chartUrl,
-                chartPathToken,
-                chartPreviewDataUri,
                 chartTitle: res?.chart_title,
                 chartDescription: res?.chart_description,
                 chartTool: res?.tool_name,
@@ -440,7 +433,7 @@ export default function Chat() {
 
   async function onSaveChart(messageId: string) {
     const target = messages.find(m => m.id === messageId)
-    if (!target || !target.chartUrl || !target.chartPathToken) {
+    if (!target || !target.chartUrl) {
       return
     }
     let prompt = target.chartPrompt || ''
@@ -455,7 +448,7 @@ export default function Chat() {
     }
     const payload = {
       prompt,
-      chart_path_token: target.chartPathToken,
+      chart_url: target.chartUrl,
       tool_name: target.chartTool,
       chart_title: target.chartTitle,
       chart_description: target.chartDescription,

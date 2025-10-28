@@ -15,8 +15,6 @@ export interface Message {
   chartSaving?: boolean
   chartSaveError?: string
   chartRecordId?: number
-  chartPathToken?: string
-  chartPreviewDataUri?: string
   // Streaming placeholder (ephemeral) removed at end
   ephemeral?: boolean
   // When streaming NL→SQL, show SQL first then final answer
@@ -85,8 +83,6 @@ export interface ChartGenerationRequest {
 export interface ChartGenerationResponse {
   prompt: string
   chart_url: string
-  chart_path_token: string
-  chart_preview_data_uri?: string | null
   tool_name: string
   chart_title?: string
   chart_description?: string
@@ -99,7 +95,6 @@ export interface SavedChartResponse {
   id: number
   prompt: string
   chart_url: string
-  chart_preview_data_uri?: string | null
   tool_name?: string | null
   chart_title?: string | null
   chart_description?: string | null

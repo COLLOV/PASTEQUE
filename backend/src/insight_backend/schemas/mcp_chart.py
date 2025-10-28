@@ -41,8 +41,6 @@ class ChartRequest(BaseModel):
 class ChartResponse(BaseModel):
     prompt: str
     chart_url: str
-    chart_path_token: str
-    chart_preview_data_uri: str | None = None
     tool_name: str
     chart_title: str | None = None
     chart_description: str | None = None

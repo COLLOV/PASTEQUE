@@ -1,10 +1,8 @@
 [
   {
-    "name": "gpt-vis-mcp",
+    "name": "chart",
     "command": "npx",
-    "args": ["-y", "@jsr2npm/yao__gpt-vis-mcp@latest"],
-    "env": {
-      "VIS_REQUEST_SERVER": "http://localhost:3000/generate"
-    }
+    "args": ["-y", "@antv/mcp-server-chart"],
+    "env": {}
   }
 ]

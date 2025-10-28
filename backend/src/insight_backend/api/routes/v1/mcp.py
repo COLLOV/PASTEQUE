@@ -1,9 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
 
 from ....integrations.mcp_manager import MCPManager
 from ....schemas.mcp_chart import ChartRequest, ChartResponse
-from ....services.chart_assets import decode_chart_token, to_absolute_path
 from ....services.mcp_chart_service import ChartGenerationError, ChartGenerationService
 
 
@@ -34,8 +32,6 @@ async def generate_mcp_chart(payload: ChartRequest) -> ChartResponse:  # type: i
     return ChartResponse(
         prompt=result.prompt,
         chart_url=result.chart_url,
-        chart_path_token=result.chart_path_token,
-        chart_preview_data_uri=result.chart_preview_data_uri,
         tool_name=result.tool_name,
         chart_title=result.chart_title,
         chart_description=result.chart_description,
@@ -43,17 +39,3 @@ async def generate_mcp_chart(payload: ChartRequest) -> ChartResponse:  # type: i
         source_sql=result.source_sql,
         source_row_count=result.source_row_count,
     )
-
-
-@router.get("/chart/image/{token}")
-def get_chart_image(token: str) -> FileResponse:  # type: ignore[valid-type]
-    try:
-        relative_path = decode_chart_token(token)
-        absolute_path = to_absolute_path(relative_path)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    if not absolute_path.exists():
-        raise HTTPException(status_code=404, detail="Image de graphique introuvable")
-
-    return FileResponse(str(absolute_path))

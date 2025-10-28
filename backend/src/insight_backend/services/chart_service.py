@@ -23,7 +23,7 @@ class ChartService:
         *,
         user: User,
         prompt: str,
-        chart_path: str,
+        chart_url: str,
         tool_name: str | None,
         chart_title: str | None,
         chart_description: str | None,
@@ -32,13 +32,13 @@ class ChartService:
         chart = self.repo.create(
             user_id=user.id,
             prompt=prompt,
-            chart_path=chart_path,
+            chart_url=chart_url,
             tool_name=tool_name,
             chart_title=chart_title,
             chart_description=chart_description,
             chart_spec=chart_spec,
         )
-        log.info("Chart saved request by user=%s path=%s", user.username, chart_path)
+        log.info("Chart saved request by user=%s url=%s", user.username, chart_url)
         # Attach relationship for immediate serialization without extra round-trip.
         chart.user = user
         return chart

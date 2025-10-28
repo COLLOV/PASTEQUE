@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 import logging
@@ -20,13 +19,6 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from ..core.config import settings
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
 from ..schemas.mcp_chart import ChartDataset
-from .chart_assets import (
-    build_chart_preview_data_uri,
-    build_chart_view_url,
-    encode_chart_path,
-    resolve_chart_location,
-    to_relative_path,
-)
 
 
 class ChartGenerationError(RuntimeError):
@@ -91,10 +83,7 @@ class ChartAgentDeps:
 @dataclass(slots=True)
 class ChartResult:
     prompt: str
-    chart_path: str
     chart_url: str
-    chart_path_token: str
-    chart_preview_data_uri: str | None
     tool_name: str
     chart_title: str | None
     chart_description: str | None
@@ -152,12 +141,6 @@ class ChartGenerationService:
         provider, model_name = self._build_provider()
         env = os.environ.copy()
         env.update(self._chart_spec.env or {})
-        env["RENDERED_IMAGE_PATH"] = settings.mcp_chart_storage_path
-        patch_module = Path(__file__).resolve().parent / "mcp_console_stderr.cjs"
-        node_options = env.get("NODE_OPTIONS", "").strip()
-        inject_flag = f"--require {patch_module}"
-        if inject_flag not in node_options:
-            env["NODE_OPTIONS"] = f"{node_options} {inject_flag}".strip()
 
         server = MCPServerStdio(
             self._chart_spec.command,
@@ -205,30 +188,13 @@ class ChartGenerationService:
 
         output = result.output
         if not output.chart_url:
-            raise ChartGenerationError("L'agent n'a pas fourni de chemin de graphique.")
-
-        try:
-            absolute_path = resolve_chart_location(output.chart_url)
-        except FileNotFoundError as exc:
-            raise ChartGenerationError(
-                "Graphique généré introuvable sur le disque."
-            ) from exc
-        except PermissionError as exc:  # pragma: no cover - sécurité
-            raise ChartGenerationError("Chemin du graphique hors dossier autorisé.") from exc
-
-        relative_path = to_relative_path(absolute_path)
-        chart_token = encode_chart_path(relative_path)
-        chart_url = build_chart_view_url(relative_path)
-        preview_data_uri = build_chart_preview_data_uri(relative_path)
+            raise ChartGenerationError("L'agent n'a pas fourni d'URL de graphique.")
 
         total_rows = normalized_dataset.row_count if normalized_dataset.row_count is not None else len(normalized_dataset.rows)
 
         return ChartResult(
             prompt=prompt,
-            chart_path=relative_path,
-            chart_url=chart_url,
-            chart_path_token=chart_token,
-            chart_preview_data_uri=preview_data_uri,
+            chart_url=output.chart_url,
             tool_name=output.tool_name,
             chart_title=output.chart_title,
             chart_description=output.chart_description,
@@ -239,9 +205,8 @@ class ChartGenerationService:
 
     def _resolve_chart_spec(self) -> MCPServerSpec:
         manager = MCPManager()
-        valid_names = {"chart", "mcp-server-chart", "gpt-vis-mcp"}
         for spec in manager.list_servers():
-            if spec.name in valid_names:
+            if spec.name in {"chart", "mcp-server-chart"}:
                 return spec
         raise ChartGenerationError(
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
@@ -312,7 +277,7 @@ class ChartGenerationService:
             "3. Appeler l'outil MCP adéquat en lui transmettant les données structurées (type de graphique,"
             " axes, mesures, filtres éventuels).\n"
             "4. Retourner un ChartAgentOutput strictement valide avec :\n"
-            "   - chart_url : chemin ou URL fourni par le MCP pour le fichier image\n"
+            "   - chart_url : URL livrée par le MCP\n"
             "   - tool_name : nom exact de l'outil MCP utilisé\n"
             "   - chart_title / chart_description : résumé concis et fidèle\n"
             "   - chart_spec : payload JSON envoyé au MCP (type, data, options).\n"
