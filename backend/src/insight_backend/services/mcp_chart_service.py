@@ -8,7 +8,6 @@ from typing import Any, Dict, Iterable, List
 
 import logging
 import sys
-import sys
 
 from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel
