@@ -150,11 +150,18 @@ class ChartGenerationService:
         )
 
         provider, model_name = self._build_provider()
-        command, args, env = self._build_server_invocation()
+        env = os.environ.copy()
+        env.update(self._chart_spec.env or {})
+        env["RENDERED_IMAGE_PATH"] = settings.mcp_chart_storage_path
+        patch_module = Path(__file__).resolve().parent / "mcp_console_stderr.cjs"
+        node_options = env.get("NODE_OPTIONS", "").strip()
+        inject_flag = f"--require {patch_module}"
+        if inject_flag not in node_options:
+            env["NODE_OPTIONS"] = f"{node_options} {inject_flag}".strip()
 
         server = MCPServerStdio(
-            command,
-            args,
+            self._chart_spec.command,
+            self._chart_spec.args,
             env=env,
             tool_prefix=self._chart_spec.name,
             timeout=30,
@@ -239,154 +246,6 @@ class ChartGenerationService:
         raise ChartGenerationError(
             "Serveur MCP 'chart' introuvable. Vérifiez MCP_CONFIG_PATH ou MCP_SERVERS_JSON."
         )
-
-    def _build_server_invocation(self) -> tuple[str, List[str], Dict[str, str]]:
-        env = os.environ.copy()
-        env.update(self._chart_spec.env or {})
-
-        storage_root = Path(settings.mcp_chart_storage_path).resolve()
-        try:
-            storage_root.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:  # pragma: no cover - dépend du FS
-            raise ChartGenerationError("Impossible de préparer le dossier de stockage MCP.") from exc
-
-        patch_source = Path(__file__).resolve().parent / "mcp_console_stderr.cjs"
-        patch_target = self._ensure_console_patch(storage_root, patch_source)
-
-        env["RENDERED_IMAGE_PATH"] = str(storage_root)
-        node_options = env.get("NODE_OPTIONS", "").strip()
-        inject_flag = f"--require {patch_target}"
-        if str(patch_target) not in node_options:
-            node_options = f"{node_options} {inject_flag}".strip()
-        env["NODE_OPTIONS"] = node_options
-
-        command = self._chart_spec.command
-        args = self._prepare_command_args(command, list(self._chart_spec.args), env)
-
-        return command, args, env
-
-    @staticmethod
-    def _ensure_console_patch(storage_root: Path, patch_source: Path) -> Path:
-        patch_target = storage_root / patch_source.name
-        try:
-            source_bytes = patch_source.read_bytes()
-            needs_update = True
-            if patch_target.exists():
-                try:
-                    needs_update = patch_target.read_bytes() != source_bytes
-                except OSError:
-                    needs_update = True
-            if needs_update:
-                patch_target.write_bytes(source_bytes)
-        except OSError as exc:  # pragma: no cover - dépend du FS
-            raise ChartGenerationError("Impossible de synchroniser le patch console MCP.") from exc
-        return patch_target
-
-    @classmethod
-    def _prepare_command_args(cls, command: str, base_args: List[str], env: Dict[str, str]) -> List[str]:
-        if command != "docker":
-            return base_args
-        if not base_args:
-            return base_args
-        if base_args[0] != "run":
-            return base_args
-
-        args = list(base_args)
-        env_keys = []
-        for key in ("NODE_OPTIONS", "RENDERED_IMAGE_PATH"):
-            if key in env and not cls._docker_has_env(args, key):
-                env_keys.append(key)
-
-        if not env_keys:
-            return args
-
-        inserts: List[str] = []
-        for key in env_keys:
-            inserts.extend(["--env", key])
-
-        return cls._docker_insert_before_image(args, inserts)
-
-    @staticmethod
-    def _docker_has_env(args: List[str], key: str) -> bool:
-        idx = 0
-        while idx < len(args):
-            current = args[idx]
-            if current in {"-e", "--env"}:
-                if idx + 1 < len(args):
-                    candidate = args[idx + 1]
-                    if candidate.split("=", 1)[0] == key:
-                        return True
-                    idx += 1
-            elif current.startswith("-e") and "=" in current:
-                if current.split("=", 1)[0].removeprefix("-e").removeprefix(" ") == key:
-                    return True
-            elif current.startswith("--env="):
-                candidate = current.split("=", 1)[1]
-                if candidate.split("=", 1)[0] == key:
-                    return True
-            idx += 1
-        return False
-
-    @staticmethod
-    def _docker_insert_before_image(args: List[str], inserts: List[str]) -> List[str]:
-        if not inserts:
-            return list(args)
-
-        result: List[str] = []
-        if not args:
-            return inserts
-
-        result.append(args[0])
-        idx = 1
-        options_with_value = {
-            "-e",
-            "--env",
-            "--env-file",
-            "-v",
-            "--volume",
-            "--mount",
-            "--name",
-            "--hostname",
-            "--network",
-            "--entrypoint",
-            "--workdir",
-            "-w",
-            "--user",
-            "--add-host",
-            "--device",
-            "--group-add",
-            "--gpus",
-            "--runtime",
-            "--platform",
-            "--cpus",
-            "--memory",
-            "--restart",
-            "--log-driver",
-            "--log-opt",
-            "--tmpfs",
-            "--ipc",
-            "--pid",
-            "--uts",
-        }
-
-        while idx < len(args):
-            current = args[idx]
-            if current == "--":
-                result.extend(inserts)
-                result.extend(args[idx:])
-                return result
-            if not current.startswith("-"):
-                result.extend(inserts)
-                result.extend(args[idx:])
-                return result
-            result.append(current)
-            idx += 1
-            if current in options_with_value and idx < len(args):
-                result.append(args[idx])
-                idx += 1
-
-        result.extend(inserts)
-        return result
 
     def _build_provider(self) -> tuple[OpenAIProvider, str]:
         if settings.llm_mode not in {"local", "api"}:

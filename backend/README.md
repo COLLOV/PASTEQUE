@@ -125,7 +125,6 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/mcp/chart' \
 - Des outils internes (`load_dataset`, `aggregate_counts`) exposent les données au modèle avant l’appel MCP; aucun graphique n’est pré-calculé.
 - La réponse JSON contient l’URL du graphique (`chart_url`), le nom d’outil MCP utilisé et la spec JSON envoyée au serveur. Un `502` est renvoyé si la génération échoue côté MCP.
 - La configuration du serveur reste déclarative (`plan/Z/mcp.config.json`, `MCP_CONFIG_PATH`, `MCP_SERVERS_JSON`) et supporte les variables `VIS_REQUEST_SERVER`, `SERVICE_ID`, etc.
-- Afin d’éviter les erreurs `Invalid JSON` côté client MCP, le backend synchronise automatiquement `mcp_console_stderr.cjs` dans `MCP_CHART_STORAGE_PATH` puis injecte `NODE_OPTIONS=--require .../mcp_console_stderr.cjs` et `RENDERED_IMAGE_PATH` via `docker run --env`. Assurez-vous que le volume Docker mappe ce dossier sur le même chemin (défaut: `/tmp/gpt-vis-charts`).
 
 ### MindsDB – connexion simple (HTTP)
 
