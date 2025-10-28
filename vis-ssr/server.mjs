@@ -47,7 +47,7 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/generate', async (req, res) => {
+const handleGenerate = async (req, res) => {
   let vis = null;
 
   try {
@@ -78,7 +78,10 @@ app.post('/generate', async (req, res) => {
       }
     }
   }
-});
+};
+
+app.post('/', handleGenerate);
+app.post('/generate', handleGenerate);
 
 app.use('/charts', express.static(outputDir));
 
