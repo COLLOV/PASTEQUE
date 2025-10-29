@@ -13,7 +13,7 @@ from starlette.responses import StreamingResponse
 
 from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
-from ....core.database import get_session
+from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....services.chat_service import ChatService
@@ -63,7 +63,7 @@ def chat_completion(  # type: ignore[valid-type]
     # Ensure conversation + persist user message atomically
     repo = ConversationRepository(session)
     meta = payload.metadata or {}
-    with session.begin():
+    with transactional(session):
         conv_id: int | None
         try:
             raw_id = meta.get("conversation_id") if isinstance(meta, dict) else None
@@ -94,7 +94,7 @@ def chat_completion(  # type: ignore[valid-type]
         # Persist assistant reply
         if resp and isinstance(resp.reply, str):
             try:
-                with session.begin():
+                with transactional(session):
                     repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
             except SQLAlchemyError:
                 log.exception("Failed to persist assistant reply (conversation_id=%s)", conv_id)
@@ -154,7 +154,7 @@ def chat_stream(  # type: ignore[valid-type]
         conversation_id = int(raw_id) if raw_id is not None else None
     except Exception:
         conversation_id = None
-    with session.begin():
+    with transactional(session):
         if conversation_id:
             existing = repo.get_by_id_for_user(conversation_id, current_user.id)
             if existing is None:
@@ -192,7 +192,7 @@ def chat_stream(  # type: ignore[valid-type]
                     try:
                         if evt == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
                             return
-                        with session.begin():
+                        with transactional(session):
                             repo.add_event(conversation_id=conversation_id, kind=evt, payload=data)
                     except SQLAlchemyError:
                         log.warning("Failed to persist event kind=%s for conversation_id=%s", evt, conversation_id, exc_info=True)
@@ -227,7 +227,7 @@ def chat_stream(  # type: ignore[valid-type]
                 elapsed = max(time.perf_counter() - started, 1e-6)
                 # Persist assistant final message
                 try:
-                    with session.begin():
+                    with transactional(session):
                         repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
@@ -260,7 +260,7 @@ def chat_stream(  # type: ignore[valid-type]
                     try:
                         if evt == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
                             return
-                        with session.begin():
+                        with transactional(session):
                             repo.add_event(conversation_id=conversation_id, kind=evt, payload=data)
                     except SQLAlchemyError:
                         log.warning("Failed to persist event kind=%s for conversation_id=%s", evt, conversation_id, exc_info=True)
@@ -294,7 +294,7 @@ def chat_stream(  # type: ignore[valid-type]
                     yield _sse("delta", {"seq": seq, "content": line})
                 elapsed = max(time.perf_counter() - started, 1e-6)
                 try:
-                    with session.begin():
+                    with transactional(session):
                         repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
@@ -334,7 +334,7 @@ def chat_stream(  # type: ignore[valid-type]
                 context="stream done (engine)",
             )
             try:
-                with session.begin():
+                with transactional(session):
                     repo.append_message(conversation_id=conversation_id, role="assistant", content=content_full)
             except SQLAlchemyError:
                 log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)

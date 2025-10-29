@@ -140,3 +140,13 @@ def _ensure_conversation_indexes() -> None:
         for sql in stmts:
             conn.execute(text(sql))
     log.info("Conversation composite indexes ensured.")
+
+
+def transactional(session: Session):
+    """Return a context manager for a writable transaction on this session.
+
+    If a transaction is already in progress (e.g. due to an earlier SELECT that
+    triggered autobegin), use a nested transaction (SAVEPOINT) to avoid
+    InvalidRequestError while still preserving atomicity for the enclosed writes.
+    """
+    return session.begin_nested() if session.in_transaction() else session.begin()
