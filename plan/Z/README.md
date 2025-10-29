@@ -95,7 +95,7 @@ Déclarez‑les via `MCP_SERVERS_JSON` (exemple minimal):
     "name": "chart",
     "command": "npx",
     "args": ["-y", "@antv/mcp-server-chart"],
-    "env": {"VIS_REQUEST_SERVER": "http://localhost:${PORT}/"}
+    "env": {}
   },
   {
     "name": "neo4j",
@@ -125,3 +125,4 @@ Limité volontairement: le backend expose aujourd’hui la lecture de cette conf
 2) Mode API:
 - Exportez `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` et `LLM_MODE=api`.
 - Même appel HTTP que ci‑dessus.
+
