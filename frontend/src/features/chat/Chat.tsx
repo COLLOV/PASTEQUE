@@ -463,7 +463,36 @@ export default function Chat() {
     const msg = messages[index]
     // Prevent duplicate clicks while in-flight
     if (msg.chartSaving) return
-    const dataset = msg.chartDataset
+    let dataset = msg.chartDataset
+    // If dataset missing (typical when loaded from history), try to hydrate from backend
+    if (!dataset && conversationId != null) {
+      try {
+        setMessages(prev => {
+          const copy = [...prev]
+          const i = copy.findIndex(m => m.id === messageId)
+          if (i >= 0) copy[i] = { ...copy[i], chartSaving: true }
+          return copy
+        })
+        const res = await apiFetch<{ dataset: ChartDatasetPayload }>(`/conversations/${conversationId}/dataset?message_index=${index}`)
+        if (res?.dataset && res.dataset.sql && (res.dataset.columns?.length ?? 0) > 0 && (res.dataset.rows?.length ?? 0) > 0) {
+          dataset = res.dataset
+          setMessages(prev => {
+            const copy = [...prev]
+            const i = copy.findIndex(m => m.id === messageId)
+            if (i >= 0) copy[i] = { ...copy[i], chartDataset: dataset, chartSaving: false }
+            return copy
+          })
+        } else {
+          setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, chartSaving: false } : m)))
+          setError("Impossible de reconstruire un jeu de données pour ce message.")
+          return
+        }
+      } catch (err) {
+        setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, chartSaving: false } : m)))
+        setError(err instanceof Error ? err.message : 'Hydratation du dataset échouée')
+        return
+      }
+    }
     if (!dataset || !dataset.sql || (dataset.columns?.length ?? 0) === 0 || (dataset.rows?.length ?? 0) === 0) {
       setError("Aucune donnée SQL exploitable pour ce message.")
       return
@@ -1031,9 +1060,12 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                   onClick={() => message.id && onGenerateChart && onGenerateChart(message.id)}
                   disabled={
                     !message.id || Boolean(message.chartSaving) ||
-                    !(message.chartDataset && message.chartDataset.sql &&
-                      (message.chartDataset.columns?.length ?? 0) > 0 &&
-                      (message.chartDataset.rows?.length ?? 0) > 0)
+                    !(
+                      (message.chartDataset && message.chartDataset.sql &&
+                        (message.chartDataset.columns?.length ?? 0) > 0 &&
+                        (message.chartDataset.rows?.length ?? 0) > 0) ||
+                      (message.details && Array.isArray(message.details.steps) && message.details.steps.some(s => typeof s?.sql === 'string' && s.sql))
+                    )
                   }
                   title={
                     message.chartDataset && (message.chartDataset.columns?.length ?? 0) > 0 && (message.chartDataset.rows?.length ?? 0) > 0
