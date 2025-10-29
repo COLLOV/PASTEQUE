@@ -4,20 +4,26 @@ import queue
 import time
 import uuid
 from typing import Iterator
+import logging
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import StreamingResponse
 
 from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
-from ....core.database import get_session
+from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....services.chat_service import ChatService
 from ....engines.openai_engine import OpenAIChatEngine
 from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
+from ....repositories.conversation_repository import ConversationRepository
+from ....utils.text import sanitize_title
+
+log = logging.getLogger("insight.api.chat")
 
 router = APIRouter(prefix="/chat")
 
@@ -54,8 +60,46 @@ def chat_completion(  # type: ignore[valid-type]
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    # Ensure conversation + persist user message atomically
+    repo = ConversationRepository(session)
+    meta = payload.metadata or {}
+    with transactional(session):
+        conv_id: int | None
+        try:
+            raw_id = meta.get("conversation_id") if isinstance(meta, dict) else None
+            conv_id = int(raw_id) if raw_id is not None else None
+        except Exception:
+            conv_id = None
+        conv = None
+        if conv_id:
+            conv = repo.get_by_id_for_user(conv_id, current_user.id)
+        if conv is None:
+            # Derive title from first user message
+            title = "Nouvelle conversation"
+            if payload.messages:
+                for msg in payload.messages:
+                    if msg.role == "user" and msg.content.strip():
+                        title = sanitize_title(msg.content)
+                        break
+            conv = repo.create(user_id=current_user.id, title=title)
+            session.flush()
+            conv_id = conv.id
+        # Persist the last user message if any
+        last = payload.messages[-1] if payload.messages else None
+        if last and last.role == "user" and last.content:
+            repo.append_message(conversation_id=conv_id, role="user", content=last.content)
+
     try:
-        return service.completion(payload, allowed_tables=allowed_tables)
+        resp = service.completion(payload, allowed_tables=allowed_tables)
+        # Persist assistant reply
+        if resp and isinstance(resp.reply, str):
+            try:
+                with transactional(session):
+                    repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
+            except SQLAlchemyError:
+                log.exception("Failed to persist assistant reply (conversation_id=%s)", conv_id)
+        # Return as-is (no conversation id field in schema), clients can fetch via separate API
+        return resp
     except OpenAIBackendError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -100,6 +144,36 @@ def chat_stream(  # type: ignore[valid-type]
 
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"
     started = time.perf_counter()
+    repo = ConversationRepository(session)
+
+    # Resolve conversation id from metadata or create one on the fly
+    conversation_id: int | None = None
+    meta_in = payload.metadata or {}
+    try:
+        raw_id = meta_in.get("conversation_id") if isinstance(meta_in, dict) else None
+        conversation_id = int(raw_id) if raw_id is not None else None
+    except Exception:
+        conversation_id = None
+    with transactional(session):
+        if conversation_id:
+            existing = repo.get_by_id_for_user(conversation_id, current_user.id)
+            if existing is None:
+                conversation_id = None
+        if not conversation_id:
+            # Derive title from first user message
+            title = "Nouvelle conversation"
+            if payload.messages:
+                for msg in payload.messages:
+                    if msg.role == "user" and msg.content.strip():
+                        title = sanitize_title(msg.content)
+                        break
+            conv = repo.create(user_id=current_user.id, title=title)
+            session.flush()
+            conversation_id = conv.id
+        # Persist last user message immediately (if present)
+        last = payload.messages[-1] if payload.messages else None
+        if last and last.role == "user" and last.content:
+            repo.append_message(conversation_id=conversation_id, role="user", content=last.content)
 
     def generate() -> Iterator[bytes]:
         seq = 0
@@ -108,10 +182,11 @@ def chat_stream(  # type: ignore[valid-type]
             last = payload.messages[-1] if payload.messages else None
             if last and last.role == "user" and last.content.strip().casefold().startswith("/sql "):
                 prov = "mindsdb-sql"
-                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
+                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
 
                 def emit(evt: str, data: dict) -> None:
+                    # Push to SSE queue only; persist on the consumer thread to avoid cross-thread session use
                     q.put((evt, data))
 
                 result_holder: dict[str, object] = {}
@@ -130,6 +205,13 @@ def chat_stream(  # type: ignore[valid-type]
                     kind, data = item
                     if kind == "__final__":
                         break
+                    # Persist events on the request thread (session is not thread-safe)
+                    try:
+                        if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                            with transactional(session):
+                                repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                    except SQLAlchemyError:
+                        log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
                     yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | etc.
                 resp = result_holder.get("resp")
                 if isinstance(resp, ChatResponse):
@@ -142,6 +224,13 @@ def chat_stream(  # type: ignore[valid-type]
                     seq += 1
                     yield _sse("delta", {"seq": seq, "content": line})
                 elapsed = max(time.perf_counter() - started, 1e-6)
+                # Persist assistant final message
+                try:
+                    with transactional(session):
+                        repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                except SQLAlchemyError:
+                    log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
+
                 yield _sse(
                     "done",
                     {
@@ -162,10 +251,11 @@ def chat_stream(  # type: ignore[valid-type]
 
             if nl2sql_enabled and last and last.role == "user":
                 prov = "nl2sql"
-                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model})
+                yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
 
                 def emit(evt: str, data: dict) -> None:
+                    # Queue only; persistence happens on consumer side in this request thread
                     q.put((evt, data))
 
                 result_holder: dict[str, object] = {}
@@ -184,6 +274,12 @@ def chat_stream(  # type: ignore[valid-type]
                     kind, data = item
                     if kind == "__final__":
                         break
+                    try:
+                        if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                            with transactional(session):
+                                repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                    except SQLAlchemyError:
+                        log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
                     yield _sse(kind, data)  # 'plan' | 'sql' | 'rows'
                 resp = result_holder.get("resp")
                 if isinstance(resp, ChatResponse):
@@ -196,6 +292,12 @@ def chat_stream(  # type: ignore[valid-type]
                     seq += 1
                     yield _sse("delta", {"seq": seq, "content": line})
                 elapsed = max(time.perf_counter() - started, 1e-6)
+                try:
+                    with transactional(session):
+                        repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                except SQLAlchemyError:
+                    log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
+
                 yield _sse(
                     "done",
                     {
@@ -210,7 +312,7 @@ def chat_stream(  # type: ignore[valid-type]
 
             # 2) Default LLM streaming
             # Default LLM streaming branch
-            yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model})
+            yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model, "conversation_id": conversation_id})
             full: list[str] = []
             for event in engine.stream(payload):
                 if event.get("type") == "delta":
@@ -230,6 +332,11 @@ def chat_stream(  # type: ignore[valid-type]
                 ChatResponse(reply=content_full, metadata={"provider": provider}),
                 context="stream done (engine)",
             )
+            try:
+                with transactional(session):
+                    repo.append_message(conversation_id=conversation_id, role="assistant", content=content_full)
+            except SQLAlchemyError:
+                log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
             yield _sse(
                 "done",
                 {

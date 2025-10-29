@@ -158,9 +158,29 @@ import { login } from '@/services/auth'
 #### Layout responsive — Oct. 2025
 
 - Desktop (≥ lg): grille en 12 colonnes avec un panneau gauche élargi (`lg:col-span-5`) et le chat à droite (`lg:col-span-7`).
- - Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
- - Un bouton « Exploration » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
-- Bouton « Historique » (stub) ajouté dans le header à côté de « Chat » (sera connecté plus tard).
+- Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
+- Un bouton « Exploration » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
+
+### Historique des conversations
+
+- Un bouton « Historique » permet d’afficher les conversations précédentes (chargées via `GET /conversations`).
+- Un bouton « Nouveau chat » réinitialise l’état local pour démarrer une nouvelle discussion.
+- Lors de l’envoi d’un premier message, le backend crée une conversation et renvoie `conversation_id` dans l’événement `meta`; le frontend rattache alors les messages suivants à cette conversation.
+- Le bouton « Historique » du header est connecté: il ouvre la modale via `?history=1` sur `/chat` et l'état s'aligne avec l'URL (ouverture/fermeture met à jour la query).
+ - Robustesse (29 oct. 2025): lors du chargement d’une conversation depuis l’historique,
+   les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
+   a persisté des lignes sous forme de tableaux (héritage de certaines réponses MindsDB).
+   Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
+ 
+Affichage des « Détails » depuis l’historique (29 oct. 2025)
+
+- Le backend renvoie, pour chaque message assistant, un champ optionnel `details`
+  reconstruit à partir des `conversation_events` entre le dernier message utilisateur
+  et le message assistant:
+  - `details.steps`: liste des requêtes SQL (`step`, `purpose`, `sql`).
+  - `details.plan`: payload du plan s’il a été émis.
+- Le frontend propage `message.details` lors du chargement d’une conversation;
+  le bouton « Détails » fonctionne donc aussi pour l’historique.
  - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
 #### Composer (Mise à jour)

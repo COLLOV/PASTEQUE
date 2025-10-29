@@ -42,6 +42,18 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 - Les réponses NL→SQL envoyées au frontend sont désormais uniquement en langage naturel; les requêtes SQL restent accessibles via les métadonnées ou les logs si besoin.
 - Le générateur NL→SQL refuse désormais les requêtes qui n’appliquent pas le préfixe `files.` sur toutes les tables (`/api/v1/mindsdb/sync-files` garde le même schéma).
 
+### Sécurité et robustesse (conversations)
+
+- L’endpoint `GET /api/v1/conversations/{id}/dataset` ne ré‑exécute que des requêtes strictement `SELECT` validées via un parseur SQL (sqlglot). Les contraintes suivantes sont appliquées:
+  - Une seule instruction (pas de `;` ni de commentaires),
+  - Pas de `UNION/EXCEPT/INTERSECT`, pas de `SELECT … INTO`,
+  - Aucune opération DML/DDL (INSERT/UPDATE/DELETE/ALTER/DROP/CREATE),
+  - Toutes les tables doivent respecter le préfixe configuré par `NL2SQL_DB_PREFIX` (par défaut: `files`),
+  - Ajout automatique d’un `LIMIT` si absent (valeur: `EVIDENCE_LIMIT_DEFAULT`, 100 par défaut).
+- Les titres de conversations sont assainis côté API (suppression caractères de contrôle, crochets d’angle, normalisation d’espace, longueur ≤ 120).
+- Les écritures (création de conversation, messages, événements) sont encapsulées dans des transactions SQLAlchemy pour éviter les incohérences en cas d’erreur.
+- Des index composites sont créés automatiquement pour accélérer l’accès à l’historique: `(conversation_id, created_at)` sur `conversation_messages` et `conversation_events`.
+
 ### LLM « Z » – deux modes
 
 Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
@@ -223,3 +235,31 @@ En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimul
 ## Evidence panel defaults
 
 - `EVIDENCE_LIMIT_DEFAULT` (int, default: 100): limite de lignes envoyées via SSE pour l’aperçu « evidence ». Utilisée à la fois pour la construction du `evidence_spec.limit` et pour la dérivation de SQL détaillé.
+## Historique des conversations
+
+Le backend persiste désormais les conversations et événements associés:
+
+- Tables: `conversations`, `conversation_messages`, `conversation_events`.
+- Les routes exposées (préfixe `${API_PREFIX}/v1`):
+  - `GET /conversations` — liste des conversations de l’utilisateur courant (id, title, updated_at).
+  - `GET /conversations/{id}` — détail d’une conversation (messages, dernier `evidence_spec` et ses lignes si présentes).
+  - Depuis 2025‑10‑29: `evidence_rows.rows` est normalisé en liste d’objets (clé = nom de colonne),
+    même si la source a persisté une liste de tableaux. Cela garantit la cohérence avec le
+    streaming SSE et évite que le panneau « Tickets » n’affiche des cellules vides.
+  - Depuis 2025‑10‑29: chaque message assistant peut inclure `details` (optionnel),
+    reconstruit à partir des `conversation_events` entre le dernier message utilisateur et ce message:
+    - `details.steps`: événements `sql` successifs (avec `step`, `purpose`, `sql`).
+    - `details.plan`: dernier événement `plan` s’il est présent.
+  - Depuis 2025‑10‑29: `GET /conversations/{id}/dataset?message_index=N` rejoue la dernière requête SQL (hors « evidence »)
+    liée au message assistant d’index `N`, avec un `LIMIT` de sécurité (`EVIDENCE_LIMIT_DEFAULT`).
+    Réponse: `{ dataset: { sql, columns, rows, row_count, step, description } }`.
+  - Depuis 2025‑10‑29: `POST /conversations/{id}/chart` enregistre un évènement `chart` (url + métadonnées). Ces
+    évènements sont réintégrés dans le flux `messages` lors du `GET /conversations/{id}` afin que les graphiques
+    réapparaissent dans l’historique de la conversation.
+  - `POST /conversations` — crée une conversation (optionnel: `{ "title": "..." }`).
+
+Intégration au flux `/chat/stream`:
+
+- Le client peut passer `metadata.conversation_id` pour rattacher un message à une conversation existante.
+- Si absent, le backend crée une conversation et renvoie l’identifiant dans l’événement `meta` (`conversation_id`).
+- Les événements `sql`/`rows`/`plan`/`meta` sont ajoutés en base et la réponse finale de l’assistant est enregistrée comme message.

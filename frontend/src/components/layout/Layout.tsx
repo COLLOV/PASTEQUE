@@ -54,7 +54,12 @@ export default function Layout() {
               <Button variant="secondary" size="sm" onClick={goTo('/chat')} className="!rounded-full">
                 Chat
               </Button>
-              <Button variant="secondary" size="sm" disabled title="Bientôt" className="!rounded-full">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('/chat?history=1')}
+                className="!rounded-full"
+              >
                 Historique
               </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">

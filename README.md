@@ -59,6 +59,13 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+### Historique des conversations (branche `feature/historique`)
+
+- Persistance côté backend des conversations, messages et événements (`conversations`, `conversation_messages`, `conversation_events`).
+- SSE `meta` inclut `conversation_id` pour qu’un premier message crée la conversation automatiquement.
+- Endpoints: `GET /api/v1/conversations`, `GET /api/v1/conversations/{id}`, `POST /api/v1/conversations`.
+- UI: bouton « Historique » pour lister/ouvrir une discussion passée, bouton « Nouveau chat » pour repartir de zéro.
+
 ### Gestion des utilisateurs (admin)
 
 - Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Chat**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
@@ -137,6 +144,10 @@ data/
 
 - 2025-10-21: L'état vide du chat (« Discutez avec vos données ») est maintenant centré via un overlay `fixed` non interactif: pas de scroll tant qu'aucun message n'est présent; la barre de saisie reste accessible.
  - 2025-10-21: Ajout d'un petit avertissement sous la zone de saisie: « L'IA peut faire des erreurs, FoyerInsight aussi. »
+
+## Maintenance
+
+- 2025-10-29: Correction d'un échec de build frontend (TS2451) dû à une double déclaration `const meta` dans `frontend/src/features/chat/Chat.tsx`. La duplication a été supprimée.
 
 ## Plan UI — Panneau « Éléments de preuve » (générique) pour /chat
 
