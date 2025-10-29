@@ -415,7 +415,23 @@ export default function Chat() {
         (data.messages || []).map(m => ({ id: createMessageId(), role: m.role, content: m.content }))
       )
       setEvidenceSpec(data?.evidence_spec ?? null)
-      setEvidenceData(data?.evidence_rows ?? null)
+      // Defensive normalization: history may contain array-rows; convert to objects
+      const ev = data?.evidence_rows
+      if (ev && Array.isArray(ev.rows)) {
+        const cols = Array.isArray(ev.columns)
+          ? (ev.columns as unknown[]).filter((c): c is string => typeof c === 'string')
+          : []
+        const rowsNorm = normaliseRows(cols, ev.rows as any[])
+        setEvidenceData({
+          columns: cols,
+          rows: rowsNorm,
+          row_count: typeof ev.row_count === 'number' ? ev.row_count : rowsNorm.length,
+          step: typeof ev.step === 'number' ? ev.step : undefined,
+          purpose: ev.purpose
+        })
+      } else {
+        setEvidenceData(ev ?? null)
+      }
       setHistoryOpen(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible')
