@@ -158,8 +158,14 @@ import { login } from '@/services/auth'
 #### Layout responsive — Oct. 2025
 
 - Desktop (≥ lg): grille en 12 colonnes avec un panneau gauche élargi (`lg:col-span-5`) et le chat à droite (`lg:col-span-7`).
- - Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
- - Un bouton « Exploration » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
+- Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
+- Un bouton « Exploration » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
+
+### Historique des conversations
+
+- Un bouton « Historique » permet d’afficher les conversations précédentes (chargées via `GET /conversations`).
+- Un bouton « Nouveau chat » réinitialise l’état local pour démarrer une nouvelle discussion.
+- Lors de l’envoi d’un premier message, le backend crée une conversation et renvoie `conversation_id` dans l’événement `meta`; le frontend rattache alors les messages suivants à cette conversation.
 - Bouton « Historique » (stub) ajouté dans le header à côté de « Chat » (sera connecté plus tard).
  - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
