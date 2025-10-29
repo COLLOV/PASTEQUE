@@ -59,14 +59,42 @@ def get_conversation(  # type: ignore[valid-type]
     # Last evidence spec and rows if present
     evidence_spec: dict[str, Any] | None = None
     evidence_rows: dict[str, Any] | None = None
+
+    def _normalize_rows(columns: list[Any] | None, rows: list[Any] | None) -> list[dict[str, Any]]:
+        """Normalize persisted table rows to a list of dicts.
+
+        Events may have stored rows as list-of-arrays depending on the source
+        (e.g., MindsDB). The frontend expects objects keyed by column name.
+        """
+        cols = [str(c) for c in (columns or [])]
+        norm: list[dict[str, Any]] = []
+        if not rows:
+            return norm
+        for r in rows:
+            if isinstance(r, dict):
+                # Ensure ordering is not required on the client
+                norm.append({k: r.get(k) for k in cols} if cols else dict(r))
+            elif isinstance(r, (list, tuple)):
+                obj: dict[str, Any] = {}
+                for i, c in enumerate(cols):
+                    obj[c] = r[i] if i < len(r) else None
+                norm.append(obj)
+            else:
+                # Fallback scalar row: attach to first column or to "value"
+                key = cols[0] if cols else "value"
+                norm.append({key: r})
+        return norm
     for evt in conv.events:
         if evt.kind == "meta" and isinstance(evt.payload, dict) and "evidence_spec" in evt.payload:
             evidence_spec = evt.payload.get("evidence_spec")  # type: ignore[assignment]
         elif evt.kind == "rows" and isinstance(evt.payload, dict) and evt.payload.get("purpose") == "evidence":
+            cols = evt.payload.get("columns") or []
+            raw_rows = evt.payload.get("rows") or []
             evidence_rows = {
-                "columns": evt.payload.get("columns") or [],
-                "rows": evt.payload.get("rows") or [],
-                "row_count": evt.payload.get("row_count"),
+                "columns": cols,
+                # Normalize here so the frontend gets a consistent shape in history
+                "rows": _normalize_rows(cols, raw_rows),
+                "row_count": evt.payload.get("row_count") or (len(raw_rows) if isinstance(raw_rows, list) else 0),
                 "purpose": "evidence",
             }
 
@@ -81,4 +109,3 @@ def get_conversation(  # type: ignore[valid-type]
         "evidence_spec": evidence_spec,
         "evidence_rows": evidence_rows,
     }
-
