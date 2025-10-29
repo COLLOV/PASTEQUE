@@ -147,7 +147,6 @@ export default function Chat() {
           if (typeof meta?.conversation_id === 'number') {
             setConversationId(meta.conversation_id)
           }
-          const meta = data as ChatStreamMeta
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
