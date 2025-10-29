@@ -49,6 +49,9 @@ function createMessageId(): string {
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
+  const [conversationId, setConversationId] = useState<number | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<Array<{ id: number; title: string; updated_at: string }>>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -87,6 +90,19 @@ export default function Chat() {
     return () => window.removeEventListener('keydown', onKey)
   }, [showTicketsSheet])
 
+  async function refreshHistory() {
+    try {
+      const items = await apiFetch<Array<{ id: number; title: string; created_at: string; updated_at: string }>>('/conversations')
+      setHistory(items || [])
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    refreshHistory()
+  }, [])
+
   function onToggleChartModeClick() {
     setChartMode(v => {
       const next = !v
@@ -120,12 +136,17 @@ export default function Chat() {
       setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
 
       // Force NL→SQL when SQL toggle or Chart mode is active
-      const payload: ChatCompletionRequest = (sqlMode || isChartMode)
-        ? { messages: next, metadata: { nl2sql: true } }
-        : { messages: next }
+      const baseMeta: Record<string, unknown> = {}
+      if (sqlMode || isChartMode) baseMeta.nl2sql = true
+      if (conversationId) baseMeta.conversation_id = conversationId
+      const payload: ChatCompletionRequest = { messages: next, metadata: baseMeta }
 
       await streamSSE('/chat/stream', payload, (type, data) => {
         if (type === 'meta') {
+          const meta = data as ChatStreamMeta
+          if (typeof meta?.conversation_id === 'number') {
+            setConversationId(meta.conversation_id)
+          }
           const meta = data as ChatStreamMeta
           setMessages(prev => {
             const copy = [...prev]
@@ -268,6 +289,8 @@ export default function Chat() {
             return copy
           })
           // Fin du streaming: message final fixé
+          // Refresh history list after message persisted
+          refreshHistory()
         } else if (type === 'error') {
           setError(data?.message || 'Erreur streaming')
         }
@@ -353,6 +376,38 @@ export default function Chat() {
       setLoading(false)
       abortRef.current = null
     }
+  }
+
+  async function loadConversation(id: number) {
+    try {
+      const data = await apiFetch<{
+        id: number
+        title: string
+        messages: Array<{ role: 'user' | 'assistant'; content: string; created_at: string }>
+        evidence_spec?: EvidenceSpec
+        evidence_rows?: EvidenceRowsPayload
+      }>(`/conversations/${id}`)
+      setConversationId(data.id)
+      setMessages(
+        (data.messages || []).map(m => ({ id: createMessageId(), role: m.role, content: m.content }))
+      )
+      setEvidenceSpec(data?.evidence_spec ?? null)
+      setEvidenceData(data?.evidence_rows ?? null)
+      setHistoryOpen(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Chargement impossible')
+    }
+  }
+
+  function onNewChat() {
+    if (loading && abortRef.current) {
+      abortRef.current.abort()
+    }
+    setConversationId(null)
+    setMessages([])
+    setEvidenceSpec(null)
+    setEvidenceData(null)
+    setError('')
   }
 
   async function onGenerateChart(messageId: string) {
@@ -516,21 +571,57 @@ export default function Chat() {
           <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
             {/* Mobile tickets button */}
             <div className="sticky top-0 z-10 -mt-4 -mx-4 mb-2 px-4 pt-3 pb-2 bg-white/95 backdrop-blur border-b lg:hidden">
-              <div className="flex items-center justify-between">
-                <div className="text-xs text-primary-500">Discussion</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                  >
+                    Historique
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onNewChat}
+                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                  >
+                    Nouveau chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowTicketsSheet(true)}
+                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                  >
+                    <HiBookmark className="w-4 h-4" />
+                    Exploration
+                    {(() => {
+                      const c = evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0
+                      return c > 0 ? (
+                        <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{c}</span>
+                      ) : null
+                    })()}
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* Desktop toolbar */}
+            <div className="hidden lg:flex items-center justify-between mb-2">
+              <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowTicketsSheet(true)}
+                  onClick={() => setHistoryOpen(true)}
                   className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
                 >
-                  <HiBookmark className="w-4 h-4" />
-                  Exploration
-                  {(() => {
-                    const c = evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0
-                    return c > 0 ? (
-                      <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{c}</span>
-                    ) : null
-                  })()}
+                  Historique
+                </button>
+                <button
+                  type="button"
+                  onClick={onNewChat}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                >
+                  Nouveau chat
                 </button>
               </div>
             </div>
@@ -631,6 +722,41 @@ export default function Chat() {
               </button>
             </div>
             <TicketPanel spec={evidenceSpec} data={evidenceData} />
+          </div>
+        </div>
+      )}
+
+      {/* History modal */}
+      {historyOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setHistoryOpen(false)} />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg border shadow-lg w-[90vw] max-w-xl max-h-[80vh] overflow-auto">
+            <div className="p-3 border-b flex items-center justify-between">
+              <div className="text-sm font-semibold">Conversations</div>
+              <button className="text-xs underline" onClick={refreshHistory}>Rafraîchir</button>
+            </div>
+            <div className="p-3">
+              {history.length === 0 && (
+                <div className="text-sm text-primary-500">Aucune conversation</div>
+              )}
+              <ul className="divide-y">
+                {history.map(item => (
+                  <li key={item.id} className="py-2 flex items-center justify-between">
+                    <button
+                      className="text-left text-sm text-primary-900 hover:underline"
+                      onClick={() => loadConversation(item.id)}
+                    >
+                      <div className="font-medium truncate max-w-[42ch]">{item.title || `Discussion #${item.id}`}</div>
+                      <div className="text-xs text-primary-500">{new Date(item.updated_at).toLocaleString()}</div>
+                    </button>
+                    <button
+                      className="text-xs border rounded-full px-2 py-1 hover:bg-primary-50"
+                      onClick={() => loadConversation(item.id)}
+                    >Ouvrir</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       )}
