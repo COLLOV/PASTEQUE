@@ -103,7 +103,6 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyOpen])
 
-  // (UI) effets Evidence supprimés dans la version split
   // Fermer la sheet Tickets avec la touche Escape
   useEffect(() => {
     if (!showTicketsSheet) return
