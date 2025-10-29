@@ -182,8 +182,10 @@ def chat_stream(  # type: ignore[valid-type]
                 def emit(evt: str, data: dict) -> None:
                     # Push to SSE queue
                     q.put((evt, data))
-                    # Persist as event (best-effort)
+                    # Persist as event (best-effort): keep SQL/meta/plan; keep ROWS only if evidence
                     try:
+                        if evt == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
+                            return
                         repo.add_event(conversation_id=conversation_id, kind=evt, payload=data)
                     except Exception:
                         pass
@@ -249,6 +251,8 @@ def chat_stream(  # type: ignore[valid-type]
                 def emit(evt: str, data: dict) -> None:
                     q.put((evt, data))
                     try:
+                        if evt == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
+                            return
                         repo.add_event(conversation_id=conversation_id, kind=evt, payload=data)
                     except Exception:
                         pass
