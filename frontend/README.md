@@ -167,6 +167,10 @@ import { login } from '@/services/auth'
 - Un bouton « Nouveau chat » réinitialise l’état local pour démarrer une nouvelle discussion.
 - Lors de l’envoi d’un premier message, le backend crée une conversation et renvoie `conversation_id` dans l’événement `meta`; le frontend rattache alors les messages suivants à cette conversation.
 - Le bouton « Historique » du header est connecté: il ouvre la modale via `?history=1` sur `/chat` et l'état s'aligne avec l'URL (ouverture/fermeture met à jour la query).
+ - Robustesse (29 oct. 2025): lors du chargement d’une conversation depuis l’historique,
+   les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
+   a persisté des lignes sous forme de tableaux (héritage de certaines réponses MindsDB).
+   Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
  - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
 #### Composer (Mise à jour)
