@@ -273,7 +273,7 @@ if [[ ! -d ${SSR_DIR}/node_modules ]]; then
   echo "[start] Installing GPT-Vis SSR dependencies (npm install)"
   (
     cd "$SSR_DIR"
-    npm install
+    NODE_TLS_REJECT_UNAUTHORIZED=0 npm_config_strict_ssl=false npm_config_registry=https://registry.npmjs.org npm install
   )
 else
   echo "[start] GPT-Vis SSR dependencies already installed"
