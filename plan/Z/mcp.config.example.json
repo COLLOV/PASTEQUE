@@ -3,7 +3,9 @@
     "name": "chart",
     "command": "npx",
     "args": ["-y", "@antv/mcp-server-chart"],
-    "env": {}
+    "env": {
+      "VIS_REQUEST_SERVER": "http://localhost:${PORT}/"
+    }
   },
   {
     "name": "neo4j",
@@ -24,4 +26,3 @@
     }
   }
 ]
-
