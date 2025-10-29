@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # MCP configuration (declarative)
     mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
     mcp_servers_json: str | None = Field(None, alias="MCP_SERVERS_JSON")
+    vis_ssr_env_path: str = Field("../vis-ssr/.env", alias="VIS_SSR_ENV_PATH")
 
     # MindsDB (HTTP API)
     mindsdb_base_url: str = Field("http://127.0.0.1:47334/api", alias="MINDSDB_BASE_URL")
