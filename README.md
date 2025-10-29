@@ -21,7 +21,7 @@ Script combiné (depuis la racine):
 - `./start_full.sh <port_frontend> <port_backend>` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
 - Exemple: `./start.sh 5173 8000` (ou `./start.sh 8080 8081` selon vos besoins).
 
-Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production. Ce même fichier est relu côté backend pour alimenter `VIS_REQUEST_SERVER`, inutile donc d’ajuster manuellement le port dans `plan/Z/mcp.config.json`.
+Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production.
 
 Lancer manuellement si besoin:
 
@@ -117,7 +117,7 @@ data/
 - Le frontend capture le dernier dataset NL→SQL (SQL, colonnes, lignes tronquées à `NL2SQL_MAX_ROWS`) et le transmet tel quel au backend; sans résultat exploitable, aucun graphique n’est généré et un message explicite est renvoyé.
 - Le backend n’explore plus les CSV `data/raw/` pendant cette étape : l’agent `pydantic-ai` exploite exclusivement les données reçues via l’outil `get_sql_result`. Les helpers `load_dataset` / `aggregate_counts` restent disponibles avant l’appel `generate_*_chart` si besoin.
 - La réponse API inclut l’URL du rendu, les métadonnées (titre, description, spec JSON) ainsi que la requête SQL source et son volume de lignes pour garder la traçabilité côté frontend.
-- La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint. L’URL `VIS_REQUEST_SERVER` est complétée dynamiquement avec le port défini dans `vis-ssr/.env` (modifiable via `VIS_SSR_ENV_PATH`) pour suivre la configuration réelle du SSR GPT-Vis.
+- La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
 - Le backend filtre les lignes stdout non JSON renvoyées par le serveur MCP `chart` pour éviter les erreurs `Invalid JSON` dues aux logs d'initialisation.
 
 ### Sauvegarde des graphiques MCP
