@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, List, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -100,19 +100,16 @@ def get_conversation(  # type: ignore[valid-type]
                 "purpose": "evidence",
             }
 
-    # ---- Reconstruct per-assistant message details from events timeline ----
-    # We associate events emitted during streaming (plan/sql) between the last
-    # user message and the following assistant message.
-    messages: list[dict[str, Any]] = []
+    # ---- Build a unified, time-ordered stream mixing messages and chart events ----
+    entries: List[Dict[str, Any]] = []
+    # 1) Start with plain messages and attach details (plan/sql) to assistant answers
     last_user_ts = None
-    # Pre-materialize events to avoid repeated attribute access
     evs = list(conv.events)
     for msg in conv.messages:
         details: dict[str, Any] | None = None
         if msg.role == "user":
             last_user_ts = msg.created_at
-        else:  # assistant
-            # Collect events in [last_user_ts, msg.created_at]
+        else:
             if last_user_ts is not None:
                 steps: list[dict[str, Any]] = []
                 plan: dict[str, Any] | None = None
@@ -121,13 +118,11 @@ def get_conversation(  # type: ignore[valid-type]
                     if ts < last_user_ts or ts > msg.created_at:
                         continue
                     if evt.kind == "sql" and isinstance(evt.payload, dict):
-                        steps.append(
-                            {
-                                "step": evt.payload.get("step"),
-                                "purpose": evt.payload.get("purpose"),
-                                "sql": evt.payload.get("sql"),
-                            }
-                        )
+                        steps.append({
+                            "step": evt.payload.get("step"),
+                            "purpose": evt.payload.get("purpose"),
+                            "sql": evt.payload.get("sql"),
+                        })
                     elif evt.kind == "plan" and isinstance(evt.payload, dict):
                         plan = evt.payload
                 if steps or plan:
@@ -139,7 +134,31 @@ def get_conversation(  # type: ignore[valid-type]
         }
         if details:
             payload["details"] = details
-        messages.append(payload)
+        entries.append({"created_at": msg.created_at.isoformat(), "payload": payload})
+
+    # 2) Add chart events as synthetic assistant messages
+    for evt in conv.events:
+        if evt.kind != "chart" or not isinstance(evt.payload, dict):
+            continue
+        p = evt.payload
+        chart_url = p.get("chart_url")
+        if not isinstance(chart_url, str) or not chart_url:
+            continue
+        payload = {
+            "role": "assistant",
+            "content": "",
+            "created_at": evt.created_at.isoformat(),
+            "chart_url": chart_url,
+            "chart_title": p.get("chart_title"),
+            "chart_description": p.get("chart_description"),
+            "chart_tool": p.get("tool_name") or p.get("chart_tool"),
+            "chart_spec": p.get("chart_spec"),
+        }
+        entries.append({"created_at": evt.created_at.isoformat(), "payload": payload})
+
+    # 3) Sort entries by time (ISO 8601 sort is chronological)
+    entries.sort(key=lambda x: x["created_at"])  # type: ignore[no-any-return]
+    messages: list[dict[str, Any]] = [e["payload"] for e in entries]
 
     return {
         "id": conv.id,
@@ -250,3 +269,33 @@ def get_message_dataset(  # type: ignore[valid-type]
             "description": purpose,
         }
     }
+
+
+@router.post("/{conversation_id}/chart")
+def append_chart_event(  # type: ignore[valid-type]
+    conversation_id: int,
+    payload: dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Persist a chart generation event so charts reappear in conversation history.
+
+    Body fields (subset used): chart_url (required), tool_name, chart_title, chart_description, chart_spec.
+    """
+    repo = ConversationRepository(session)
+    conv = repo.get_by_id_for_user(conversation_id, current_user.id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
+    url = payload.get("chart_url")
+    if not isinstance(url, str) or not url.strip():
+        raise HTTPException(status_code=400, detail="chart_url manquant")
+    safe_payload = {
+        "chart_url": url,
+        "tool_name": payload.get("tool_name"),
+        "chart_title": payload.get("chart_title"),
+        "chart_description": payload.get("chart_description"),
+        "chart_spec": payload.get("chart_spec"),
+    }
+    evt = repo.add_event(conversation_id=conversation_id, kind="chart", payload=safe_payload)
+    session.commit()
+    return {"id": evt.id, "created_at": evt.created_at.isoformat()}

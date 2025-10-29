@@ -420,7 +420,19 @@ export default function Chat() {
       }>(`/conversations/${id}`)
       setConversationId(data.id)
       setMessages(
-        (data.messages || []).map(m => ({ id: createMessageId(), role: m.role, content: m.content, details: m.details }))
+        (data.messages || []).map(m => ({
+          id: createMessageId(),
+          role: m.role,
+          content: m.content,
+          details: m.details,
+          ...(m as any).chart_url ? {
+            chartUrl: (m as any).chart_url,
+            chartTitle: (m as any).chart_title,
+            chartDescription: (m as any).chart_description,
+            chartTool: (m as any).chart_tool,
+            chartSpec: (m as any).chart_spec,
+          } : {}
+        }))
       )
       setEvidenceSpec(data?.evidence_spec ?? null)
       // Defensive normalization: history may contain array-rows; convert to objects
@@ -541,6 +553,23 @@ export default function Chat() {
         copy.push(assistantMessage)
         return copy
       })
+      // Persist as conversation event so chart reappears in history
+      if (chartUrl && conversationId) {
+        try {
+          await apiFetch(`/conversations/${conversationId}/chart`, {
+            method: 'POST',
+            body: JSON.stringify({
+              chart_url: chartUrl,
+              tool_name: res?.tool_name,
+              chart_title: res?.chart_title,
+              chart_description: res?.chart_description,
+              chart_spec: res?.chart_spec,
+            })
+          })
+        } catch {
+          // non-bloquant
+        }
+      }
     } catch (err) {
       console.error(err)
       setMessages(prev => {
