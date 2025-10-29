@@ -114,8 +114,6 @@ Déclarez‑les via `MCP_SERVERS_JSON` (exemple minimal):
 
 Limité volontairement: le backend expose aujourd’hui la lecture de cette configuration et la liste des serveurs. La connexion/gestion de sessions MCP sera branchée au moteur de chat lors de l’introduction de tool‑calling, pour rester simple et éviter les fausses implémentations.
 
-> Note: `plan/Z/mcp.config.json` est synchronisé automatiquement avec le port défini dans `vis-ssr/.env` (`GPT_VIS_SSR_PORT`) via `plan/Z/update_mcp_config.py`, appelé par `start.sh`.
-
 ## Tests manuels rapides
 
 1) Local vLLM:
@@ -127,3 +125,4 @@ Limité volontairement: le backend expose aujourd’hui la lecture de cette conf
 2) Mode API:
 - Exportez `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` et `LLM_MODE=api`.
 - Même appel HTTP que ci‑dessus.
+

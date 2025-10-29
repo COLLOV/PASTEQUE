@@ -146,9 +146,6 @@ fi
 
 free_port "$SSR_PORT"
 
-echo "[start] Syncing MCP config (VIS_REQUEST_SERVER -> $SSR_PORT)"
-uv run python plan/Z/update_mcp_config.py
-
 ensure_mindsdb() {
   local container="mindsdb_container"
 
