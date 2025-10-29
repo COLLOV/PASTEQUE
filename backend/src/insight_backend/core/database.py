@@ -143,10 +143,16 @@ def _ensure_conversation_indexes() -> None:
 
 
 def transactional(session: Session):
-    """Return a context manager for a writable transaction on this session.
+    """Return a context manager for an isolated write transaction.
 
-    If a transaction is already in progress (e.g. due to an earlier SELECT that
-    triggered autobegin), use a nested transaction (SAVEPOINT) to avoid
-    InvalidRequestError while still preserving atomicity for the enclosed writes.
+    If a transaction is already open (often because a prior SELECT triggered
+    autobegin), end it first so we can start a top-level `begin()` that will
+    actually commit to the DB. This avoids nested transactions whose changes
+    would be discarded if the outer transaction rolls back at request end.
     """
-    return session.begin_nested() if session.in_transaction() else session.begin()
+    if session.in_transaction():
+        try:
+            session.commit()  # safe even if only reads occurred
+        except Exception:  # pragma: no cover - safety guard
+            session.rollback()
+    return session.begin()
