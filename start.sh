@@ -111,7 +111,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for cmd in lsof uv npm python3 curl node; do
+for cmd in lsof uv npm npx python3 curl node; do
   require_command "$cmd"
 done
 
@@ -329,7 +329,9 @@ SSR_PID=$!
 echo "[start] Launching backend on port $BACKEND_PORT"
 (
   cd backend
-  ALLOWED_ORIGINS="$ALLOWED_ORIGINS_VALUE" exec uv run uvicorn insight_backend.main:app --reload --host 0.0.0.0 --port "$BACKEND_PORT"
+  # Build MCP_SERVERS_JSON dynamically to match SSR port
+  MCP_JSON='[{"name":"chart","command":"npx","args":["-y","@antv/mcp-server-chart"],"env":{"VIS_REQUEST_SERVER":"http://localhost:'"$SSR_PORT"'/"}}]'
+  ALLOWED_ORIGINS="$ALLOWED_ORIGINS_VALUE" MCP_SERVERS_JSON="$MCP_JSON" exec uv run uvicorn insight_backend.main:app --reload --host 0.0.0.0 --port "$BACKEND_PORT"
 ) &
 BACKEND_PID=$!
 
