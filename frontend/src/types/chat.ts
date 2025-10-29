@@ -50,6 +50,8 @@ export interface ChatStreamMeta {
   model?: string
   // Optional evidence spec provided by the pipeline (MCP/LLM)
   evidence_spec?: EvidenceSpec
+  // Conversation identifier (server-created on first message)
+  conversation_id?: number
 }
 
 export interface ChatStreamDelta {
