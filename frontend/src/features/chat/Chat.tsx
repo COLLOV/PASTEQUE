@@ -406,13 +406,21 @@ export default function Chat() {
       const data = await apiFetch<{
         id: number
         title: string
-        messages: Array<{ role: 'user' | 'assistant'; content: string; created_at: string }>
+        messages: Array<{
+          role: 'user' | 'assistant'
+          content: string
+          created_at: string
+          details?: {
+            plan?: any
+            steps?: Array<{ step?: number; purpose?: string; sql?: string }>
+          }
+        }>
         evidence_spec?: EvidenceSpec
         evidence_rows?: EvidenceRowsPayload
       }>(`/conversations/${id}`)
       setConversationId(data.id)
       setMessages(
-        (data.messages || []).map(m => ({ id: createMessageId(), role: m.role, content: m.content }))
+        (data.messages || []).map(m => ({ id: createMessageId(), role: m.role, content: m.content, details: m.details }))
       )
       setEvidenceSpec(data?.evidence_spec ?? null)
       // Defensive normalization: history may contain array-rows; convert to objects

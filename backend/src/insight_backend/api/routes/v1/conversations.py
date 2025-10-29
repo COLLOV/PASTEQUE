@@ -98,14 +98,53 @@ def get_conversation(  # type: ignore[valid-type]
                 "purpose": "evidence",
             }
 
+    # ---- Reconstruct per-assistant message details from events timeline ----
+    # We associate events emitted during streaming (plan/sql) between the last
+    # user message and the following assistant message.
+    messages: list[dict[str, Any]] = []
+    last_user_ts = None
+    # Pre-materialize events to avoid repeated attribute access
+    evs = list(conv.events)
+    for msg in conv.messages:
+        details: dict[str, Any] | None = None
+        if msg.role == "user":
+            last_user_ts = msg.created_at
+        else:  # assistant
+            # Collect events in [last_user_ts, msg.created_at]
+            if last_user_ts is not None:
+                steps: list[dict[str, Any]] = []
+                plan: dict[str, Any] | None = None
+                for evt in evs:
+                    ts = evt.created_at
+                    if ts < last_user_ts or ts > msg.created_at:
+                        continue
+                    if evt.kind == "sql" and isinstance(evt.payload, dict):
+                        steps.append(
+                            {
+                                "step": evt.payload.get("step"),
+                                "purpose": evt.payload.get("purpose"),
+                                "sql": evt.payload.get("sql"),
+                            }
+                        )
+                    elif evt.kind == "plan" and isinstance(evt.payload, dict):
+                        plan = evt.payload
+                if steps or plan:
+                    details = {"steps": steps} | ({"plan": plan} if plan is not None else {})
+        payload: dict[str, Any] = {
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat(),
+        }
+        if details:
+            payload["details"] = details
+        messages.append(payload)
+
     return {
         "id": conv.id,
         "title": conv.title,
         "created_at": conv.created_at.isoformat(),
         "updated_at": conv.updated_at.isoformat(),
-        "messages": [
-            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat()} for m in conv.messages
-        ],
+        "messages": messages,
         "evidence_spec": evidence_spec,
         "evidence_rows": evidence_rows,
     }
