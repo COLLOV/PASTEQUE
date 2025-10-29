@@ -1,18 +1,20 @@
+from pathlib import Path
+
 from fastapi import APIRouter, UploadFile, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from ....schemas.data import IngestResponse
 from ....schemas.tables import TableInfo, ColumnInfo
 from ....services.data_service import DataService
+from ....repositories.data_repository import DataRepository
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 from ....core.config import settings
 from ....core.database import get_session
 from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
-from ....repositories.data_repository import DataRepository
 
 router = APIRouter(prefix="/data")
-_service = DataService(repo=DataRepository(tables_dir=settings.tables_dir))
+_service = DataService(repo=DataRepository(tables_dir=Path(settings.tables_dir)))
 
 
 @router.post("/ingest", response_model=IngestResponse)
