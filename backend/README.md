@@ -42,6 +42,18 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 - Les réponses NL→SQL envoyées au frontend sont désormais uniquement en langage naturel; les requêtes SQL restent accessibles via les métadonnées ou les logs si besoin.
 - Le générateur NL→SQL refuse désormais les requêtes qui n’appliquent pas le préfixe `files.` sur toutes les tables (`/api/v1/mindsdb/sync-files` garde le même schéma).
 
+### Sécurité et robustesse (conversations)
+
+- L’endpoint `GET /api/v1/conversations/{id}/dataset` ne ré‑exécute que des requêtes strictement `SELECT` validées via un parseur SQL (sqlglot). Les contraintes suivantes sont appliquées:
+  - Une seule instruction (pas de `;` ni de commentaires),
+  - Pas de `UNION/EXCEPT/INTERSECT`, pas de `SELECT … INTO`,
+  - Aucune opération DML/DDL (INSERT/UPDATE/DELETE/ALTER/DROP/CREATE),
+  - Toutes les tables doivent respecter le préfixe configuré par `NL2SQL_DB_PREFIX` (par défaut: `files`),
+  - Ajout automatique d’un `LIMIT` si absent (valeur: `EVIDENCE_LIMIT_DEFAULT`, 100 par défaut).
+- Les titres de conversations sont assainis côté API (suppression caractères de contrôle, crochets d’angle, normalisation d’espace, longueur ≤ 120).
+- Les écritures (création de conversation, messages, événements) sont encapsulées dans des transactions SQLAlchemy pour éviter les incohérences en cas d’erreur.
+- Des index composites sont créés automatiquement pour accélérer l’accès à l’historique: `(conversation_id, created_at)` sur `conversation_messages` et `conversation_events`.
+
 ### LLM « Z » – deux modes
 
 Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
