@@ -112,6 +112,8 @@ data/
 - Supprimez `NL2SQL_MAX_ROWS` de vos fichiers `.env` existants: la variable est obsolète et n’est plus supportée.
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.
+- Le backend pointe par défaut vers `data/raw/` via `DATA_TABLES_DIR` : chaque CSV/TSV ajouté dans ce répertoire est découvert, synchronisé dans MindsDB et immédiatement exploitable via `/sql` ou le flux NL→SQL (sous réserve des droits ACL).
+- Les fichiers sont synchronisés vers MindsDB avec un identifiant SQL canonique en minuscules (`files.<slug>`). Les majuscules, espaces et caractères spéciaux sont convertis en `_` (ex. `Lottery_Mega_Millions_Winning_Numbers__Beginning_2002.csv` devient `files.lottery_mega_millions_winning_numbers__beginning_2002`).
 - Le script `start.sh` pousse automatiquement `data/raw/*.csv|tsv` dans MindsDB à chaque démarrage : les logs `insight.services.mindsdb_sync` détaillent les fichiers envoyés.
 
 ### Visualisations (NL→SQL & MCP Chart)

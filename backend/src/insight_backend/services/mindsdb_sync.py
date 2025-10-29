@@ -17,9 +17,10 @@ def sync_all_tables() -> list[str]:
     uploaded: list[str] = []
     try:
         for p in repo._iter_table_files():
-            log.info("Uploading %s to MindsDB", p)
-            client.upload_file(p)
-            uploaded.append(p.name)
+            table_name = DataRepository.canonical_table_name(p.stem)
+            log.info("Uploading %s to MindsDB as %s.%s", p, settings.nl2sql_db_prefix, table_name)
+            client.upload_file(p, table_name=table_name)
+            uploaded.append(f"{table_name}<-{p.name}")
     finally:
         client.close()
     if not uploaded:

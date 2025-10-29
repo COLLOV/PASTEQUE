@@ -101,3 +101,10 @@ def test_emit_evidence_with_derived_sql():
     assert kinds.count("sql") >= 1
     assert "meta" in kinds and "rows" in kinds
 
+
+def test_canonicalize_sql_tables_lowercases_identifiers():
+    svc = ChatService(DummyEngine())
+    sql = "SELECT COUNT(*) FROM files.Lottery_Data AS L JOIN files.Other_Table o ON L.id = o.id"
+    normalized = svc._canonicalize_sql_tables(sql)
+    assert "files.lottery_data" in normalized
+    assert "files.other_table" in normalized

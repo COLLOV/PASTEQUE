@@ -25,14 +25,15 @@ class MindsDBClient:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
-    def upload_file(self, path: str | Path) -> Dict[str, Any]:
+    def upload_file(self, path: str | Path, *, table_name: Optional[str] = None) -> Dict[str, Any]:
         """Upload a file into MindsDB's `files` storage.
 
         Makes the file queryable under the `files` database (table name is the stem).
         """
         p = Path(path)
+        name = table_name or p.stem
         # Use stem as table name to avoid dots in SQL identifier
-        url = f"{self.base_url}/files/{p.stem}"
+        url = f"{self.base_url}/files/{name}"
         data = {"original_file_name": p.name}
         with p.open("rb") as f:
             files = {"file": (p.name, f, "application/octet-stream")}

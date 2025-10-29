@@ -167,154 +167,88 @@ class ChatService:
             if last.role == "user":
                 raw_question, contextual_question = self._prepare_nl2sql_question(payload.messages)
                 # Build schema from local CSV headers
-                repo = DataRepository(tables_dir=Path(settings.tables_dir))
-                tables = repo.list_tables()
-                allowed_lookup = {name.casefold() for name in allowed_tables} if allowed_tables is not None else None
-                if allowed_lookup is not None:
-                    tables = [name for name in tables if name.casefold() in allowed_lookup]
-                if not tables:
-                    message = (
-                        "Aucune table n'est disponible pour vos requêtes. "
-                        "Contactez un administrateur pour obtenir les accès nécessaires."
-                    )
-                    log.info("NL2SQL aborted: no tables available for user")
-                    return self._log_completion(
-                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl"}),
-                        context="completion denied (no tables)",
-                    )
-                schema: dict[str, list[str]] = {}
-                for name in tables:
-                    cols = [c for c, _ in repo.get_schema(name)]
-                    schema[name] = cols
-                nl2sql = NL2SQLService()
-                log.info(
-                    "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
-                    _preview_text(raw_question, limit=200),
-                    _preview_text(contextual_question, limit=200),
+            repo = DataRepository(tables_dir=Path(settings.tables_dir))
+            tables = repo.list_tables()
+            allowed_lookup = {name.casefold() for name in allowed_tables} if allowed_tables is not None else None
+            if allowed_lookup is not None:
+                tables = [name for name in tables if name.casefold() in allowed_lookup]
+            if not tables:
+                message = (
+                    "Aucune table n'est disponible pour vos requêtes. "
+                    "Contactez un administrateur pour obtenir les accès nécessaires."
                 )
-                client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
-
-                # Multi-step planning if enabled
-                if settings.nl2sql_plan_enabled:
-                    try:
-                        plan = nl2sql.plan(question=contextual_question, schema=schema, max_steps=settings.nl2sql_plan_max_steps)
-                        log.info("NL2SQL plan (%d steps)", len(plan))
-                        if events:
-                            try:
-                                events("plan", {"steps": plan})
-                            except Exception:  # pragma: no cover
-                                pass
-                    except Exception as e:
-                        log.error("NL2SQL plan failed: %s", e)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=f"Échec du plan NL→SQL: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql-plan"},
-                            ),
-                            context="completion done (nl2sql-plan-error)",
-                        )
-                    evidence: list[dict[str, object]] = []
-                    last_columns: list[Any] = []
-                    last_rows: list[Any] = []
-                    for idx, item in enumerate(plan, start=1):
-                        sql = item["sql"]
-                        purpose = item.get("purpose", "")
-                        log.info(
-                            "MindsDB SQL (plan) [%s]: %s",
-                            purpose or "step",
-                            _preview_text(str(sql), limit=200),
-                        )
-                        if events:
-                            try:
-                                events("sql", {"sql": sql, "purpose": purpose, "step": idx})
-                            except Exception:
-                                log.warning("Failed to emit sql event (plan step)", exc_info=True)
-                        data = client.sql(sql)
-                        # Normalize
-                        rows: list = []
-                        columns: list = []
-                        if isinstance(data, dict):
-                            if data.get("type") == "table":
-                                columns = data.get("column_names") or []
-                                rows = data.get("data") or []
-                            if not rows:
-                                rows = data.get("result", {}).get("rows") or data.get("rows") or rows
-                            if not columns:
-                                columns = data.get("result", {}).get("columns") or data.get("columns") or columns
-                        if events:
-                            try:
-                                events(
-                                    "rows",
-                                    {
-                                        "step": idx,
-                                        "columns": columns,
-                                        "rows": rows,
-                                        "row_count": len(rows),
-                                    },
-                                )
-                            except Exception:
-                                log.warning("Failed to emit rows event (plan step)", exc_info=True)
-                        evidence.append({
-                            "purpose": purpose,
-                            "sql": sql,
-                            "columns": columns,
-                            "rows": rows,
-                        })
-                        # retain last non-empty dataset as evidence surface
-                        if columns and rows:
-                            last_columns = columns
-                            last_rows = rows
-                    try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
-                        reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        # Provide an evidence_spec + evidence rows via helper
-                        target_sql = (
-                            plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
-                        )
-                        self._emit_evidence(
-                            events=events,
-                            client=client,
-                            label_hint=raw_question,
-                            base_sql=target_sql if isinstance(target_sql, str) else None,
-                            fallback_columns=last_columns,
-                            fallback_rows=last_rows,
-                        )
-                        return self._log_completion(
-                            ChatResponse(reply=reply_text, metadata={"provider": "nl2sql-plan+mindsdb", "plan": plan}),
-                            context="completion done (nl2sql-plan)",
-                        )
-                    except Exception as e:
-                        log.error("NL2SQL synthesis failed: %s", e)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=f"Échec de la synthèse: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql-synth"},
-                            ),
-                            context="completion done (nl2sql-synth-error)",
-                        )
-                else:
-                    # Single-shot NL→SQL with natural-language synthesis
-                    try:
-                        sql = nl2sql.generate(question=contextual_question, schema=schema)
-                        log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
-                        if events:
-                            try:
-                                events("sql", {"sql": sql})
-                            except Exception:
-                                log.warning("Failed to emit sql event (single-shot)", exc_info=True)
-                    except Exception as e:
-                        log.error("NL2SQL generation failed: %s", e)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=f"Échec de la génération SQL: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql"},
-                            ),
-                            context="completion done (nl2sql-error)",
-                        )
+                log.info("NL2SQL aborted: no tables available for user")
+                return self._log_completion(
+                    ChatResponse(reply=message, metadata={"provider": "nl2sql-acl"}),
+                    context="completion denied (no tables)",
+                )
+            schema: dict[str, list[str]] = {}
+            canonical_sources: dict[str, str] = {}
+            for name in tables:
+                canonical = DataRepository.canonical_table_name(name)
+                if canonical in canonical_sources and canonical_sources[canonical] != name:
+                    log.warning(
+                        "Collision de noms canonisés pour MindsDB: %s et %s -> %s",
+                        canonical_sources[canonical],
+                        name,
+                        canonical,
+                    )
+                    continue
+                cols = [c for c, _ in repo.get_schema(name)]
+                canonical_sources[canonical] = name
+                schema[canonical] = cols
+            nl2sql = NL2SQLService()
+            log.info(
+                "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
+                _preview_text(raw_question, limit=200),
+                _preview_text(contextual_question, limit=200),
+            )
+            client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
+    
+            # Multi-step planning if enabled
+            if settings.nl2sql_plan_enabled:
+                try:
+                    plan = nl2sql.plan(
+                        question=contextual_question,
+                        schema=schema,
+                        max_steps=settings.nl2sql_plan_max_steps,
+                    )
+                    log.info("NL2SQL plan (%d steps)", len(plan))
+                    if events:
+                        try:
+                            events("plan", {"steps": plan})
+                        except Exception:  # pragma: no cover
+                            pass
+                except Exception as e:
+                    log.error("NL2SQL plan failed: %s", e)
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=f"Échec du plan NL→SQL: {e}\n{self._llm_diag()}",
+                            metadata={"provider": "nl2sql-plan"},
+                        ),
+                        context="completion done (nl2sql-plan-error)",
+                    )
+    
+                evidence: list[dict[str, object]] = []
+                last_columns: list[Any] = []
+                last_rows: list[Any] = []
+                for idx, item in enumerate(plan, start=1):
+                    sql = self._canonicalize_sql_tables(item["sql"])
+                    item["sql"] = sql
+                    purpose = item.get("purpose", "")
+                    log.info(
+                        "MindsDB SQL (plan) [%s]: %s",
+                        purpose or "step",
+                        _preview_text(str(sql), limit=200),
+                    )
+                    if events:
+                        try:
+                            events("sql", {"sql": sql, "purpose": purpose, "step": idx})
+                        except Exception:
+                            log.warning("Failed to emit sql event (plan step)", exc_info=True)
                     data = client.sql(sql)
-                    # Normalize to columns/rows and synthesize final answer
-                    rows = []
-                    columns = []
+                    rows: list = []
+                    columns: list = []
                     if isinstance(data, dict):
                         if data.get("type") == "table":
                             columns = data.get("column_names") or []
@@ -328,58 +262,144 @@ class ChatService:
                             events(
                                 "rows",
                                 {
+                                    "step": idx,
                                     "columns": columns,
                                     "rows": rows,
                                     "row_count": len(rows),
                                 },
                             )
                         except Exception:
-                            log.warning("Failed to emit rows event", exc_info=True)
-                    # Emit evidence contract + dataset for the front panel (consolidated)
+                            log.warning("Failed to emit rows event (plan step)", exc_info=True)
+                    evidence.append(
+                        {
+                            "purpose": purpose,
+                            "sql": sql,
+                            "columns": columns,
+                            "rows": rows,
+                        }
+                    )
+                    if columns and rows:
+                        last_columns = columns
+                        last_rows = rows
+                try:
+                    answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
+                    reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                    target_sql = (
+                        plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
+                    )
                     self._emit_evidence(
                         events=events,
                         client=client,
                         label_hint=raw_question,
-                        base_sql=sql,
-                        fallback_columns=columns,
-                        fallback_rows=rows,
+                        base_sql=target_sql if isinstance(target_sql, str) else None,
+                        fallback_columns=last_columns,
+                        fallback_rows=last_rows,
                     )
-                    evidence = [{
-                        "purpose": "answer",
-                        "sql": sql,
-                        "columns": columns,
-                        "rows": rows,
-                    }]
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=reply_text,
+                            metadata={"provider": "nl2sql-plan+mindsdb", "plan": plan},
+                        ),
+                        context="completion done (nl2sql-plan)",
+                    )
+                except Exception as e:
+                    log.error("NL2SQL synthesis failed: %s", e)
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=f"Échec de la synthèse: {e}\n{self._llm_diag()}",
+                            metadata={"provider": "nl2sql-synth"},
+                        ),
+                        context="completion done (nl2sql-synth-error)",
+                    )
+            else:
+                # Single-shot NL→SQL with natural-language synthesis
+                try:
+                    sql = nl2sql.generate(question=contextual_question, schema=schema)
+                    sql = self._canonicalize_sql_tables(sql)
+                    log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
+                    if events:
+                        try:
+                            events("sql", {"sql": sql})
+                        except Exception:
+                            log.warning("Failed to emit sql event (single-shot)", exc_info=True)
+                except Exception as e:
+                    log.error("NL2SQL generation failed: %s", e)
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=f"Échec de la génération SQL: {e}\n{self._llm_diag()}",
+                            metadata={"provider": "nl2sql"},
+                        ),
+                        context="completion done (nl2sql-error)",
+                    )
+                data = client.sql(sql)
+                # Normalize to columns/rows and synthesize final answer
+                rows = []
+                columns = []
+                if isinstance(data, dict):
+                    if data.get("type") == "table":
+                        columns = data.get("column_names") or []
+                        rows = data.get("data") or []
+                    if not rows:
+                        rows = data.get("result", {}).get("rows") or data.get("rows") or rows
+                    if not columns:
+                        columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                if events:
                     try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
-                        reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        return self._log_completion(
-                            ChatResponse(reply=reply_text, metadata={"provider": "nl2sql+mindsdb", "sql": sql}),
-                            context="completion done (nl2sql)",
+                        events(
+                            "rows",
+                            {
+                                "columns": columns,
+                                "rows": rows,
+                                "row_count": len(rows),
+                            },
                         )
-                    except Exception as e:
-                        # fallback to simple textual rendering (no hidden failures)
-                        log.error("NL2SQL synthesis fallback after error: %s", e)
-                        if rows and columns:
-                            header = " | ".join(str(c) for c in columns)
-                            lines = [f"SQL: {sql}", header, "-" * len(header)]
-                            for r in rows[:50]:
-                                if isinstance(r, dict):
-                                    line = " | ".join(str(r.get(c)) for c in columns)
-                                else:
-                                    line = " | ".join(str(v) for v in r)
-                                lines.append(line)
-                            text = "\n".join(lines)
-                        else:
-                            err = data.get("error_message") if isinstance(data, dict) else None
-                            text = f"SQL: {sql}\n" + (err or "(Aucune ligne)")
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=text,
-                                metadata={"provider": "nl2sql-synth-fallback", "error": str(e), "sql": sql},
-                            ),
-                            context="completion done (nl2sql-fallback)",
-                        )
+                    except Exception:
+                        log.warning("Failed to emit rows event", exc_info=True)
+                # Emit evidence contract + dataset for the front panel (consolidated)
+                self._emit_evidence(
+                    events=events,
+                    client=client,
+                    label_hint=raw_question,
+                    base_sql=sql,
+                    fallback_columns=columns,
+                    fallback_rows=rows,
+                )
+                evidence = [{
+                    "purpose": "answer",
+                    "sql": sql,
+                    "columns": columns,
+                    "rows": rows,
+                }]
+                try:
+                    answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
+                    reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                    return self._log_completion(
+                        ChatResponse(reply=reply_text, metadata={"provider": "nl2sql+mindsdb", "sql": sql}),
+                        context="completion done (nl2sql)",
+                    )
+                except Exception as e:
+                    # fallback to simple textual rendering (no hidden failures)
+                    log.error("NL2SQL synthesis fallback after error: %s", e)
+                    if rows and columns:
+                        header = " | ".join(str(c) for c in columns)
+                        lines = [f"SQL: {sql}", header, "-" * len(header)]
+                        for r in rows[:50]:
+                            if isinstance(r, dict):
+                                line = " | ".join(str(r.get(c)) for c in columns)
+                            else:
+                                line = " | ".join(str(v) for v in r)
+                            lines.append(line)
+                        text = "\n".join(lines)
+                    else:
+                        err = data.get("error_message") if isinstance(data, dict) else None
+                        text = f"SQL: {sql}\n" + (err or "(Aucune ligne)")
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=text,
+                            metadata={"provider": "nl2sql-synth-fallback", "error": str(e), "sql": sql},
+                        ),
+                    context="completion done (nl2sql-fallback)",
+                )
         response = self.engine.run(payload)
         return self._log_completion(response, context="completion done (engine)")
 
@@ -467,6 +487,21 @@ class ChatService:
             if not columns:
                 columns = data.get("result", {}).get("columns") or data.get("columns") or columns
         return columns or [], rows or []
+
+    def _canonicalize_sql_tables(self, sql: str) -> str:
+        """Lowercase MindsDB table identifiers to match sync naming."""
+        if not sql:
+            return sql
+        prefix = re.escape(settings.nl2sql_db_prefix)
+        pattern = re.compile(rf"\b({prefix})\.([A-Za-z0-9_]+)", re.IGNORECASE)
+
+        def repl(match: re.Match[str]) -> str:
+            schema = match.group(1).lower()
+            raw_table = match.group(2)
+            canonical = DataRepository.canonical_table_name(raw_table)
+            return f"{schema}.{canonical}"
+
+        return pattern.sub(repl, sql)
 
     def _derive_evidence_sql(self, sql: str, *, limit: int | None = None) -> str | None:
         """Attempt to derive a detail-level SELECT from an aggregate SQL.

@@ -152,6 +152,7 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/mindsdb/sync-files' | jq
 
 > Pour un démarrage complet, `./start.sh` réinitialise le conteneur `mindsdb_container` et appelle automatiquement cette synchronisation (voir logs `insight.services.mindsdb_sync`).
 > Variante: `./start_full.sh` effectue les mêmes actions et diffuse toutes les traces (backend, frontend, MindsDB) dans le terminal courant.
+> Chaque fichier est synchronisé avec un identifiant SQL canonique en minuscules (`files.<slug>`). Par exemple, `Lottery_Mega_Millions_Winning_Numbers__Beginning_2002.csv` est accessible via `files.lottery_mega_millions_winning_numbers__beginning_2002`. Les logs affichent `table<-fichier` pour faciliter le suivi.
 
 2) Exécuter une requête SQL sur MindsDB:
 

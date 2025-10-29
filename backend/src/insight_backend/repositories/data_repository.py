@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import csv
-from typing import Iterable
 import logging
+import re
+from typing import Iterable
 
 
 log = logging.getLogger("insight.repositories.data")
@@ -51,10 +52,25 @@ class DataRepository:
             if c.exists():
                 return c
         # fallback strict: match by stem if user passed full filename without ext
+        lookup = table_name.casefold()
+        canonical = self.canonical_table_name(table_name)
         for p in self._iter_table_files():
-            if p.stem == table_name:
+            if (
+                p.stem == table_name
+                or p.stem.casefold() == lookup
+                or self.canonical_table_name(p.stem) == canonical
+            ):
                 return p
         return None
+
+    @staticmethod
+    def canonical_table_name(name: str) -> str:
+        """Canonical MindsDB identifier derived from the raw filename stem."""
+        cleaned = re.sub(r"[^0-9A-Za-z_]+", "_", name).strip("_")
+        cleaned = re.sub(r"_+", "_", cleaned)
+        if not cleaned:
+            cleaned = "table"
+        return cleaned.lower()
 
     def get_schema(self, table_name: str) -> list[tuple[str, str | None]]:
         path = self._resolve_table_path(table_name)
