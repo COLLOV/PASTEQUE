@@ -166,7 +166,7 @@ import { login } from '@/services/auth'
 - Un bouton « Historique » permet d’afficher les conversations précédentes (chargées via `GET /conversations`).
 - Un bouton « Nouveau chat » réinitialise l’état local pour démarrer une nouvelle discussion.
 - Lors de l’envoi d’un premier message, le backend crée une conversation et renvoie `conversation_id` dans l’événement `meta`; le frontend rattache alors les messages suivants à cette conversation.
-- Bouton « Historique » (stub) ajouté dans le header à côté de « Chat » (sera connecté plus tard).
+- Le bouton « Historique » du header est connecté: il ouvre la modale via `?history=1` sur `/chat` et l'état s'aligne avec l'URL (ouverture/fermeture met à jour la query).
  - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
 #### Composer (Mise à jour)
