@@ -523,7 +523,7 @@ export default function Chat() {
                   onClick={() => setShowTicketsSheet(true)}
                   className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
                 >
-                  <HiCircleStack className="w-4 h-4" />
+                  <HiBookmark className="w-4 h-4" />
                   Exploration
                   {(() => {
                     const c = evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0
