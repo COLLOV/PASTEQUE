@@ -171,6 +171,16 @@ import { login } from '@/services/auth'
    les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
    a persisté des lignes sous forme de tableaux (héritage de certaines réponses MindsDB).
    Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
+ 
+Affichage des « Détails » depuis l’historique (29 oct. 2025)
+
+- Le backend renvoie, pour chaque message assistant, un champ optionnel `details`
+  reconstruit à partir des `conversation_events` entre le dernier message utilisateur
+  et le message assistant:
+  - `details.steps`: liste des requêtes SQL (`step`, `purpose`, `sql`).
+  - `details.plan`: payload du plan s’il a été émis.
+- Le frontend propage `message.details` lors du chargement d’une conversation;
+  le bouton « Détails » fonctionne donc aussi pour l’historique.
  - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
 #### Composer (Mise à jour)
