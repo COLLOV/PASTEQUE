@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -48,6 +49,7 @@ function createMessageId(): string {
 }
 
 export default function Chat() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -78,6 +80,28 @@ export default function Chat() {
       /* noop */
     }
   }, [messages, loading])
+
+  // Sync history modal visibility with URL `?history=1`
+  useEffect(() => {
+    const wantOpen = searchParams.has('history') && searchParams.get('history') !== '0'
+    // Only update if state differs to avoid loops
+    setHistoryOpen(prev => (prev === wantOpen ? prev : wantOpen))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  useEffect(() => {
+    const currentlyHas = searchParams.has('history')
+    if (historyOpen && !currentlyHas) {
+      const next = new URLSearchParams(searchParams)
+      next.set('history', '1')
+      setSearchParams(next, { replace: true })
+    } else if (!historyOpen && currentlyHas) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('history')
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen])
 
   // (UI) effets Evidence supprimés dans la version split
   // Fermer la sheet Tickets avec la touche Escape
