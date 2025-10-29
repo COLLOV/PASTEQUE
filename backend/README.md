@@ -229,11 +229,15 @@ Le backend persiste désormais les conversations et événements associés:
 
 - Tables: `conversations`, `conversation_messages`, `conversation_events`.
 - Les routes exposées (préfixe `${API_PREFIX}/v1`):
-  - `GET /conversations` — liste des conversations de l’utilisateur courant (id, title, updated_at).
-  - `GET /conversations/{id}` — détail d’une conversation (messages, dernier `evidence_spec` et ses lignes si présentes).
-    - Depuis 2025‑10‑29: `evidence_rows.rows` est normalisé en liste d’objets (clé = nom de colonne),
-      même si la source a persisté une liste de tableaux. Cela garantit la cohérence avec le
-      streaming SSE et évite que le panneau « Tickets » n’affiche des cellules vides.
+- `GET /conversations` — liste des conversations de l’utilisateur courant (id, title, updated_at).
+- `GET /conversations/{id}` — détail d’une conversation (messages, dernier `evidence_spec` et ses lignes si présentes).
+  - Depuis 2025‑10‑29: `evidence_rows.rows` est normalisé en liste d’objets (clé = nom de colonne),
+    même si la source a persisté une liste de tableaux. Cela garantit la cohérence avec le
+    streaming SSE et évite que le panneau « Tickets » n’affiche des cellules vides.
+  - Depuis 2025‑10‑29: chaque message assistant peut inclure `details` (optionnel),
+    reconstruit à partir des `conversation_events` entre le dernier message utilisateur et ce message:
+    - `details.steps`: événements `sql` successifs (avec `step`, `purpose`, `sql`).
+    - `details.plan`: dernier événement `plan` s’il est présent.
   - `POST /conversations` — crée une conversation (optionnel: `{ "title": "..." }`).
 
 Intégration au flux `/chat/stream`:
