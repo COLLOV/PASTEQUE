@@ -2,7 +2,10 @@
   {
     "name": "chart",
     "command": "npx",
-    "args": ["-y", "@antv/mcp-server-chart"],
+    "args": [
+      "-y",
+      "@antv/mcp-server-chart"
+    ],
     "env": {
       "VIS_REQUEST_SERVER": "http://localhost:6300/"
     }
