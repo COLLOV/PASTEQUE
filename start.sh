@@ -11,6 +11,7 @@ BACKEND_PORT="$2"
 SSR_DIR="vis-ssr"
 SSR_ENV_FILE="${SSR_DIR}/.env"
 SSR_ENV_TEMPLATE="${SSR_DIR}/.env.ssr.example"
+BACKEND_ENV_FILE="backend/.env"
 
 is_number() {
   [[ "$1" =~ ^[0-9]+$ ]]
@@ -110,9 +111,35 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for cmd in lsof uv npm python3 docker curl node; do
+for cmd in lsof uv npm python3 curl node; do
   require_command "$cmd"
 done
+
+if [[ ! -f "$BACKEND_ENV_FILE" ]]; then
+  echo "ERROR: Backend configuration '$BACKEND_ENV_FILE' not found." >&2
+  exit 1
+fi
+
+CONTAINER_RUNTIME_RAW="$(read_env_var "$BACKEND_ENV_FILE" "CONTAINER_RUNTIME")"
+
+if [[ -z "$CONTAINER_RUNTIME_RAW" ]]; then
+  echo "ERROR: CONTAINER_RUNTIME must be defined in '$BACKEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+CONTAINER_RUNTIME="${CONTAINER_RUNTIME_RAW,,}"
+
+case "$CONTAINER_RUNTIME" in
+  docker|podman)
+    ;;
+  *)
+    echo "ERROR: Unsupported CONTAINER_RUNTIME '$CONTAINER_RUNTIME_RAW'. Use 'docker' or 'podman'." >&2
+    exit 1
+    ;;
+esac
+
+require_command "$CONTAINER_RUNTIME"
+echo "[start] Container runtime -> $CONTAINER_RUNTIME"
 
 for port in "$FRONTEND_PORT" "$BACKEND_PORT"; do
   if ! is_number "$port"; then
@@ -149,23 +176,23 @@ free_port "$SSR_PORT"
 ensure_mindsdb() {
   local container="mindsdb_container"
 
-  if docker ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
+  if "$CONTAINER_RUNTIME" ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
     echo "[start] Resetting existing MindsDB container '$container'"
-    docker rm -f "$container" >/dev/null 2>&1 || true
+    "$CONTAINER_RUNTIME" rm -f "$container" >/dev/null 2>&1 || true
   else
     echo "[start] No previous MindsDB container detected"
   fi
 
   echo "[start] Launching MindsDB container '$container'"
-  docker run -d --name "$container" \
+  "$CONTAINER_RUNTIME" run -d --name "$container" \
     -e MINDSDB_APIS=http,mysql \
     -p 47334:47334 -p 47335:47335 \
     mindsdb/mindsdb >/dev/null
 
   echo "[start] MindsDB container '$container' status"
-  docker ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
+  "$CONTAINER_RUNTIME" ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
   echo "[start] MindsDB last logs (tail 10)"
-  docker logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
+  "$CONTAINER_RUNTIME" logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
 }
 
 wait_for_mindsdb() {
@@ -273,7 +300,7 @@ if [[ ! -d ${SSR_DIR}/node_modules ]]; then
   echo "[start] Installing GPT-Vis SSR dependencies (npm install)"
   (
     cd "$SSR_DIR"
-    npm install
+    NODE_TLS_REJECT_UNAUTHORIZED=0 npm_config_strict_ssl=false npm_config_registry=https://registry.npmjs.org npm install
   )
 else
   echo "[start] GPT-Vis SSR dependencies already installed"

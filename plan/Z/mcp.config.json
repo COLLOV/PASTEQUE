@@ -4,7 +4,7 @@
     "command": "npx",
     "args": ["-y", "@antv/mcp-server-chart"],
     "env": {
-      "VIS_REQUEST_SERVER": "http://localhost:6300/"
+      "VIS_REQUEST_SERVER": "http://localhost:6363/"
     }
   }
 ]
