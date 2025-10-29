@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ....core.database import get_session
 from ....models.user import User
 from ....repositories.conversation_repository import ConversationRepository
 from ....core.security import get_current_user
+from ....integrations.mindsdb_client import MindsDBClient
+from ....core.config import settings
 
 
 router = APIRouter(prefix="/conversations")
@@ -147,4 +149,104 @@ def get_conversation(  # type: ignore[valid-type]
         "messages": messages,
         "evidence_spec": evidence_spec,
         "evidence_rows": evidence_rows,
+    }
+
+
+@router.get("/{conversation_id}/dataset")
+def get_message_dataset(  # type: ignore[valid-type]
+    conversation_id: int,
+    message_index: int = Query(..., ge=0),
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Re-exécute la dernière requête SQL liée à un message assistant et renvoie un petit dataset.
+
+    Utilise les événements persistés (kind="sql") entre le dernier message user et le message assistant ciblé.
+    Les requêtes d'évidence sont ignorées.
+    """
+    repo = ConversationRepository(session)
+    conv = repo.get_by_id_for_user(conversation_id, current_user.id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
+    if message_index < 0 or message_index >= len(conv.messages):
+        raise HTTPException(status_code=400, detail="Index de message invalide")
+    msg = conv.messages[message_index]
+    if msg.role != "assistant":
+        raise HTTPException(status_code=400, detail="Le message ciblé n'est pas une réponse assistant")
+
+    # Délimiter la fenêtre temporelle: après le dernier message user précédent et avant/à l'horodatage du message assistant
+    start_ts = None
+    for m in reversed(conv.messages[: message_index]):
+        if m.role == "user":
+            start_ts = m.created_at
+            break
+    end_ts = msg.created_at
+
+    sql_text: str | None = None
+    step: int | None = None
+    purpose: str | None = None
+    for evt in conv.events:
+        ts = evt.created_at
+        if start_ts and ts < start_ts:
+            continue
+        if ts > end_ts:
+            continue
+        if evt.kind == "sql" and isinstance(evt.payload, dict):
+            if evt.payload.get("purpose") == "evidence":
+                continue
+            # Retenir le dernier SQL non-évidence de la fenêtre
+            sql_text = evt.payload.get("sql") or sql_text
+            step = evt.payload.get("step") if isinstance(evt.payload.get("step"), int) else step
+            purpose = evt.payload.get("purpose") or purpose
+
+    if not sql_text or not isinstance(sql_text, str):
+        raise HTTPException(status_code=404, detail="Aucune requête SQL associée à ce message")
+
+    # Sécuriser et plafonner
+    s = sql_text.strip()
+    if not s.lower().startswith("select"):
+        raise HTTPException(status_code=400, detail="Requête non sélectionnable")
+    if any(k in s.lower() for k in [";", " insert ", " update ", " delete ", " alter ", " drop ", " create "]):
+        raise HTTPException(status_code=400, detail="Requête SQL non autorisée")
+    if " limit " not in s.lower():
+        s = f"{s} LIMIT {settings.evidence_limit_default}"
+
+    client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
+    data = client.sql(s)
+
+    # Normaliser le résultat (inspiré de ChatService._normalize_result)
+    rows: list[Any] = []
+    columns: list[Any] = []
+    if isinstance(data, dict):
+        if data.get("type") == "table":
+            columns = data.get("column_names") or []
+            rows = data.get("data") or []
+        if not rows:
+            rows = data.get("result", {}).get("rows") or data.get("rows") or rows
+        if not columns:
+            columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+
+    # Convertir en objets côté API pour le front
+    cols = [str(c) for c in (columns or [])]
+    def _to_obj_row(r: Any) -> dict[str, Any]:
+        if isinstance(r, dict):
+            return {k: r.get(k) for k in cols} if cols else dict(r)
+        if isinstance(r, (list, tuple)):
+            obj: dict[str, Any] = {}
+            for i, c in enumerate(cols):
+                obj[c] = r[i] if i < len(r) else None
+            return obj
+        key = cols[0] if cols else "value"
+        return {key: r}
+    obj_rows = [_to_obj_row(r) for r in (rows or [])]
+
+    return {
+        "dataset": {
+            "sql": s,
+            "columns": cols,
+            "rows": obj_rows,
+            "row_count": len(obj_rows),
+            "step": step,
+            "description": purpose,
+        }
     }
