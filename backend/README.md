@@ -223,3 +223,18 @@ En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimul
 ## Evidence panel defaults
 
 - `EVIDENCE_LIMIT_DEFAULT` (int, default: 100): limite de lignes envoyées via SSE pour l’aperçu « evidence ». Utilisée à la fois pour la construction du `evidence_spec.limit` et pour la dérivation de SQL détaillé.
+## Historique des conversations
+
+Le backend persiste désormais les conversations et événements associés:
+
+- Tables: `conversations`, `conversation_messages`, `conversation_events`.
+- Les routes exposées (préfixe `${API_PREFIX}/v1`):
+  - `GET /conversations` — liste des conversations de l’utilisateur courant (id, title, updated_at).
+  - `GET /conversations/{id}` — détail d’une conversation (messages, dernier `evidence_spec` et ses lignes si présentes).
+  - `POST /conversations` — crée une conversation (optionnel: `{ "title": "..." }`).
+
+Intégration au flux `/chat/stream`:
+
+- Le client peut passer `metadata.conversation_id` pour rattacher un message à une conversation existante.
+- Si absent, le backend crée une conversation et renvoie l’identifiant dans l’événement `meta` (`conversation_id`).
+- Les événements `sql`/`rows`/`plan`/`meta` sont ajoutés en base et la réponse finale de l’assistant est enregistrée comme message.
