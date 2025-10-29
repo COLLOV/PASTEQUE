@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 
 from ..models.conversation import Conversation, ConversationMessage, ConversationEvent
 
@@ -45,7 +46,7 @@ class ConversationRepository:
         msg = ConversationMessage(conversation_id=conversation_id, role=role, content=content)
         self.session.add(msg)
         # touch conversation updated_at
-        self.session.query(Conversation).filter(Conversation.id == conversation_id).update({})
+        self.session.query(Conversation).filter(Conversation.id == conversation_id).update({Conversation.updated_at: func.now()})
         log.info(
             "Appended message (conversation_id=%s, role=%s, preview=%s)",
             conversation_id,
@@ -59,7 +60,6 @@ class ConversationRepository:
         evt = ConversationEvent(conversation_id=conversation_id, kind=kind, payload=payload)
         self.session.add(evt)
         # touch conversation updated_at
-        self.session.query(Conversation).filter(Conversation.id == conversation_id).update({})
+        self.session.query(Conversation).filter(Conversation.id == conversation_id).update({Conversation.updated_at: func.now()})
         log.debug("Added event (conversation_id=%s, kind=%s)", conversation_id, kind)
         return evt
-

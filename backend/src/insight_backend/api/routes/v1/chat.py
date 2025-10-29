@@ -186,16 +186,8 @@ def chat_stream(  # type: ignore[valid-type]
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
 
                 def emit(evt: str, data: dict) -> None:
-                    # Push to SSE queue
+                    # Push to SSE queue only; persist on the consumer thread to avoid cross-thread session use
                     q.put((evt, data))
-                    # Persist as event (best-effort): keep SQL/meta/plan; keep ROWS only if evidence
-                    try:
-                        if evt == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
-                            return
-                        with transactional(session):
-                            repo.add_event(conversation_id=conversation_id, kind=evt, payload=data)
-                    except SQLAlchemyError:
-                        log.warning("Failed to persist event kind=%s for conversation_id=%s", evt, conversation_id, exc_info=True)
 
                 result_holder: dict[str, object] = {}
 
@@ -213,6 +205,13 @@ def chat_stream(  # type: ignore[valid-type]
                     kind, data = item
                     if kind == "__final__":
                         break
+                    # Persist events on the request thread (session is not thread-safe)
+                    try:
+                        if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                            with transactional(session):
+                                repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                    except SQLAlchemyError:
+                        log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
                     yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | etc.
                 resp = result_holder.get("resp")
                 if isinstance(resp, ChatResponse):
@@ -256,14 +255,8 @@ def chat_stream(  # type: ignore[valid-type]
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
 
                 def emit(evt: str, data: dict) -> None:
+                    # Queue only; persistence happens on consumer side in this request thread
                     q.put((evt, data))
-                    try:
-                        if evt == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
-                            return
-                        with transactional(session):
-                            repo.add_event(conversation_id=conversation_id, kind=evt, payload=data)
-                    except SQLAlchemyError:
-                        log.warning("Failed to persist event kind=%s for conversation_id=%s", evt, conversation_id, exc_info=True)
 
                 result_holder: dict[str, object] = {}
 
@@ -281,6 +274,12 @@ def chat_stream(  # type: ignore[valid-type]
                     kind, data = item
                     if kind == "__final__":
                         break
+                    try:
+                        if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                            with transactional(session):
+                                repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                    except SQLAlchemyError:
+                        log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
                     yield _sse(kind, data)  # 'plan' | 'sql' | 'rows'
                 resp = result_holder.get("resp")
                 if isinstance(resp, ChatResponse):
