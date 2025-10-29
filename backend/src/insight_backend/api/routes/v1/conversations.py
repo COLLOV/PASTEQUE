@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, List, Dict
+import logging
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -11,6 +13,9 @@ from ....repositories.conversation_repository import ConversationRepository
 from ....core.security import get_current_user
 from ....integrations.mindsdb_client import MindsDBClient
 from ....core.config import settings
+from ....utils.rows import normalize_rows
+
+log = logging.getLogger("insight.api.conversations")
 
 
 router = APIRouter(prefix="/conversations")
@@ -40,7 +45,8 @@ def create_conversation(  # type: ignore[valid-type]
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:
-    title = (payload or {}).get("title") or "Nouvelle conversation"
+    raw = (payload or {}).get("title") or "Nouvelle conversation"
+    title = _sanitize_title(str(raw))
     repo = ConversationRepository(session)
     conv = repo.create(user_id=current_user.id, title=title)
     session.commit()
@@ -62,30 +68,7 @@ def get_conversation(  # type: ignore[valid-type]
     evidence_spec: dict[str, Any] | None = None
     evidence_rows: dict[str, Any] | None = None
 
-    def _normalize_rows(columns: list[Any] | None, rows: list[Any] | None) -> list[dict[str, Any]]:
-        """Normalize persisted table rows to a list of dicts.
-
-        Events may have stored rows as list-of-arrays depending on the source
-        (e.g., MindsDB). The frontend expects objects keyed by column name.
-        """
-        cols = [str(c) for c in (columns or [])]
-        norm: list[dict[str, Any]] = []
-        if not rows:
-            return norm
-        for r in rows:
-            if isinstance(r, dict):
-                # Ensure ordering is not required on the client
-                norm.append({k: r.get(k) for k in cols} if cols else dict(r))
-            elif isinstance(r, (list, tuple)):
-                obj: dict[str, Any] = {}
-                for i, c in enumerate(cols):
-                    obj[c] = r[i] if i < len(r) else None
-                norm.append(obj)
-            else:
-                # Fallback scalar row: attach to first column or to "value"
-                key = cols[0] if cols else "value"
-                norm.append({key: r})
-        return norm
+    # use shared normalization util
     for evt in conv.events:
         if evt.kind == "meta" and isinstance(evt.payload, dict) and "evidence_spec" in evt.payload:
             evidence_spec = evt.payload.get("evidence_spec")  # type: ignore[assignment]
@@ -95,7 +78,7 @@ def get_conversation(  # type: ignore[valid-type]
             evidence_rows = {
                 "columns": cols,
                 # Normalize here so the frontend gets a consistent shape in history
-                "rows": _normalize_rows(cols, raw_rows),
+                "rows": normalize_rows(cols, raw_rows),
                 "row_count": evt.payload.get("row_count") or (len(raw_rows) if isinstance(raw_rows, list) else 0),
                 "purpose": "evidence",
             }
@@ -220,15 +203,13 @@ def get_message_dataset(  # type: ignore[valid-type]
 
     if not sql_text or not isinstance(sql_text, str):
         raise HTTPException(status_code=404, detail="Aucune requête SQL associée à ce message")
-
-    # Sécuriser et plafonner
-    s = sql_text.strip()
-    if not s.lower().startswith("select"):
-        raise HTTPException(status_code=400, detail="Requête non sélectionnable")
-    if any(k in s.lower() for k in [";", " insert ", " update ", " delete ", " alter ", " drop ", " create "]):
-        raise HTTPException(status_code=400, detail="Requête SQL non autorisée")
-    if " limit " not in s.lower():
-        s = f"{s} LIMIT {settings.evidence_limit_default}"
+    # Valider strictement: SELECT‑only, une seule instruction, aucun commentaire,
+    # tables sous le préfixe autorisé, et LIMIT obligatoire.
+    try:
+        s = _validate_select_sql(sql_text, required_prefix=settings.nl2sql_db_prefix, limit_default=settings.evidence_limit_default)
+    except ValueError as e:
+        log.warning("Invalid SQL for dataset: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
 
     client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
     data = client.sql(s)
@@ -247,17 +228,7 @@ def get_message_dataset(  # type: ignore[valid-type]
 
     # Convertir en objets côté API pour le front
     cols = [str(c) for c in (columns or [])]
-    def _to_obj_row(r: Any) -> dict[str, Any]:
-        if isinstance(r, dict):
-            return {k: r.get(k) for k in cols} if cols else dict(r)
-        if isinstance(r, (list, tuple)):
-            obj: dict[str, Any] = {}
-            for i, c in enumerate(cols):
-                obj[c] = r[i] if i < len(r) else None
-            return obj
-        key = cols[0] if cols else "value"
-        return {key: r}
-    obj_rows = [_to_obj_row(r) for r in (rows or [])]
+    obj_rows = normalize_rows(cols, rows or [])
 
     return {
         "dataset": {
@@ -299,3 +270,81 @@ def append_chart_event(  # type: ignore[valid-type]
     evt = repo.add_event(conversation_id=conversation_id, kind="chart", payload=safe_payload)
     session.commit()
     return {"id": evt.id, "created_at": evt.created_at.isoformat()}
+
+
+# -------------------------------
+# Helpers
+# -------------------------------
+
+_CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _sanitize_title(s: str) -> str:
+    """Keep plain text only for titles.
+
+    - strip control chars
+    - collapse whitespace
+    - drop angle brackets to avoid accidental HTML in UIs
+    - clamp length to 120
+    """
+    s = _CTRL_RE.sub(" ", s)
+    s = s.replace("<", " ").replace(">", " ")
+    s = " ".join(s.split())
+    s = s[:120] if len(s) > 120 else s
+    return s or "Nouvelle conversation"
+
+
+def _validate_select_sql(sql: str, *, required_prefix: str, limit_default: int) -> str:
+    """Validate SQL is a single, safe SELECT and enforce a LIMIT if missing.
+
+    Raises ValueError on invalid input; returns a sanitized SQL string otherwise.
+    """
+    # reject comments and multiple statements
+    if re.search(r"--|/\*|\*/", sql):
+        raise ValueError("Commentaires SQL interdits")
+    if ";" in sql:
+        raise ValueError("Plusieurs instructions non autorisées")
+    try:
+        import sqlglot
+        from sqlglot import exp
+    except Exception as e:  # pragma: no cover - safety net, dependency present via uv
+        raise ValueError(f"Validation SQL indisponible: {e}")
+
+    try:
+        parsed = sqlglot.parse(sql)
+    except Exception:
+        raise ValueError("SQL invalide")
+    if len(parsed) != 1:
+        raise ValueError("Une seule instruction SELECT est autorisée")
+
+    stmt = parsed[0]
+    if not isinstance(stmt, exp.Select):
+        # allow SELECT wrapped by Subquery? enforce strict: top-level must be Select
+        raise ValueError("Seules les requêtes SELECT sont autorisées")
+
+    # Disallow UNION/EXCEPT/INTERSECT and INTO
+    if stmt.args.get("union") is not None:
+        raise ValueError("UNION non autorisé")
+    if stmt.args.get("into") is not None:
+        raise ValueError("SELECT ... INTO non autorisé")
+    # Walk tree to ban any DML/DDL nodes just in case
+    forbidden = (exp.Insert, exp.Update, exp.Delete, exp.Alter, exp.Create, exp.Drop)
+    for node in stmt.walk():
+        if isinstance(node, forbidden):
+            raise ValueError("Opérations d'écriture interdites")
+
+    # Enforce table prefix policy if configured
+    pref = (required_prefix or "").strip()
+    if pref:
+        pref_cf = pref.casefold() + "."
+        for table in stmt.find_all(exp.Table):
+            name = table.sql(dialect=None).strip("`\"")
+            # raw name may include schema; do a simple case-insensitive prefix check
+            if not name.casefold().startswith(pref_cf):
+                raise ValueError(f"Tables hors du préfixe autorisé: {name}")
+
+    s = sql.strip()
+    # Add a LIMIT if missing
+    if not re.search(r"\blimit\b", s, flags=re.I):
+        s = f"{s} LIMIT {limit_default}"
+    return s
