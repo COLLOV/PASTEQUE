@@ -127,7 +127,8 @@ if [[ -z "$CONTAINER_RUNTIME_RAW" ]]; then
   exit 1
 fi
 
-CONTAINER_RUNTIME="${CONTAINER_RUNTIME_RAW,,}"
+# macOS ships Bash 3.2 (no ${var,,}); use POSIX tr instead
+CONTAINER_RUNTIME="$(printf '%s' "$CONTAINER_RUNTIME_RAW" | tr '[:upper:]' '[:lower:]')"
 
 case "$CONTAINER_RUNTIME" in
   docker|podman)
