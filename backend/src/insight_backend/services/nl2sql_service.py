@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 import csv
-from pathlib import Path
 from typing import Dict, List
 import json
 
@@ -198,7 +197,7 @@ class NL2SQLService:
         # Optional samples from CSV
         samples_blob = ""
         if settings.nl2sql_include_samples:
-            repo = DataRepository(tables_dir=Path(settings.tables_dir))
+            repo = DataRepository(tables_dir=settings.tables_dir)
             rows_per = max(1, settings.nl2sql_rows_per_table)
             trunc = max(10, settings.nl2sql_value_truncate)
             parts: List[str] = []
@@ -264,7 +263,7 @@ class NL2SQLService:
         # Optional samples
         samples_blob = ""
         if settings.nl2sql_include_samples:
-            repo = DataRepository(tables_dir=Path(settings.tables_dir))
+            repo = DataRepository(tables_dir=settings.tables_dir)
             rows_per = max(1, settings.nl2sql_rows_per_table)
             trunc = max(10, settings.nl2sql_value_truncate)
             parts: List[str] = []

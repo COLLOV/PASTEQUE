@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 from typing import Iterable
 
 from ..schemas.data import IngestResponse
@@ -15,7 +14,7 @@ class DataService:
     """Gère l’ingestion et la préparation des données."""
 
     def __init__(self, repo: DataRepository | None = None):
-        self.repo = repo or DataRepository(tables_dir=Path(settings.tables_dir))
+        self.repo = repo or DataRepository(tables_dir=settings.tables_dir)
 
     def ingest(self, *, path: str | None = None, bytes_: bytes | None = None) -> IngestResponse:  # type: ignore[valid-type]
         raise NotImplementedError

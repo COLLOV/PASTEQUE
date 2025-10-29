@@ -13,6 +13,8 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 - `vis-ssr/` – serveur Express pour GPT-Vis (SSR) qui génère les visuels côté serveur.
 - `data/` – `raw/`, `processed/`, `interim/`, `vector_store/`, `models/`.
 
+`DATA_TABLES_DIR` (backend) accepte désormais plusieurs chemins séparés par des virgules/points-virgules (ex.`../data/raw,../data/processed`). Les répertoires sont explorés dans l’ordre fourni; le premier qui contient un nom de table donné est utilisé pour les uploads MindsDB et la découverte de schéma.
+
 ## Démarrage rapide
 
 Script combiné (depuis la racine):

@@ -1,6 +1,5 @@
 import logging
 import re
-from pathlib import Path
 from typing import Protocol, Callable, Dict, Any, Iterable
 
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
@@ -167,7 +166,7 @@ class ChatService:
             if last.role == "user":
                 raw_question, contextual_question = self._prepare_nl2sql_question(payload.messages)
                 # Build schema from local CSV headers
-                repo = DataRepository(tables_dir=Path(settings.tables_dir))
+                repo = DataRepository(tables_dir=settings.tables_dir)
                 tables = repo.list_tables()
                 allowed_lookup = {name.casefold() for name in allowed_tables} if allowed_tables is not None else None
                 if allowed_lookup is not None:

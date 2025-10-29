@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
@@ -12,7 +11,7 @@ log = logging.getLogger("insight.services.mindsdb_sync")
 
 
 def sync_all_tables() -> list[str]:
-    repo = DataRepository(tables_dir=Path(settings.tables_dir))
+    repo = DataRepository(tables_dir=settings.tables_dir)
     client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
     uploaded: list[str] = []
     try:
@@ -23,7 +22,7 @@ def sync_all_tables() -> list[str]:
     finally:
         client.close()
     if not uploaded:
-        log.info("No tables found in %s", repo.tables_dir)
+        log.info("No tables found in %s", ", ".join(str(p) for p in repo.tables_dirs) or repo.tables_dir)
     else:
         log.info("Uploaded %d tables to MindsDB", len(uploaded))
     return uploaded
