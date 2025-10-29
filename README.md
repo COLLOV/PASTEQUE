@@ -145,6 +145,10 @@ data/
 - 2025-10-21: L'état vide du chat (« Discutez avec vos données ») est maintenant centré via un overlay `fixed` non interactif: pas de scroll tant qu'aucun message n'est présent; la barre de saisie reste accessible.
  - 2025-10-21: Ajout d'un petit avertissement sous la zone de saisie: « L'IA peut faire des erreurs, FoyerInsight aussi. »
 
+## Maintenance
+
+- 2025-10-29: Correction d'un échec de build frontend (TS2451) dû à une double déclaration `const meta` dans `frontend/src/features/chat/Chat.tsx`. La duplication a été supprimée.
+
 ## Plan UI — Panneau « Éléments de preuve » (générique) pour /chat
 
 - Objectif: après une requête (SQL MindsDB ou Graph), afficher un panneau latéral listant les éléments de preuve (tickets ou autre entité) réellement utilisés pour produire la réponse.
