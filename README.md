@@ -21,6 +21,10 @@ Script combiné (depuis la racine):
 - `./start_full.sh <port_frontend> <port_backend>` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
 - Exemple: `./start.sh 5173 8000` (ou `./start.sh 8080 8081` selon vos besoins).
 
+Compatibilité shell:
+
+- Les scripts `start.sh` et `start_full.sh` sont compatibles avec le Bash macOS 3.2 et `/bin/sh`. La normalisation en minuscules de `CONTAINER_RUNTIME` n'utilise plus l'expansion Bash 4 `${var,,}` mais une transformation POSIX via `tr`.
+
 Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production.
 
 Lancer manuellement si besoin:
