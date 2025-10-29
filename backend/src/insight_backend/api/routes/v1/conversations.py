@@ -14,6 +14,7 @@ from ....core.security import get_current_user
 from ....integrations.mindsdb_client import MindsDBClient
 from ....core.config import settings
 from ....utils.rows import normalize_rows
+from ....utils.text import sanitize_title
 
 log = logging.getLogger("insight.api.conversations")
 
@@ -46,7 +47,7 @@ def create_conversation(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:
     raw = (payload or {}).get("title") or "Nouvelle conversation"
-    title = _sanitize_title(str(raw))
+    title = sanitize_title(str(raw))
     repo = ConversationRepository(session)
     conv = repo.create(user_id=current_user.id, title=title)
     session.commit()
@@ -270,28 +271,6 @@ def append_chart_event(  # type: ignore[valid-type]
     evt = repo.add_event(conversation_id=conversation_id, kind="chart", payload=safe_payload)
     session.commit()
     return {"id": evt.id, "created_at": evt.created_at.isoformat()}
-
-
-# -------------------------------
-# Helpers
-# -------------------------------
-
-_CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
-
-
-def _sanitize_title(s: str) -> str:
-    """Keep plain text only for titles.
-
-    - strip control chars
-    - collapse whitespace
-    - drop angle brackets to avoid accidental HTML in UIs
-    - clamp length to 120
-    """
-    s = _CTRL_RE.sub(" ", s)
-    s = s.replace("<", " ").replace(">", " ")
-    s = " ".join(s.split())
-    s = s[:120] if len(s) > 120 else s
-    return s or "Nouvelle conversation"
 
 
 def _validate_select_sql(sql: str, *, required_prefix: str, limit_default: int) -> str:
