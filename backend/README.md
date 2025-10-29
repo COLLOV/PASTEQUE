@@ -241,6 +241,9 @@ Le backend persiste désormais les conversations et événements associés:
   - Depuis 2025‑10‑29: `GET /conversations/{id}/dataset?message_index=N` rejoue la dernière requête SQL (hors « evidence »)
     liée au message assistant d’index `N`, avec un `LIMIT` de sécurité (`EVIDENCE_LIMIT_DEFAULT`).
     Réponse: `{ dataset: { sql, columns, rows, row_count, step, description } }`.
+  - Depuis 2025‑10‑29: `POST /conversations/{id}/chart` enregistre un évènement `chart` (url + métadonnées). Ces
+    évènements sont réintégrés dans le flux `messages` lors du `GET /conversations/{id}` afin que les graphiques
+    réapparaissent dans l’historique de la conversation.
   - `POST /conversations` — crée une conversation (optionnel: `{ "title": "..." }`).
 
 Intégration au flux `/chat/stream`:
