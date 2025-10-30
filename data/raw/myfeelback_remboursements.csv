@@ -1,0 +1,501 @@
+sinistre_id,client_id,date_declaration,date_remboursement,type_sinistre,montant_reclame,montant_rembourse,statut,departement,commentaire
+SIN-00144,CLI-13003,2025-04-21,,Santé - Consultation spécialiste,2713.59,0.00,En cours d'instruction,Sinistres Santé,Plafond annuel atteint
+SIN-00134,CLI-72986,2025-04-22,,Santé - Optique,2635.50,0.00,Rejeté - Hors garantie,Sinistres Santé,Complément d'information demandé par email
+SIN-00239,CLI-33411,2025-04-22,,Santé - Médicaments,3641.41,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Complément d'information demandé par email
+SIN-00443,CLI-69851,2025-04-22,,Santé - Consultation spécialiste,828.76,0.00,En attente d'expertise,Sinistres Santé,Contentieux en cours avec tiers
+SIN-00056,CLI-52381,2025-04-23,,Protection juridique,9646.92,0.00,En cours d'instruction,Service Indemnisation,"Factures conformes, validation OK"
+SIN-00233,CLI-37101,2025-04-23,,Habitation - Incendie,8276.03,0.00,En attente d'expertise,Sinistres Habitation,Accord amiable trouvé
+SIN-00022,CLI-44864,2025-04-24,,Responsabilité civile,8656.89,0.00,Validé - En attente de paiement,Service Indemnisation,Documents manquants : devis de réparation
+SIN-00076,CLI-51312,2025-04-24,,Auto - Bris de glace,6012.75,0.00,Complément d'information requis,Sinistres Auto,Virement effectué le à venir
+SIN-00135,CLI-96519,2025-04-24,,Santé - Consultation spécialiste,4922.04,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Remboursement selon barème conventionnel
+SIN-00336,CLI-18878,2025-04-24,,Protection juridique,9381.65,0.00,En cours d'instruction,Service Indemnisation,Client contacté pour précisions
+SIN-00057,CLI-51585,2025-04-26,2025-05-12,Habitation - Vol,11091.73,8152.03,Remboursé partiellement,Sinistres Habitation,Complément d'information demandé par email
+SIN-00175,CLI-60309,2025-04-26,,Habitation - Bris de glace,6992.47,0.00,En attente d'expertise,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00263,CLI-97542,2025-04-26,,Santé - Hospitalisation,3056.57,0.00,En attente d'expertise,Sinistres Santé,Complément d'information demandé par email
+SIN-00356,CLI-42566,2025-04-26,2025-05-26,Santé - Consultation spécialiste,2136.91,1936.91,Remboursé,Sinistres Santé,Virement effectué le 2025-05-26
+SIN-00437,CLI-93365,2025-04-26,,Habitation - Vol,8885.43,0.00,En attente d'expertise,Sinistres Habitation,Attente rapport d'expertise
+SIN-00048,CLI-38219,2025-04-27,,Assistance juridique,6968.16,0.00,Validé - En attente de paiement,Service Juridique,Ticket support créé: JIRA-0477
+SIN-00284,CLI-27775,2025-04-27,,Habitation - Vol,10477.77,0.00,En attente de pièces,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00297,CLI-23860,2025-04-27,,Habitation - Dégât des eaux,8980.14,0.00,Rejeté - Hors garantie,Sinistres Habitation,Expert mandaté - Rendez-vous fixé
+SIN-00372,CLI-20970,2025-04-27,,Auto - Accident responsable,4929.95,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Procédure accélérée appliquée
+SIN-00493,CLI-99480,2025-04-27,2025-05-22,Auto - Incendie,4308.00,2814.15,Remboursé partiellement,Sinistres Auto,Sinistre déclaré hors délai
+SIN-00497,CLI-59950,2025-04-28,,Habitation - Catastrophe naturelle,6338.30,0.00,Rejeté - Hors garantie,Sinistres Habitation,Procédure accélérée appliquée
+SIN-00123,CLI-45355,2025-04-29,2025-05-23,Santé - Hospitalisation,2849.07,2336.59,Remboursé partiellement,Sinistres Santé,Attente rapport d'expertise
+SIN-00151,CLI-48207,2025-04-29,2025-05-31,Auto - Accident responsable,2133.43,1633.43,Remboursé,Sinistres Auto,Complément d'information demandé par email
+SIN-00390,CLI-49475,2025-04-29,2025-05-09,Auto - Accident responsable,8376.98,5747.46,Remboursé partiellement,Sinistres Auto,Réclamation client en cours
+SIN-00064,CLI-23525,2025-04-30,,Auto - Incendie,4158.48,0.00,Validé - En attente de paiement,Sinistres Auto,Expert mandaté - Rendez-vous fixé
+SIN-00106,CLI-23729,2025-04-30,,Auto - Vol,12141.61,0.00,En attente d'expertise,Sinistres Auto,Dossier prioritaire - sinistre majeur
+SIN-00412,CLI-31116,2025-04-30,,Habitation - Catastrophe naturelle,1053.01,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Plafond annuel atteint
+SIN-00496,CLI-12173,2025-04-30,,Auto - Accident non-responsable,9633.31,0.00,Validé - En attente de paiement,Sinistres Auto,Franchise de 150€ appliquée
+SIN-00397,CLI-86412,2025-05-01,2025-06-06,Santé - Optique,2854.34,2854.34,Remboursé,Sinistres Santé,Ticket support créé: JIRA-0330
+SIN-00402,CLI-57949,2025-05-01,,Responsabilité civile,3578.40,0.00,Validé - En attente de paiement,Service Indemnisation,Accord amiable trouvé
+SIN-00219,CLI-31815,2025-05-02,,Auto - Accident responsable,9970.92,0.00,Complément d'information requis,Sinistres Auto,Complément d'information demandé par email
+SIN-00471,CLI-15525,2025-05-02,,Santé - Optique,2984.12,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,Client contacté pour précisions
+SIN-00392,CLI-72909,2025-05-03,,Habitation - Vol,6622.07,0.00,En attente d'expertise,Sinistres Habitation,RIB en attente
+SIN-00095,CLI-64605,2025-05-04,,Habitation - Bris de glace,8746.16,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Réclamation client en cours
+SIN-00299,CLI-27630,2025-05-04,,Habitation - Dégât des eaux,17591.24,0.00,En attente d'expertise,Sinistres Habitation,Réclamation client en cours
+SIN-00311,CLI-80122,2025-05-04,,Protection juridique,4213.28,0.00,Rejeté - Franchise non atteinte,Service Indemnisation,Remboursement selon barème conventionnel
+SIN-00331,CLI-12297,2025-05-04,,Habitation - Bris de glace,14641.22,0.00,Validé - En attente de paiement,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00469,CLI-34950,2025-05-04,,Habitation - Incendie,11957.91,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00128,CLI-38697,2025-05-05,,Protection juridique,4783.75,0.00,Complément d'information requis,Service Indemnisation,Remboursement selon barème conventionnel
+SIN-00018,CLI-10030,2025-05-06,,Santé - Médicaments,337.06,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Remboursement selon barème conventionnel
+SIN-00075,CLI-84557,2025-05-07,,Santé - Consultation spécialiste,4103.48,0.00,En attente de pièces,Sinistres Santé,Procédure accélérée appliquée
+SIN-00113,CLI-47129,2025-05-07,,Habitation - Incendie,16819.67,0.00,Rejeté - Hors garantie,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00193,CLI-87894,2025-05-07,,Auto - Vol,13069.32,0.00,Validé - En attente de paiement,Sinistres Auto,Plafond annuel atteint
+SIN-00081,CLI-28273,2025-05-08,2025-05-31,Habitation - Catastrophe naturelle,20469.40,20469.40,Remboursé,Sinistres Habitation,Documents manquants : devis de réparation
+SIN-00223,CLI-27634,2025-05-08,,Santé - Optique,2255.39,0.00,En attente de pièces,Sinistres Santé,Client contacté pour précisions
+SIN-00071,CLI-37156,2025-05-09,2025-06-11,Auto - Accident responsable,4932.01,3671.76,Remboursé partiellement,Sinistres Auto,Ticket support créé: JIRA-0394
+SIN-00201,CLI-80792,2025-05-09,,Habitation - Dégât des eaux,943.12,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00431,CLI-35947,2025-05-09,,Habitation - Incendie,7487.14,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Contentieux en cours avec tiers
+SIN-00440,CLI-41298,2025-05-09,,Assistance juridique,8924.66,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Remboursement selon barème conventionnel
+SIN-00136,CLI-87191,2025-05-10,,Assistance juridique,7700.84,0.00,Validé - En attente de paiement,Service Juridique,RIB en attente
+SIN-00051,CLI-66053,2025-05-11,2025-06-16,Habitation - Incendie,4078.46,3640.09,Remboursé partiellement,Sinistres Habitation,Complément d'information demandé par email
+SIN-00169,CLI-78885,2025-05-11,,Santé - Hospitalisation,1445.89,0.00,En cours d'instruction,Sinistres Santé,"Factures conformes, validation OK"
+SIN-00312,CLI-45102,2025-05-11,,Santé - Médicaments,3844.97,0.00,En attente d'expertise,Sinistres Santé,Réclamation client en cours
+SIN-00045,CLI-68111,2025-05-12,,Auto - Incendie,1548.26,0.00,En attente d'expertise,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00226,CLI-94002,2025-05-12,,Habitation - Incendie,16371.73,0.00,Rejeté - Hors garantie,Sinistres Habitation,Sinistre déclaré hors délai
+SIN-00282,CLI-29948,2025-05-12,,Auto - Bris de glace,14020.02,0.00,En attente d'expertise,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00464,CLI-37026,2025-05-12,2025-06-10,Habitation - Bris de glace,14421.41,8757.96,Remboursé partiellement,Sinistres Habitation,Ticket support créé: JIRA-0144
+SIN-00130,CLI-23398,2025-05-13,,Santé - Consultation spécialiste,1653.84,0.00,En attente d'expertise,Sinistres Santé,Procédure accélérée appliquée
+SIN-00161,CLI-38310,2025-05-13,,Assistance juridique,3423.74,0.00,Rejeté - Franchise non atteinte,Service Expertise,"Dossier complet, traitement en cours"
+SIN-00206,CLI-69950,2025-05-13,2025-06-12,Protection juridique,7612.76,4717.17,Remboursé partiellement,Service Expertise,Accord amiable trouvé
+SIN-00221,CLI-25575,2025-05-13,2025-05-26,Santé - Hospitalisation,929.09,729.09,Remboursé,Sinistres Santé,Garantie optionnelle non souscrite
+SIN-00313,CLI-82399,2025-05-13,,Santé - Médicaments,3251.47,0.00,Rejeté - Hors garantie,Sinistres Santé,RIB en attente
+SIN-00417,CLI-49884,2025-05-13,,Habitation - Bris de glace,21394.31,0.00,Rejeté - Hors garantie,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00433,CLI-76725,2025-05-13,,Santé - Hospitalisation,2808.13,0.00,Complément d'information requis,Sinistres Santé,Sinistre déclaré hors délai
+SIN-00089,CLI-48537,2025-05-14,2025-06-19,Habitation - Incendie,15612.63,13185.11,Remboursé partiellement,Sinistres Habitation,Plafond annuel atteint
+SIN-00383,CLI-29202,2025-05-14,,Protection juridique,2859.66,0.00,Validé - En attente de paiement,Service Juridique,Réclamation client en cours
+SIN-00078,CLI-89088,2025-05-16,2025-06-29,Santé - Médicaments,2221.57,1906.39,Remboursé partiellement,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00302,CLI-64188,2025-05-16,2025-06-08,Protection juridique,6480.29,5980.29,Remboursé,Service Juridique,Procédure accélérée appliquée
+SIN-00457,CLI-41513,2025-05-16,,Auto - Incendie,10374.03,0.00,En attente de pièces,Sinistres Auto,Plafond annuel atteint
+SIN-00489,CLI-76392,2025-05-16,,Auto - Accident non-responsable,1550.92,0.00,Validé - En attente de paiement,Sinistres Auto,Contentieux en cours avec tiers
+SIN-00091,CLI-94800,2025-05-17,2025-06-15,Habitation - Catastrophe naturelle,23664.28,23664.28,Remboursé,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00177,CLI-80225,2025-05-17,2025-06-07,Santé - Consultation spécialiste,1493.68,1493.68,Remboursé,Sinistres Santé,Expert mandaté - Rendez-vous fixé
+SIN-00179,CLI-31301,2025-05-17,2025-06-23,Santé - Médicaments,4994.39,4844.39,Remboursé,Sinistres Santé,Ticket support créé: JIRA-0411
+SIN-00216,CLI-31971,2025-05-17,,Habitation - Dégât des eaux,5024.87,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00205,CLI-68209,2025-05-18,,Protection juridique,7926.61,0.00,Complément d'information requis,Service Juridique,Garantie optionnelle non souscrite
+SIN-00355,CLI-38451,2025-05-19,2025-05-30,Protection juridique,8488.02,6089.33,Remboursé partiellement,Service Expertise,Complément d'information demandé par email
+SIN-00020,CLI-96526,2025-05-20,,Santé - Soins dentaires,2367.68,0.00,Complément d'information requis,Sinistres Santé,Plafond annuel atteint
+SIN-00029,CLI-67794,2025-05-20,2025-06-05,Santé - Consultation spécialiste,721.33,459.55,Remboursé partiellement,Sinistres Santé,"Dossier complet, traitement en cours"
+SIN-00070,CLI-41147,2025-05-20,,Habitation - Vol,15901.60,0.00,Rejeté - Hors garantie,Sinistres Habitation,Complément d'information demandé par email
+SIN-00352,CLI-31555,2025-05-20,,Santé - Optique,2537.51,0.00,Complément d'information requis,Sinistres Santé,"Factures conformes, validation OK"
+SIN-00442,CLI-31119,2025-05-20,2025-06-13,Auto - Vol,13413.32,12913.32,Remboursé,Sinistres Auto,Contentieux en cours avec tiers
+SIN-00140,CLI-56893,2025-05-21,,Protection juridique,667.88,0.00,Rejeté - Exclusion contractuelle,Service Juridique,Virement effectué le à venir
+SIN-00165,CLI-45700,2025-05-21,2025-06-10,Santé - Hospitalisation,3634.39,2773.11,Remboursé partiellement,Sinistres Santé,Plafond annuel atteint
+SIN-00243,CLI-50228,2025-05-21,2025-05-27,Habitation - Vol,21757.49,15074.28,Remboursé partiellement,Sinistres Habitation,Ticket support créé: JIRA-0107
+SIN-00446,CLI-24877,2025-05-21,2025-06-02,Auto - Accident non-responsable,12363.54,12213.54,Remboursé,Sinistres Auto,Réclamation client en cours
+SIN-00476,CLI-19470,2025-05-21,,Habitation - Incendie,3333.46,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Attente rapport d'expertise
+SIN-00428,CLI-79250,2025-05-22,,Auto - Accident non-responsable,8879.19,0.00,En attente d'expertise,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00253,CLI-49243,2025-05-23,,Auto - Accident non-responsable,6191.19,0.00,En attente d'expertise,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00278,CLI-66019,2025-05-23,,Protection juridique,4914.45,0.00,En cours d'instruction,Service Expertise,Attente rapport d'expertise
+SIN-00371,CLI-84732,2025-05-23,,Assistance juridique,3486.11,0.00,En attente d'expertise,Service Juridique,"Dossier complet, traitement en cours"
+SIN-00232,CLI-64633,2025-05-24,,Santé - Soins dentaires,892.32,0.00,Complément d'information requis,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00268,CLI-40569,2025-05-24,,Santé - Consultation spécialiste,375.13,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Ticket support créé: JIRA-0199
+SIN-00381,CLI-39952,2025-05-25,,Habitation - Dégât des eaux,23446.74,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Réclamation client en cours
+SIN-00088,CLI-94164,2025-05-26,,Auto - Incendie,10596.48,0.00,En attente de pièces,Sinistres Auto,Contentieux en cours avec tiers
+SIN-00423,CLI-56230,2025-05-26,,Auto - Incendie,5590.71,0.00,En attente d'expertise,Sinistres Auto,Accord amiable trouvé
+SIN-00163,CLI-74361,2025-05-27,,Auto - Bris de glace,7521.92,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Complément d'information demandé par email
+SIN-00238,CLI-73740,2025-05-27,,Auto - Bris de glace,7236.57,0.00,En cours d'instruction,Sinistres Auto,RIB en attente
+SIN-00444,CLI-16977,2025-05-27,,Auto - Vol,10554.49,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Plafond annuel atteint
+SIN-00449,CLI-49131,2025-05-28,2025-06-13,Auto - Vol,12965.10,10550.31,Remboursé partiellement,Sinistres Auto,Réclamation client en cours
+SIN-00248,CLI-54097,2025-05-29,,Assistance juridique,8738.74,0.00,Complément d'information requis,Service Juridique,Contentieux en cours avec tiers
+SIN-00270,CLI-27659,2025-05-29,,Santé - Médicaments,1658.36,0.00,Rejeté - Hors garantie,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00448,CLI-96405,2025-05-30,,Santé - Optique,2907.47,0.00,En attente d'expertise,Sinistres Santé,Procédure accélérée appliquée
+SIN-00181,CLI-40101,2025-05-31,,Assistance juridique,4330.19,0.00,Rejeté - Franchise non atteinte,Service Indemnisation,Plafond annuel atteint
+SIN-00350,CLI-26983,2025-05-31,,Auto - Vol,8300.77,0.00,Rejeté - Hors garantie,Sinistres Auto,Franchise de 150€ appliquée
+SIN-00368,CLI-40578,2025-05-31,,Protection juridique,727.78,0.00,Rejeté - Franchise non atteinte,Service Juridique,Remboursement selon barème conventionnel
+SIN-00072,CLI-32235,2025-06-01,,Habitation - Vol,12805.70,0.00,Rejeté - Hors garantie,Sinistres Habitation,Expert mandaté - Rendez-vous fixé
+SIN-00229,CLI-70413,2025-06-01,,Protection juridique,5360.75,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Attente rapport d'expertise
+SIN-00301,CLI-95971,2025-06-01,,Responsabilité civile,5345.71,0.00,Rejeté - Exclusion contractuelle,Service Expertise,Remboursement selon barème conventionnel
+SIN-00427,CLI-84553,2025-06-01,,Santé - Hospitalisation,3543.79,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Réclamation client en cours
+SIN-00030,CLI-32106,2025-06-02,,Santé - Optique,2650.47,0.00,Rejeté - Hors garantie,Sinistres Santé,Dossier prioritaire - sinistre majeur
+SIN-00077,CLI-56319,2025-06-02,,Santé - Soins dentaires,4160.94,0.00,Complément d'information requis,Sinistres Santé,Attente rapport d'expertise
+SIN-00235,CLI-51525,2025-06-02,,Protection juridique,6840.87,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Plafond annuel atteint
+SIN-00015,CLI-22049,2025-06-03,,Habitation - Vol,16876.96,0.00,En attente d'expertise,Sinistres Habitation,Ticket support créé: JIRA-0068
+SIN-00345,CLI-38059,2025-06-03,2025-06-15,Auto - Accident responsable,7669.60,5855.07,Remboursé partiellement,Sinistres Auto,Client contacté pour précisions
+SIN-00066,CLI-90316,2025-06-04,,Habitation - Dégât des eaux,13139.33,0.00,Rejeté - Hors garantie,Sinistres Habitation,Accord amiable trouvé
+SIN-00275,CLI-29708,2025-06-04,,Auto - Incendie,10638.35,0.00,Complément d'information requis,Sinistres Auto,Client contacté pour précisions
+SIN-00019,CLI-94771,2025-06-05,,Auto - Incendie,6358.04,0.00,Rejeté - Hors garantie,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00027,CLI-61374,2025-06-05,,Santé - Consultation spécialiste,2531.79,0.00,En attente de pièces,Sinistres Santé,Sinistre déclaré hors délai
+SIN-00127,CLI-74644,2025-06-05,2025-06-18,Auto - Bris de glace,5517.51,3632.60,Remboursé partiellement,Sinistres Auto,Ticket support créé: JIRA-0142
+SIN-00138,CLI-73780,2025-06-05,,Auto - Vol,8864.09,0.00,Validé - En attente de paiement,Sinistres Auto,Attente rapport d'expertise
+SIN-00341,CLI-17421,2025-06-05,,Habitation - Catastrophe naturelle,22216.23,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,"Factures conformes, validation OK"
+SIN-00012,CLI-94193,2025-06-06,,Habitation - Incendie,10245.46,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Contentieux en cours avec tiers
+SIN-00013,CLI-29222,2025-06-06,2025-06-11,Santé - Soins dentaires,1006.59,706.59,Remboursé,Sinistres Santé,Remboursement selon barème conventionnel
+SIN-00043,CLI-65014,2025-06-06,,Santé - Soins dentaires,1435.35,0.00,Complément d'information requis,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00171,CLI-43183,2025-06-06,,Protection juridique,8587.56,0.00,En cours d'instruction,Service Expertise,Franchise de 150€ appliquée
+SIN-00184,CLI-63333,2025-06-06,,Responsabilité civile,1844.27,0.00,Complément d'information requis,Service Indemnisation,"Dossier complet, traitement en cours"
+SIN-00255,CLI-50184,2025-06-06,,Habitation - Incendie,14597.74,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Plafond annuel atteint
+SIN-00330,CLI-11743,2025-06-06,,Habitation - Incendie,16211.17,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00484,CLI-78631,2025-06-06,,Protection juridique,6752.65,0.00,Validé - En attente de paiement,Service Indemnisation,Plafond annuel atteint
+SIN-00002,CLI-62019,2025-06-07,,Auto - Accident non-responsable,2348.71,0.00,Rejeté - Hors garantie,Sinistres Auto,RIB en attente
+SIN-00102,CLI-18980,2025-06-07,,Auto - Vol,4708.92,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Procédure accélérée appliquée
+SIN-00347,CLI-51778,2025-06-07,,Auto - Vol,13555.75,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Documents manquants : devis de réparation
+SIN-00399,CLI-75009,2025-06-07,,Auto - Accident non-responsable,6118.85,0.00,Complément d'information requis,Sinistres Auto,Attente rapport d'expertise
+SIN-00093,CLI-93736,2025-06-08,,Auto - Incendie,661.75,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Dossier prioritaire - sinistre majeur
+SIN-00204,CLI-19812,2025-06-08,,Protection juridique,1970.73,0.00,En attente de pièces,Service Indemnisation,Complément d'information demandé par email
+SIN-00452,CLI-69766,2025-06-08,,Santé - Soins dentaires,2763.16,0.00,Complément d'information requis,Sinistres Santé,Accord amiable trouvé
+SIN-00100,CLI-20944,2025-06-09,,Habitation - Dégât des eaux,2651.93,0.00,En attente d'expertise,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00121,CLI-50861,2025-06-09,,Auto - Bris de glace,6184.83,0.00,Complément d'information requis,Sinistres Auto,Réclamation client en cours
+SIN-00271,CLI-98829,2025-06-09,,Santé - Hospitalisation,4698.75,0.00,En cours d'instruction,Sinistres Santé,Dossier prioritaire - sinistre majeur
+SIN-00365,CLI-39094,2025-06-09,,Habitation - Bris de glace,12020.21,0.00,Complément d'information requis,Sinistres Habitation,Virement effectué le à venir
+SIN-00391,CLI-38974,2025-06-09,,Santé - Soins dentaires,3922.01,0.00,En attente de pièces,Sinistres Santé,Plafond annuel atteint
+SIN-00258,CLI-52389,2025-06-11,,Santé - Hospitalisation,3374.13,0.00,En cours d'instruction,Sinistres Santé,Garantie optionnelle non souscrite
+SIN-00294,CLI-10055,2025-06-11,,Auto - Bris de glace,14085.65,0.00,En attente d'expertise,Sinistres Auto,Garantie optionnelle non souscrite
+SIN-00387,CLI-19196,2025-06-11,,Assistance juridique,869.61,0.00,En cours d'instruction,Service Juridique,Accord amiable trouvé
+SIN-00112,CLI-76005,2025-06-12,,Auto - Vol,9046.21,0.00,Complément d'information requis,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00470,CLI-42350,2025-06-12,2025-07-07,Habitation - Vol,6573.26,6273.26,Remboursé,Sinistres Habitation,Documents manquants : devis de réparation
+SIN-00209,CLI-85882,2025-06-13,,Auto - Bris de glace,2344.23,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00367,CLI-28453,2025-06-13,,Auto - Accident non-responsable,1251.05,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Plafond annuel atteint
+SIN-00254,CLI-76729,2025-06-14,,Responsabilité civile,5476.79,0.00,Rejeté - Franchise non atteinte,Service Indemnisation,Dossier prioritaire - sinistre majeur
+SIN-00261,CLI-22175,2025-06-14,,Santé - Hospitalisation,3782.71,0.00,Rejeté - Hors garantie,Sinistres Santé,Plafond annuel atteint
+SIN-00394,CLI-53445,2025-06-14,,Habitation - Catastrophe naturelle,2309.99,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Procédure accélérée appliquée
+SIN-00084,CLI-25540,2025-06-16,,Assistance juridique,7467.22,0.00,Rejeté - Franchise non atteinte,Service Expertise,Attente rapport d'expertise
+SIN-00315,CLI-14547,2025-06-16,,Habitation - Dégât des eaux,8550.37,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Sinistre déclaré hors délai
+SIN-00357,CLI-71501,2025-06-16,,Responsabilité civile,1356.66,0.00,Rejeté - Hors garantie,Service Juridique,Attente rapport d'expertise
+SIN-00369,CLI-16837,2025-06-16,,Responsabilité civile,3584.53,0.00,Rejeté - Hors garantie,Service Indemnisation,Contentieux en cours avec tiers
+SIN-00420,CLI-77570,2025-06-16,,Responsabilité civile,5891.64,0.00,En cours d'instruction,Service Indemnisation,Client contacté pour précisions
+SIN-00210,CLI-83591,2025-06-17,2025-07-15,Auto - Accident responsable,12711.68,9933.07,Remboursé partiellement,Sinistres Auto,Contentieux en cours avec tiers
+SIN-00361,CLI-38213,2025-06-17,,Habitation - Vol,8830.82,0.00,Validé - En attente de paiement,Sinistres Habitation,Client contacté pour précisions
+SIN-00303,CLI-47034,2025-06-18,,Auto - Accident non-responsable,2550.59,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Client contacté pour précisions
+SIN-00494,CLI-97376,2025-06-18,,Auto - Bris de glace,11237.91,0.00,Complément d'information requis,Sinistres Auto,Complément d'information demandé par email
+SIN-00033,CLI-72284,2025-06-19,,Habitation - Vol,6595.60,0.00,En cours d'instruction,Sinistres Habitation,Client contacté pour précisions
+SIN-00155,CLI-21888,2025-06-19,,Santé - Hospitalisation,4459.42,0.00,En attente de pièces,Sinistres Santé,Garantie optionnelle non souscrite
+SIN-00404,CLI-79433,2025-06-19,,Habitation - Catastrophe naturelle,13308.02,0.00,Validé - En attente de paiement,Sinistres Habitation,Contentieux en cours avec tiers
+SIN-00010,CLI-96926,2025-06-20,2025-07-22,Habitation - Incendie,23441.34,23141.34,Remboursé,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00099,CLI-77222,2025-06-21,,Auto - Incendie,7909.67,0.00,Complément d'information requis,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00129,CLI-55972,2025-06-21,2025-07-15,Auto - Accident responsable,14935.29,14935.29,Remboursé,Sinistres Auto,Sinistre déclaré hors délai
+SIN-00149,CLI-18259,2025-06-21,2025-07-13,Habitation - Bris de glace,18412.75,11425.14,Remboursé partiellement,Sinistres Habitation,Virement effectué le 2025-07-13
+SIN-00218,CLI-11876,2025-06-21,,Auto - Bris de glace,6397.04,0.00,En attente d'expertise,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00342,CLI-98408,2025-06-21,,Santé - Médicaments,1380.40,0.00,En cours d'instruction,Sinistres Santé,Remboursement selon barème conventionnel
+SIN-00385,CLI-52967,2025-06-21,,Santé - Médicaments,4817.02,0.00,En cours d'instruction,Sinistres Santé,Accord amiable trouvé
+SIN-00073,CLI-18400,2025-06-22,,Protection juridique,8540.28,0.00,Rejeté - Franchise non atteinte,Service Indemnisation,Attente rapport d'expertise
+SIN-00021,CLI-95447,2025-06-23,2025-07-02,Protection juridique,1599.80,1299.80,Remboursé,Service Indemnisation,RIB en attente
+SIN-00092,CLI-70717,2025-06-23,,Responsabilité civile,4438.16,0.00,En attente d'expertise,Service Indemnisation,Accord amiable trouvé
+SIN-00101,CLI-23819,2025-06-23,,Protection juridique,4306.94,0.00,Rejeté - Hors garantie,Service Expertise,Procédure accélérée appliquée
+SIN-00107,CLI-91335,2025-06-23,2025-07-05,Auto - Vol,4690.47,4190.47,Remboursé,Sinistres Auto,Documents manquants : devis de réparation
+SIN-00167,CLI-13882,2025-06-23,,Santé - Consultation spécialiste,4999.27,0.00,Rejeté - Hors garantie,Sinistres Santé,Expert mandaté - Rendez-vous fixé
+SIN-00245,CLI-17989,2025-06-23,,Protection juridique,4243.47,0.00,En cours d'instruction,Service Indemnisation,Expert mandaté - Rendez-vous fixé
+SIN-00277,CLI-75736,2025-06-23,2025-07-07,Assistance juridique,8630.02,6560.63,Remboursé partiellement,Service Juridique,Expert mandaté - Rendez-vous fixé
+SIN-00276,CLI-70671,2025-06-24,,Auto - Accident responsable,890.36,0.00,En attente d'expertise,Sinistres Auto,Dossier prioritaire - sinistre majeur
+SIN-00325,CLI-48311,2025-06-24,,Habitation - Catastrophe naturelle,8359.35,0.00,Complément d'information requis,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00234,CLI-88878,2025-06-25,2025-07-11,Habitation - Incendie,15830.85,15330.85,Remboursé,Sinistres Habitation,Franchise de 150€ appliquée
+SIN-00337,CLI-52738,2025-06-25,,Habitation - Incendie,8335.73,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00173,CLI-28353,2025-06-26,,Assistance juridique,5050.29,0.00,Rejeté - Hors garantie,Service Expertise,Accord amiable trouvé
+SIN-00186,CLI-62843,2025-06-26,,Auto - Vol,5180.07,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Complément d'information demandé par email
+SIN-00450,CLI-16277,2025-06-26,,Protection juridique,2207.15,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Réclamation client en cours
+SIN-00119,CLI-45131,2025-06-27,,Santé - Consultation spécialiste,378.94,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Attente rapport d'expertise
+SIN-00120,CLI-72103,2025-06-27,,Habitation - Vol,3083.51,0.00,En cours d'instruction,Sinistres Habitation,RIB en attente
+SIN-00124,CLI-96783,2025-06-28,,Santé - Soins dentaires,1769.22,0.00,En attente d'expertise,Sinistres Santé,Réclamation client en cours
+SIN-00146,CLI-71172,2025-06-28,,Habitation - Bris de glace,15364.29,0.00,Complément d'information requis,Sinistres Habitation,Sinistre déclaré hors délai
+SIN-00414,CLI-59108,2025-06-28,2025-07-12,Auto - Accident non-responsable,7331.53,7181.53,Remboursé,Sinistres Auto,Sinistre déclaré hors délai
+SIN-00104,CLI-28692,2025-06-29,,Habitation - Dégât des eaux,9125.58,0.00,En attente d'expertise,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00111,CLI-80850,2025-06-29,,Auto - Bris de glace,7459.39,0.00,En attente de pièces,Sinistres Auto,Ticket support créé: JIRA-0052
+SIN-00242,CLI-31306,2025-06-30,,Auto - Vol,4285.75,0.00,En cours d'instruction,Sinistres Auto,Expert mandaté - Rendez-vous fixé
+SIN-00389,CLI-81994,2025-06-30,,Responsabilité civile,4353.94,0.00,Rejeté - Franchise non atteinte,Service Indemnisation,Client contacté pour précisions
+SIN-00001,CLI-22040,2025-07-01,,Auto - Bris de glace,5197.48,0.00,En cours d'instruction,Sinistres Auto,Réclamation client en cours
+SIN-00162,CLI-82070,2025-07-01,,Auto - Bris de glace,13333.99,0.00,Complément d'information requis,Sinistres Auto,Attente rapport d'expertise
+SIN-00213,CLI-82657,2025-07-01,,Protection juridique,3863.30,0.00,Rejeté - Hors garantie,Service Expertise,Sinistre déclaré hors délai
+SIN-00009,CLI-86155,2025-07-02,,Santé - Consultation spécialiste,4662.38,0.00,Complément d'information requis,Sinistres Santé,RIB en attente
+SIN-00109,CLI-92916,2025-07-02,,Santé - Optique,2159.22,0.00,Validé - En attente de paiement,Sinistres Santé,Sinistre déclaré hors délai
+SIN-00256,CLI-46714,2025-07-02,,Santé - Hospitalisation,3852.35,0.00,En cours d'instruction,Sinistres Santé,Sinistre déclaré hors délai
+SIN-00096,CLI-69469,2025-07-05,,Habitation - Vol,21308.81,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00310,CLI-17678,2025-07-05,,Santé - Médicaments,1784.47,0.00,Validé - En attente de paiement,Sinistres Santé,Plafond annuel atteint
+SIN-00424,CLI-82070,2025-07-05,,Responsabilité civile,3722.85,0.00,Rejeté - Franchise non atteinte,Service Indemnisation,Contentieux en cours avec tiers
+SIN-00035,CLI-65418,2025-07-06,2025-07-21,Habitation - Bris de glace,12739.05,12239.05,Remboursé,Sinistres Habitation,Client contacté pour précisions
+SIN-00364,CLI-20400,2025-07-06,2025-08-17,Auto - Accident responsable,1333.07,1133.07,Remboursé,Sinistres Auto,Complément d'information demandé par email
+SIN-00370,CLI-72673,2025-07-06,2025-08-18,Auto - Vol,8954.58,8754.58,Remboursé,Sinistres Auto,Sinistre déclaré hors délai
+SIN-00156,CLI-71402,2025-07-07,,Santé - Optique,4037.22,0.00,Complément d'information requis,Sinistres Santé,Plafond annuel atteint
+SIN-00230,CLI-88719,2025-07-07,,Assistance juridique,5777.02,0.00,Complément d'information requis,Service Juridique,"Factures conformes, validation OK"
+SIN-00246,CLI-58444,2025-07-07,,Habitation - Incendie,8330.07,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00016,CLI-20962,2025-07-08,2025-08-05,Auto - Vol,867.27,867.27,Remboursé,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00083,CLI-76382,2025-07-08,,Assistance juridique,8233.10,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Complément d'information demandé par email
+SIN-00183,CLI-26864,2025-07-08,,Santé - Optique,682.06,0.00,Rejeté - Hors garantie,Sinistres Santé,Plafond annuel atteint
+SIN-00477,CLI-59401,2025-07-08,,Responsabilité civile,9297.69,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Franchise de 150€ appliquée
+SIN-00488,CLI-34548,2025-07-08,,Auto - Bris de glace,7559.66,0.00,Validé - En attente de paiement,Sinistres Auto,Procédure accélérée appliquée
+SIN-00137,CLI-70150,2025-07-09,,Assistance juridique,7574.00,0.00,En attente de pièces,Service Indemnisation,Remboursement selon barème conventionnel
+SIN-00272,CLI-77255,2025-07-09,,Santé - Consultation spécialiste,4312.51,0.00,Rejeté - Hors garantie,Sinistres Santé,Documents manquants : devis de réparation
+SIN-00286,CLI-90472,2025-07-09,,Habitation - Incendie,19862.18,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Franchise de 150€ appliquée
+SIN-00413,CLI-94108,2025-07-09,,Santé - Optique,4714.45,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,Garantie optionnelle non souscrite
+SIN-00003,CLI-78746,2025-07-10,,Santé - Optique,2640.54,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Documents manquants : devis de réparation
+SIN-00145,CLI-27490,2025-07-10,,Assistance juridique,9132.59,0.00,En cours d'instruction,Service Expertise,Dossier prioritaire - sinistre majeur
+SIN-00026,CLI-60670,2025-07-11,,Habitation - Bris de glace,23733.01,0.00,En attente d'expertise,Sinistres Habitation,Franchise de 150€ appliquée
+SIN-00240,CLI-98210,2025-07-11,,Auto - Bris de glace,12414.22,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00131,CLI-60246,2025-07-12,2025-07-26,Responsabilité civile,8176.31,5492.24,Remboursé partiellement,Service Indemnisation,Franchise de 150€ appliquée
+SIN-00293,CLI-37935,2025-07-13,,Habitation - Bris de glace,12303.26,0.00,Validé - En attente de paiement,Sinistres Habitation,Ticket support créé: JIRA-0327
+SIN-00126,CLI-32889,2025-07-14,,Auto - Accident responsable,9533.37,0.00,Rejeté - Hors garantie,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00189,CLI-37412,2025-07-14,,Auto - Bris de glace,7154.88,0.00,Validé - En attente de paiement,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00375,CLI-41717,2025-07-14,,Santé - Médicaments,2668.55,0.00,Complément d'information requis,Sinistres Santé,Complément d'information demandé par email
+SIN-00290,CLI-43474,2025-07-15,,Habitation - Catastrophe naturelle,15797.43,0.00,Rejeté - Hors garantie,Sinistres Habitation,"Factures conformes, validation OK"
+SIN-00403,CLI-30347,2025-07-15,2025-08-14,Santé - Soins dentaires,2669.65,2269.63,Remboursé partiellement,Sinistres Santé,Ticket support créé: JIRA-0372
+SIN-00419,CLI-75969,2025-07-15,,Santé - Soins dentaires,4284.72,0.00,En cours d'instruction,Sinistres Santé,Procédure accélérée appliquée
+SIN-00288,CLI-28571,2025-07-16,,Santé - Optique,321.71,0.00,En attente de pièces,Sinistres Santé,Ticket support créé: JIRA-0064
+SIN-00036,CLI-51933,2025-07-17,,Santé - Soins dentaires,510.51,0.00,En cours d'instruction,Sinistres Santé,Attente rapport d'expertise
+SIN-00086,CLI-91094,2025-07-17,,Protection juridique,3612.92,0.00,Validé - En attente de paiement,Service Juridique,RIB en attente
+SIN-00217,CLI-51003,2025-07-17,,Santé - Hospitalisation,1630.21,0.00,En attente d'expertise,Sinistres Santé,Accord amiable trouvé
+SIN-00436,CLI-19565,2025-07-17,,Auto - Bris de glace,7063.15,0.00,Complément d'information requis,Sinistres Auto,Ticket support créé: JIRA-0389
+SIN-00251,CLI-33371,2025-07-18,,Auto - Bris de glace,2322.05,0.00,En attente de pièces,Sinistres Auto,Attente rapport d'expertise
+SIN-00287,CLI-92294,2025-07-18,2025-07-29,Santé - Soins dentaires,2389.29,2062.92,Remboursé partiellement,Sinistres Santé,Accord amiable trouvé
+SIN-00360,CLI-31674,2025-07-18,,Auto - Accident responsable,2229.60,0.00,Rejeté - Hors garantie,Sinistres Auto,Expert mandaté - Rendez-vous fixé
+SIN-00407,CLI-77883,2025-07-18,,Auto - Accident non-responsable,5944.32,0.00,En attente d'expertise,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00052,CLI-36900,2025-07-19,,Habitation - Dégât des eaux,2485.18,0.00,Complément d'information requis,Sinistres Habitation,Sinistre déclaré hors délai
+SIN-00178,CLI-98504,2025-07-19,,Santé - Consultation spécialiste,1141.38,0.00,En attente d'expertise,Sinistres Santé,Réclamation client en cours
+SIN-00338,CLI-81521,2025-07-19,,Santé - Soins dentaires,635.39,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00125,CLI-18137,2025-07-20,,Habitation - Dégât des eaux,12971.76,0.00,Rejeté - Hors garantie,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00142,CLI-66274,2025-07-20,,Habitation - Bris de glace,21071.52,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00244,CLI-38627,2025-07-20,2025-08-24,Habitation - Dégât des eaux,9041.64,6939.76,Remboursé partiellement,Sinistres Habitation,Client contacté pour précisions
+SIN-00384,CLI-56038,2025-07-20,,Santé - Médicaments,922.65,0.00,En cours d'instruction,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00499,CLI-85853,2025-07-20,,Habitation - Catastrophe naturelle,17202.57,0.00,Complément d'information requis,Sinistres Habitation,Expert mandaté - Rendez-vous fixé
+SIN-00150,CLI-31345,2025-07-22,,Habitation - Catastrophe naturelle,13679.09,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Contentieux en cours avec tiers
+SIN-00249,CLI-34297,2025-07-22,,Protection juridique,2943.77,0.00,Rejeté - Franchise non atteinte,Service Juridique,Dossier prioritaire - sinistre majeur
+SIN-00061,CLI-84734,2025-07-23,,Auto - Accident responsable,14479.66,0.00,Rejeté - Hors garantie,Sinistres Auto,Sinistre déclaré hors délai
+SIN-00343,CLI-41806,2025-07-23,,Auto - Vol,6376.86,0.00,Validé - En attente de paiement,Sinistres Auto,Accord amiable trouvé
+SIN-00358,CLI-93440,2025-07-23,,Santé - Consultation spécialiste,4961.86,0.00,Complément d'information requis,Sinistres Santé,Contentieux en cours avec tiers
+SIN-00430,CLI-76896,2025-07-23,,Habitation - Incendie,4792.75,0.00,En cours d'instruction,Sinistres Habitation,Plafond annuel atteint
+SIN-00116,CLI-11886,2025-07-25,,Auto - Vol,14582.88,0.00,Rejeté - Hors garantie,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00495,CLI-40338,2025-07-26,,Responsabilité civile,6880.18,0.00,Rejeté - Hors garantie,Service Expertise,Virement effectué le à venir
+SIN-00379,CLI-51081,2025-07-27,,Habitation - Catastrophe naturelle,14162.90,0.00,En attente de pièces,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00425,CLI-92999,2025-07-27,,Assistance juridique,5698.20,0.00,En cours d'instruction,Service Juridique,Client contacté pour précisions
+SIN-00040,CLI-59939,2025-07-28,,Santé - Médicaments,4755.46,0.00,Complément d'information requis,Sinistres Santé,Accord amiable trouvé
+SIN-00214,CLI-69078,2025-07-28,,Habitation - Dégât des eaux,1229.41,0.00,En attente de pièces,Sinistres Habitation,Réclamation client en cours
+SIN-00320,CLI-18453,2025-07-28,,Santé - Consultation spécialiste,3812.33,0.00,En attente d'expertise,Sinistres Santé,"Dossier complet, traitement en cours"
+SIN-00118,CLI-17134,2025-07-29,,Responsabilité civile,5598.86,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Expert mandaté - Rendez-vous fixé
+SIN-00154,CLI-68913,2025-07-29,,Responsabilité civile,2580.86,0.00,En attente d'expertise,Service Indemnisation,Réclamation client en cours
+SIN-00176,CLI-44553,2025-07-29,,Responsabilité civile,4263.07,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Procédure accélérée appliquée
+SIN-00188,CLI-89452,2025-07-29,,Auto - Bris de glace,3952.25,0.00,En attente d'expertise,Sinistres Auto,Complément d'information demandé par email
+SIN-00374,CLI-87127,2025-07-29,,Santé - Optique,4765.83,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,Client contacté pour précisions
+SIN-00415,CLI-86428,2025-07-29,,Habitation - Dégât des eaux,8312.59,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Sinistre déclaré hors délai
+SIN-00475,CLI-28036,2025-07-29,,Santé - Consultation spécialiste,3336.70,0.00,En cours d'instruction,Sinistres Santé,Réclamation client en cours
+SIN-00058,CLI-33446,2025-07-31,,Assistance juridique,2047.92,0.00,Validé - En attente de paiement,Service Indemnisation,Remboursement selon barème conventionnel
+SIN-00227,CLI-80537,2025-07-31,,Santé - Consultation spécialiste,1868.79,0.00,En cours d'instruction,Sinistres Santé,Client contacté pour précisions
+SIN-00250,CLI-22784,2025-07-31,,Protection juridique,8983.01,0.00,En cours d'instruction,Service Expertise,Documents manquants : devis de réparation
+SIN-00291,CLI-73471,2025-07-31,,Auto - Bris de glace,10967.27,0.00,En cours d'instruction,Sinistres Auto,Accord amiable trouvé
+SIN-00481,CLI-63029,2025-07-31,2025-09-02,Assistance juridique,3001.68,1811.27,Remboursé partiellement,Service Indemnisation,Virement effectué le 2025-09-02
+SIN-00087,CLI-48085,2025-08-02,,Responsabilité civile,3628.09,0.00,Rejeté - Exclusion contractuelle,Service Expertise,"Factures conformes, validation OK"
+SIN-00168,CLI-29884,2025-08-02,,Responsabilité civile,5291.83,0.00,En attente de pièces,Service Expertise,Procédure accélérée appliquée
+SIN-00191,CLI-86516,2025-08-02,2025-08-21,Santé - Soins dentaires,408.38,247.36,Remboursé partiellement,Sinistres Santé,"Dossier complet, traitement en cours"
+SIN-00363,CLI-74527,2025-08-02,,Habitation - Vol,4447.26,0.00,Complément d'information requis,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00152,CLI-80066,2025-08-03,,Auto - Vol,9195.32,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Dossier prioritaire - sinistre majeur
+SIN-00159,CLI-88240,2025-08-03,,Auto - Incendie,6412.95,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Ticket support créé: JIRA-0175
+SIN-00434,CLI-36295,2025-08-03,2025-08-10,Habitation - Bris de glace,24481.38,24281.38,Remboursé,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00324,CLI-51581,2025-08-04,,Responsabilité civile,8269.28,0.00,Validé - En attente de paiement,Service Indemnisation,Plafond annuel atteint
+SIN-00468,CLI-29406,2025-08-04,,Auto - Incendie,12443.14,0.00,En cours d'instruction,Sinistres Auto,Virement effectué le à venir
+SIN-00478,CLI-35171,2025-08-04,2025-08-26,Habitation - Catastrophe naturelle,22897.23,14412.58,Remboursé partiellement,Sinistres Habitation,Procédure accélérée appliquée
+SIN-00050,CLI-85207,2025-08-05,,Habitation - Catastrophe naturelle,1393.92,0.00,Rejeté - Hors garantie,Sinistres Habitation,Virement effectué le à venir
+SIN-00068,CLI-55269,2025-08-05,2025-09-03,Habitation - Vol,3254.30,2876.93,Remboursé partiellement,Sinistres Habitation,Accord amiable trouvé
+SIN-00225,CLI-30814,2025-08-05,,Habitation - Catastrophe naturelle,4662.50,0.00,Complément d'information requis,Sinistres Habitation,Sinistre déclaré hors délai
+SIN-00309,CLI-79352,2025-08-05,,Assistance juridique,2642.95,0.00,En cours d'instruction,Service Indemnisation,RIB en attente
+SIN-00024,CLI-53270,2025-08-06,,Assistance juridique,9269.49,0.00,En cours d'instruction,Service Juridique,"Factures conformes, validation OK"
+SIN-00074,CLI-51628,2025-08-06,,Santé - Consultation spécialiste,3786.26,0.00,Complément d'information requis,Sinistres Santé,RIB en attente
+SIN-00185,CLI-16676,2025-08-06,,Protection juridique,2947.32,0.00,Rejeté - Exclusion contractuelle,Service Expertise,Remboursement selon barème conventionnel
+SIN-00236,CLI-72454,2025-08-06,,Santé - Soins dentaires,1490.04,0.00,En cours d'instruction,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00317,CLI-32174,2025-08-06,,Habitation - Incendie,18860.22,0.00,En attente de pièces,Sinistres Habitation,Accord amiable trouvé
+SIN-00366,CLI-34986,2025-08-06,,Auto - Accident non-responsable,7027.97,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Virement effectué le à venir
+SIN-00393,CLI-92790,2025-08-06,,Habitation - Incendie,12362.39,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,RIB en attente
+SIN-00005,CLI-76440,2025-08-07,,Santé - Consultation spécialiste,1413.72,0.00,Complément d'information requis,Sinistres Santé,Virement effectué le à venir
+SIN-00328,CLI-19158,2025-08-08,,Habitation - Catastrophe naturelle,9953.16,0.00,En attente d'expertise,Sinistres Habitation,"Factures conformes, validation OK"
+SIN-00454,CLI-46540,2025-08-08,2025-08-14,Habitation - Incendie,5151.27,4851.27,Remboursé,Sinistres Habitation,Client contacté pour précisions
+SIN-00467,CLI-72914,2025-08-08,2025-09-14,Santé - Soins dentaires,1681.59,1681.59,Remboursé,Sinistres Santé,Client contacté pour précisions
+SIN-00034,CLI-58690,2025-08-09,,Santé - Consultation spécialiste,4749.59,0.00,Complément d'information requis,Sinistres Santé,Procédure accélérée appliquée
+SIN-00166,CLI-89891,2025-08-09,,Habitation - Incendie,1936.75,0.00,En cours d'instruction,Sinistres Habitation,Virement effectué le à venir
+SIN-00292,CLI-71475,2025-08-09,,Habitation - Incendie,18198.60,0.00,En cours d'instruction,Sinistres Habitation,Plafond annuel atteint
+SIN-00491,CLI-62469,2025-08-09,2025-08-20,Habitation - Catastrophe naturelle,13538.10,11703.94,Remboursé partiellement,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00042,CLI-47897,2025-08-10,,Habitation - Incendie,3336.63,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Documents manquants : devis de réparation
+SIN-00208,CLI-17181,2025-08-10,2025-09-06,Habitation - Catastrophe naturelle,16049.66,12715.10,Remboursé partiellement,Sinistres Habitation,Accord amiable trouvé
+SIN-00211,CLI-54139,2025-08-10,,Auto - Vol,11543.60,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Complément d'information demandé par email
+SIN-00063,CLI-44583,2025-08-11,,Habitation - Incendie,14270.86,0.00,Rejeté - Hors garantie,Sinistres Habitation,Attente rapport d'expertise
+SIN-00334,CLI-31879,2025-08-11,,Auto - Incendie,11427.50,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Client contacté pour précisions
+SIN-00344,CLI-24250,2025-08-11,,Santé - Optique,1539.70,0.00,Validé - En attente de paiement,Sinistres Santé,Virement effectué le à venir
+SIN-00438,CLI-60348,2025-08-11,,Protection juridique,9801.94,0.00,Complément d'information requis,Service Juridique,"Factures conformes, validation OK"
+SIN-00241,CLI-70746,2025-08-12,,Habitation - Bris de glace,3211.96,0.00,En attente de pièces,Sinistres Habitation,Expert mandaté - Rendez-vous fixé
+SIN-00252,CLI-81687,2025-08-12,,Assistance juridique,6614.70,0.00,Validé - En attente de paiement,Service Juridique,Attente rapport d'expertise
+SIN-00108,CLI-86181,2025-08-13,2025-08-23,Auto - Accident responsable,11295.90,6873.66,Remboursé partiellement,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00164,CLI-63284,2025-08-13,,Auto - Vol,13557.29,0.00,Validé - En attente de paiement,Sinistres Auto,Réclamation client en cours
+SIN-00405,CLI-44559,2025-08-13,,Santé - Optique,2033.50,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,Réclamation client en cours
+SIN-00323,CLI-99317,2025-08-14,,Santé - Optique,3967.20,0.00,En cours d'instruction,Sinistres Santé,Contentieux en cours avec tiers
+SIN-00039,CLI-99271,2025-08-15,,Habitation - Incendie,15276.23,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Virement effectué le à venir
+SIN-00122,CLI-44320,2025-08-15,,Responsabilité civile,9058.58,0.00,En attente de pièces,Service Indemnisation,"Dossier complet, traitement en cours"
+SIN-00196,CLI-73237,2025-08-15,,Auto - Incendie,12050.15,0.00,Validé - En attente de paiement,Sinistres Auto,Documents manquants : devis de réparation
+SIN-00224,CLI-44469,2025-08-15,2025-08-20,Auto - Bris de glace,13467.03,13317.03,Remboursé,Sinistres Auto,Sinistre déclaré hors délai
+SIN-00153,CLI-51692,2025-08-16,,Auto - Vol,13846.98,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Ticket support créé: JIRA-0170
+SIN-00380,CLI-26834,2025-08-17,2025-08-30,Auto - Accident non-responsable,4578.45,4428.45,Remboursé,Sinistres Auto,RIB en attente
+SIN-00202,CLI-88317,2025-08-18,2025-09-11,Responsabilité civile,4359.61,3477.09,Remboursé partiellement,Service Juridique,Remboursement selon barème conventionnel
+SIN-00220,CLI-67558,2025-08-18,,Habitation - Bris de glace,11834.54,0.00,En cours d'instruction,Sinistres Habitation,Accord amiable trouvé
+SIN-00259,CLI-46920,2025-08-18,,Habitation - Catastrophe naturelle,6774.05,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Client contacté pour précisions
+SIN-00319,CLI-71747,2025-08-18,,Auto - Bris de glace,9350.75,0.00,Complément d'information requis,Sinistres Auto,Réclamation client en cours
+SIN-00435,CLI-25293,2025-08-18,,Auto - Accident non-responsable,6836.12,0.00,En attente de pièces,Sinistres Auto,Garantie optionnelle non souscrite
+SIN-00462,CLI-70018,2025-08-18,,Auto - Vol,8005.63,0.00,En cours d'instruction,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00047,CLI-66119,2025-08-19,,Auto - Accident non-responsable,10993.45,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,Expert mandaté - Rendez-vous fixé
+SIN-00197,CLI-31475,2025-08-19,2025-09-04,Habitation - Incendie,4670.60,4170.60,Remboursé,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00274,CLI-74468,2025-08-20,,Santé - Soins dentaires,1705.79,0.00,Complément d'information requis,Sinistres Santé,Accord amiable trouvé
+SIN-00280,CLI-31327,2025-08-20,2025-09-23,Auto - Bris de glace,14711.42,14211.42,Remboursé,Sinistres Auto,Virement effectué le 2025-09-23
+SIN-00332,CLI-56027,2025-08-20,,Habitation - Catastrophe naturelle,18739.07,0.00,Validé - En attente de paiement,Sinistres Habitation,"Factures conformes, validation OK"
+SIN-00378,CLI-35691,2025-08-20,,Auto - Bris de glace,8633.14,0.00,Complément d'information requis,Sinistres Auto,Complément d'information demandé par email
+SIN-00409,CLI-86355,2025-08-20,,Santé - Hospitalisation,2207.29,0.00,Complément d'information requis,Sinistres Santé,"Dossier complet, traitement en cours"
+SIN-00439,CLI-59959,2025-08-20,,Assistance juridique,9185.57,0.00,Rejeté - Franchise non atteinte,Service Expertise,Attente rapport d'expertise
+SIN-00473,CLI-41607,2025-08-20,,Auto - Accident non-responsable,6878.13,0.00,En attente de pièces,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00483,CLI-60717,2025-08-20,2025-09-24,Habitation - Bris de glace,12522.38,7701.29,Remboursé partiellement,Sinistres Habitation,Ticket support créé: JIRA-0461
+SIN-00055,CLI-53208,2025-08-21,,Santé - Optique,3794.01,0.00,En attente de pièces,Sinistres Santé,Réclamation client en cours
+SIN-00062,CLI-76433,2025-08-21,,Assistance juridique,1496.21,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Remboursement selon barème conventionnel
+SIN-00373,CLI-59743,2025-08-21,2025-08-28,Auto - Accident non-responsable,5950.04,4713.54,Remboursé partiellement,Sinistres Auto,Accord amiable trouvé
+SIN-00079,CLI-65094,2025-08-22,,Santé - Consultation spécialiste,3545.38,0.00,Validé - En attente de paiement,Sinistres Santé,Contentieux en cours avec tiers
+SIN-00487,CLI-42991,2025-08-22,2025-09-02,Assistance juridique,1558.48,1258.48,Remboursé,Service Indemnisation,Expert mandaté - Rendez-vous fixé
+SIN-00339,CLI-20017,2025-08-24,,Habitation - Catastrophe naturelle,12890.30,0.00,Rejeté - Hors garantie,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00416,CLI-51275,2025-08-24,2025-09-18,Auto - Accident non-responsable,13156.73,12956.73,Remboursé,Sinistres Auto,Expert mandaté - Rendez-vous fixé
+SIN-00421,CLI-32563,2025-08-24,2025-09-05,Responsabilité civile,7698.85,7548.85,Remboursé,Service Expertise,RIB en attente
+SIN-00354,CLI-97329,2025-08-25,2025-10-07,Santé - Optique,3412.31,2749.48,Remboursé partiellement,Sinistres Santé,Procédure accélérée appliquée
+SIN-00418,CLI-70836,2025-08-25,,Protection juridique,9359.25,0.00,Validé - En attente de paiement,Service Expertise,Documents manquants : devis de réparation
+SIN-00490,CLI-63053,2025-08-25,,Habitation - Bris de glace,15595.64,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Ticket support créé: JIRA-0264
+SIN-00069,CLI-61762,2025-08-26,,Santé - Médicaments,1300.79,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Client contacté pour précisions
+SIN-00349,CLI-20448,2025-08-26,,Auto - Vol,13030.07,0.00,Validé - En attente de paiement,Sinistres Auto,Garantie optionnelle non souscrite
+SIN-00486,CLI-81806,2025-08-26,,Responsabilité civile,6280.95,0.00,En attente d'expertise,Service Juridique,Documents manquants : devis de réparation
+SIN-00295,CLI-76310,2025-08-27,,Habitation - Vol,19457.70,0.00,En attente d'expertise,Sinistres Habitation,Procédure accélérée appliquée
+SIN-00300,CLI-33535,2025-08-27,,Santé - Médicaments,4286.47,0.00,Complément d'information requis,Sinistres Santé,"Factures conformes, validation OK"
+SIN-00318,CLI-31329,2025-08-27,,Auto - Vol,1155.29,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00090,CLI-52114,2025-08-28,,Santé - Médicaments,256.81,0.00,En attente d'expertise,Sinistres Santé,Réclamation client en cours
+SIN-00281,CLI-34201,2025-08-28,2025-09-29,Auto - Vol,12963.51,10256.57,Remboursé partiellement,Sinistres Auto,Virement effectué le 2025-09-29
+SIN-00411,CLI-98431,2025-08-29,,Auto - Bris de glace,8589.69,0.00,En attente d'expertise,Sinistres Auto,Franchise de 150€ appliquée
+SIN-00011,CLI-94442,2025-08-30,2025-10-10,Assistance juridique,5695.01,5495.01,Remboursé,Service Indemnisation,Ticket support créé: JIRA-0032
+SIN-00465,CLI-52340,2025-08-30,2025-10-08,Santé - Hospitalisation,3541.05,2932.92,Remboursé partiellement,Sinistres Santé,Client contacté pour précisions
+SIN-00335,CLI-67221,2025-08-31,,Assistance juridique,6974.20,0.00,Rejeté - Hors garantie,Service Juridique,Sinistre déclaré hors délai
+SIN-00451,CLI-31489,2025-08-31,,Auto - Incendie,8770.64,0.00,En attente de pièces,Sinistres Auto,Accord amiable trouvé
+SIN-00463,CLI-81344,2025-08-31,,Habitation - Bris de glace,17126.18,0.00,Complément d'information requis,Sinistres Habitation,Documents manquants : devis de réparation
+SIN-00396,CLI-10214,2025-09-01,2025-09-16,Habitation - Bris de glace,11652.82,11452.82,Remboursé,Sinistres Habitation,Contentieux en cours avec tiers
+SIN-00160,CLI-25124,2025-09-02,,Auto - Accident non-responsable,4238.54,0.00,Validé - En attente de paiement,Sinistres Auto,Sinistre déclaré hors délai
+SIN-00148,CLI-44353,2025-09-03,,Assistance juridique,8206.98,0.00,Rejeté - Hors garantie,Service Expertise,Documents manquants : devis de réparation
+SIN-00215,CLI-36945,2025-09-03,2025-09-14,Auto - Accident responsable,4813.47,3247.95,Remboursé partiellement,Sinistres Auto,Franchise de 150€ appliquée
+SIN-00237,CLI-61227,2025-09-03,,Santé - Soins dentaires,2449.79,0.00,En attente de pièces,Sinistres Santé,Plafond annuel atteint
+SIN-00266,CLI-18705,2025-09-03,2025-10-07,Santé - Hospitalisation,3147.73,2661.64,Remboursé partiellement,Sinistres Santé,Remboursement selon barème conventionnel
+SIN-00017,CLI-67025,2025-09-04,,Auto - Incendie,9747.84,0.00,En cours d'instruction,Sinistres Auto,RIB en attente
+SIN-00082,CLI-97108,2025-09-04,,Habitation - Vol,2602.32,0.00,Rejeté - Hors garantie,Sinistres Habitation,Accord amiable trouvé
+SIN-00103,CLI-15502,2025-09-04,,Habitation - Vol,14685.79,0.00,Complément d'information requis,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00231,CLI-99627,2025-09-04,,Auto - Accident responsable,12432.40,0.00,En attente d'expertise,Sinistres Auto,Dossier prioritaire - sinistre majeur
+SIN-00498,CLI-26896,2025-09-04,,Santé - Hospitalisation,4956.66,0.00,Complément d'information requis,Sinistres Santé,Plafond annuel atteint
+SIN-00269,CLI-91094,2025-09-05,,Habitation - Incendie,9733.11,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Garantie optionnelle non souscrite
+SIN-00327,CLI-25509,2025-09-05,,Santé - Hospitalisation,2347.33,0.00,En attente d'expertise,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00098,CLI-60301,2025-09-06,2025-10-15,Assistance juridique,843.64,543.64,Remboursé,Service Expertise,Documents manquants : devis de réparation
+SIN-00228,CLI-50772,2025-09-06,2025-10-19,Auto - Bris de glace,8632.45,8432.45,Remboursé,Sinistres Auto,Garantie optionnelle non souscrite
+SIN-00059,CLI-40458,2025-09-07,2025-10-18,Santé - Soins dentaires,1006.75,506.75,Remboursé,Sinistres Santé,Plafond annuel atteint
+SIN-00362,CLI-30060,2025-09-07,,Santé - Soins dentaires,4808.89,0.00,En cours d'instruction,Sinistres Santé,Sinistre déclaré hors délai
+SIN-00308,CLI-12472,2025-09-08,2025-10-12,Auto - Vol,14122.46,11867.34,Remboursé partiellement,Sinistres Auto,Ticket support créé: JIRA-0476
+SIN-00316,CLI-34592,2025-09-08,,Auto - Bris de glace,9379.55,0.00,Validé - En attente de paiement,Sinistres Auto,Documents manquants : devis de réparation
+SIN-00037,CLI-45285,2025-09-09,,Santé - Consultation spécialiste,2819.57,0.00,Validé - En attente de paiement,Sinistres Santé,Procédure accélérée appliquée
+SIN-00348,CLI-12541,2025-09-09,2025-10-16,Habitation - Dégât des eaux,17347.73,11146.72,Remboursé partiellement,Sinistres Habitation,Complément d'information demandé par email
+SIN-00386,CLI-65428,2025-09-09,2025-10-19,Santé - Consultation spécialiste,2104.20,1426.97,Remboursé partiellement,Sinistres Santé,Virement effectué le 2025-10-19
+SIN-00004,CLI-28901,2025-09-10,2025-10-03,Habitation - Bris de glace,23560.15,15373.50,Remboursé partiellement,Sinistres Habitation,Ticket support créé: JIRA-0379
+SIN-00032,CLI-86190,2025-09-10,,Santé - Médicaments,2177.59,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,RIB en attente
+SIN-00038,CLI-87706,2025-09-10,,Auto - Vol,5173.45,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00265,CLI-80964,2025-09-10,,Auto - Vol,4498.53,0.00,En cours d'instruction,Sinistres Auto,Complément d'information demandé par email
+SIN-00031,CLI-52799,2025-09-11,,Protection juridique,6164.58,0.00,Validé - En attente de paiement,Service Juridique,RIB en attente
+SIN-00174,CLI-22238,2025-09-11,,Santé - Soins dentaires,4302.67,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,Attente rapport d'expertise
+SIN-00262,CLI-32384,2025-09-11,,Santé - Médicaments,4710.82,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,Garantie optionnelle non souscrite
+SIN-00456,CLI-75143,2025-09-11,2025-10-06,Habitation - Vol,19066.80,16266.09,Remboursé partiellement,Sinistres Habitation,Expert mandaté - Rendez-vous fixé
+SIN-00479,CLI-23375,2025-09-11,2025-10-09,Habitation - Vol,3466.21,3316.21,Remboursé,Sinistres Habitation,Attente rapport d'expertise
+SIN-00014,CLI-92434,2025-09-12,,Auto - Accident non-responsable,3357.88,0.00,En attente de pièces,Sinistres Auto,Plafond annuel atteint
+SIN-00247,CLI-42450,2025-09-12,,Auto - Incendie,680.89,0.00,Rejeté - Franchise non atteinte,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00429,CLI-66880,2025-09-12,,Auto - Accident non-responsable,1590.30,0.00,En attente d'expertise,Sinistres Auto,"Dossier complet, traitement en cours"
+SIN-00198,CLI-53508,2025-09-13,,Santé - Médicaments,2658.21,0.00,En attente d'expertise,Sinistres Santé,Virement effectué le à venir
+SIN-00006,CLI-95158,2025-09-14,,Assistance juridique,1476.78,0.00,En cours d'instruction,Service Indemnisation,Contentieux en cours avec tiers
+SIN-00044,CLI-48136,2025-09-14,,Habitation - Catastrophe naturelle,24408.45,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00115,CLI-59403,2025-09-14,,Assistance juridique,9137.47,0.00,Rejeté - Hors garantie,Service Indemnisation,"Factures conformes, validation OK"
+SIN-00447,CLI-45219,2025-09-14,,Auto - Accident responsable,5053.19,0.00,Rejeté - Hors garantie,Sinistres Auto,Garantie optionnelle non souscrite
+SIN-00459,CLI-46597,2025-09-15,,Auto - Accident non-responsable,5533.84,0.00,Validé - En attente de paiement,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00461,CLI-89368,2025-09-15,,Santé - Hospitalisation,2188.53,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,RIB en attente
+SIN-00376,CLI-51622,2025-09-16,,Habitation - Catastrophe naturelle,3799.35,0.00,Complément d'information requis,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00094,CLI-44622,2025-09-17,,Habitation - Vol,3397.24,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Réclamation client en cours
+SIN-00187,CLI-89528,2025-09-17,,Habitation - Bris de glace,23653.16,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Ticket support créé: JIRA-0264
+SIN-00314,CLI-59101,2025-09-17,,Habitation - Dégât des eaux,3209.11,0.00,En attente de pièces,Sinistres Habitation,Attente rapport d'expertise
+SIN-00007,CLI-42015,2025-09-18,,Santé - Consultation spécialiste,2301.68,0.00,Rejeté - Hors garantie,Sinistres Santé,Plafond annuel atteint
+SIN-00298,CLI-96179,2025-09-18,,Santé - Soins dentaires,1183.15,0.00,En cours d'instruction,Sinistres Santé,Accord amiable trouvé
+SIN-00388,CLI-75420,2025-09-18,2025-10-20,Habitation - Bris de glace,1625.32,1475.32,Remboursé,Sinistres Habitation,Ticket support créé: JIRA-0474
+SIN-00008,CLI-41626,2025-09-20,2025-10-18,Auto - Accident non-responsable,3244.69,2944.69,Remboursé,Sinistres Auto,Contentieux en cours avec tiers
+SIN-00041,CLI-52286,2025-09-20,,Responsabilité civile,1667.73,0.00,Rejeté - Franchise non atteinte,Service Expertise,Garantie optionnelle non souscrite
+SIN-00180,CLI-66218,2025-09-20,,Responsabilité civile,8389.59,0.00,En attente d'expertise,Service Expertise,Procédure accélérée appliquée
+SIN-00289,CLI-14300,2025-09-20,,Santé - Consultation spécialiste,157.83,0.00,Rejeté - Hors garantie,Sinistres Santé,"Dossier complet, traitement en cours"
+SIN-00351,CLI-33614,2025-09-20,,Auto - Accident responsable,8443.78,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00410,CLI-15167,2025-09-20,2025-10-19,Habitation - Bris de glace,2388.97,2388.97,Remboursé,Sinistres Habitation,Ticket support créé: JIRA-0118
+SIN-00472,CLI-78396,2025-09-20,,Santé - Optique,1197.21,0.00,En attente d'expertise,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00157,CLI-22968,2025-09-21,,Responsabilité civile,663.58,0.00,En attente d'expertise,Service Indemnisation,Virement effectué le à venir
+SIN-00194,CLI-68924,2025-09-21,,Habitation - Catastrophe naturelle,18185.33,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,RIB en attente
+SIN-00199,CLI-33595,2025-09-21,2025-10-21,Habitation - Bris de glace,13048.12,7895.29,Remboursé partiellement,Sinistres Habitation,"Dossier complet, traitement en cours"
+SIN-00264,CLI-43421,2025-09-22,,Protection juridique,8847.80,0.00,Rejeté - Franchise non atteinte,Service Juridique,Réclamation client en cours
+SIN-00346,CLI-98861,2025-09-22,,Responsabilité civile,8640.00,0.00,Rejeté - Exclusion contractuelle,Service Indemnisation,Complément d'information demandé par email
+SIN-00080,CLI-53492,2025-09-23,2025-10-18,Habitation - Bris de glace,11106.56,7276.16,Remboursé partiellement,Sinistres Habitation,"Factures conformes, validation OK"
+SIN-00406,CLI-72770,2025-09-23,2025-10-21,Auto - Incendie,6150.67,5850.67,Remboursé,Sinistres Auto,Dossier prioritaire - sinistre majeur
+SIN-00054,CLI-83502,2025-09-24,2025-10-18,Habitation - Dégât des eaux,4672.82,4372.82,Remboursé,Sinistres Habitation,Attente rapport d'expertise
+SIN-00190,CLI-15088,2025-09-24,,Auto - Vol,2425.49,0.00,En cours d'instruction,Sinistres Auto,Procédure accélérée appliquée
+SIN-00203,CLI-13334,2025-09-24,2025-10-08,Responsabilité civile,472.03,272.03,Remboursé,Service Juridique,Accord amiable trouvé
+SIN-00306,CLI-53202,2025-09-24,,Auto - Accident responsable,7566.13,0.00,En attente d'expertise,Sinistres Auto,Ticket support créé: JIRA-0275
+SIN-00422,CLI-51830,2025-09-24,2025-10-09,Santé - Soins dentaires,4496.99,3996.99,Remboursé,Sinistres Santé,Attente rapport d'expertise
+SIN-00132,CLI-85440,2025-09-25,2025-10-10,Responsabilité civile,883.69,733.69,Remboursé,Service Juridique,Plafond annuel atteint
+SIN-00222,CLI-62370,2025-09-25,,Habitation - Incendie,7744.11,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,"Factures conformes, validation OK"
+SIN-00105,CLI-97225,2025-09-26,,Auto - Accident non-responsable,1885.97,0.00,En attente de pièces,Sinistres Auto,Garantie optionnelle non souscrite
+SIN-00158,CLI-94967,2025-09-26,,Assistance juridique,5949.82,0.00,Rejeté - Franchise non atteinte,Service Juridique,Procédure accélérée appliquée
+SIN-00441,CLI-90642,2025-09-26,,Auto - Vol,8335.58,0.00,En attente d'expertise,Sinistres Auto,Client contacté pour précisions
+SIN-00028,CLI-69063,2025-09-27,,Habitation - Catastrophe naturelle,3499.99,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Ticket support créé: JIRA-0343
+SIN-00432,CLI-42480,2025-09-27,,Auto - Bris de glace,1590.57,0.00,Validé - En attente de paiement,Sinistres Auto,Ticket support créé: JIRA-0406
+SIN-00474,CLI-99213,2025-09-27,,Responsabilité civile,4579.56,0.00,Rejeté - Exclusion contractuelle,Service Juridique,Procédure accélérée appliquée
+SIN-00192,CLI-54878,2025-09-28,,Habitation - Catastrophe naturelle,23094.56,0.00,Rejeté - Hors garantie,Sinistres Habitation,Réclamation client en cours
+SIN-00212,CLI-30121,2025-09-28,,Habitation - Incendie,15330.78,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00460,CLI-84115,2025-09-28,,Habitation - Vol,22751.24,0.00,Rejeté - Hors garantie,Sinistres Habitation,Attente rapport d'expertise
+SIN-00485,CLI-38988,2025-09-28,,Assistance juridique,6333.66,0.00,Rejeté - Hors garantie,Service Juridique,Virement effectué le à venir
+SIN-00049,CLI-16499,2025-09-29,2025-10-20,Auto - Incendie,13086.12,9538.83,Remboursé partiellement,Sinistres Auto,Remboursement selon barème conventionnel
+SIN-00143,CLI-56294,2025-09-29,,Auto - Accident responsable,10765.13,0.00,Validé - En attente de paiement,Sinistres Auto,Documents manquants : devis de réparation
+SIN-00285,CLI-27865,2025-09-29,2025-10-29,Santé - Hospitalisation,3193.77,1941.26,Remboursé partiellement,Sinistres Santé,Contentieux en cours avec tiers
+SIN-00273,CLI-82166,2025-09-30,2025-10-14,Santé - Soins dentaires,2147.21,1658.84,Remboursé partiellement,Sinistres Santé,Dossier prioritaire - sinistre majeur
+SIN-00097,CLI-91246,2025-10-01,,Auto - Accident responsable,7441.52,0.00,En attente d'expertise,Sinistres Auto,Procédure accélérée appliquée
+SIN-00147,CLI-64674,2025-10-02,,Santé - Optique,1937.24,0.00,En cours d'instruction,Sinistres Santé,Remboursement selon barème conventionnel
+SIN-00329,CLI-59832,2025-10-02,,Protection juridique,2039.64,0.00,En attente de pièces,Service Juridique,Garantie optionnelle non souscrite
+SIN-00353,CLI-85111,2025-10-02,,Habitation - Vol,17237.02,0.00,En attente d'expertise,Sinistres Habitation,Ticket support créé: JIRA-0054
+SIN-00382,CLI-57504,2025-10-02,,Habitation - Vol,13380.59,0.00,Rejeté - Exclusion contractuelle,Sinistres Habitation,Plafond annuel atteint
+SIN-00426,CLI-28713,2025-10-02,,Santé - Hospitalisation,1844.38,0.00,En attente d'expertise,Sinistres Santé,Expert mandaté - Rendez-vous fixé
+SIN-00482,CLI-64473,2025-10-02,,Habitation - Incendie,15872.56,0.00,En attente d'expertise,Sinistres Habitation,Ticket support créé: JIRA-0319
+SIN-00067,CLI-73547,2025-10-03,,Responsabilité civile,290.96,0.00,Complément d'information requis,Service Indemnisation,Contentieux en cours avec tiers
+SIN-00377,CLI-35980,2025-10-03,,Auto - Accident responsable,14800.12,0.00,Rejeté - Hors garantie,Sinistres Auto,Complément d'information demandé par email
+SIN-00195,CLI-99619,2025-10-04,2025-11-01,Habitation - Catastrophe naturelle,18574.97,18074.97,Remboursé,Sinistres Habitation,Virement effectué le 2025-11-01
+SIN-00326,CLI-40549,2025-10-04,,Santé - Consultation spécialiste,661.54,0.00,En cours d'instruction,Sinistres Santé,Franchise de 150€ appliquée
+SIN-00445,CLI-28960,2025-10-04,2025-11-08,Habitation - Catastrophe naturelle,22992.67,19287.58,Remboursé partiellement,Sinistres Habitation,Procédure accélérée appliquée
+SIN-00046,CLI-41708,2025-10-05,,Santé - Consultation spécialiste,3310.39,0.00,Rejeté - Hors garantie,Sinistres Santé,Expert mandaté - Rendez-vous fixé
+SIN-00182,CLI-29947,2025-10-05,,Santé - Médicaments,361.24,0.00,En attente d'expertise,Sinistres Santé,Virement effectué le à venir
+SIN-00458,CLI-97316,2025-10-05,,Santé - Optique,271.31,0.00,Validé - En attente de paiement,Sinistres Santé,Virement effectué le à venir
+SIN-00359,CLI-66247,2025-10-06,,Protection juridique,1402.62,0.00,En attente de pièces,Service Indemnisation,Procédure accélérée appliquée
+SIN-00408,CLI-57823,2025-10-06,,Santé - Consultation spécialiste,3537.98,0.00,En attente de pièces,Sinistres Santé,Attente rapport d'expertise
+SIN-00170,CLI-62466,2025-10-07,,Auto - Accident non-responsable,14752.24,0.00,En attente d'expertise,Sinistres Auto,Documents manquants : devis de réparation
+SIN-00400,CLI-42211,2025-10-07,2025-10-19,Santé - Optique,4762.17,4612.17,Remboursé,Sinistres Santé,Procédure accélérée appliquée
+SIN-00466,CLI-75104,2025-10-07,2025-11-07,Habitation - Vol,22600.18,22300.18,Remboursé,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00110,CLI-82150,2025-10-08,,Santé - Soins dentaires,4619.50,0.00,Validé - En attente de paiement,Sinistres Santé,Procédure accélérée appliquée
+SIN-00279,CLI-61894,2025-10-08,,Habitation - Catastrophe naturelle,23122.15,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Complément d'information demandé par email
+SIN-00453,CLI-27995,2025-10-08,,Habitation - Incendie,1619.76,0.00,En cours d'instruction,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00257,CLI-53836,2025-10-09,,Santé - Consultation spécialiste,1363.88,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,Documents manquants : devis de réparation
+SIN-00283,CLI-40640,2025-10-09,,Auto - Accident non-responsable,11252.16,0.00,En attente d'expertise,Sinistres Auto,Client contacté pour précisions
+SIN-00305,CLI-47385,2025-10-10,,Santé - Consultation spécialiste,1109.66,0.00,Rejeté - Hors garantie,Sinistres Santé,Contentieux en cours avec tiers
+SIN-00455,CLI-26429,2025-10-10,2025-11-06,Habitation - Catastrophe naturelle,5739.37,4933.58,Remboursé partiellement,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00023,CLI-19792,2025-10-11,2025-11-21,Auto - Bris de glace,10366.06,10166.06,Remboursé,Sinistres Auto,Plafond annuel atteint
+SIN-00025,CLI-88391,2025-10-11,,Habitation - Catastrophe naturelle,9922.89,0.00,Complément d'information requis,Sinistres Habitation,Documents manquants : devis de réparation
+SIN-00322,CLI-98075,2025-10-11,,Santé - Consultation spécialiste,1625.82,0.00,Rejeté - Exclusion contractuelle,Sinistres Santé,"Dossier complet, traitement en cours"
+SIN-00333,CLI-77823,2025-10-11,,Habitation - Catastrophe naturelle,10134.88,0.00,Rejeté - Hors garantie,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00401,CLI-88844,2025-10-11,,Habitation - Bris de glace,20887.69,0.00,Validé - En attente de paiement,Sinistres Habitation,Franchise de 150€ appliquée
+SIN-00117,CLI-53925,2025-10-12,,Responsabilité civile,9517.73,0.00,Rejeté - Exclusion contractuelle,Service Expertise,Plafond annuel atteint
+SIN-00139,CLI-88626,2025-10-12,,Protection juridique,5297.11,0.00,En attente de pièces,Service Juridique,Virement effectué le à venir
+SIN-00200,CLI-69107,2025-10-12,,Auto - Incendie,10744.62,0.00,En cours d'instruction,Sinistres Auto,Dossier prioritaire - sinistre majeur
+SIN-00260,CLI-95696,2025-10-12,,Habitation - Bris de glace,24536.99,0.00,Rejeté - Franchise non atteinte,Sinistres Habitation,Remboursement selon barème conventionnel
+SIN-00296,CLI-70657,2025-10-12,,Auto - Incendie,7904.81,0.00,En attente de pièces,Sinistres Auto,Expert mandaté - Rendez-vous fixé
+SIN-00307,CLI-45927,2025-10-13,2025-11-12,Auto - Bris de glace,5709.14,5709.14,Remboursé,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00395,CLI-93481,2025-10-13,,Santé - Médicaments,368.79,0.00,En attente de pièces,Sinistres Santé,Remboursement selon barème conventionnel
+SIN-00085,CLI-58833,2025-10-14,,Assistance juridique,4398.83,0.00,Complément d'information requis,Service Juridique,Remboursement selon barème conventionnel
+SIN-00492,CLI-14917,2025-10-14,,Responsabilité civile,4879.26,0.00,En attente de pièces,Service Indemnisation,RIB en attente
+SIN-00114,CLI-41092,2025-10-15,,Responsabilité civile,5396.85,0.00,Validé - En attente de paiement,Service Expertise,Dossier prioritaire - sinistre majeur
+SIN-00304,CLI-98914,2025-10-15,,Auto - Accident responsable,14870.81,0.00,En cours d'instruction,Sinistres Auto,"Factures conformes, validation OK"
+SIN-00500,CLI-51284,2025-10-15,,Santé - Hospitalisation,4265.49,0.00,En attente de pièces,Sinistres Santé,Virement effectué le à venir
+SIN-00065,CLI-48802,2025-10-16,2025-11-01,Auto - Vol,5215.77,4138.74,Remboursé partiellement,Sinistres Auto,Plafond annuel atteint
+SIN-00340,CLI-39837,2025-10-16,,Assistance juridique,3588.92,0.00,En cours d'instruction,Service Expertise,Virement effectué le à venir
+SIN-00060,CLI-80164,2025-10-17,2025-11-16,Responsabilité civile,4996.91,3690.03,Remboursé partiellement,Service Juridique,Documents manquants : devis de réparation
+SIN-00133,CLI-78857,2025-10-17,,Habitation - Catastrophe naturelle,16336.95,0.00,Rejeté - Hors garantie,Sinistres Habitation,Dossier prioritaire - sinistre majeur
+SIN-00141,CLI-95606,2025-10-17,2025-11-14,Habitation - Dégât des eaux,1065.11,687.06,Remboursé partiellement,Sinistres Habitation,Franchise de 150€ appliquée
+SIN-00267,CLI-60994,2025-10-17,,Santé - Hospitalisation,212.63,0.00,Validé - En attente de paiement,Sinistres Santé,"Factures conformes, validation OK"
+SIN-00321,CLI-42402,2025-10-17,2025-10-25,Habitation - Bris de glace,10015.82,8802.95,Remboursé partiellement,Sinistres Habitation,Expert mandaté - Rendez-vous fixé
+SIN-00398,CLI-53977,2025-10-17,,Auto - Bris de glace,7313.97,0.00,Rejeté - Exclusion contractuelle,Sinistres Auto,Ticket support créé: JIRA-0214
+SIN-00053,CLI-42669,2025-10-18,,Habitation - Bris de glace,9459.93,0.00,En attente d'expertise,Sinistres Habitation,Plafond annuel atteint
+SIN-00172,CLI-40195,2025-10-18,,Santé - Soins dentaires,1484.55,0.00,Validé - En attente de paiement,Sinistres Santé,Accord amiable trouvé
+SIN-00207,CLI-87931,2025-10-18,,Santé - Soins dentaires,3088.77,0.00,Rejeté - Franchise non atteinte,Sinistres Santé,"Factures conformes, validation OK"
+SIN-00480,CLI-81353,2025-10-18,,Responsabilité civile,8583.26,0.00,Complément d'information requis,Service Juridique,Sinistre déclaré hors délai
