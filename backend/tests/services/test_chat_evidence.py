@@ -1,5 +1,3 @@
-import pytest
-
 from typing import Any, Dict, List, Tuple
 
 from insight_backend.services.chat_service import ChatService
@@ -100,4 +98,3 @@ def test_emit_evidence_with_derived_sql():
     kinds = [k for k, _ in bucket]
     assert kinds.count("sql") >= 1
     assert "meta" in kinds and "rows" in kinds
-

@@ -182,6 +182,193 @@ class ChatService:
                     _preview_text(contextual_question, limit=200),
                 )
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
+                
+                # Multi‑agent mode (Explorer + Analyst)
+                multiagent_flag = (payload.metadata or {}).get("multiagent") if isinstance(payload.metadata, dict) else None
+                multiagent_enabled = bool(multiagent_flag) if (multiagent_flag is not None) else settings.nl2sql_multiagent_enabled
+                if multiagent_enabled:
+                    evidence: list[dict[str, object]] = []
+                    last_columns: list[Any] = []
+                    last_rows: list[Any] = []
+                    rounds = max(1, settings.nl2sql_explore_rounds)
+                    min_rows = max(0, settings.nl2sql_satisfaction_min_rows)
+                    if events:
+                        try:
+                            events(
+                                "plan",
+                                {
+                                    "mode": "multiagent",
+                                    "explore_rounds": rounds,
+                                    "satisfaction_min_rows": min_rows,
+                                },
+                            )
+                        except Exception:  # pragma: no cover
+                            pass
+                    for r in range(1, rounds + 1):
+                        try:
+                            observations = None
+                            if evidence:
+                                # Keep a compact summary for prompt control
+                                try:
+                                    observations = f"Evidence so far: {len(evidence)} items."
+                                except Exception:
+                                    observations = None
+                            plan = nl2sql.explore(
+                                question=contextual_question,
+                                schema=schema,
+                                max_steps=settings.nl2sql_plan_max_steps,
+                                observations=observations,
+                            )
+                            log.info("NL2SQL explore round %d: %d queries", r, len(plan))
+                            if events:
+                                try:
+                                    events("plan", {"round": r, "steps": plan, "purpose": "explore"})
+                                except Exception:  # pragma: no cover
+                                    pass
+                        except Exception as e:
+                            log.error("NL2SQL explore failed (round %d): %s", r, e)
+                            return self._log_completion(
+                                ChatResponse(
+                                    reply=f"Échec de l'exploration (tour {r}): {e}\n{self._llm_diag()}",
+                                    metadata={"provider": "nl2sql-explore"},
+                                ),
+                                context="completion done (nl2sql-explore-error)",
+                            )
+                        # Execute exploration queries
+                        for idx, item in enumerate(plan, start=1):
+                            sql = item["sql"]
+                            purpose = item.get("purpose", "explore")
+                            log.info("MindsDB SQL (explore r=%d step=%d) [%s]: %s", r, idx, purpose or "explore", _preview_text(str(sql), limit=200))
+                            if events:
+                                try:
+                                    events("sql", {"sql": sql, "purpose": "explore", "round": r, "step": idx})
+                                except Exception:
+                                    log.warning("Failed to emit sql event (explore)", exc_info=True)
+                            data = client.sql(sql)
+                            columns, rows = self._normalize_result(data)
+                            if events:
+                                try:
+                                    events(
+                                        "rows",
+                                        {
+                                            "round": r,
+                                            "step": idx,
+                                            "purpose": "explore",
+                                            "columns": columns,
+                                            "rows": rows,
+                                            "row_count": len(rows),
+                                        },
+                                    )
+                                except Exception:
+                                    log.warning("Failed to emit rows event (explore)", exc_info=True)
+                            evidence.append({"purpose": purpose or "explore", "sql": sql, "columns": columns, "rows": rows})
+                            if columns and rows:
+                                last_columns = columns
+                                last_rows = rows
+
+                        # Ask Explorateur to propose chart axes based on evidence (optional)
+                        try:
+                            axes = nl2sql.propose_axes(
+                                question=contextual_question,
+                                schema=schema,
+                                evidence=evidence,
+                                max_items=3,
+                            )
+                            log.info("Axes proposés (r=%d): %s", r, axes)
+                            if events:
+                                try:
+                                    events("meta", {"axes_suggestions": axes, "round": r})
+                                except Exception:
+                                    log.warning("Failed to emit axes suggestions", exc_info=True)
+                        except Exception as e:
+                            log.warning("Proposition d'axes indisponible: %s", e)
+
+                        # Ask Analyst to produce final SQL using evidence
+                        try:
+                            final_sql = nl2sql.generate_with_evidence(
+                                question=contextual_question,
+                                schema=schema,
+                                evidence=evidence,
+                            )
+                        except Exception as e:
+                            log.error("NL2SQL analyst failed to generate SQL: %s", e)
+                            return self._log_completion(
+                                ChatResponse(
+                                    reply=f"Échec de la génération SQL (analyste): {e}\n{self._llm_diag()}",
+                                    metadata={"provider": "nl2sql-analyst"},
+                                ),
+                                context="completion done (nl2sql-analyst-error)",
+                            )
+                        log.info("MindsDB SQL (final): %s", _preview_text(str(final_sql), limit=200))
+                        if events:
+                            try:
+                                events("sql", {"sql": final_sql, "purpose": "answer", "round": r})
+                            except Exception:
+                                log.warning("Failed to emit sql event (final)", exc_info=True)
+                        result = client.sql(final_sql)
+                        fcols, frows = self._normalize_result(result)
+                        if events:
+                            try:
+                                events(
+                                    "rows",
+                                    {
+                                        "purpose": "answer",
+                                        "round": r,
+                                        "columns": fcols,
+                                        "rows": frows,
+                                        "row_count": len(frows),
+                                    },
+                                )
+                            except Exception:
+                                log.warning("Failed to emit rows event (final)", exc_info=True)
+                        # Emit evidence for the side panel based on the final result or last non-empty exploration
+                        self._emit_evidence(
+                            events=events,
+                            client=client,
+                            label_hint=raw_question,
+                            base_sql=final_sql,
+                            fallback_columns=last_columns,
+                            fallback_rows=last_rows,
+                        )
+                        if len(frows) >= min_rows:
+                            # Writer: synthesize final textual interpretation
+                            try:
+                                ev_for_answer = evidence + [{"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}]
+                                answer = nl2sql.write(question=contextual_question, evidence=ev_for_answer).strip()
+                                reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                                return self._log_completion(
+                                    ChatResponse(
+                                        reply=reply_text,
+                                        metadata={
+                                            "provider": "nl2sql-multiagent",
+                                            "rounds_used": r,
+                                            "sql": final_sql,
+                                            "agents": ["explorateur", "analyste", "redaction"],
+                                        },
+                                    ),
+                                    context="completion done (nl2sql-multiagent)",
+                                )
+                            except Exception as e:
+                                # Do not mask; bubble up explicitly
+                                return self._log_completion(
+                                    ChatResponse(
+                                        reply=f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}",
+                                        metadata={"provider": "nl2sql-multiagent-synth"},
+                                    ),
+                                    context="completion done (nl2sql-multiagent-synth-error)",
+                                )
+                        # Not satisfied; continue another explore round if available
+                    # After all rounds, no satisfactory result
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=(
+                                "Impossible de produire une réponse satisfaisante après l'exploration. "
+                                "Affinez votre question ou vérifiez les données disponibles.\n" + self._llm_diag()
+                            ),
+                            metadata={"provider": "nl2sql-multiagent-empty"},
+                        ),
+                        context="completion done (nl2sql-multiagent-empty)",
+                    )
 
                 # Multi-step planning if enabled
                 if settings.nl2sql_plan_enabled:
@@ -480,7 +667,7 @@ class ChatService:
             if re.search(r";|\b(insert|update|delete|alter|drop|create)\b", base, re.I):
                 return None
             return base
-        except Exception as e:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover - defensive
             log.warning("_derive_evidence_sql failed", exc_info=True)
             return None
 

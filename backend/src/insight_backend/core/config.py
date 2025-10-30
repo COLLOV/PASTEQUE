@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     nl2sql_plan_enabled: bool = Field(False, alias="NL2SQL_PLAN_ENABLED")
     nl2sql_plan_max_steps: int = Field(3, alias="NL2SQL_PLAN_MAX_STEPS")
 
+    # NL→SQL multi‑agent (Explorer + Analyst)
+    nl2sql_multiagent_enabled: bool = Field(False, alias="NL2SQL_MULTIAGENT_ENABLED")
+    nl2sql_explore_rounds: int = Field(1, alias="NL2SQL_EXPLORE_ROUNDS")
+    nl2sql_satisfaction_min_rows: int = Field(1, alias="NL2SQL_SATISFACTION_MIN_ROWS")
+
     @property
     def allowed_origins(self) -> List[str]:
         if self.allowed_origins_raw:
