@@ -13,6 +13,35 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
+### Dictionnaire de données (YAML)
+
+But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
+
+- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionnary`).
+- Format: 1 fichier YAML par table (`<table>.yml`), par ex. `tickets_jira.yml`.
+- Schéma minimal:
+
+```yaml
+version: 1
+table: tickets_jira
+title: Tickets Jira
+description: Tickets d'incidents JIRA
+columns:
+  - name: ticket_id
+    description: Identifiant unique du ticket
+    type: integer
+    synonyms: [id, issue_id]
+    pii: false
+  - name: created_at
+    description: Date de création (YYYY-MM-DD)
+    type: date
+    pii: false
+```
+
+Chargement et usage:
+- `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
+- Le contenu est injecté en JSON compact dans le prompt NL→SQL (première question multi‑agent comprise), avec une taille plafonnée.
+
 ### Base de données & authentification
 
 - Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :

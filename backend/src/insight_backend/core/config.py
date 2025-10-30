@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     data_root: str = Field("../data", alias="DATA_ROOT")
     vector_store_path: str = Field("../data/vector_store", alias="VECTOR_STORE_PATH")
     tables_dir: str = Field("../data", alias="DATA_TABLES_DIR")
+    data_dictionary_dir: str = Field("../data/dictionnary", alias="DATA_DICTIONARY_DIR")
 
     # LLM configuration
     llm_mode: str = Field("local", alias="LLM_MODE")  # "local" | "api"

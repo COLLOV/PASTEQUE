@@ -7,6 +7,7 @@ from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
+from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 
 
@@ -175,11 +176,27 @@ class ChatService:
                 for name in tables:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
+                # Load compact data dictionary (if available) limited to the current schema
+                dico_repo = DataDictionaryRepository(directory=Path(settings.data_dictionary_dir))
+                dico = dico_repo.for_schema(schema)
+                contextual_question_with_dico = contextual_question
+                if dico:
+                    try:
+                        import json as _json
+                        blob = _json.dumps(dico, ensure_ascii=False)
+                        # Cap to a reasonable size to keep prompts small
+                        if len(blob) > 6000:
+                            blob = blob[:6000] + "…"
+                        contextual_question_with_dico = (
+                            f"{contextual_question}\n\nData dictionary (JSON):\n{blob}"
+                        )
+                    except Exception:
+                        pass
                 nl2sql = NL2SQLService()
                 log.info(
                     "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
                     _preview_text(raw_question, limit=200),
-                    _preview_text(contextual_question, limit=200),
+                    _preview_text(contextual_question_with_dico, limit=200),
                 )
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
                 
@@ -214,7 +231,7 @@ class ChatService:
                                 except Exception:
                                     observations = None
                             plan = nl2sql.explore(
-                                question=contextual_question,
+                                question=contextual_question_with_dico,
                                 schema=schema,
                                 max_steps=settings.nl2sql_plan_max_steps,
                                 observations=observations,
@@ -286,7 +303,7 @@ class ChatService:
                         # Ask Analyst to produce final SQL using evidence
                         try:
                             final_sql = nl2sql.generate_with_evidence(
-                                question=contextual_question,
+                                question=contextual_question_with_dico,
                                 schema=schema,
                                 evidence=evidence,
                             )
