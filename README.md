@@ -17,9 +17,9 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 
 Script combiné (depuis la racine):
 
-- `./start.sh` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), recrée systématiquement le conteneur `mindsdb_container` via `${CONTAINER_RUNTIME} run …` (`CONTAINER_RUNTIME` défini dans `backend/.env`, valeurs supportées : `docker` ou `podman`), attend que l’API MindsDB réponde, synchronise les tables locales, puis configure `ALLOWED_ORIGINS` côté backend avant de lancer backend, frontend et SSR. Les hôtes/ports sont lus dans `backend/.env` (`BACKEND_DEV_URL`) et `frontend/.env.development` (`FRONTEND_DEV_URL`), tandis que `VITE_API_URL` sert de base d’appels pour le frontend. Optionnellement, `FRONTEND_URLS` peut lister plusieurs origines pour CORS (séparées par des virgules).
+- `./start.sh [<frontend_port> <backend_port>]` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), recrée systématiquement le conteneur `mindsdb_container` via `${CONTAINER_RUNTIME} run …` (`CONTAINER_RUNTIME` défini dans `backend/.env`, valeurs supportées : `docker` ou `podman`), attend que l’API MindsDB réponde, synchronise les tables locales, puis configure `ALLOWED_ORIGINS` côté backend avant de lancer backend, frontend et SSR. Les hôtes/ports sont lus dans `backend/.env` (`BACKEND_DEV_URL`) et `frontend/.env.development` (`FRONTEND_DEV_URL`), tandis que `VITE_API_URL` sert de base d’appels pour le frontend. Optionnellement, `FRONTEND_URLS` peut lister plusieurs origines pour CORS (séparées par des virgules). Lorsqu’on fournit deux ports en argument, ceux-ci remplacent respectivement les ports frontend et backend sans modifier les fichiers `.env`.
 - `./start_full.sh` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
-- Exemple: définir `BACKEND_DEV_URL=http://0.0.0.0:8000`, `FRONTEND_DEV_URL=http://localhost:5173` puis lancer `./start.sh`.
+- Exemple: définir `BACKEND_DEV_URL=http://0.0.0.0:8000`, `FRONTEND_DEV_URL=http://localhost:5173` puis lancer `./start.sh`. On peut temporairement tester d’autres ports via `./start.sh 4300 9900` sans toucher aux `.env`.
 
 Compatibilité shell:
 

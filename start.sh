@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 0 ]]; then
-  echo "Usage: ./start.sh (configuration is read from frontend/.env.development and backend/.env)" >&2
+if [[ $# -ne 0 && $# -ne 2 ]]; then
+  echo "Usage: ./start.sh [<frontend_port> <backend_port>] (configuration defaults are read from frontend/.env.development and backend/.env)" >&2
   exit 1
+fi
+
+if [[ $# -eq 2 ]]; then
+  ARG_FRONTEND_PORT="$1"
+  ARG_BACKEND_PORT="$2"
 fi
 
 SSR_DIR="vis-ssr"
@@ -80,6 +85,23 @@ if port is None:
 
 print(f"{host} {port} {scheme or ''}")
 PY
+}
+
+build_host_port_url() {
+  local scheme="$1"
+  local host="$2"
+  local port="$3"
+
+  local formatted_host="$host"
+  if [[ "$host" == *:* && "$host" != \[*\] ]]; then
+    formatted_host="[$host]"
+  fi
+
+  if [[ -n "$scheme" ]]; then
+    printf '%s://%s:%s\n' "$scheme" "$formatted_host" "$port"
+  else
+    printf '%s:%s\n' "$formatted_host" "$port"
+  fi
 }
 
 require_command() {
@@ -194,6 +216,7 @@ if [[ "${BACKEND_SCHEME:-}" == "https" ]]; then
   echo "[start] WARNING: BACKEND_DEV_URL uses https; start.sh launches uvicorn without TLS certificates." >&2
 fi
 
+
 FRONTEND_ENV_FILE="frontend/.env.development"
 
 if [[ ! -f "$FRONTEND_ENV_FILE" ]]; then
@@ -221,6 +244,17 @@ if [[ "${FRONTEND_SCHEME:-}" == "https" ]]; then
   echo "[start] WARNING: FRONTEND_DEV_URL uses https; Vite dev server will run without TLS." >&2
 fi
 
+if [[ -n "${ARG_FRONTEND_PORT:-}" ]]; then
+  if ! is_number "$ARG_FRONTEND_PORT"; then
+    echo "ERROR: <frontend_port> must be numeric. Got '$ARG_FRONTEND_PORT'." >&2
+    exit 1
+  fi
+
+  FRONTEND_PORT="$ARG_FRONTEND_PORT"
+  FRONTEND_DEV_URL="$(build_host_port_url "$FRONTEND_SCHEME" "$FRONTEND_HOST" "$FRONTEND_PORT")"
+  echo "[start] frontend port override -> $FRONTEND_PORT"
+fi
+
 VITE_API_URL_VALUE="$(read_env_var "$FRONTEND_ENV_FILE" "VITE_API_URL")"
 
 if [[ -z "$VITE_API_URL_VALUE" ]]; then
@@ -236,6 +270,17 @@ if [[ -n "$CUSTOM_FRONTEND_URLS" ]]; then
 else
   ALLOWED_ORIGINS_VALUE="$FRONTEND_DEV_URL"
   echo "[start] frontend origin default -> $ALLOWED_ORIGINS_VALUE"
+fi
+
+if [[ -n "${ARG_BACKEND_PORT:-}" ]]; then
+  if ! is_number "$ARG_BACKEND_PORT"; then
+    echo "ERROR: <backend_port> must be numeric. Got '$ARG_BACKEND_PORT'." >&2
+    exit 1
+  fi
+
+  BACKEND_PORT="$ARG_BACKEND_PORT"
+  BACKEND_DEV_URL="$(build_host_port_url "$BACKEND_SCHEME" "$BACKEND_HOST" "$BACKEND_PORT")"
+  echo "[start] backend port override -> $BACKEND_PORT"
 fi
 
 echo "[start] frontend dev server -> $FRONTEND_DEV_URL"
