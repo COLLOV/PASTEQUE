@@ -89,6 +89,18 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
+  // Trigger a fresh session when URL has `?new=1`, then clean the URL
+  useEffect(() => {
+    const wantNew = searchParams.has('new') && searchParams.get('new') !== '0'
+    if (wantNew) {
+      onNewChat()
+      const next = new URLSearchParams(searchParams)
+      next.delete('new')
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   useEffect(() => {
     const currentlyHas = searchParams.has('history')
     if (historyOpen && !currentlyHas) {
@@ -466,6 +478,7 @@ export default function Chat() {
     setEvidenceSpec(null)
     setEvidenceData(null)
     setError('')
+    setHistoryOpen(false)
   }
 
   async function onGenerateChart(messageId: string) {
@@ -673,25 +686,11 @@ export default function Chat() {
         <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-120px)]">
           {/* Messages */}
           <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
-            {/* Mobile tickets button */}
+            {/* Mobile toolbar (Exploration uniquement) */}
             <div className="sticky top-0 z-10 -mt-4 -mx-4 mb-2 px-4 pt-3 pb-2 bg-white/95 backdrop-blur border-b lg:hidden">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setHistoryOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                  >
-                    Historique
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onNewChat}
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                  >
-                    Nouveau chat
-                  </button>
                   <button
                     type="button"
                     onClick={() => setShowTicketsSheet(true)}
@@ -709,25 +708,10 @@ export default function Chat() {
                 </div>
               </div>
             </div>
-            {/* Desktop toolbar */}
+            {/* Desktop toolbar (sans boutons Historique/Nouveau chat pour éviter doublons avec le header) */}
             <div className="hidden lg:flex items-center justify-between mb-2">
               <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setHistoryOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                >
-                  Historique
-                </button>
-                <button
-                  type="button"
-                  onClick={onNewChat}
-                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                >
-                  Nouveau chat
-                </button>
-              </div>
+              <div />
             </div>
             {messages.map((message, index) => (
               <MessageBubble
