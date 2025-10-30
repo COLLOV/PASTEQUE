@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import re
 import csv
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Any
 import json
 
 from ..core.config import settings
@@ -33,6 +33,21 @@ def _is_select_only(sql: str) -> bool:
     # Allow single trailing semicolon by stripping earlier
     s2 = f" {s} "
     return not any(tok in s2 for tok in forbidden[1:])
+
+
+def _extract_json_blob(text: str) -> str:
+    """Return JSON payload possibly wrapped in a fenced block.
+
+    Accepts raw JSON or triple‑backticked blocks (```json … ``` or ``` … ```).
+    """
+    blob = text or ""
+    if "```" in blob:
+        parts = blob.split("```")
+        if len(parts) >= 2:
+            blob = parts[1]
+            if blob.lower().startswith("json\n"):
+                blob = blob.split("\n", 1)[-1]
+    return blob.strip()
 
 
 _TABLE_REF_PATTERN = re.compile(r"\b(from|join)\s+(?!\s*\()([a-zA-Z_][\w\.]*)", re.IGNORECASE)
@@ -182,12 +197,20 @@ class NL2SQLService:
         )
 
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
+        # Input validation (defensive)
+        if not isinstance(question, str) or not question.strip():
+            raise RuntimeError("La question est vide.")
+        if not isinstance(schema, dict) or not schema:
+            raise RuntimeError("Aucun schéma disponible pour générer le SQL.")
         client, model = self._client_and_model()
         tables_desc = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
+        # Cap prompt size to avoid runaway contexts
+        if len(tables_blob) > 8000:
+            tables_blob = tables_blob[:8000] + "\n…"
         # Hints for date-like columns
         date_hints: Dict[str, List[str]] = {}
         for t, cols in schema.items():
@@ -255,12 +278,29 @@ class NL2SQLService:
         return sql
 
     def plan(self, *, question: str, schema: Dict[str, List[str]], max_steps: int) -> List[Dict[str, str]]:
+        # Input validation
+        if not isinstance(question, str) or not question.strip():
+            raise RuntimeError("La question est vide.")
+        if not isinstance(schema, dict) or not schema:
+            raise RuntimeError("Aucun schéma n'est disponible pour la planification.")
+        # Enforce a sane step range
+        try:
+            max_steps_int = int(max_steps)
+        except Exception:
+            raise RuntimeError("Paramètre max_steps invalide")
+        hard_cap = max(1, settings.nl2sql_plan_max_steps)
+        if max_steps_int < 1 or max_steps_int > hard_cap:
+            max_steps = hard_cap
+        else:
+            max_steps = max_steps_int
         client, model = self._client_and_model()
         tables_desc = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
+        if len(tables_blob) > 8000:
+            tables_blob = tables_blob[:8000] + "\n…"
         # Optional samples
         samples_blob = ""
         if settings.nl2sql_include_samples:
@@ -308,14 +348,8 @@ class NL2SQLService:
             temperature=0,
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        # Extract JSON
-        blob = text
-        if "```" in text:
-            parts = text.split("```")
-            if len(parts) >= 2:
-                blob = parts[1]
-                if blob.lower().startswith("json\n"):
-                    blob = blob.split("\n", 1)[-1]
+        # Extract JSON via helper
+        blob = _extract_json_blob(text)
         try:
             data = json.loads(blob)
         except Exception as e:

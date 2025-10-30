@@ -50,7 +50,7 @@ function createMessageId(): string {
 }
 
 export default function Chat() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [, setSearchParams] = useSearchParams()
   const { search } = useLocation()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
@@ -478,17 +478,7 @@ export default function Chat() {
     }
   }
 
-  function onNewChat() {
-    if (loading && abortRef.current) {
-      abortRef.current.abort()
-    }
-    setConversationId(null)
-    setMessages([])
-    setEvidenceSpec(null)
-    setEvidenceData(null)
-    setError('')
-    setHistoryOpen(false)
-  }
+  // onNewChat (unused) removed to satisfy TS checks
 
   async function onGenerateChart(messageId: string) {
     const index = messages.findIndex(m => m.id === messageId)
