@@ -4,6 +4,10 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .user import User
 
 from ..core.database import Base
 
@@ -28,4 +32,3 @@ class UserTablePermission(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="table_permissions")
-
