@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -50,6 +50,7 @@ function createMessageId(): string {
 
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { search } = useLocation()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -64,6 +65,16 @@ export default function Chat() {
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  
+  // Helpers to open/close history while keeping URL in sync only on explicit actions
+  const closeHistory = () => {
+    setHistoryOpen(false)
+    const sp = new URLSearchParams(search)
+    if (sp.has('history')) {
+      sp.delete('history')
+      setSearchParams(sp, { replace: true })
+    }
+  }
 
   useEffect(() => {
     // Auto‑scroll the internal messages list container instead of the window
@@ -81,27 +92,34 @@ export default function Chat() {
     }
   }, [messages, loading])
 
-  // Sync history modal visibility with URL `?history=1`
+  // Sync local state with URL `?history=1` (URL → state only)
   useEffect(() => {
-    const wantOpen = searchParams.has('history') && searchParams.get('history') !== '0'
-    // Only update if state differs to avoid loops
+    const sp = new URLSearchParams(search)
+    const wantOpen = sp.has('history') && sp.get('history') !== '0'
     setHistoryOpen(prev => (prev === wantOpen ? prev : wantOpen))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  }, [search])
 
+  // Trigger a fresh session when URL has `?new=1`, then clean the URL (one‑shot)
   useEffect(() => {
-    const currentlyHas = searchParams.has('history')
-    if (historyOpen && !currentlyHas) {
-      const next = new URLSearchParams(searchParams)
-      next.set('history', '1')
-      setSearchParams(next, { replace: true })
-    } else if (!historyOpen && currentlyHas) {
-      const next = new URLSearchParams(searchParams)
-      next.delete('history')
-      setSearchParams(next, { replace: true })
+    const sp = new URLSearchParams(search)
+    const wantNew = sp.has('new') && sp.get('new') !== '0'
+    if (wantNew) {
+      // Inline reset to avoid depending on onNewChat in deps
+      if (loading && abortRef.current) {
+        abortRef.current.abort()
+      }
+      setConversationId(null)
+      setMessages([])
+      setEvidenceSpec(null)
+      setEvidenceData(null)
+      setError('')
+      setHistoryOpen(false)
+      sp.delete('new')
+      setSearchParams(sp, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyOpen])
+  }, [search])
 
   // Fermer la sheet Tickets avec la touche Escape
   useEffect(() => {
@@ -451,7 +469,7 @@ export default function Chat() {
       } else {
         setEvidenceData(ev ?? null)
       }
-      setHistoryOpen(false)
+      closeHistory()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible')
     }
@@ -466,6 +484,7 @@ export default function Chat() {
     setEvidenceSpec(null)
     setEvidenceData(null)
     setError('')
+    setHistoryOpen(false)
   }
 
   async function onGenerateChart(messageId: string) {
@@ -673,25 +692,11 @@ export default function Chat() {
         <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-120px)]">
           {/* Messages */}
           <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
-            {/* Mobile tickets button */}
+            {/* Mobile toolbar (Exploration uniquement) */}
             <div className="sticky top-0 z-10 -mt-4 -mx-4 mb-2 px-4 pt-3 pb-2 bg-white/95 backdrop-blur border-b lg:hidden">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setHistoryOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                  >
-                    Historique
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onNewChat}
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                  >
-                    Nouveau chat
-                  </button>
                   <button
                     type="button"
                     onClick={() => setShowTicketsSheet(true)}
@@ -709,25 +714,10 @@ export default function Chat() {
                 </div>
               </div>
             </div>
-            {/* Desktop toolbar */}
+            {/* Desktop toolbar (sans boutons Historique/Nouveau chat pour éviter doublons avec le header) */}
             <div className="hidden lg:flex items-center justify-between mb-2">
               <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setHistoryOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                >
-                  Historique
-                </button>
-                <button
-                  type="button"
-                  onClick={onNewChat}
-                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
-                >
-                  Nouveau chat
-                </button>
-              </div>
+              <div />
             </div>
             {messages.map((message, index) => (
               <MessageBubble
@@ -833,7 +823,7 @@ export default function Chat() {
       {/* History modal */}
       {historyOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setHistoryOpen(false)} />
+          <div className="absolute inset-0 bg-black/30" onClick={closeHistory} />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg border shadow-lg w-[90vw] max-w-xl max-h-[80vh] overflow-auto">
             <div className="p-3 border-b flex items-center justify-between">
               <div className="text-sm font-semibold">Conversations</div>
@@ -921,7 +911,11 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
         return url.pathname + url.search + url.hash
       }
       return url.href
-    } catch {
+    } catch (err) {
+      if (import.meta?.env?.MODE !== 'production') {
+        // Avertir en dev si le gabarit de lien est invalide
+        console.warn('TicketPanel.buildLink: invalid link template', { tpl, err })
+      }
       return undefined
     }
   }

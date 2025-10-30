@@ -163,10 +163,9 @@ import { login } from '@/services/auth'
 
 ### Historique des conversations
 
-- Un bouton « Historique » permet d’afficher les conversations précédentes (chargées via `GET /conversations`).
-- Un bouton « Nouveau chat » réinitialise l’état local pour démarrer une nouvelle discussion.
+- Le bouton « Historique » du header ouvre la modale via `?history=1` sur `/chat` (l'état reste synchronisé avec l'URL).
+- Le bouton « Nouveau chat » du header remplace l’ancien bouton « Chat » et initialise une nouvelle session via `?new=1`.
 - Lors de l’envoi d’un premier message, le backend crée une conversation et renvoie `conversation_id` dans l’événement `meta`; le frontend rattache alors les messages suivants à cette conversation.
-- Le bouton « Historique » du header est connecté: il ouvre la modale via `?history=1` sur `/chat` et l'état s'aligne avec l'URL (ouverture/fermeture met à jour la query).
  - Robustesse (29 oct. 2025): lors du chargement d’une conversation depuis l’historique,
    les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
    a persisté des lignes sous forme de tableaux (héritage de certaines réponses MindsDB).
