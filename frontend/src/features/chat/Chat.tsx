@@ -1242,7 +1242,8 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
           )}>
             {/* Animation aléatoire des mots-clés d'agent pendant le streaming */}
             {!isUser && message.ephemeral && <AgentTicker />}
-            {content}
+            {/* Évite le doublon: ne pas ré-afficher le libellé provisoire si présent */}
+            {(!message.ephemeral || !message.interimSql) && content}
             {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
             {!isUser && !chartUrl && !message.ephemeral && (
               <div className="mt-2 flex items-center gap-2">
