@@ -222,6 +222,7 @@ Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL
 ### Notes de maintenance
 
 - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 3 blocs similaires: passage `/sql`, NL→SQL plan, NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
+ - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
 
 ```
 NL2SQL_INCLUDE_SAMPLES=true
