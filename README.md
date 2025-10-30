@@ -137,8 +137,7 @@ data/
 - Déroulé:
   - Explorateur (#1→#3): propose et exécute de petites requêtes de découverte (DISTINCT, MIN/MAX, COUNT par catégorie, échantillons LIMIT 20) et suggère des axes de visualisation. Événements SSE: `plan` (purpose: explore), `sql`/`rows` (purpose: explore), `meta.axes_suggestions`.
   - Analyste (answer): fusionne proprement les trouvailles en UNE requête finale (SELECT‑only) qui répond précisément à la question. Événements SSE: `sql`/`rows` (purpose: answer).
-- Rédaction: interprète le résultat final et produit une réponse textuelle concise en français (agent d’interprétation). Le message final de l’assistant correspond à cette étape.
-  - Règles de rédaction: la réponse finale suit ce canevas — « Constat: … », puis soit « Action proposée: … » quand les données le justifient, soit « Question à trancher: … » lorsque l’incertitude demeure. Aucun SQL, 3–6 phrases, chiffres explicites quand disponibles.
+  - Rédaction: interprète le résultat final et produit une réponse textuelle concise en français (prose directe, sans intitulés). Le texte intègre le constat avec des chiffres, et se termine soit par une recommandation concrète si justifiée, soit par une question claire en cas d’incertitude. Aucun SQL, 3–6 phrases.
   - Itération: si le résultat final est jugé insuffisant (moins de `NL2SQL_SATISFACTION_MIN_ROWS` lignes), une nouvelle ronde d’exploration est lancée, jusqu’à `NL2SQL_EXPLORE_ROUNDS`.
 - Variables d’environnement:
   - `NL2SQL_MULTIAGENT_ENABLED=false` — active le mode par défaut.
