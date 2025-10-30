@@ -51,7 +51,7 @@ npm install
 npm run dev
 ```
 
-Configurer l'API via `.env.development` (voir `.env.development.example`). Le script racine `start.sh` met automatiquement à jour `VITE_API_URL` en fonction du port backend choisi.
+Configurer l'API via `.env.development` (voir `.env.development.example`). Le script racine `start.sh` lit `FRONTEND_DEV_URL` (hôte/port Vite), `VITE_API_URL` (base API) et, si présent, `FRONTEND_URLS`; il ne modifie plus ce fichier.
 
 ## Structure du Projet
 
@@ -105,7 +105,9 @@ src/
 Créez un fichier `.env.development` à la racine du frontend:
 
 ```env
-VITE_API_URL=http://localhost:8000
+FRONTEND_DEV_URL=http://localhost:5173
+FRONTEND_URLS=http://localhost:5173
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
 ### Path Aliases
