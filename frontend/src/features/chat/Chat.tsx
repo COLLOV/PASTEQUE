@@ -871,6 +871,10 @@ type TicketPanelProps = {
 }
 
 function TicketPanel({ spec, data }: TicketPanelProps) {
+  // Preview caps
+  const PREVIEW_COL_MAX = 6
+  const PREVIEW_CHAR_MAX = 140
+
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const limit = spec?.limit ?? 100
   const allRows: Record<string, unknown>[] = data?.rows ?? []
@@ -882,6 +886,26 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
   const statusKey = spec?.display?.status
   const pkKey = spec?.pk
   const linkTpl = spec?.display?.link_template
+
+  // Local focus state: clicked ticket → full detail view
+  const [selectedPk, setSelectedPk] = useState<string | null>(null)
+
+  function orderColumns(cols: string[]): string[] {
+    const set = new Set<string>()
+    const push = (k?: string) => { if (k && cols.includes(k) && !set.has(k)) set.add(k) }
+    push(titleKey)
+    push(statusKey)
+    push(createdAtKey)
+    push(pkKey)
+    cols.forEach(c => { if (!set.has(c)) set.add(c) })
+    return Array.from(set)
+  }
+
+  function truncate(val: unknown, max = PREVIEW_CHAR_MAX): string {
+    const s = String(val ?? '')
+    if (s.length <= max) return s
+    return s.slice(0, Math.max(max - 1, 0)) + '…'
+  }
 
   const sorted = useMemo(() => {
     if (!createdAtKey) return rows
@@ -928,6 +952,64 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
     )
   }
 
+  const orderedColumns = orderColumns(columns)
+  const previewColumns = orderedColumns.slice(0, PREVIEW_COL_MAX)
+
+  // Detail view when a ticket is selected
+  if (selectedPk != null && pkKey) {
+    const row = sorted.find(r => String(r[pkKey!]) === selectedPk)
+    const link = row ? buildLink(linkTpl, row) : undefined
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-primary-900">Détail du ticket</div>
+          <button
+            type="button"
+            onClick={() => setSelectedPk(null)}
+            className="text-xs rounded-full border px-2 py-1 hover:bg-primary-50"
+          >
+            Tout voir
+          </button>
+        </div>
+        {!row ? (
+          <div className="text-sm text-primary-500">Élément introuvable.</div>
+        ) : (
+          <div className="border border-primary-100 rounded-md p-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium text-primary-900 truncate">
+                {String((titleKey && row[titleKey]) ?? row[pkKey] ?? selectedPk)}
+              </div>
+              {statusKey && row[statusKey] != null ? (
+                <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(row[statusKey])}</span>
+              ) : null}
+            </div>
+            <div className="mt-1 text-xs text-primary-500">
+              {createdAtKey && row[createdAtKey] ? new Date(String(row[createdAtKey])).toLocaleString() : null}
+            </div>
+            {link && (
+              <div className="mt-1 text-xs">
+                <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all">{link}</a>
+              </div>
+            )}
+            <div className="mt-2 overflow-auto">
+              <table className="min-w-full text-[11px]">
+                <tbody>
+                  {orderedColumns.map((c) => (
+                    <tr key={c} className="border-t border-primary-100">
+                      <td className="pr-2 py-1 text-primary-400 whitespace-nowrap align-top">{c}</td>
+                      <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // List view with preview caps
   return (
     <div className="space-y-2">
       {sorted.map((row, idx) => {
@@ -938,7 +1020,15 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
         const link = buildLink(linkTpl, row)
         const uniqueKey = pk != null ? String(pk) : `row-${idx}`
         return (
-          <div key={uniqueKey} className="border border-primary-100 rounded-md p-2">
+          <div
+            key={uniqueKey}
+            role="button"
+            tabIndex={0}
+            onClick={() => pkKey && pk != null && setSelectedPk(String(pk))}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pkKey && pk != null && setSelectedPk(String(pk)) } }}
+            className="border border-primary-100 rounded-md p-2 hover:bg-primary-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-300"
+            aria-label={`Voir le ticket ${String(title ?? pk ?? `#${idx + 1}`)}`}
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-medium text-primary-900 truncate">
                 {String(title ?? (pk ?? `#${idx + 1}`))}
@@ -952,17 +1042,17 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
             </div>
             {link && (
               <div className="mt-1 text-xs">
-                <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all">{link}</a>
+                <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all" onClick={e => e.stopPropagation()}>{link}</a>
               </div>
             )}
-            {columns && columns.length > 0 && (
+            {previewColumns && previewColumns.length > 0 && (
               <div className="mt-2 overflow-auto">
                 <table className="min-w-full text-[11px]">
                   <tbody>
-                    {columns.map((c) => (
+                    {previewColumns.map((c) => (
                       <tr key={c} className="border-t border-primary-100">
-                        <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
-                        <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
+                        <td className="pr-2 py-1 text-primary-400 whitespace-nowrap align-top">{c}</td>
+                        <td className="py-1 text-primary-800 break-all" title={String(row[c] ?? '')}>{truncate(row[c])}</td>
                       </tr>
                     ))}
                   </tbody>

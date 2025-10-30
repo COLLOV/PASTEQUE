@@ -169,7 +169,18 @@ import { login } from '@/services/auth'
  - Robustesse (29 oct. 2025): lors du chargement d’une conversation depuis l’historique,
    les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
    a persisté des lignes sous forme de tableaux (héritage de certaines réponses MindsDB).
-   Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
+Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
+
+Sous-panel « Tickets » — aperçu et détail (oct. 2025)
+
+- Aperçu limité pour garder le panel lisible:
+  - Nombre maximum de colonnes par ticket en liste.
+  - Nombre maximum de caractères par valeur (ellipsis au-delà).
+- Clic sur un ticket: bascule en vue détail dans le même panel, avec toutes les colonnes visibles et sans troncature. Un bouton « Tout voir » permet de revenir à la liste.
+- Paramètres: voir `frontend/src/features/chat/Chat.tsx` → composant `TicketPanel`.
+  - `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu.
+  - `PREVIEW_CHAR_MAX` — troncature des valeurs en aperçu.
+  - L’ordre des colonnes privilégie `title`, `status`, `created_at`, puis le reste.
  
 Affichage des « Détails » depuis l’historique (29 oct. 2025)
 
