@@ -8,6 +8,8 @@ from typing import Dict, List
 import json
 
 from ..core.config import settings
+import sqlglot
+from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..repositories.data_repository import DataRepository
 
@@ -129,26 +131,31 @@ def _collect_cte_names(sql: str) -> set[str]:
 
 
 def _ensure_required_prefix(sql: str) -> None:
-    prefix = f"{settings.nl2sql_db_prefix.lower()}."
-    cte_names = _collect_cte_names(sql)
-    for match in _TABLE_REF_PATTERN.finditer(sql):
-        table = match.group(2)
-        # Strip trailing punctuation that may hug the identifier
-        table_clean = table.rstrip(",)")
-        lower_clean = table_clean.lower()
-        if lower_clean in _PREFIX_SKIP_KEYWORDS:
-            continue
-        if lower_clean in cte_names:
-            continue
-        if lower_clean.startswith(prefix):
-            continue
-        # Allow aliases already referencing the prefix (e.g. files.t AS t)
-        if "." in table_clean:
-            if lower_clean.startswith(prefix):
-                continue
+    """Validate that every referenced table uses the configured schema prefix.
+
+    Uses sqlglot to parse the query and extract table nodes, avoiding false positives
+    on constructs like EXTRACT(... FROM col) where 'FROM' is not a table clause.
+    """
+    try:
+        tree = sqlglot.parse_one(sql, dialect="mysql")
+    except Exception as e:  # surface real parse errors
+        raise RuntimeError(f"SQL invalide (parse): {e}")
+
+    required = settings.nl2sql_db_prefix.lower()
+    bad: list[str] = []
+    for t in tree.find_all(exp.Table):
+        db = t.args.get("db")
+        tbl = t.args.get("this")
+        db_name = (db.this if hasattr(db, "this") else None)
+        tbl_name = (tbl.this if hasattr(tbl, "this") else None)
+        # Consider only real tables; skip CTEs (sqlglot resolves separately)
+        fq = ".".join([p for p in [db_name, tbl_name] if p])
+        if not db_name or db_name.lower() != required:
+            bad.append(fq or "<inconnu>")
+    if bad:
         raise RuntimeError(
             "Requête SQL invalide: toutes les tables doivent être préfixées par "
-            f"'{settings.nl2sql_db_prefix}.' (trouvé: '{table_clean}')"
+            f"'{settings.nl2sql_db_prefix}.' (trouvé: {', '.join(repr(x) for x in bad)})"
         )
 
 
