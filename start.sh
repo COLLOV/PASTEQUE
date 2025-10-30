@@ -241,45 +241,30 @@ PY
 )
 
 FRONTEND_ENV_FILE="frontend/.env.development"
-API_URL="http://localhost:${BACKEND_PORT}/api/v1"
-ALLOWED_ORIGINS_VALUE="http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}"
 
-ensure_frontend_env() {
-  local file="$1"
-  local value="$2"
+if [[ ! -f "$FRONTEND_ENV_FILE" ]]; then
+  echo "ERROR: Frontend configuration '$FRONTEND_ENV_FILE' not found. Copy 'frontend/.env.development.example' and update it." >&2
+  exit 1
+fi
 
-  ENV_FILE="$file" API_URL="$value" python3 <<'PY'
-import os
-from pathlib import Path
+VITE_API_URL_VALUE="$(read_env_var "$FRONTEND_ENV_FILE" "VITE_API_URL")"
 
-path = Path(os.environ["ENV_FILE"])
-value = os.environ["API_URL"]
+if [[ -z "$VITE_API_URL_VALUE" ]]; then
+  echo "ERROR: VITE_API_URL must be defined in '$FRONTEND_ENV_FILE'." >&2
+  exit 1
+fi
 
-if path.exists():
-    lines = path.read_text().splitlines()
-else:
-    lines = []
+CUSTOM_FRONTEND_URLS="$(read_env_var "$FRONTEND_ENV_FILE" "FRONTEND_URLS")"
 
-found = False
-for idx, line in enumerate(lines):
-    if line.startswith("VITE_API_URL="):
-        lines[idx] = f"VITE_API_URL={value}"
-        found = True
+if [[ -n "$CUSTOM_FRONTEND_URLS" ]]; then
+  ALLOWED_ORIGINS_VALUE="$CUSTOM_FRONTEND_URLS"
+  echo "[start] frontend origin(s) from $FRONTEND_ENV_FILE -> $ALLOWED_ORIGINS_VALUE"
+else
+  ALLOWED_ORIGINS_VALUE="http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}"
+  echo "[start] frontend origin(s) default -> $ALLOWED_ORIGINS_VALUE"
+fi
 
-if not found:
-    if lines and lines[-1].strip():
-        lines.append("")
-    lines.append(f"VITE_API_URL={value}")
-
-text = "\n".join(lines)
-if text and not text.endswith("\n"):
-    text += "\n"
-path.write_text(text)
-PY
-}
-
-ensure_frontend_env "$FRONTEND_ENV_FILE" "$API_URL"
-echo "[start] frontend/.env.development -> VITE_API_URL=$API_URL"
+echo "[start] frontend/.env.development -> VITE_API_URL=$VITE_API_URL_VALUE"
 echo "[start] backend CORS -> ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
 
 if [[ ! -d frontend/node_modules ]]; then
@@ -339,7 +324,7 @@ sleep 1
 echo "[start] Launching frontend on port $FRONTEND_PORT"
 (
   cd frontend
-  VITE_API_URL="$API_URL" exec npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT"
+  exec npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT"
 ) &
 FRONTEND_PID=$!
 
