@@ -149,6 +149,17 @@ data/
 
 - 2025-10-29: Correction d'un échec de build frontend (TS2451) dû à une double déclaration `const meta` dans `frontend/src/features/chat/Chat.tsx`. La duplication a été supprimée.
 
+## Sécurité configuration (backend)
+
+Depuis cette branche, le backend applique un garde‑fou de configuration: en environnement non‑développement (`ENV` différent de `development`/`dev`/`local`), le démarrage échoue si des valeurs par défaut non sûres sont détectées.
+
+Vérifications effectuées:
+- `JWT_SECRET_KEY == "change-me"`
+- `ADMIN_PASSWORD == "admin"`
+- `DATABASE_URL` contient `postgres:postgres@`
+
+Corrigez ces variables dans `backend/.env` ou vos secrets d’exécution avant déploiement. En développement, ces valeurs restent acceptées mais des avertissements sont journalisés. Détails dans `backend/README.md`.
+
 ## Plan UI — Panneau « Éléments de preuve » (générique) pour /chat
 
 - Objectif: après une requête (SQL MindsDB ou Graph), afficher un panneau latéral listant les éléments de preuve (tickets ou autre entité) réellement utilisés pour produire la réponse.
