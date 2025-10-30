@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core.config import settings
+from .core.config import settings, assert_secure_configuration
 from .core.database import init_database, session_scope
 from .api.routes.v1.health import router as health_router
 from .api.routes.v1.chat import router as chat_router
@@ -44,6 +44,8 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def _startup() -> None:
+        # Harden: block unsafe defaults outside development
+        assert_secure_configuration()
         init_database()
         with session_scope() as session:
             created = AuthService(UserRepository(session)).ensure_admin_user(
