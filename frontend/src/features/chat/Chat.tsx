@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { RefObject } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
@@ -65,6 +66,8 @@ export default function Chat() {
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const ticketPanelRef = useRef<HTMLDivElement>(null)
+  const mobileTicketsRef = useRef<HTMLDivElement>(null)
   
   // Helpers to open/close history while keeping URL in sync only on explicit actions
   const closeHistory = () => {
@@ -679,11 +682,11 @@ export default function Chat() {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
       {/* Colonne gauche: Ticket exploration */}
       <aside className="hidden lg:block lg:col-span-5 xl:col-span-5 2xl:col-span-5">
-        <div className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
+        <div ref={ticketPanelRef} className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</h2>
           </div>
-          <TicketPanel spec={evidenceSpec} data={evidenceData} />
+          <TicketPanel spec={evidenceSpec} data={evidenceData} containerRef={ticketPanelRef} />
         </div>
       </aside>
 
@@ -795,7 +798,7 @@ export default function Chat() {
       {showTicketsSheet && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowTicketsSheet(false)} />
-          <div className="absolute left-0 right-0 bottom-0 max-h-[70vh] bg-white rounded-t-2xl border-t shadow-lg p-3 overflow-auto">
+          <div ref={mobileTicketsRef} className="absolute left-0 right-0 bottom-0 max-h-[70vh] bg-white rounded-t-2xl border-t shadow-lg p-3 overflow-auto">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</div>
@@ -815,7 +818,7 @@ export default function Chat() {
                 <HiXMark className="w-4 h-4" />
               </button>
             </div>
-            <TicketPanel spec={evidenceSpec} data={evidenceData} />
+            <TicketPanel spec={evidenceSpec} data={evidenceData} containerRef={mobileTicketsRef} />
           </div>
         </div>
       )}
@@ -868,9 +871,10 @@ interface MessageBubbleProps {
 type TicketPanelProps = {
   spec: EvidenceSpec | null
   data: EvidenceRowsPayload | null
+  containerRef?: RefObject<HTMLDivElement>
 }
 
-function TicketPanel({ spec, data }: TicketPanelProps) {
+function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
   // Preview caps
   const PREVIEW_COL_MAX = 6
   const PREVIEW_CHAR_MAX = 140
@@ -889,6 +893,23 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
 
   // Local focus state: clicked ticket → full detail view
   const [selectedPk, setSelectedPk] = useState<string | null>(null)
+  const prevScrollTop = useRef(0)
+
+  function openDetail(pk: unknown) {
+    if (containerRef?.current) {
+      try { prevScrollTop.current = containerRef.current.scrollTop } catch { /* noop */ }
+    }
+    setSelectedPk(String(pk))
+  }
+
+  function backToList() {
+    setSelectedPk(null)
+    const el = containerRef?.current
+    if (el) {
+      // Wait next paint to ensure list is rendered
+      requestAnimationFrame(() => { el.scrollTop = prevScrollTop.current || 0 })
+    }
+  }
 
   function orderColumns(cols: string[]): string[] {
     const set = new Set<string>()
@@ -965,7 +986,7 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
           <div className="text-sm font-semibold text-primary-900">Détail du ticket</div>
           <button
             type="button"
-            onClick={() => setSelectedPk(null)}
+            onClick={backToList}
             className="text-xs rounded-full border px-2 py-1 hover:bg-primary-50"
           >
             Tout voir
@@ -1024,8 +1045,8 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
             key={uniqueKey}
             role="button"
             tabIndex={0}
-            onClick={() => pkKey && pk != null && setSelectedPk(String(pk))}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pkKey && pk != null && setSelectedPk(String(pk)) } }}
+            onClick={() => pkKey && pk != null && openDetail(pk)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pkKey && pk != null && openDetail(pk) } }}
             className="border border-primary-100 rounded-md p-2 hover:bg-primary-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-300"
             aria-label={`Voir le ticket ${String(title ?? pk ?? `#${idx + 1}`)}`}
           >

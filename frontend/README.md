@@ -177,6 +177,7 @@ Sous-panel « Tickets » — aperçu et détail (oct. 2025)
   - Nombre maximum de colonnes par ticket en liste.
   - Nombre maximum de caractères par valeur (ellipsis au-delà).
 - Clic sur un ticket: bascule en vue détail dans le même panel, avec toutes les colonnes visibles et sans troncature. Un bouton « Tout voir » permet de revenir à la liste.
+- À la fermeture du détail (« Tout voir »), la position de défilement du panel est restaurée au même endroit qu'avant l'ouverture.
 - Paramètres: voir `frontend/src/features/chat/Chat.tsx` → composant `TicketPanel`.
   - `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu.
   - `PREVIEW_CHAR_MAX` — troncature des valeurs en aperçu.
