@@ -472,3 +472,83 @@ class NL2SQLService:
             raise RuntimeError("La requête finale générée n'est pas un SELECT")
         _ensure_required_prefix(sql)
         return sql
+
+    def propose_axes(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+        evidence: List[Dict[str, object]] | None = None,
+        max_items: int = 3,
+    ) -> List[Dict[str, str]]:
+        """Suggest chart axes and aggregations based on the question and exploration evidence.
+
+        Returns a list of objects with keys: x, y (optional), agg (optional), chart (bar|line|pie|table), reason.
+        """
+        client, model = self._client_and_model()
+        tables_desc = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        payload = {
+            "question": question,
+            "tables": tables_desc,
+            "evidence_preview": (
+                [
+                    {
+                        "purpose": str(e.get("purpose", "")),
+                        "sql": str(e.get("sql", ""))[:200],
+                        "columns": e.get("columns", []),
+                        "row_count": len(e.get("rows", []) if isinstance(e.get("rows"), list) else []),
+                    }
+                    for e in (evidence or [])
+                ]
+            ),
+            "max_items": max_items,
+        }
+        system = (
+            "You are a visualization assistant. Propose up to N concise axis suggestions\n"
+            "for charts that would best communicate the answer to the question, based on the columns\n"
+            "available and any exploratory findings. Prefer simple bar/line charts; fall back to 'table' when unclear.\n"
+            "Return ONLY JSON: {\"axes\":[{\"x\":str,\"y\":str?,\"agg\":str?,\"chart\":str,\"reason\":str}...]}."
+        )
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            temperature=0,
+        )
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        blob = text
+        if "```" in text:
+            parts = text.split("```")
+            if len(parts) >= 2:
+                blob = parts[1]
+                if blob.lower().startswith("json\n"):
+                    blob = blob.split("\n", 1)[-1]
+        try:
+            data = json.loads(blob)
+        except Exception as e:
+            raise RuntimeError(f"Axes JSON invalide: {e}")
+        axes = data.get("axes") if isinstance(data, dict) else None
+        if not isinstance(axes, list) or not axes:
+            raise RuntimeError("Aucune proposition d'axes")
+        out: List[Dict[str, str]] = []
+        for a in axes[: max(1, max_items)]:
+            x = str(a.get("x", "")).strip()
+            y = str(a.get("y", "")).strip() if a.get("y") is not None else ""
+            chart = str(a.get("chart", "")).strip() or "table"
+            reason = str(a.get("reason", "")).strip()
+            agg = str(a.get("agg", "")).strip() if a.get("agg") is not None else ""
+            if not x:
+                continue
+            out.append({"x": x, "y": y, "agg": agg, "chart": chart, "reason": reason})
+        if not out:
+            raise RuntimeError("Aucune proposition d'axes exploitable")
+        return out
+
+    # Backwards-compatible alias: the writer agent
+    def write(self, *, question: str, evidence: List[Dict[str, object]]) -> str:
+        return self.synthesize(question=question, evidence=evidence)

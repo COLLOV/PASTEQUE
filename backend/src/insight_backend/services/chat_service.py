@@ -266,6 +266,23 @@ class ChatService:
                                 last_columns = columns
                                 last_rows = rows
 
+                        # Ask Explorateur to propose chart axes based on evidence (optional)
+                        try:
+                            axes = nl2sql.propose_axes(
+                                question=contextual_question,
+                                schema=schema,
+                                evidence=evidence,
+                                max_items=3,
+                            )
+                            log.info("Axes proposés (r=%d): %s", r, axes)
+                            if events:
+                                try:
+                                    events("meta", {"axes_suggestions": axes, "round": r})
+                                except Exception:
+                                    log.warning("Failed to emit axes suggestions", exc_info=True)
+                        except Exception as e:
+                            log.warning("Proposition d'axes indisponible: %s", e)
+
                         # Ask Analyst to produce final SQL using evidence
                         try:
                             final_sql = nl2sql.generate_with_evidence(
@@ -314,15 +331,20 @@ class ChatService:
                             fallback_rows=last_rows,
                         )
                         if len(frows) >= min_rows:
-                            # Synthesize final textual answer
+                            # Writer: synthesize final textual interpretation
                             try:
                                 ev_for_answer = evidence + [{"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}]
-                                answer = nl2sql.synthesize(question=contextual_question, evidence=ev_for_answer).strip()
+                                answer = nl2sql.write(question=contextual_question, evidence=ev_for_answer).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=reply_text,
-                                        metadata={"provider": "nl2sql-multiagent", "rounds_used": r, "sql": final_sql},
+                                        metadata={
+                                            "provider": "nl2sql-multiagent",
+                                            "rounds_used": r,
+                                            "sql": final_sql,
+                                            "agents": ["explorateur", "analyste", "redaction"],
+                                        },
                                     ),
                                     context="completion done (nl2sql-multiagent)",
                                 )
@@ -330,7 +352,7 @@ class ChatService:
                                 # Do not mask; bubble up explicitly
                                 return self._log_completion(
                                     ChatResponse(
-                                        reply=f"Échec de la synthèse finale: {e}\n{self._llm_diag()}",
+                                        reply=f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}",
                                         metadata={"provider": "nl2sql-multiagent-synth"},
                                     ),
                                     context="completion done (nl2sql-multiagent-synth-error)",
