@@ -219,6 +219,10 @@ Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL
 
 Échantillons pour aider la génération (optionnel):
 
+### Notes de maintenance
+
+- 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 3 blocs similaires: passage `/sql`, NL→SQL plan, NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
+
 ```
 NL2SQL_INCLUDE_SAMPLES=true
 NL2SQL_ROWS_PER_TABLE=3   # 3–5 conseillé
