@@ -958,6 +958,10 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
     }
   }
 
+  // Stable hooks before any conditional return
+  const orderedColumns = useMemo(() => orderColumns(columns), [columns, titleKey, statusKey, createdAtKey, pkKey])
+  const previewColumns = useMemo(() => orderedColumns.slice(0, PREVIEW_COL_MAX), [orderedColumns, PREVIEW_COL_MAX])
+
   if (!spec || !data || (count ?? 0) === 0) {
     return (
       <div className="text-sm text-primary-500">
@@ -965,9 +969,6 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
       </div>
     )
   }
-
-  const orderedColumns = useMemo(() => orderColumns(columns), [columns, titleKey, statusKey, createdAtKey, pkKey])
-  const previewColumns = useMemo(() => orderedColumns.slice(0, PREVIEW_COL_MAX), [orderedColumns, PREVIEW_COL_MAX])
 
   // Detail view when a ticket is selected
   if (selectedPk != null) {
