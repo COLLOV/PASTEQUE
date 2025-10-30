@@ -32,33 +32,7 @@ const AGENT_KEYWORDS = [
   'Jereming',
 ] as const
 
-// conservé pour compat mais non utilisé: supprimé
-
-function shuffle<T>(arr: readonly T[]): T[] {
-  const a = arr.slice() as T[]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
-function AgentTicker() {
-  const sequence = useMemo(() => shuffle(AGENT_KEYWORDS), [])
-  const [idx, setIdx] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => {
-      setIdx(i => (i + 1) % sequence.length)
-    }, 700)
-    return () => clearInterval(id)
-  }, [sequence.length])
-  return (
-    <div className="mb-2 inline-flex items-center gap-2 text-xs text-primary-600">
-      <span className="inline-block h-3 w-3 rounded-full border-2 border-primary-300 border-t-primary-900 animate-spin" />
-      <span className="transition-opacity duration-300 ease-in-out">{sequence[idx]}…</span>
-    </div>
-  )
-}
+//
 
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
   const headings = columns.length > 0 ? columns : ['value']
@@ -1240,10 +1214,22 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             'text-sm whitespace-pre-wrap leading-relaxed',
             isUser ? '' : 'text-primary-950'
           )}>
-            {/* Animation aléatoire des mots-clés d'agent pendant le streaming */}
-            {!isUser && message.ephemeral && <AgentTicker />}
-            {/* Évite le doublon: ne pas ré-afficher le libellé provisoire si présent */}
-            {(!message.ephemeral || !message.interimSql) && content}
+            {/* Pendant le streaming, afficher le dernier mot-clé d'agent reçu (lié aux événements SQL) */}
+            {!isUser && message.ephemeral ? (
+              <div className="mb-1 inline-flex items-center gap-2 text-xs text-primary-600">
+                <span className="inline-block h-3 w-3 rounded-full border-2 border-primary-300 border-t-primary-900 animate-spin" />
+                <span>
+                  {(() => {
+                    const steps: any[] = (message.details?.steps as any[]) || []
+                    const last = steps.length > 0 ? steps[steps.length - 1] : null
+                    const label = (last && last.agentLabel) ? String(last.agentLabel) : ''
+                    return label ? `${label}…` : '…'
+                  })()}
+                </span>
+              </div>
+            ) : (
+              content
+            )}
             {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
             {!isUser && !chartUrl && !message.ephemeral && (
               <div className="mt-2 flex items-center gap-2">
