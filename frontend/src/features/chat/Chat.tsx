@@ -32,6 +32,12 @@ const AGENT_KEYWORDS = [
   'Jereming',
 ] as const
 
+function getRandomAgentLabel(exclude: Set<string> = new Set()): string {
+  const pool = AGENT_KEYWORDS.filter(k => !exclude.has(k))
+  const arr = pool.length > 0 ? pool : AGENT_KEYWORDS
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 //
 
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
@@ -191,6 +197,26 @@ export default function Chat() {
       if (conversationId) baseMeta.conversation_id = conversationId
       const payload: ChatCompletionRequest = { messages: next, metadata: baseMeta }
 
+      // Ajouter un premier mot dès le début du streaming pour éviter l'affichage d'ellipses
+      setMessages(prev => {
+        const copy = [...prev]
+        const idx = copy.findIndex(m => m.ephemeral)
+        if (idx >= 0) {
+          const used = new Set<string>(
+            ((copy[idx].details?.steps as any[]) || []).map((s: any) => s.agentLabel).filter(Boolean)
+          )
+          const first = getRandomAgentLabel(used)
+          copy[idx] = {
+            ...copy[idx],
+            details: {
+              ...(copy[idx].details || {}),
+              steps: [ ...(((copy[idx].details?.steps) as any[]) || []), { agentLabel: first } as any ]
+            }
+          }
+        }
+        return copy
+      })
+
       await streamSSE('/chat/stream', payload, (type, data) => {
         if (type === 'meta') {
           const meta = data as ChatStreamMeta
@@ -244,8 +270,7 @@ export default function Chat() {
             const used: Set<string> = new Set(
               (copy[target]?.details?.steps || []).map((s: any) => s.agentLabel).filter(Boolean)
             )
-            const pool = AGENT_KEYWORDS.filter(k => !used.has(k))
-            const agentLabel = (pool.length > 0 ? pool : AGENT_KEYWORDS)[Math.floor(Math.random() * (pool.length > 0 ? pool.length : AGENT_KEYWORDS.length))]
+            const agentLabel = getRandomAgentLabel(used)
             const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql, agentLabel }
             const interimText = `${agentLabel}…`
             copy[target] = {
@@ -1216,8 +1241,8 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
           )}>
             {/* Pendant le streaming, afficher le dernier mot-clé d'agent reçu (lié aux événements SQL) */}
             {!isUser && message.ephemeral ? (
-              <div className="mb-1 inline-flex items-center gap-2 text-xs text-primary-600">
-                <span className="inline-block h-3 w-3 rounded-full border-2 border-primary-300 border-t-primary-900 animate-spin" />
+              <div className="mb-1 inline-flex items-center gap-2 text-sm text-primary-700 font-medium">
+                <span className="inline-block h-4 w-4 rounded-full border-[2.5px] border-primary-300 border-t-primary-900 animate-spin" />
                 <span>
                   {(() => {
                     const steps: any[] = (message.details?.steps as any[]) || []
