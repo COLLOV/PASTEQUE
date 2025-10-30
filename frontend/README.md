@@ -218,6 +218,7 @@ Fonctionnement du bouton « Graphique » (oct. 2025):
 
 - Le bouton est visible sur chaque réponse de l'assistant et s'active uniquement si un échantillon NL→SQL (colonnes + lignes) est disponible pour ce tour.
 - Le clic envoie `POST /mcp/chart` avec: `{ prompt: <message utilisateur précédent>, answer: <réponse>, dataset: { sql, columns, rows, row_count } }`.
+- Pendant l'appel, l'UI affiche une animation (spinner) et le libellé « Génération… » sur le bouton. Un indicateur global « Génération du graphique… » apparaît également dans le fil de discussion.
 - Le graphique est affiché dans un nouveau message assistant, avec bouton « Enregistrer dans le dashboard ».
 - S'il n'y a pas de données, le bouton reste désactivé (UX plus claire et cohérente).
 

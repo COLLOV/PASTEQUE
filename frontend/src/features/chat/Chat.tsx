@@ -60,6 +60,8 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Animation de chargement pendant la génération d'un graphique
+  const [chartGenerating, setChartGenerating] = useState(false)
   const [chartMode, setChartMode] = useState(false)
   const [sqlMode, setSqlMode] = useState(true)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
@@ -366,6 +368,7 @@ export default function Chat() {
         }
 
         try {
+          setChartGenerating(true)
           const res = await apiFetch<ChartGenerationResponse>('/mcp/chart', {
             method: 'POST',
             body: JSON.stringify(chartPayload)
@@ -389,6 +392,7 @@ export default function Chat() {
                 content: "Impossible de générer un graphique."
               }
           setMessages(prev => [...prev, assistantMessage])
+          setChartGenerating(false)
         } catch (chartErr) {
           console.error(chartErr)
           setMessages(prev => [
@@ -402,6 +406,7 @@ export default function Chat() {
           if (chartErr instanceof Error) {
             setError(chartErr.message)
           }
+          setChartGenerating(false)
         }
       }
     } catch (e) {
@@ -723,6 +728,9 @@ export default function Chat() {
                 onGenerateChart={onGenerateChart}
               />
             ))}
+            {(chartGenerating || messages.some(m => m.chartSaving)) && (
+              <div className="flex justify-center py-2"><Loader text="Génération du graphique…" /></div>
+            )}
             {messages.length === 0 && loading && (
               <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
             )}
@@ -1211,7 +1219,11 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                       : 'Aucun jeu de données exploitable pour le graphique'
                   }
                 >
-                  <HiChartBar className="w-4 h-4 mr-2" />
+                  {message.chartSaving ? (
+                    <span className="inline-block h-4 w-4 mr-2 rounded-full border-2 border-primary-300 border-t-primary-900 animate-spin" />
+                  ) : (
+                    <HiChartBar className="w-4 h-4 mr-2" />
+                  )}
                   {message.chartSaving ? 'Génération…' : 'Graphique'}
                 </Button>
                 <Button
