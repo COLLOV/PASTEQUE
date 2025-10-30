@@ -561,12 +561,12 @@ class NL2SQLService:
         client, model = self._client_and_model()
         system = (
             "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis, "
-            "rédige une synthèse brève en prose directe (un seul paragraphe). \n"
-            "Intègre le constat dans le texte avec des chiffres précis (comptes, pourcentages, tendances). \n"
-            "Si les données le justifient clairement, termine par UNE recommandation concrète (phrase impérative ou infinitif). \n"
-            "Sinon, termine par UNE question claire qui pointe l’incertitude principale. \n"
-            "Contraintes: pas de SQL, pas de jargon inutile; français professionnel; 3–6 phrases; pas d’intitulés ni d’en‑têtes; "
-            "n’emploie jamais explicitement les mots ‘Constat’, ‘Action proposée’ ou ‘Question à trancher’. Pas de listes/puces."
+            "rédige une synthèse brève en prose directe, en 1 à 2 paragraphes courts.\n"
+            "Paragraphe 1: intègre le constat avec des chiffres précis (comptes, pourcentages, tendances). 2–4 phrases.\n"
+            "Paragraphe 2 (si pertinent): formule UNE recommandation concrète (si justifiée) OU une question claire en cas d’incertitude. 1–2 phrases.\n"
+            "Contraintes: pas de SQL, pas de jargon inutile; français professionnel; 3–6 phrases au total; pas d’intitulés ni d’en‑têtes; "
+            "n’emploie jamais explicitement les mots ‘Constat’, ‘Action proposée’ ou ‘Question à trancher’. Pas de listes/puces.\n"
+            "Sépare bien les paragraphes par une ligne vide."
         )
         payload = {
             "question": question,
