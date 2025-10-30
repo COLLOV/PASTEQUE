@@ -130,6 +130,21 @@ data/
 - Le frontend capture le dernier dataset NL→SQL (SQL, colonnes, lignes tronquées à `NL2SQL_MAX_ROWS`) et le transmet tel quel au backend; sans résultat exploitable, aucun graphique n’est généré et un message explicite est renvoyé.
 - Le backend n’explore plus les CSV `data/raw/` pendant cette étape : l’agent `pydantic-ai` exploite exclusivement les données reçues via l’outil `get_sql_result`. Les helpers `load_dataset` / `aggregate_counts` restent disponibles avant l’appel `generate_*_chart` si besoin.
 - La réponse API inclut l’URL du rendu, les métadonnées (titre, description, spec JSON) ainsi que la requête SQL source et son volume de lignes pour garder la traçabilité côté frontend.
+
+#### Mode Multi‑agent (Explorateur + Analyste)
+
+- Activez `NL2SQL_MULTIAGENT_ENABLED=true` dans `backend/.env` pour en faire le mode par défaut, ou envoyez `metadata: { nl2sql: true, multiagent: true }` à `POST /api/v1/chat/stream` pour l’activer au coup‑par‑coup.
+- Déroulé:
+  - Explorateur: propose et exécute de petites requêtes de découverte (DISTINCT, MIN/MAX, COUNT par catégorie, échantillons LIMIT 20) sur les tables autorisées (`NL2SQL_DB_PREFIX.*`). Ces requêtes sont émises en SSE via des événements `sql`/`rows` avec `purpose: "explore"`.
+  - Analyste: sur la base de ces résultats, génère UNE requête finale (SELECT‑only) qui répond précisément à la question. Cette requête est exécutée et son jeu de résultats est diffusé (`purpose: "answer"`).
+  - Itération: si le résultat final est jugé insuffisant (moins de `NL2SQL_SATISFACTION_MIN_ROWS` lignes), une nouvelle ronde d’exploration est lancée, jusqu’à `NL2SQL_EXPLORE_ROUNDS`.
+- Variables d’environnement:
+  - `NL2SQL_MULTIAGENT_ENABLED=false` — active le mode par défaut.
+  - `NL2SQL_EXPLORE_ROUNDS=1` — nombre de rondes d’exploration max.
+  - `NL2SQL_SATISFACTION_MIN_ROWS=1` — seuil minimal de lignes pour considérer la réponse satisfaisante.
+- LLM:
+  - Mode local: `LLM_MODE=local` + `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
+  - Mode API: `LLM_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
 - Le backend filtre les lignes stdout non JSON renvoyées par le serveur MCP `chart` pour éviter les erreurs `Invalid JSON` dues aux logs d'initialisation.
 

@@ -352,3 +352,123 @@ class NL2SQLService:
             temperature=0,
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    # --- Multi‑agent helpers -------------------------------------------------
+    def explore(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+        max_steps: int,
+        observations: str | None = None,
+    ) -> List[Dict[str, str]]:
+        """Ask the LLM to propose small exploratory SELECT queries.
+
+        The goal is to quickly learn about value ranges and categories related to the question
+        (e.g., DISTINCT values, MIN/MAX, sample rows, small GROUP BY counts).
+        Returns a list of {"purpose", "sql"}.
+        """
+        client, model = self._client_and_model()
+        tables_desc = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        tables_blob = "\n".join(tables_desc)
+
+        system = (
+            "You are a data explorer agent. Propose up to N short SELECT queries that help\n"
+            "understand the data relevant to the question: small DISTINCT lists, MIN/MAX for dates\n"
+            "or numbers, COUNTs by key categories, and a few sample rows (LIMIT ≤ 20).\n"
+            f"Use only the '{settings.nl2sql_db_prefix}.' schema and always add an alias after each table.\n"
+            "All queries must be SELECT‑only, safe to execute, and return quickly.\n"
+            "Return JSON only: {\"queries\":[{\"purpose\":str,\"sql\":str}, ...]}. No prose."
+        )
+        obs_section = (f"\nObservations to consider:\n{observations}\n" if observations else "")
+        user = (
+            f"Available tables and columns:\n{tables_blob}\n\n"
+            f"Max steps: {max_steps}. Question: {question}\n"
+            f"Focus on columns likely involved in the question.\n"
+            + obs_section
+        )
+        resp = client.chat_completions(
+            model=model,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        blob = text
+        if "```" in text:
+            parts = text.split("```")
+            if len(parts) >= 2:
+                blob = parts[1]
+                if blob.lower().startswith("json\n"):
+                    blob = blob.split("\n", 1)[-1]
+        try:
+            data = json.loads(blob)
+        except Exception as e:
+            raise RuntimeError(f"Exploration JSON invalide: {e}")
+        queries = data.get("queries") if isinstance(data, dict) else None
+        if not isinstance(queries, list) or not queries:
+            raise RuntimeError("Aucune requête exploratoire proposée")
+        out: List[Dict[str, str]] = []
+        for q in queries[:max_steps]:
+            purpose = str(q.get("purpose", "")).strip()
+            sql = _extract_sql(str(q.get("sql", "")))
+            if not purpose or not sql:
+                continue
+            sql = _rewrite_date_functions(sql)
+            if not _is_select_only(sql):
+                raise RuntimeError("Une requête exploratoire n'est pas un SELECT")
+            _ensure_required_prefix(sql)
+            out.append({"purpose": purpose, "sql": sql})
+        if not out:
+            raise RuntimeError("Aucune requête exploratoire exploitable")
+        return out
+
+    def generate_with_evidence(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+        evidence: List[Dict[str, object]],
+    ) -> str:
+        """Produce a single final SELECT using prior exploration evidence.
+
+        The model must return only one SELECT that answers the question precisely.
+        """
+        client, model = self._client_and_model()
+        tables_desc = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        tables_blob = "\n".join(tables_desc)
+        system = (
+            "You are an analyst agent. Given a natural language question and the results of prior\n"
+            "exploratory queries, write ONE SQL SELECT that directly answers the question.\n"
+            "Dialect: MindsDB (MySQL-like). Rules: SELECT-only; prefix tables with the allowed schema;\n"
+            "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
+            "Return only the SQL (optionally fenced). No explanation."
+        )
+        user = json.dumps(
+            {
+                "question": question,
+                "tables": tables_desc,
+                "evidence": evidence,
+                "rules": {
+                    "schema_prefix": settings.nl2sql_db_prefix,
+                },
+            },
+            ensure_ascii=False,
+        )
+        resp = client.chat_completions(
+            model=model,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        sql = _extract_sql(text)
+        sql = _rewrite_date_functions(sql)
+        if not _is_select_only(sql):
+            raise RuntimeError("La requête finale générée n'est pas un SELECT")
+        _ensure_required_prefix(sql)
+        return sql
