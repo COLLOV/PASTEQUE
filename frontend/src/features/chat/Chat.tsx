@@ -1263,11 +1263,11 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                 {/* Métadonnées masquées (request_id/provider/model/elapsed) pour alléger l'affichage */}
                 {message.details.steps && message.details.steps.length > 0 && (
                   <div className="text-[11px]">
-                    <div className="uppercase tracking-wide text-primary-500 mb-1">Étapes (agents)</div>
+                    <div className="uppercase tracking-wide text-primary-500 mb-1">SQL exécuté</div>
                     <ul className="list-disc ml-5 space-y-1 max-h-40 overflow-auto">
                       {message.details.steps.map((s, i) => (
                         <li key={i} className="break-all">
-                          {s.step ? `#${s.step} ` : ''}{s.purpose ? `[${s.purpose}] ` : ''}{(s as any).agentLabel || agentLabelForIndex(i)}
+                          {s.step ? `#${s.step} ` : ''}{s.purpose ? `[${s.purpose}] ` : ''}{s.sql}
                         </li>
                       ))}
                     </ul>
