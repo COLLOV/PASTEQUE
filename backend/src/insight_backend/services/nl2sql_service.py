@@ -549,6 +549,28 @@ class NL2SQLService:
             raise RuntimeError("Aucune proposition d'axes exploitable")
         return out
 
-    # Backwards-compatible alias: the writer agent
+    # Writer agent: interpret results with Constat / Action / Question
     def write(self, *, question: str, evidence: List[Dict[str, object]]) -> str:
-        return self.synthesize(question=question, evidence=evidence)
+        client, model = self._client_and_model()
+        system = (
+            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis, "
+            "rédige une synthèse brève et utile en trois règles: \n"
+            "1) Constat: ce que montrent les données (appuie‑toi sur des chiffres: comptes, pourcentages, tendances).\n"
+            "2) Si c’est justifié par les données, propose UNE action concrète (Action proposée: …) avec un impact clair.\n"
+            "3) Sinon, quand l’incertitude est trop grande, soulève UNE question explicite à trancher (Question à trancher: …).\n"
+            "Contraintes: pas de SQL, pas de jargon technique inutile; français professionnel; 3–6 phrases max; "
+            "utilise des puces seulement pour lister des catégories; ne propose pas d’action si les preuves sont faibles."
+        )
+        payload = {
+            "question": question,
+            "evidence": evidence,
+        }
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            temperature=0,
+        )
+        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
