@@ -93,6 +93,13 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/chat/completions' \
   -d '{"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
+### Agent RAG Tickets
+
+- Activez `RAG_ENABLED=true` dans `.env` pour préfixer la dernière question utilisateur d’un contexte extrait des `RAG_TOP_K` tickets les plus proches (cosinus d’embeddings).
+- Les embeddings sont générés via l’endpoint OpenAI-compatible `/embeddings`: `RAG_EMBEDDING_MODEL_LOCAL` est utilisé si `LLM_MODE=local`, `RAG_EMBEDDING_MODEL_API` sinon; ajustez `RAG_EMBEDDING_BATCH_SIZE` selon le provider.
+- Le store persistant est sérialisé dans `VECTOR_STORE_PATH/<RAG_TICKET_TABLE>.json`; il est régénéré si le CSV source (colonnes `RAG_TICKET_TEXT_COLUMNS`) change ou si le modèle diffère.
+- La réponse ajoute `metadata.rag` (tickets triés + scores arrondis) et le log `insight.services.chat` documente le ticket le plus pertinent retenu.
+
 ### Streaming (SSE)
 
 Endpoint de streaming compatible navigateurs (SSE via `text/event-stream`) — utilise la même configuration LLM:

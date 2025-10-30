@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import csv
-from typing import Iterable
+import json
+from typing import Iterable, Any, Dict
 import logging
 
 
@@ -25,11 +26,23 @@ class DataRepository:
             log.warning("tables_dir inexistant: %s", self.tables_dir)
 
     # Vector store placeholders
-    def save_vector_store(self, path: str) -> None:  # pragma: no cover - stub
-        raise NotImplementedError
+    def save_vector_store(self, path: str, payload: Dict[str, Any]) -> None:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = target.with_suffix(target.suffix + ".tmp")
+        with tmp_path.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False)
+        tmp_path.replace(target)
+        log.info("Vector store persisted: %s", target)
 
-    def load_vector_store(self, path: str) -> None:  # pragma: no cover - stub
-        raise NotImplementedError
+    def load_vector_store(self, path: str) -> Dict[str, Any] | None:
+        target = Path(path)
+        if not target.exists():
+            return None
+        with target.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        log.info("Vector store loaded: %s", target)
+        return data
 
     # CSV-backed tables
     def _iter_table_files(self) -> Iterable[Path]:
