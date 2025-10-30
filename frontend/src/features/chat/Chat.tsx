@@ -22,6 +22,20 @@ import clsx from 'clsx'
 
 //
 
+// Mots-clés d'agent affichés à la place des requêtes SQL
+const AGENT_KEYWORDS = [
+  'Foyering',
+  'Searching',
+  'Researching',
+  'Datanalysting',
+  'Alberting',
+  'Jereming',
+] as const
+
+function agentLabelForIndex(i: number): string {
+  return AGENT_KEYWORDS[i % AGENT_KEYWORDS.length]
+}
+
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
   const headings = columns.length > 0 ? columns : ['value']
   return rows.map(row => {
@@ -224,12 +238,16 @@ export default function Chat() {
           const entry = { sql: sqlText, purpose: data?.purpose ? String(data.purpose) : undefined }
           sqlByStep.set(stepKey, entry)
           sqlByStep.set('latest', entry)
-          const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql }
+          // Déterminer un libellé d'agent pour cette étape (au lieu d'afficher le SQL)
+          let agentLabel = agentLabelForIndex(0)
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
             const target = idx >= 0 ? idx : copy.length - 1
-            const interimText = sqlText
+            const currentCount = Number(copy[target]?.details?.steps?.length || 0)
+            agentLabel = agentLabelForIndex(currentCount)
+            const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql, agentLabel }
+            const interimText = `${agentLabel}…`
             copy[target] = {
               ...copy[target],
               content: interimText,
@@ -1245,11 +1263,11 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                 {/* Métadonnées masquées (request_id/provider/model/elapsed) pour alléger l'affichage */}
                 {message.details.steps && message.details.steps.length > 0 && (
                   <div className="text-[11px]">
-                    <div className="uppercase tracking-wide text-primary-500 mb-1">SQL exécuté</div>
+                    <div className="uppercase tracking-wide text-primary-500 mb-1">Étapes (agents)</div>
                     <ul className="list-disc ml-5 space-y-1 max-h-40 overflow-auto">
                       {message.details.steps.map((s, i) => (
                         <li key={i} className="break-all">
-                          {s.step ? `#${s.step} ` : ''}{s.purpose ? `[${s.purpose}] ` : ''}{s.sql}
+                          {s.step ? `#${s.step} ` : ''}{s.purpose ? `[${s.purpose}] ` : ''}{(s as any).agentLabel || agentLabelForIndex(i)}
                         </li>
                       ))}
                     </ul>
