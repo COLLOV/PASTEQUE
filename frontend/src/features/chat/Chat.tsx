@@ -92,7 +92,7 @@ export default function Chat() {
     }
   }, [messages, loading])
 
-  // Sync history modal visibility with URL `?history=1` (read-only)
+  // Sync local state with URL `?history=1` (URL → state only)
   useEffect(() => {
     const sp = new URLSearchParams(search)
     const wantOpen = sp.has('history') && sp.get('history') !== '0'
@@ -100,12 +100,21 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
 
-  // Trigger a fresh session when URL has `?new=1`, then clean the URL (one-shot)
+  // Trigger a fresh session when URL has `?new=1`, then clean the URL (one‑shot)
   useEffect(() => {
     const sp = new URLSearchParams(search)
     const wantNew = sp.has('new') && sp.get('new') !== '0'
     if (wantNew) {
-      onNewChat()
+      // Inline reset to avoid depending on onNewChat in deps
+      if (loading && abortRef.current) {
+        abortRef.current.abort()
+      }
+      setConversationId(null)
+      setMessages([])
+      setEvidenceSpec(null)
+      setEvidenceData(null)
+      setError('')
+      setHistoryOpen(false)
       sp.delete('new')
       setSearchParams(sp, { replace: true })
     }
@@ -902,7 +911,11 @@ function TicketPanel({ spec, data }: TicketPanelProps) {
         return url.pathname + url.search + url.hash
       }
       return url.href
-    } catch {
+    } catch (err) {
+      if (import.meta?.env?.MODE !== 'production') {
+        // Avertir en dev si le gabarit de lien est invalide
+        console.warn('TicketPanel.buildLink: invalid link template', { tpl, err })
+      }
       return undefined
     }
   }
