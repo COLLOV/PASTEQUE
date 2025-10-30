@@ -32,8 +32,32 @@ const AGENT_KEYWORDS = [
   'Jereming',
 ] as const
 
-function agentLabelForIndex(i: number): string {
-  return AGENT_KEYWORDS[i % AGENT_KEYWORDS.length]
+// conservé pour compat mais non utilisé: supprimé
+
+function shuffle<T>(arr: readonly T[]): T[] {
+  const a = arr.slice() as T[]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function AgentTicker() {
+  const sequence = useMemo(() => shuffle(AGENT_KEYWORDS), [])
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIdx(i => (i + 1) % sequence.length)
+    }, 700)
+    return () => clearInterval(id)
+  }, [sequence.length])
+  return (
+    <div className="mb-2 inline-flex items-center gap-2 text-xs text-primary-600">
+      <span className="inline-block h-3 w-3 rounded-full border-2 border-primary-300 border-t-primary-900 animate-spin" />
+      <span className="transition-opacity duration-300 ease-in-out">{sequence[idx]}…</span>
+    </div>
+  )
 }
 
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
@@ -238,14 +262,16 @@ export default function Chat() {
           const entry = { sql: sqlText, purpose: data?.purpose ? String(data.purpose) : undefined }
           sqlByStep.set(stepKey, entry)
           sqlByStep.set('latest', entry)
-          // Déterminer un libellé d'agent pour cette étape (au lieu d'afficher le SQL)
-          let agentLabel = agentLabelForIndex(0)
+          // Déterminer un libellé d'agent aléatoire pour cette étape (au lieu d'afficher le SQL)
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
             const target = idx >= 0 ? idx : copy.length - 1
-            const currentCount = Number(copy[target]?.details?.steps?.length || 0)
-            agentLabel = agentLabelForIndex(currentCount)
+            const used: Set<string> = new Set(
+              (copy[target]?.details?.steps || []).map((s: any) => s.agentLabel).filter(Boolean)
+            )
+            const pool = AGENT_KEYWORDS.filter(k => !used.has(k))
+            const agentLabel = (pool.length > 0 ? pool : AGENT_KEYWORDS)[Math.floor(Math.random() * (pool.length > 0 ? pool.length : AGENT_KEYWORDS.length))]
             const step = { step: data?.step, purpose: data?.purpose, sql: data?.sql, agentLabel }
             const interimText = `${agentLabel}…`
             copy[target] = {
@@ -1214,6 +1240,8 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             'text-sm whitespace-pre-wrap leading-relaxed',
             isUser ? '' : 'text-primary-950'
           )}>
+            {/* Animation aléatoire des mots-clés d'agent pendant le streaming */}
+            {!isUser && message.ephemeral && <AgentTicker />}
             {content}
             {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
             {!isUser && !chartUrl && !message.ephemeral && (
