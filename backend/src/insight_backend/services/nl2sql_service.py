@@ -219,9 +219,17 @@ class NL2SQLService:
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
-        # Cap prompt size to avoid runaway contexts
+        # Cap prompt size to avoid runaway contexts (truncate at line boundaries)
         if len(tables_blob) > 8000:
-            tables_blob = tables_blob[:8000] + "\n…"
+            lines = tables_blob.split("\n")
+            truncated: list[str] = []
+            length = 0
+            for line in lines:
+                if length + len(line) > 8000:
+                    break
+                truncated.append(line)
+                length += len(line) + 1
+            tables_blob = "\n".join(truncated) + "\n…"
         # Hints for date-like columns
         date_hints: Dict[str, List[str]] = {}
         for t, cols in schema.items():
@@ -297,8 +305,8 @@ class NL2SQLService:
         # Enforce a sane step range
         try:
             max_steps_int = int(max_steps)
-        except Exception:
-            raise RuntimeError("Paramètre max_steps invalide")
+        except (ValueError, TypeError) as e:
+            raise RuntimeError(f"Paramètre max_steps invalide: {e}")
         hard_cap = max(1, settings.nl2sql_plan_max_steps)
         if max_steps_int < 1 or max_steps_int > hard_cap:
             max_steps = hard_cap
@@ -311,7 +319,15 @@ class NL2SQLService:
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
         if len(tables_blob) > 8000:
-            tables_blob = tables_blob[:8000] + "\n…"
+            lines = tables_blob.split("\n")
+            truncated: list[str] = []
+            length = 0
+            for line in lines:
+                if length + len(line) > 8000:
+                    break
+                truncated.append(line)
+                length += len(line) + 1
+            tables_blob = "\n".join(truncated) + "\n…"
         # Optional samples
         samples_blob = ""
         if settings.nl2sql_include_samples:

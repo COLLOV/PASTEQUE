@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { RefObject } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
+import { TICKETS_CONFIG } from '@/config/tickets'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -50,7 +51,7 @@ function createMessageId(): string {
 }
 
 export default function Chat() {
-  const [, setSearchParams] = useSearchParams()
+  const [_searchParams, setSearchParams] = useSearchParams()
   const { search } = useLocation()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
@@ -108,16 +109,7 @@ export default function Chat() {
     const sp = new URLSearchParams(search)
     const wantNew = sp.has('new') && sp.get('new') !== '0'
     if (wantNew) {
-      // Inline reset to avoid depending on onNewChat in deps
-      if (loading && abortRef.current) {
-        abortRef.current.abort()
-      }
-      setConversationId(null)
-      setMessages([])
-      setEvidenceSpec(null)
-      setEvidenceData(null)
-      setError('')
-      setHistoryOpen(false)
+      onNewChat()
       sp.delete('new')
       setSearchParams(sp, { replace: true })
     }
@@ -478,7 +470,18 @@ export default function Chat() {
     }
   }
 
-  // onNewChat (unused) removed to satisfy TS checks
+  // Reset the chat session state. Used by the `?new=1` URL flow (Layout button)
+  function onNewChat() {
+    if (loading && abortRef.current) {
+      abortRef.current.abort()
+    }
+    setConversationId(null)
+    setMessages([])
+    setEvidenceSpec(null)
+    setEvidenceData(null)
+    setError('')
+    setHistoryOpen(false)
+  }
 
   async function onGenerateChart(messageId: string) {
     const index = messages.findIndex(m => m.id === messageId)
@@ -865,9 +868,9 @@ type TicketPanelProps = {
 }
 
 function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
-  // Preview caps
-  const PREVIEW_COL_MAX = 6
-  const PREVIEW_CHAR_MAX = 140
+  // Preview caps (configurable)
+  const PREVIEW_COL_MAX = TICKETS_CONFIG.PREVIEW_COL_MAX
+  const PREVIEW_CHAR_MAX = TICKETS_CONFIG.PREVIEW_CHAR_MAX
 
   const count = data?.row_count ?? data?.rows?.length ?? 0
   const limit = spec?.limit ?? 100
@@ -887,7 +890,7 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
 
   function openDetail(pk: unknown) {
     if (containerRef?.current) {
-      try { prevScrollTop.current = containerRef.current.scrollTop } catch { /* noop */ }
+      try { prevScrollTop.current = containerRef.current.scrollTop } catch (err) { if (import.meta?.env?.MODE !== 'production') console.warn('TicketPanel: failed reading scrollTop', err) }
     }
     setSelectedPk(String(pk))
   }
@@ -897,7 +900,7 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
     const el = containerRef?.current
     if (el) {
       // Wait next paint to ensure list is rendered
-      requestAnimationFrame(() => { el.scrollTop = prevScrollTop.current || 0 })
+      requestAnimationFrame(() => { try { el.scrollTop = prevScrollTop.current || 0 } catch (err) { if (import.meta?.env?.MODE !== 'production') console.warn('TicketPanel: failed restoring scrollTop', err) } })
     }
   }
 
@@ -963,12 +966,23 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
     )
   }
 
-  const orderedColumns = orderColumns(columns)
-  const previewColumns = orderedColumns.slice(0, PREVIEW_COL_MAX)
+  const orderedColumns = useMemo(() => orderColumns(columns), [columns, titleKey, statusKey, createdAtKey, pkKey])
+  const previewColumns = useMemo(() => orderedColumns.slice(0, PREVIEW_COL_MAX), [orderedColumns, PREVIEW_COL_MAX])
 
   // Detail view when a ticket is selected
-  if (selectedPk != null && pkKey) {
-    const row = sorted.find(r => String(r[pkKey!]) === selectedPk)
+  if (selectedPk != null) {
+    if (!pkKey) {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-primary-900">Détail</div>
+            <button type="button" onClick={backToList} className="text-xs rounded-full border px-2 py-1 hover:bg-primary-50">Tout voir</button>
+          </div>
+          <div className="text-sm text-red-600">Configuration manquante: clé primaire introuvable.</div>
+        </div>
+      )
+    }
+    const row = sorted.find(r => String(r[pkKey]) === selectedPk)
     const link = row ? buildLink(linkTpl, row) : undefined
     return (
       <div className="space-y-2">
