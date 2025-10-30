@@ -25,7 +25,7 @@ Compatibilité shell:
 
 - Les scripts `start.sh` et `start_full.sh` sont compatibles avec le Bash macOS 3.2 et `/bin/sh`. La normalisation en minuscules de `CONTAINER_RUNTIME` n'utilise plus l'expansion Bash 4 `${var,,}` mais une transformation POSIX via `tr`.
 
-Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production.
+Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR` / `GPT_VIS_SSR_PUBLIC_URL`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production.
 
 Lancer manuellement si besoin:
 
@@ -44,9 +44,9 @@ Frontend (depuis `frontend/`):
 SSR GPT-Vis (depuis `vis-ssr/`):
 
 1. Installer deps: `npm install`
-2. Copier `.env.ssr.example` en `.env` et ajuster `GPT_VIS_SSR_PORT` / `VIS_IMAGE_DIR`
+2. Copier `.env.ssr.example` en `.env` et ajuster `GPT_VIS_SSR_PORT` / `VIS_IMAGE_DIR` / `GPT_VIS_SSR_PUBLIC_URL`
 3. Lancer: `npm run start` (endpoint `POST /generate` + statiques `/charts/*`, PNG rendu via `@antv/gpt-vis-ssr`)
-4. Ajuster l'URL du plan/Z/mcp.config.json (variable VIS_REQUEST_SERVER) en fonction du `GPT_VIS_SSR_PORT` port choisi.
+4. Ajuster l'URL du plan/Z/mcp.config.json (variable VIS_REQUEST_SERVER) en fonction du `GPT_VIS_SSR_PORT` port choisi. Si le domaine public diffère de `localhost`, renseigner `GPT_VIS_SSR_PUBLIC_URL` (URL absolue, http(s)) pour que les liens de rendu retournés par l'API SSR soient corrects.
 
 Configurer le frontend via `frontend/.env.development` (`FRONTEND_DEV_URL`, `VITE_API_URL`, `FRONTEND_URLS` si plusieurs origines sont nécessaires).
 Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
