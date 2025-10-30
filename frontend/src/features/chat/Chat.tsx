@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -50,6 +50,7 @@ function createMessageId(): string {
 
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { search } = useLocation()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -81,39 +82,38 @@ export default function Chat() {
     }
   }, [messages, loading])
 
-  // Sync history modal visibility with URL `?history=1`
+  // Sync history modal visibility with URL `?history=1` (derive from location.search)
   useEffect(() => {
-    const wantOpen = searchParams.has('history') && searchParams.get('history') !== '0'
-    // Only update if state differs to avoid loops
+    const sp = new URLSearchParams(search)
+    const wantOpen = sp.has('history') && sp.get('history') !== '0'
     setHistoryOpen(prev => (prev === wantOpen ? prev : wantOpen))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  }, [search])
 
-  // Trigger a fresh session when URL has `?new=1`, then clean the URL
+  // Trigger a fresh session when URL has `?new=1`, then clean the URL (based on location.search)
   useEffect(() => {
-    const wantNew = searchParams.has('new') && searchParams.get('new') !== '0'
+    const sp = new URLSearchParams(search)
+    const wantNew = sp.has('new') && sp.get('new') !== '0'
     if (wantNew) {
       onNewChat()
-      const next = new URLSearchParams(searchParams)
-      next.delete('new')
-      setSearchParams(next, { replace: true })
+      sp.delete('new')
+      setSearchParams(sp, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  }, [search])
 
   useEffect(() => {
-    const currentlyHas = searchParams.has('history')
+    const sp = new URLSearchParams(search)
+    const currentlyHas = sp.has('history')
     if (historyOpen && !currentlyHas) {
-      const next = new URLSearchParams(searchParams)
-      next.set('history', '1')
-      setSearchParams(next, { replace: true })
+      sp.set('history', '1')
+      setSearchParams(sp, { replace: true })
     } else if (!historyOpen && currentlyHas) {
-      const next = new URLSearchParams(searchParams)
-      next.delete('history')
-      setSearchParams(next, { replace: true })
+      sp.delete('history')
+      setSearchParams(sp, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyOpen])
+  }, [historyOpen, search])
 
   // Fermer la sheet Tickets avec la touche Escape
   useEffect(() => {
