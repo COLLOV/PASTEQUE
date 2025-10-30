@@ -142,12 +142,16 @@ def _ensure_required_prefix(sql: str) -> None:
         raise RuntimeError(f"SQL invalide (parse): {e}")
 
     required = settings.nl2sql_db_prefix.lower()
+    cte_names = _collect_cte_names(sql)
     bad: list[str] = []
     for t in tree.find_all(exp.Table):
         db = t.args.get("db")
         tbl = t.args.get("this")
         db_name = (db.this if hasattr(db, "this") else None)
         tbl_name = (tbl.this if hasattr(tbl, "this") else None)
+        # Skip CTE references
+        if tbl_name and tbl_name.lower() in cte_names:
+            continue
         # Consider only real tables; skip CTEs (sqlglot resolves separately)
         fq = ".".join([p for p in [db_name, tbl_name] if p])
         if not db_name or db_name.lower() != required:
@@ -448,7 +452,6 @@ class NL2SQLService:
         for t, cols in schema.items():
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
-        tables_blob = "\n".join(tables_desc)
         system = (
             "You are an analyst agent. Given a natural language question and the results of prior\n"
             "exploratory queries, write ONE SQL SELECT that directly answers the question.\n"

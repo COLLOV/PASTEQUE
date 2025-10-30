@@ -667,7 +667,7 @@ class ChatService:
             if re.search(r";|\b(insert|update|delete|alter|drop|create)\b", base, re.I):
                 return None
             return base
-        except Exception as e:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover - defensive
             log.warning("_derive_evidence_sql failed", exc_info=True)
             return None
 
