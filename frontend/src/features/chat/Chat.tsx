@@ -65,6 +65,16 @@ export default function Chat() {
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  
+  // Helpers to open/close history while keeping URL in sync only on explicit actions
+  const closeHistory = () => {
+    setHistoryOpen(false)
+    const sp = new URLSearchParams(search)
+    if (sp.has('history')) {
+      sp.delete('history')
+      setSearchParams(sp, { replace: true })
+    }
+  }
 
   useEffect(() => {
     // Auto‑scroll the internal messages list container instead of the window
@@ -82,7 +92,7 @@ export default function Chat() {
     }
   }, [messages, loading])
 
-  // Sync history modal visibility with URL `?history=1` (derive from location.search)
+  // Sync history modal visibility with URL `?history=1` (read-only)
   useEffect(() => {
     const sp = new URLSearchParams(search)
     const wantOpen = sp.has('history') && sp.get('history') !== '0'
@@ -90,7 +100,7 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
 
-  // Trigger a fresh session when URL has `?new=1`, then clean the URL (based on location.search)
+  // Trigger a fresh session when URL has `?new=1`, then clean the URL (one-shot)
   useEffect(() => {
     const sp = new URLSearchParams(search)
     const wantNew = sp.has('new') && sp.get('new') !== '0'
@@ -101,19 +111,6 @@ export default function Chat() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
-
-  useEffect(() => {
-    const sp = new URLSearchParams(search)
-    const currentlyHas = sp.has('history')
-    if (historyOpen && !currentlyHas) {
-      sp.set('history', '1')
-      setSearchParams(sp, { replace: true })
-    } else if (!historyOpen && currentlyHas) {
-      sp.delete('history')
-      setSearchParams(sp, { replace: true })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyOpen, search])
 
   // Fermer la sheet Tickets avec la touche Escape
   useEffect(() => {
@@ -463,7 +460,7 @@ export default function Chat() {
       } else {
         setEvidenceData(ev ?? null)
       }
-      setHistoryOpen(false)
+      closeHistory()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible')
     }
@@ -817,7 +814,7 @@ export default function Chat() {
       {/* History modal */}
       {historyOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setHistoryOpen(false)} />
+          <div className="absolute inset-0 bg-black/30" onClick={closeHistory} />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg border shadow-lg w-[90vw] max-w-xl max-h-[80vh] overflow-auto">
             <div className="p-3 border-b flex items-center justify-between">
               <div className="text-sm font-semibold">Conversations</div>
