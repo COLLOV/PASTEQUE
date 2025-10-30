@@ -12,7 +12,8 @@ npm install
 Créez un fichier `.env.development`:
 
 ```env
-FRONTEND_URLS=http://localhost:5173,http://127.0.0.1:5173
+FRONTEND_DEV_URL=http://localhost:5173
+FRONTEND_URLS=http://localhost:5173
 VITE_API_URL=http://localhost:8000/api/v1
 ```
 
