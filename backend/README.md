@@ -42,6 +42,16 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 - Les réponses NL→SQL envoyées au frontend sont désormais uniquement en langage naturel; les requêtes SQL restent accessibles via les métadonnées ou les logs si besoin.
 - Le générateur NL→SQL refuse désormais les requêtes qui n’appliquent pas le préfixe `files.` sur toutes les tables (`/api/v1/mindsdb/sync-files` garde le même schéma).
 
+### Garde‑fous de configuration
+
+En environnements non‑développement (`ENV` différent de `development`/`dev`/`local`), le backend refuse de démarrer si des valeurs par défaut non sûres sont détectées:
+
+- `JWT_SECRET_KEY == "change-me"`
+- `ADMIN_PASSWORD == "admin"`
+- `DATABASE_URL` contient `postgres:postgres@`
+
+Corrigez ces variables dans `backend/.env` (ou vos secrets d’exécution) avant le déploiement. En développement, ces valeurs sont tolérées mais un avertissement est journalisé.
+
 ### Sécurité et robustesse (conversations)
 
 - L’endpoint `GET /api/v1/conversations/{id}/dataset` ne ré‑exécute que des requêtes strictement `SELECT` validées via un parseur SQL (sqlglot). Les contraintes suivantes sont appliquées:
