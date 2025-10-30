@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import List
+import logging
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -78,3 +79,36 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def assert_secure_configuration() -> None:
+    """Fail fast in non-development envs when unsafe defaults are detected.
+
+    This preserves developer ergonomics (defaults are allowed in ENV=development)
+    while preventing accidental production runs with insecure credentials.
+    """
+    log = logging.getLogger("insight.core.config")
+    env = (settings.env or "").strip().lower()
+    if env in {"dev", "development", "local"}:
+        # Be noisy but do not block developer workflows
+        if settings.jwt_secret_key == "change-me":
+            log.warning("Using default JWT secret in development; DO NOT use in production.")
+        if settings.admin_password == "admin":
+            log.warning("Using default admin password in development; DO NOT use in production.")
+        if "postgres:postgres@" in settings.database_url:
+            log.warning("Using default Postgres credentials in development; DO NOT use in production.")
+        return
+
+    # Harden non-development environments
+    problems: list[str] = []
+    if settings.jwt_secret_key == "change-me":
+        problems.append("JWT_SECRET_KEY must be set to a strong secret")
+    if settings.admin_password == "admin":
+        problems.append("ADMIN_PASSWORD must not be 'admin'")
+    if "postgres:postgres@" in settings.database_url:
+        problems.append("DATABASE_URL must not use default 'postgres:postgres' credentials")
+
+    if problems:
+        raise RuntimeError(
+            "Insecure configuration detected for ENV!='development': " + "; ".join(problems)
+        )
