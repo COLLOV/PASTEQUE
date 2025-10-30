@@ -97,19 +97,8 @@ class ChatService:
                         pass
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
                 data = client.sql(sql)
-                # Normalize common MindsDB shapes
-                rows = []
-                columns = []
-                if isinstance(data, dict):
-                    # MindsDB table shape
-                    if data.get("type") == "table":
-                        columns = data.get("column_names") or []
-                        rows = data.get("data") or []
-                    # Alternate shapes
-                    if not rows:
-                        rows = data.get("result", {}).get("rows") or data.get("rows") or rows
-                    if not columns:
-                        columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                # Normalize using a single canonical helper
+                columns, rows = self._normalize_result(data)
 
                 if events:
                     snapshot = {
@@ -230,17 +219,8 @@ class ChatService:
                             except Exception:
                                 log.warning("Failed to emit sql event (plan step)", exc_info=True)
                         data = client.sql(sql)
-                        # Normalize
-                        rows: list = []
-                        columns: list = []
-                        if isinstance(data, dict):
-                            if data.get("type") == "table":
-                                columns = data.get("column_names") or []
-                                rows = data.get("data") or []
-                            if not rows:
-                                rows = data.get("result", {}).get("rows") or data.get("rows") or rows
-                            if not columns:
-                                columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                        # Normalize using a single canonical helper
+                        columns, rows = self._normalize_result(data)
                         if events:
                             try:
                                 events(
@@ -313,16 +293,7 @@ class ChatService:
                         )
                     data = client.sql(sql)
                     # Normalize to columns/rows and synthesize final answer
-                    rows = []
-                    columns = []
-                    if isinstance(data, dict):
-                        if data.get("type") == "table":
-                            columns = data.get("column_names") or []
-                            rows = data.get("data") or []
-                        if not rows:
-                            rows = data.get("result", {}).get("rows") or data.get("rows") or rows
-                        if not columns:
-                            columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                    columns, rows = self._normalize_result(data)
                     if events:
                         try:
                             events(
