@@ -17,7 +17,7 @@ from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....services.chat_service import ChatService
-from ....services.router_service import RouterService
+from ....services.router_service import RouterService, RouterDecision
 from ....engines.openai_engine import OpenAIChatEngine
 from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
@@ -92,17 +92,13 @@ def chat_completion(  # type: ignore[valid-type]
 
     # Router gate on every user message (avoid useless SQL/NL2SQL work)
     last = payload.messages[-1] if payload.messages else None
-    router_mode = (settings.router_mode or "rule").strip().lower()
-    if router_mode == "false":
-        log.info("Router disabled (ROUTER_MODE=false), skipping gate (/completions)")
-    elif last and last.role == "user":
-        # Bypass router for explicit SQL passthrough
-        if not last.content.strip().casefold().startswith("/sql "):
-            try:
-                decision = RouterService().decide(last.content)
-            except OpenAIBackendError as exc:
-                log.error("Router backend error: %s", exc)
-                raise HTTPException(status_code=502, detail=str(exc))
+    if last and last.role == "user":
+        try:
+            decision = _router_decision_or_none(last.content)
+        except OpenAIBackendError as exc:
+            log.error("Router backend error: %s", exc)
+            raise HTTPException(status_code=502, detail=str(exc))
+        if decision is not None:
             log.info(
                 "Router decision: allow=%s route=%s conf=%.2f reason=%s",
                 decision.allow,
@@ -111,8 +107,11 @@ def chat_completion(  # type: ignore[valid-type]
                 decision.reason,
             )
             if not decision.allow:
-                text = "Ce n'est pas une question pour passer de la data à l'action"
-                # Persist assistant reply
+                text = (
+                    "Ce n'est pas une question pour passer de la data à l'action. "
+                    "Essayez par exemple: ‘Combien de tickets en juin ?’, ‘Montre la répartition par service’, "
+                    "ou utilisez /sql SELECT ... pour exécuter une requête explicite."
+                )
                 try:
                     with transactional(session):
                         repo.append_message(conversation_id=conv_id, role="assistant", content=text)
@@ -137,6 +136,22 @@ def chat_completion(  # type: ignore[valid-type]
 
 def _sse(event: str, data: dict) -> bytes:
     return f"event: {event}\n".encode("utf-8") + f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
+
+
+def _router_decision_or_none(text: str) -> RouterDecision | None:
+    """Return RouterDecision or None when router is disabled or bypassed.
+
+    - Disabled when ROUTER_MODE=false
+    - Bypassed for messages starting with '/sql ' (case-insensitive)
+    - Caps input to 10k chars to avoid pathological regex workloads
+    """
+    mode = (settings.router_mode or "rule").strip().lower()
+    if mode == "false":
+        return None
+    t = (text or "")[:10000]
+    if t.strip().casefold().startswith("/sql "):
+        return None
+    return RouterService().decide(t)
 
 
 @router.post("/stream")
@@ -211,13 +226,14 @@ def chat_stream(  # type: ignore[valid-type]
         try:
             # Router gate on every user message before any SQL activity
             last = payload.messages[-1] if payload.messages else None
-            router_mode = (settings.router_mode or "rule").strip().lower()
-            if router_mode == "false":
-                log.info("Router disabled (ROUTER_MODE=false), skipping gate (/stream)")
-            elif last and last.role == "user":
-                # Bypass router for explicit SQL passthrough
-                if not last.content.strip().casefold().startswith("/sql "):
-                    decision = RouterService().decide(last.content)
+            if last and last.role == "user":
+                try:
+                    decision = _router_decision_or_none(last.content)
+                except OpenAIBackendError as exc:
+                    log.error("Router backend error: %s", exc)
+                    yield _sse("error", {"code": "router_backend_error", "message": str(exc)})
+                    return
+                if decision is not None:
                     log.info(
                         "Router decision: allow=%s route=%s conf=%.2f reason=%s",
                         decision.allow,
@@ -228,7 +244,11 @@ def chat_stream(  # type: ignore[valid-type]
                     if not decision.allow:
                         prov = "router"
                         yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": "rule", "conversation_id": conversation_id, "route": decision.route, "confidence": decision.confidence})
-                        text = "Ce n'est pas une question pour passer de la data à l'action"
+                        text = (
+                            "Ce n'est pas une question pour passer de la data à l'action. "
+                            "Essayez par exemple: ‘Combien de tickets en juin ?’, ‘Montre la répartition par service’, "
+                            "ou utilisez /sql SELECT ... pour exécuter une requête explicite."
+                        )
                         for line in text.splitlines(True):
                             if not line:
                                 continue
