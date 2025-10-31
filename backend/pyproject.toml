@@ -21,6 +21,9 @@ dependencies = [
   "python-jose[cryptography]>=3.3",
   "argon2-cffi>=23.1",
   "sqlglot>=25.0.0",
+  "pgvector>=0.2.4",
+  "sentence-transformers>=2.6.1",
+  "tqdm>=4.66.0",
 ]
 
 [build-system]

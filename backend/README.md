@@ -42,6 +42,21 @@ Chargement et usage:
 - `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
 - Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. La taille est plafonnée via `DATA_DICTIONARY_MAX_CHARS` (défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
 
+### RAG – embeddings
+
+Un script dédié prépare les colonnes `vector` Postgres et calcule les embeddings via SentenceTransformers.
+
+- Configuration `.env` (toutes modifiables à chaud):
+  - `EMBEDDING_MODEL` (par défaut `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
+  - `EMBEDDING_DIM` (dimension attendue par le modèle).
+  - `EMBEDDING_BATCH_SIZE` (taille des lots SQL/embeddings).
+  - `EMBEDDING_TABLES` (liste séparée par virgules des tables à traiter).
+  - `EMBEDDING_COLUMN_DEFAULT` + `EMBEDDING_COLUMNS_OVERRIDES` (`table:colonne`) pour cibler la colonne texte; ex. `tickets_jira:description`.
+  - `EMBEDDING_VECTOR_COLUMN` (nom de la colonne `vector` ajoutée dans chaque table).
+  - `RAG_RETRIEVAL_K` (nombre de lignes similaires à remonter lors du RAG).
+- Exécution: `uv run python -m insight_backend.scripts.compute_embeddings` (ajouter `--tables` / `--model` / `--batch-size` pour override ponctuel).
+- Le script journalise la progression via `tqdm`, saute automatiquement les lignes déjà vectorisées (colonne non nulle) et crée l’extension `pgvector` + la colonne `vector(<dim>)` si besoin.
+
 ### Base de données & authentification
 
 - Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :
