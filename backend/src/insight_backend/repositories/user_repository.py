@@ -59,3 +59,49 @@ class UserRepository:
         )
         log.debug("Loaded %d users (admin scope)", len(users))
         return users
+
+    # ----- Settings helpers -----
+    def get_settings(self, *, user_id: int) -> dict:
+        user = self.session.query(User).filter(User.id == user_id).one_or_none()
+        return dict(user.settings or {}) if user else {}
+
+    def set_settings(self, *, user_id: int, settings: dict) -> dict:
+        payload = dict(settings or {})
+        self.session.query(User).filter(User.id == user_id).update({User.settings: payload})
+        log.info("User settings updated (user_id=%s, keys=%s)", user_id, ",".join(sorted(payload.keys())))
+        return payload
+
+    def get_default_excluded_tables(self, *, user_id: int) -> list[str]:
+        s = self.get_settings(user_id=user_id)
+        raw = s.get("default_exclude_tables") if isinstance(s, dict) else None
+        if not isinstance(raw, list):
+            return []
+        out: list[str] = []
+        seen: set[str] = set()
+        for item in raw:
+            if isinstance(item, str) and item.strip():
+                key = item.strip()
+                if key.casefold() in seen:
+                    continue
+                seen.add(key.casefold())
+                out.append(key)
+        return out
+
+    def set_default_excluded_tables(self, *, user_id: int, tables: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in tables:
+            if not isinstance(item, str):
+                continue
+            cleaned = item.strip()
+            if not cleaned:
+                continue
+            key = cleaned.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append(cleaned)
+        s = self.get_settings(user_id=user_id)
+        s["default_exclude_tables"] = normalized
+        self.set_settings(user_id=user_id, settings=s)
+        return normalized

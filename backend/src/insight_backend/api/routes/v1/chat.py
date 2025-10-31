@@ -21,6 +21,7 @@ from ....engines.openai_engine import OpenAIChatEngine
 from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 from ....repositories.conversation_repository import ConversationRepository
+from ....repositories.user_repository import UserRepository
 from ....utils.text import sanitize_title
 
 log = logging.getLogger("insight.api.chat")
@@ -90,12 +91,19 @@ def chat_completion(  # type: ignore[valid-type]
         if excludes_in is not None and isinstance(excludes_in, list):
             try:
                 repo.set_excluded_tables(conversation_id=conv_id, tables=[str(x) for x in excludes_in])
+                # Update user default from current selection
+                UserRepository(session).set_default_excluded_tables(
+                    user_id=current_user.id,
+                    tables=[str(x) for x in excludes_in],
+                )
             except Exception:
                 log.warning("Failed to persist exclude_tables for conversation_id=%s", conv_id, exc_info=True)
         else:
-            # If none provided, hydrate from existing settings for this conversation
+            # If none provided, hydrate from conversation or user defaults
             try:
                 saved = repo.get_excluded_tables(conversation_id=conv_id)
+                if not saved:
+                    saved = UserRepository(session).get_default_excluded_tables(user_id=current_user.id)
                 if saved:
                     payload.metadata = dict(payload.metadata or {})
                     payload.metadata["exclude_tables"] = saved
@@ -198,11 +206,17 @@ def chat_stream(  # type: ignore[valid-type]
         if excludes_in is not None and isinstance(excludes_in, list):
             try:
                 repo.set_excluded_tables(conversation_id=conversation_id, tables=[str(x) for x in excludes_in])
+                UserRepository(session).set_default_excluded_tables(
+                    user_id=current_user.id,
+                    tables=[str(x) for x in excludes_in],
+                )
             except Exception:
                 log.warning("Failed to persist exclude_tables for conversation_id=%s", conversation_id, exc_info=True)
         else:
             try:
                 saved = repo.get_excluded_tables(conversation_id=conversation_id)
+                if not saved:
+                    saved = UserRepository(session).get_default_excluded_tables(user_id=current_user.id)
                 if saved:
                     payload.metadata = dict(payload.metadata or {})
                     payload.metadata["exclude_tables"] = saved

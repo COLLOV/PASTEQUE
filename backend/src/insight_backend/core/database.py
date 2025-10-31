@@ -31,6 +31,7 @@ def init_database() -> None:
     _ensure_conversation_indexes()
     _ensure_conversation_settings_column()
     _ensure_user_password_reset_column()
+    _ensure_user_settings_column()
     _ensure_admin_column()
     log.info("Database initialized (tables ensured).")
 
@@ -113,10 +114,33 @@ def _ensure_user_password_reset_column() -> None:
             connection.execute(
                 text("UPDATE users SET must_reset_password = FALSE WHERE must_reset_password IS NULL")
             )
-        if added_column:
-            log.info("Added must_reset_password column to users table.")
-        else:
-            log.debug("must_reset_password column already present.")
+    if added_column:
+        log.info("Added must_reset_password column to users table.")
+    else:
+        log.debug("must_reset_password column already present.")
+
+
+def _ensure_user_settings_column() -> None:
+    """Ensure a JSON settings column exists on users for per-account defaults.
+
+    Example payload: {"default_exclude_tables": ["tickets", ...]}.
+    """
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("users")}
+        if "settings" in columns:
+            log.debug("users.settings column already present.")
+            return
+        stmt = text("ALTER TABLE users ADD COLUMN settings JSON")
+        try:
+            connection.execute(stmt)
+            log.info("Added settings column to users table.")
+        except DBAPIError as exc:  # pragma: no cover
+            message = str(getattr(exc, "orig", exc)).lower()
+            if "duplicate column" in message or "already exists" in message:
+                log.debug("users.settings column already exists (race).")
+            else:
+                raise
 
 
 def _is_duplicate_column_error(exc: DBAPIError) -> bool:

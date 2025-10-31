@@ -762,6 +762,21 @@ export default function Chat() {
                         setDataTables(names)
                         // Initialiser exclusions en conservant celles déjà cochées
                         setExcludedTables(prev => new Set(Array.from(prev).filter(v => names.includes(v))))
+                        // Si nouvelle conversation et aucune exclusion encore définie, préremplir avec la dernière conversation
+                        if (!conversationId && excludedTables.size === 0 && history.length > 0) {
+                          try {
+                            const last = await apiFetch<{ settings?: { exclude_tables?: string[] } }>(`/conversations/${history[0].id}`)
+                            const ex = Array.isArray(last?.settings?.exclude_tables)
+                              ? (last!.settings!.exclude_tables as unknown[]).filter((x): x is string => typeof x === 'string')
+                              : []
+                            if (ex.length > 0) {
+                              const filtered = ex.filter(name => names.includes(name))
+                              setExcludedTables(new Set(filtered))
+                            }
+                          } catch (err) {
+                            // best-effort; ignore
+                          }
+                        }
                       } catch (err) {
                         console.error('Failed to load tables', err)
                       } finally {
