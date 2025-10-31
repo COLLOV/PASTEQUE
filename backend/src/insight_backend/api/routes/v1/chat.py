@@ -31,31 +31,10 @@ log = logging.getLogger("insight.api.chat")
 router = APIRouter(prefix="/chat")
 
 
-def _normalize_exclude_tables(raw: list[object], *, max_items: int = 1000, max_len: int = 255) -> list[str]:
-    """Validate and normalize a user-provided list of table names.
+from ....utils.validation import normalize_table_names
 
-    - caps list length to ``max_items``
-    - trims and truncates names to ``max_len``
-    - deduplicates case-insensitively while preserving first-seen casing
-    """
-    out: list[str] = []
-    seen: set[str] = set()
-    count = 0
-    for item in raw:
-        if count >= max_items:
-            break
-        if not isinstance(item, str):
-            continue
-        cleaned = item.strip()[:max_len]
-        if not cleaned:
-            continue
-        key = cleaned.casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(cleaned)
-        count += 1
-    return out
+
+_last_settings_update_ts_by_user: dict[int, float] = {}
 
 
 def _apply_exclusions_and_defaults(
@@ -73,14 +52,24 @@ def _apply_exclusions_and_defaults(
     repo = ConversationRepository(session)
     user_repo = UserRepository(session)
 
-    excludes_in = metadata.get("exclude_tables") if isinstance(metadata, dict) else None
+    # Normalize metadata once to avoid TOCTOU between isinstance checks
+    metadata = dict(metadata) if isinstance(metadata, dict) else {}
+    excludes_in = metadata.get("exclude_tables")
     # Apply review: make saving as default opt‑in to avoid race conditions between tabs
-    save_default_flag = metadata.get("save_as_default") if isinstance(metadata, dict) else None
+    save_default_flag = metadata.get("save_as_default")
     save_as_default = bool(save_default_flag) if save_default_flag is not None else False
 
     if excludes_in is not None and isinstance(excludes_in, list):
+        # Lightweight rate limiting to avoid DB churn on settings updates
+        import time as _time
+        now = _time.time()
+        last = _last_settings_update_ts_by_user.get(user_id, 0.0)
+        if (now - last) < settings.settings_update_min_interval_s:
+            return repo.get_excluded_tables(conversation_id=conversation_id)
+        _last_settings_update_ts_by_user[user_id] = now
+
         # Validate and filter against known tables (case‑insensitive mapping → canonical names)
-        normalized = _normalize_exclude_tables(excludes_in)
+        normalized = normalize_table_names(excludes_in)
         available_list = DataRepository(tables_dir=settings.tables_dir).list_tables()
         canon_by_key = {name.casefold(): name for name in available_list}
         allowed_keys = {t.casefold() for t in (allowed_tables or available_list)}
@@ -89,9 +78,10 @@ def _apply_exclusions_and_defaults(
             key = t.casefold()
             if key in allowed_keys and key in canon_by_key:
                 filtered_canon.append(canon_by_key[key])
+        from sqlalchemy.exc import SQLAlchemyError
         try:
             persisted = repo.set_excluded_tables(conversation_id=conversation_id, tables=filtered_canon)
-        except Exception:
+        except SQLAlchemyError:
             log.warning(
                 "Failed to persist conversation exclude_tables (conversation_id=%s, user_id=%s)",
                 conversation_id,
@@ -103,7 +93,7 @@ def _apply_exclusions_and_defaults(
         if save_as_default:
             try:
                 user_repo.set_default_excluded_tables(user_id=user_id, tables=persisted)
-            except Exception:
+            except SQLAlchemyError:
                 log.warning(
                     "Failed to persist user default exclude_tables (user_id=%s)",
                     user_id,
@@ -181,7 +171,12 @@ def chat_completion(  # type: ignore[valid-type]
             conv = repo.create(user_id=current_user.id, title=title)
             session.flush()
             conv_id = conv.id
-        # Merge/persist per-conversation exclusions (settings) with validation
+        # Persist the last user message if any
+        last = payload.messages[-1] if payload.messages else None
+        if last and last.role == "user" and last.content:
+            repo.append_message(conversation_id=conv_id, role="user", content=last.content)
+
+        # Persist exclusions after a successful user-message append (same transaction)
         saved = _apply_exclusions_and_defaults(
             session=session,
             user_id=current_user.id,
@@ -192,11 +187,6 @@ def chat_completion(  # type: ignore[valid-type]
         if saved:
             payload.metadata = dict(payload.metadata or {})
             payload.metadata["exclude_tables"] = saved
-
-        # Persist the last user message if any
-        last = payload.messages[-1] if payload.messages else None
-        if last and last.role == "user" and last.content:
-            repo.append_message(conversation_id=conv_id, role="user", content=last.content)
 
     # Router gate on every user message (avoid useless SQL/NL2SQL work)
     last = payload.messages[-1] if payload.messages else None
@@ -223,17 +213,18 @@ def chat_completion(  # type: ignore[valid-type]
                     log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
                 return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
 
-    try:
-        resp = service.completion(payload, allowed_tables=allowed_tables)
-        # Persist assistant reply
-        if resp and isinstance(resp.reply, str):
-            try:
-                with transactional(session):
-                    repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
-            except SQLAlchemyError:
-                log.warning("Failed to persist assistant reply (conversation_id=%s)", conv_id, exc_info=True)
-        # Return as-is (no conversation id field in schema), clients can fetch via separate API
-        return resp
+        try:
+            resp = service.completion(payload, allowed_tables=allowed_tables)
+            # Persist assistant reply
+            if resp and isinstance(resp.reply, str):
+                try:
+                    with transactional(session):
+                        repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
+                except SQLAlchemyError:
+                    log.warning("Failed to persist assistant reply (conversation_id=%s)", conv_id, exc_info=True)
+            # No need to re-apply exclusions here: they were persisted in the same transaction as the user message
+            # Return as-is (no conversation id field in schema), clients can fetch via separate API
+            return resp
     except OpenAIBackendError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+import json
+from sqlalchemy import text
 
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
@@ -74,11 +76,14 @@ class ConversationRepository:
         return dict(conv.settings or {}) if conv else {}
 
     def set_settings(self, *, conversation_id: int, settings: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(settings or {})
+        # Ensure plain JSON-serializable payload to avoid driver-specific surprises
+        payload = json.loads(json.dumps(settings or {}))
         self.session.query(Conversation).filter(Conversation.id == conversation_id).update({
             Conversation.settings: payload,
             Conversation.updated_at: func.now(),
         })
+        # Make sure it’s flushed when caller needs to read back in the same transaction
+        self.session.flush()
         log.info("Conversation settings updated (conversation_id=%s, keys=%s)", conversation_id, ",".join(sorted(payload.keys())))
         return payload
 
@@ -99,20 +104,30 @@ class ConversationRepository:
         return out
 
     def set_excluded_tables(self, *, conversation_id: int, tables: list[str]) -> list[str]:
-        # Normalize and persist in settings JSON
-        normalized: list[str] = []
-        seen: set[str] = set()
-        for item in tables:
-            if not isinstance(item, str):
-                continue
-            cleaned = item.strip()
-            if not cleaned:
-                continue
-            key = cleaned.casefold()
-            if key in seen:
-                continue
-            seen.add(key)
-            normalized.append(cleaned)
+        # Normalize and persist in settings JSON (atomic update when Postgres is available)
+        from sqlalchemy.engine import Connection
+        from ..core.database import engine
+        from ..utils.validation import normalize_table_names
+
+        normalized = normalize_table_names(tables)
+
+        # Postgres: do a jsonb_set to avoid read-modify-write races on unrelated keys
+        if engine.dialect.name.startswith("postgres"):
+            payload_json = json.dumps(normalized)
+            with engine.begin() as conn:  # type: Connection
+                conn.execute(
+                    text(
+                        "UPDATE conversations "
+                        "SET settings = jsonb_set(COALESCE(settings::jsonb, '{}'::jsonb), '{exclude_tables}', to_jsonb(:payload::json))::json, "
+                        "    updated_at = NOW() "
+                        "WHERE id = :cid"
+                    ),
+                    {"payload": payload_json, "cid": conversation_id},
+                )
+            log.info("Conversation exclude_tables set via jsonb_set (conversation_id=%s, count=%d)", conversation_id, len(normalized))
+            return normalized
+
+        # Fallback (non-Postgres): read-modify-write with flush
         current = self.get_settings(conversation_id=conversation_id)
         current["exclude_tables"] = normalized
         self.set_settings(conversation_id=conversation_id, settings=current)

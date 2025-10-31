@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
 
+    # Exclusions / validation caps
+    max_excluded_tables: int = Field(1000, alias="MAX_EXCLUDED_TABLES")
+    max_table_name_length: int = Field(255, alias="MAX_TABLE_NAME_LENGTH")
+    settings_update_min_interval_s: float = Field(2.0, alias="SETTINGS_UPDATE_MIN_INTERVAL_S")
+
     # Database
     database_url: str = Field(
         "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",

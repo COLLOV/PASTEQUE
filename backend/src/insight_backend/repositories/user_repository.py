@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from sqlalchemy.orm import Session, selectinload
+from typing import Any
 
 from ..models.user import User
 from ..core.config import settings
@@ -61,11 +62,11 @@ class UserRepository:
         return users
 
     # ----- Settings helpers -----
-    def get_settings(self, *, user_id: int) -> dict:
+    def get_settings(self, *, user_id: int) -> dict[str, Any]:
         user = self.session.query(User).filter(User.id == user_id).one_or_none()
         return dict(user.settings or {}) if user else {}
 
-    def set_settings(self, *, user_id: int, settings: dict) -> dict:
+    def set_settings(self, *, user_id: int, settings: dict[str, Any]) -> dict[str, Any]:
         payload = dict(settings or {})
         self.session.query(User).filter(User.id == user_id).update({User.settings: payload})
         log.info("User settings updated (user_id=%s, keys=%s)", user_id, ",".join(sorted(payload.keys())))
@@ -88,19 +89,8 @@ class UserRepository:
         return out
 
     def set_default_excluded_tables(self, *, user_id: int, tables: list[str]) -> list[str]:
-        normalized: list[str] = []
-        seen: set[str] = set()
-        for item in tables:
-            if not isinstance(item, str):
-                continue
-            cleaned = item.strip()
-            if not cleaned:
-                continue
-            key = cleaned.casefold()
-            if key in seen:
-                continue
-            seen.add(key)
-            normalized.append(cleaned)
+        from ..utils.validation import normalize_table_names
+        normalized = normalize_table_names(tables)
         s = self.get_settings(user_id=user_id)
         s["default_exclude_tables"] = normalized
         self.set_settings(user_id=user_id, settings=s)

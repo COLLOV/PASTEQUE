@@ -202,15 +202,7 @@ export default function Chat() {
           if (Array.isArray(meta?.effective_tables)) {
             const eff = meta.effective_tables.filter(x => typeof x === 'string') as string[]
             setEffectiveTables(eff)
-            if (dataTables.length > 0) {
-              // Si on connaît déjà les tables, recalculer localement les exclusions
-              const effSet = new Set(eff.map(s => s.toLowerCase()))
-              const nextExcluded = new Set<string>()
-              for (const name of dataTables) {
-                if (!effSet.has(name.toLowerCase())) nextExcluded.add(name)
-              }
-              setExcludedTables(nextExcluded)
-            }
+            // Ne pas recalculer excludedTables à partir de effective_tables pour éviter flicker
           }
           setMessages(prev => {
             const copy = [...prev]
