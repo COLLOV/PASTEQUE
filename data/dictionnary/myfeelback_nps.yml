@@ -1,0 +1,17 @@
+version: 1
+table: myfeelback_nps
+title: MyFeelBack - NPS
+description: Mesures Net Promoter Score et attributs clients (source MyFeelBack).
+columns:
+  - name: feedback_id
+  - name: client_id
+  - name: date_feedback
+  - name: nps_score
+  - name: categorie
+  - name: profil_client
+  - name: nb_contrats
+  - name: a_eu_sinistre
+  - name: a_contacte_service_client
+  - name: utilise_app_mobile
+  - name: commentaire
+

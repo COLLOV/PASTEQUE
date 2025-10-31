@@ -1,0 +1,19 @@
+version: 1
+table: myfeelback_souscriptions
+title: MyFeelBack - Souscriptions
+description: Retours clients sur le parcours de souscription (source MyFeelBack).
+columns:
+  - name: feedback_id
+  - name: client_id
+  - name: date_feedback
+  - name: type_contrat
+  - name: canal
+  - name: note_globale
+  - name: clarte_informations
+  - name: facilite_processus
+  - name: temps_traitement
+  - name: qualite_accompagnement
+  - name: rapport_qualite_prix
+  - name: commentaire
+  - name: recommanderait
+

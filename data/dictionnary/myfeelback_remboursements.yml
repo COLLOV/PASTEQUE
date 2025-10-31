@@ -1,0 +1,16 @@
+version: 1
+table: myfeelback_remboursements
+title: MyFeelBack - Remboursements
+description: Données de sinistres et remboursements (source MyFeelBack).
+columns:
+  - name: sinistre_id
+  - name: client_id
+  - name: date_declaration
+  - name: date_remboursement
+  - name: type_sinistre
+  - name: montant_reclame
+  - name: montant_rembourse
+  - name: statut
+  - name: departement
+  - name: commentaire
+

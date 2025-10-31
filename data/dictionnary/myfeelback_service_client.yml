@@ -1,0 +1,19 @@
+version: 1
+table: myfeelback_service_client
+title: MyFeelBack - Service client
+description: Retours clients sur les interactions avec le service client (source MyFeelBack).
+columns:
+  - name: feedback_id
+  - name: client_id
+  - name: date_feedback
+  - name: motif_contact
+  - name: canal
+  - name: temps_attente
+  - name: temps_resolution
+  - name: note_globale
+  - name: note_rapidite
+  - name: note_competence
+  - name: note_amabilite
+  - name: probleme_resolu
+  - name: commentaire
+

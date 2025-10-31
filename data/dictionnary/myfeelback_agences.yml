@@ -1,0 +1,20 @@
+version: 1
+table: myfeelback_agences
+title: MyFeelBack - Agences
+description: Retours clients en agence (source MyFeelBack).
+columns:
+  - name: feedback_id
+  - name: client_id
+  - name: date_feedback
+  - name: agence
+  - name: motif_visite
+  - name: avec_rendez_vous
+  - name: temps_attente
+  - name: note_globale
+  - name: note_accueil
+  - name: note_competence_conseiller
+  - name: note_proprete_locaux
+  - name: note_accessibilite
+  - name: reviendrait
+  - name: commentaire
+

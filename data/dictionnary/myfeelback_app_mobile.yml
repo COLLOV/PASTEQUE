@@ -1,0 +1,17 @@
+version: 1
+table: myfeelback_app_mobile
+title: MyFeelBack - Application mobile
+description: Retours clients sur l'application mobile (source MyFeelBack).
+columns:
+  - name: feedback_id
+  - name: client_id
+  - name: date_feedback
+  - name: version_app
+  - name: fonctionnalite
+  - name: type_feedback
+  - name: note_globale
+  - name: note_facilite
+  - name: note_design
+  - name: note_performance
+  - name: commentaire
+

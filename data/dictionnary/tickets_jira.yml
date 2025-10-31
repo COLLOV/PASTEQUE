@@ -1,0 +1,11 @@
+version: 1
+table: tickets_jira
+title: Tickets Jira
+description: Tickets d'incidents/imports Jira.
+columns:
+  - name: ticket_id
+  - name: resume
+  - name: description
+  - name: creation_date
+  - name: departement
+
