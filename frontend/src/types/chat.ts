@@ -35,6 +35,8 @@ export interface ChatCompletionRequest {
   messages: Message[]
   metadata?: {
     nl2sql?: boolean
+    // Optionnel: tables à exclure pour cette requête
+    exclude_tables?: string[]
     [key: string]: unknown
   }
 }
@@ -52,6 +54,8 @@ export interface ChatStreamMeta {
   evidence_spec?: EvidenceSpec
   // Conversation identifier (server-created on first message)
   conversation_id?: number
+  // Tables effectivement actives côté serveur pour NL→SQL
+  effective_tables?: string[]
 }
 
 export interface ChatStreamDelta {

@@ -158,9 +158,41 @@ class ChatService:
                 # Build schema from local CSV headers
                 repo = DataRepository(tables_dir=Path(settings.tables_dir))
                 tables = repo.list_tables()
+                # 1) Appliquer les permissions (si non‑admin)
                 allowed_lookup = {name.casefold() for name in allowed_tables} if allowed_tables is not None else None
                 if allowed_lookup is not None:
                     tables = [name for name in tables if name.casefold() in allowed_lookup]
+                # 2) Appliquer les exclusions demandées par l'utilisateur (par conversation/requête)
+                meta_dict = payload.metadata if isinstance(payload.metadata, dict) else {}
+                exclude_raw = meta_dict.get("exclude_tables") if isinstance(meta_dict, dict) else None
+                exclude_lookup: set[str] = set()
+                if isinstance(exclude_raw, (list, tuple)):
+                    for item in exclude_raw:
+                        if isinstance(item, str) and item.strip():
+                            exclude_lookup.add(item.strip().casefold())
+                effective_tables = [name for name in tables if name.casefold() not in exclude_lookup]
+                # Synchroniser l'UI (stream): publier les tables effectivement actives
+                if events:
+                    try:
+                        events("meta", {"effective_tables": effective_tables})
+                    except Exception:
+                        log.debug("Failed to emit effective_tables meta", exc_info=True)
+                # Si aucune table, bloquer explicitement le flux NL→SQL (pas de fallback)
+                if not effective_tables:
+                    message = (
+                        "Aucune table active pour vos requêtes après application des exclusions. "
+                        "Réactivez des tables dans le panneau ‘Données utilisées’."
+                    )
+                    log.info(
+                        "NL2SQL aborted: no effective tables (allowed=%s, exclude=%s)",
+                        sorted(list(allowed_lookup or set())),
+                        sorted(list(exclude_lookup)),
+                    )
+                    return self._log_completion(
+                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl", "effective_tables": []}),
+                        context="completion denied (no effective tables)",
+                    )
+                tables = effective_tables
                 if not tables:
                     message = (
                         "Aucune table n'est disponible pour vos requêtes. "
@@ -176,6 +208,11 @@ class ChatService:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
                 nl2sql = NL2SQLService()
+                log.info(
+                    "NL2SQL tables selected: %s (allowed=%s)",
+                    tables,
+                    sorted(list(allowed_lookup or set())) if allowed_lookup is not None else "<admin/all>",
+                )
                 log.info(
                     "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
                     _preview_text(raw_question, limit=200),
