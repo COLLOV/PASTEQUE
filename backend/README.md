@@ -130,7 +130,7 @@ Objectif: éviter de déclencher des requêtes SQL/NL→SQL lorsque un message u
   - `api`: LLM distant OpenAI‑compatible (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` ou `ROUTER_MODEL`).
 - Comportement:
   - Si un message est jugé « non actionnable », l’API répond immédiatement: « Ce n'est pas une question pour passer de la data à l'action » et aucune requête SQL n’est lancée pour ce message.
-  - Sinon, la route cible (`data` | `feedback` | `foyer`) est loggée et exposée dans `meta` (stream) pour instrumentation.
+  - Sinon, la route cible (`data` | `feedback` | `foyer`) est loggée. En mode stream, un évènement `meta` est émis uniquement lorsque le router bloque la requête (provider=`router`).
 
 Variables d’environnement (voir `.env.example`):
 
