@@ -286,7 +286,7 @@ class ChatService:
                         # Ask Explorateur to propose chart axes based on evidence (optional)
                         try:
                             axes = nl2sql.propose_axes(
-                                question=contextual_question,
+                                question=contextual_question,  # pas de dico nécessaire ici (pas de génération SQL)
                                 schema=schema,
                                 evidence=evidence,
                                 max_items=3,
@@ -390,7 +390,12 @@ class ChatService:
                 # Multi-step planning if enabled
                 if settings.nl2sql_plan_enabled:
                     try:
-                        plan = nl2sql.plan(question=contextual_question, schema=schema, max_steps=settings.nl2sql_plan_max_steps)
+                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
+                        plan = nl2sql.plan(
+                            question=contextual_question_with_dico,
+                            schema=schema,
+                            max_steps=settings.nl2sql_plan_max_steps,
+                        )
                         log.info("NL2SQL plan (%d steps)", len(plan))
                         if events:
                             try:
@@ -479,7 +484,8 @@ class ChatService:
                 else:
                     # Single-shot NL→SQL with natural-language synthesis
                     try:
-                        sql = nl2sql.generate(question=contextual_question, schema=schema)
+                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
+                        sql = nl2sql.generate(question=contextual_question_with_dico, schema=schema)
                         log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
                         if events:
                             try:
