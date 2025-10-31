@@ -17,7 +17,7 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 
 But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
 
-- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionnary`).
+- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionary`).
 - Format: 1 fichier YAML par table (`<table>.yml`), par ex. `tickets_jira.yml`.
 - Schéma minimal:
 
