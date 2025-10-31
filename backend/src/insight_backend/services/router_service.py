@@ -8,6 +8,7 @@ from typing import Literal
 
 from ..core.config import settings
 from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
+from .nl2sql_service import _extract_json_blob  # reuse robust JSON extractor
 
 
 log = logging.getLogger("insight.services.router")
@@ -120,7 +121,8 @@ class RouterService:
         data = client.chat_completions(model=model, messages=messages, temperature=0)
         try:
             raw = data["choices"][0]["message"]["content"]
-            obj = json.loads(raw)
+            blob = _extract_json_blob(raw)
+            obj = json.loads(blob)
             allow = bool(obj.get("allow"))
             route = obj.get("route", "none")
             if route not in {"data", "feedback", "foyer", "none"}:
@@ -129,5 +131,6 @@ class RouterService:
             reason = str(obj.get("reason", "")) or "Classifié par LLM"
             return RouterDecision(allow, route, max(0.0, min(conf, 1.0)), reason)
         except Exception as e:
-            log.error("Échec du parsing JSON du routeur LLM: %s", e)
+            preview = (raw or "").strip()[:120] if 'raw' in locals() else ""
+            log.error("Échec du parsing JSON du routeur LLM: %s | preview=%.120s", e, preview)
             raise OpenAIBackendError("Réponse LLM invalide pour le routeur") from e
