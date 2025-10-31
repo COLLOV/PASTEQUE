@@ -59,6 +59,10 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+### Router (premier message)
+
+Un routeur léger empêche de lancer des requêtes SQL/NL→SQL sur un premier message non « data ». Configurez `ROUTER_MODE=rule|local|api` (voir `backend/.env.example`). Exemple de réponse bloquante: « Ce n'est pas une question pour passer de la data à l'action ».
+
 ### Historique des conversations (branche `feature/historique`)
 
 - Persistance côté backend des conversations, messages et événements (`conversations`, `conversation_messages`, `conversation_events`).

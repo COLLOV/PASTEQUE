@@ -17,6 +17,7 @@ from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....services.chat_service import ChatService
+from ....services.router_service import RouterService
 from ....engines.openai_engine import OpenAIChatEngine
 from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
@@ -88,6 +89,28 @@ def chat_completion(  # type: ignore[valid-type]
         last = payload.messages[-1] if payload.messages else None
         if last and last.role == "user" and last.content:
             repo.append_message(conversation_id=conv_id, role="user", content=last.content)
+
+    # First-message router gate (avoid useless SQL/NL2SQL work)
+    if payload.messages and len(payload.messages) == 1:
+        last = payload.messages[-1]
+        if last.role == "user":
+            decision = RouterService().decide(last.content)
+            log.info(
+                "Router decision: allow=%s route=%s conf=%.2f reason=%s",
+                decision.allow,
+                decision.route,
+                decision.confidence,
+                decision.reason,
+            )
+            if not decision.allow:
+                text = "Ce n'est pas une question pour passer de la data à l'action"
+                # Persist assistant reply
+                try:
+                    with transactional(session):
+                        repo.append_message(conversation_id=conv_id, role="assistant", content=text)
+                except SQLAlchemyError:
+                    log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
+                return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
 
     try:
         resp = service.completion(payload, allowed_tables=allowed_tables)
@@ -178,8 +201,45 @@ def chat_stream(  # type: ignore[valid-type]
     def generate() -> Iterator[bytes]:
         seq = 0
         try:
-            # 1) MindsDB passthrough (/sql ...) or NL→SQL mode
+            # Router gate on first message before any SQL activity
             last = payload.messages[-1] if payload.messages else None
+            if payload.messages and len(payload.messages) == 1 and last and last.role == "user":
+                decision = RouterService().decide(last.content)
+                log.info(
+                    "Router decision: allow=%s route=%s conf=%.2f reason=%s",
+                    decision.allow,
+                    decision.route,
+                    decision.confidence,
+                    decision.reason,
+                )
+                if not decision.allow:
+                    prov = "router"
+                    yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": "rule", "conversation_id": conversation_id, "route": decision.route, "confidence": decision.confidence})
+                    text = "Ce n'est pas une question pour passer de la data à l'action"
+                    for line in text.splitlines(True):
+                        if not line:
+                            continue
+                        seq += 1
+                        yield _sse("delta", {"seq": seq, "content": line})
+                    elapsed = max(time.perf_counter() - started, 1e-6)
+                    try:
+                        with transactional(session):
+                            repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                    except SQLAlchemyError:
+                        log.warning("Failed to persist router reply (conversation_id=%s)", conversation_id, exc_info=True)
+                    yield _sse(
+                        "done",
+                        {
+                            "id": trace_id,
+                            "content_full": text,
+                            "usage": None,
+                            "finish_reason": "stop",
+                            "elapsed_s": round(elapsed, 3),
+                        },
+                    )
+                    return
+
+            # 1) MindsDB passthrough (/sql ...) or NL→SQL mode
             if last and last.role == "user" and last.content.strip().casefold().startswith("/sql "):
                 prov = "mindsdb-sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
