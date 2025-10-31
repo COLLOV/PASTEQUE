@@ -885,10 +885,18 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
   const extra = Math.max((count || 0) - rows.length, 0)
   // Derive columns from the union of keys present in rows to ensure
   // all SQL-returned fields are visible, regardless of LLM hints.
-  const derivedCols = useMemo(
-    () => Array.from(new Set(allRows.flatMap(r => Object.keys(r || {})))),
-    [allRows]
-  )
+  const derivedCols = useMemo(() => {
+    // PR#58: derive from a small, stable sample to keep order predictable
+    const SAMPLE = Math.min(20, rows.length)
+    const sample = rows.slice(0, SAMPLE)
+    const ordered = new Set<string>()
+    for (const r of sample) {
+      for (const k of Object.keys(r || {})) {
+        if (!ordered.has(k)) ordered.add(k)
+      }
+    }
+    return Array.from(ordered)
+  }, [rows])
   const columns: string[] = (derivedCols.length > 0)
     ? derivedCols
     : (data?.columns ?? spec?.columns ?? [])
