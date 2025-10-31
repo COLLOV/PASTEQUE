@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     vllm_base_url: str | None = Field("http://localhost:8000/v1", alias="VLLM_BASE_URL")
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
 
-    # Router (first-message gate)
+    # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api"
     router_model: str | None = Field(None, alias="ROUTER_MODEL")
 
