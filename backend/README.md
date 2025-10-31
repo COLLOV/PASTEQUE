@@ -119,6 +119,26 @@ Notes de prod:
 - Si vous terminez derrière Nginx/Cloudflare, désactivez le buffering pour ce chemin.
 - Un seul flux actif par requête; le client doit annuler via `AbortController` si nécessaire.
 
+### Router du premier message
+
+Objectif: éviter de déclencher des requêtes SQL/NL→SQL lorsque le premier message n’est pas orienté « data ».
+
+- Activation: contrôlée par `ROUTER_MODE` (`rule` par défaut).
+- Modes disponibles:
+  - `rule` (défaut): heuristiques déterministes (aucun appel LLM).
+  - `local`: LLM local via vLLM (`VLLM_BASE_URL`, `Z_LOCAL_MODEL` ou `ROUTER_MODEL`).
+  - `api`: LLM distant OpenAI‑compatible (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` ou `ROUTER_MODEL`).
+- Comportement:
+  - Si le premier message est jugé « non actionnable », l’API répond immédiatement: « Ce n'est pas une question pour passer de la data à l'action » et aucune requête SQL n’est lancée.
+  - Sinon, la route cible (`data` | `feedback` | `foyer`) est loggée et exposée dans `meta` (stream) pour instrumentation.
+
+Variables d’environnement (voir `.env.example`):
+
+```
+ROUTER_MODE=rule   # rule | local | api
+# ROUTER_MODEL=    # optionnel; sinon Z_LOCAL_MODEL/LLM_MODEL
+```
+
 ### MCP – configuration déclarative
 
 Objectif: faciliter la connexion côté moteur de chat aux serveurs MCP:
