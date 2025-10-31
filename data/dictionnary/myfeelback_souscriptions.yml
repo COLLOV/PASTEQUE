@@ -4,16 +4,42 @@ title: MyFeelBack - Souscriptions
 description: Retours clients sur le parcours de souscription (source MyFeelBack).
 columns:
   - name: feedback_id
+    type: integer
+    description: Identifiant unique du feedback.
   - name: client_id
+    type: integer
+    description: Identifiant unique du client.
   - name: date_feedback
+    type: date
+    description: Date du feedback (YYYY-MM-DD).
   - name: type_contrat
+    type: string
+    description: Type de contrat souscrit.
   - name: canal
+    type: string
+    description: Canal de souscription (agence, web, téléphone, etc.).
   - name: note_globale
+    type: integer
+    description: Satisfaction globale du parcours (0–10).
   - name: clarte_informations
+    type: integer
+    description: Clarté des informations fournies (0–10).
   - name: facilite_processus
+    type: integer
+    description: Facilité du processus de souscription (0–10).
   - name: temps_traitement
+    type: integer
+    unit: minutes
+    description: Durée de traitement de la demande (minutes).
   - name: qualite_accompagnement
+    type: integer
+    description: Qualité de l'accompagnement (0–10).
   - name: rapport_qualite_prix
+    type: integer
+    description: Rapport qualité/prix perçu (0–10).
   - name: commentaire
+    type: string
+    description: Commentaire libre saisi par le client.
   - name: recommanderait
-
+    type: boolean
+    description: Le client recommanderait‑il l'offre ?
