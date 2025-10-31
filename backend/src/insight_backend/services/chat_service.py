@@ -1,6 +1,5 @@
 import logging
 import re
-from typing import Any, Dict, Callable
 
 from sqlglot import parse_one, exp
 from pathlib import Path
