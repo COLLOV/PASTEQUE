@@ -73,6 +73,8 @@ export default function Chat() {
   const [effectiveTables, setEffectiveTables] = useState<string[]>([])
   const [excludedTables, setExcludedTables] = useState<Set<string>>(new Set())
   const [tablesLoading, setTablesLoading] = useState(false)
+  // Saving behavior: opt‑in for updating user defaults to avoid cross‑tab races
+  const [saveAsDefault, setSaveAsDefault] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const ticketPanelRef = useRef<HTMLDivElement>(null)
@@ -186,6 +188,7 @@ export default function Chat() {
       // Transmettre les exclusions de tables si présentes
       if (excludedTables.size > 0) {
         baseMeta.exclude_tables = Array.from(excludedTables)
+        if (saveAsDefault) baseMeta.save_as_default = true
       }
       const payload: ChatCompletionRequest = { messages: next, metadata: baseMeta }
 
@@ -710,15 +713,37 @@ export default function Chat() {
   // Accessibility: focus management for Data panel
   const dataPanelRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
-    if (showDataPanel) {
-      dataPanelRef.current?.focus()
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') setShowDataPanel(false)
-      }
-      window.addEventListener('keydown', onKey)
-      return () => window.removeEventListener('keydown', onKey)
+    if (!showDataPanel) return
+    // Focus on open + Escape to close
+    dataPanelRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDataPanel(false)
     }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [showDataPanel])
+
+  function onDataPanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'Tab') return
+    const root = dataPanelRef.current
+    if (!root) return
+    const focusables = Array.from(root.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+    ))
+    if (focusables.length === 0) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    const current = document.activeElement as HTMLElement | null
+    if (e.shiftKey) {
+      if (current === first || !root.contains(current)) {
+        last.focus(); e.preventDefault()
+      }
+    } else {
+      if (current === last || !root.contains(current)) {
+        first.focus(); e.preventDefault()
+      }
+    }
+  }
 
   function includedTablesCount(total: number, excluded: Set<string>, effective: string[]): number {
     // Prefer server effective tables when available, else derive locally
@@ -779,6 +804,7 @@ export default function Chat() {
                         const items = await apiFetch<Array<{ name: string; path: string }>>('/data/tables')
                         const names = (items || []).map(it => it?.name).filter((x): x is string => typeof x === 'string')
                         setDataTables(names)
+                        // TODO: avoid extra fetch by returning last_conversation_settings in /conversations
                         // Initialiser exclusions en conservant celles déjà cochées
                         setExcludedTables(prev => new Set(Array.from(prev).filter(v => names.includes(v))))
                         // Si nouvelle conversation et aucune exclusion encore définie, préremplir avec la dernière conversation
@@ -901,6 +927,7 @@ export default function Chat() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="data-panel-title"
+            onKeyDown={onDataPanelKeyDown}
             tabIndex={-1}
             className="absolute left-1/2 top-16 -translate-x-1/2 w-[min(92vw,560px)] bg-white rounded-2xl border shadow-lg p-4 outline-none"
           >
@@ -962,8 +989,12 @@ export default function Chat() {
                 </ul>
               )}
             </div>
-            <div className="mt-2 text-[11px] text-primary-500">
-              Les exclusions seront appliquées au prochain message envoyé. Aucune heuristique de secours n’est utilisée.
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <label className="inline-flex items-center gap-2 text-xs text-primary-800">
+                <input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} />
+                Sauvegarder ces exclusions comme valeur par défaut
+              </label>
+              <div className="text-[11px] text-primary-500">Appliquées au prochain message. Pas de fallback.</div>
             </div>
           </div>
         </div>
