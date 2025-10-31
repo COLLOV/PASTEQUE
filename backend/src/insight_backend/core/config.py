@@ -1,7 +1,6 @@
 from functools import lru_cache
 from typing import List
 import logging
-import json
 
 from pydantic import Field
 from pydantic import field_validator
@@ -52,47 +51,6 @@ class Settings(BaseSettings):
             raise ValueError(f"ROUTER_MODE must be one of {sorted(valid)}; got: {v!r}")
         return val
 
-    @field_validator("rag_distance", mode="before")
-    @classmethod
-    def _validate_rag_distance(cls, v: str | None) -> str:
-        val = (v or "cosine").strip().lower()
-        valid = {"cosine", "l2", "ip"}
-        if val not in valid:
-            raise ValueError(f"RAG_DISTANCE must be one of {sorted(valid)}; got: {v!r}")
-        return val
-
-    @field_validator("rag_similarity_threshold", mode="before")
-    @classmethod
-    def _validate_rag_threshold(cls, v: float | str | None) -> float:
-        if v is None:
-            return 0.20
-        try:
-            val = float(v)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("RAG_SIM_THRESHOLD must be a float") from exc
-        if not 0 <= val <= 1:
-            raise ValueError("RAG_SIM_THRESHOLD must be between 0 and 1")
-        return val
-
-    @field_validator("rag_text_column_overrides", mode="before")
-    @classmethod
-    def _parse_rag_overrides(cls, v: dict[str, str] | str | None) -> dict[str, str]:
-        if v is None or v == "":
-            return {}
-        if isinstance(v, dict):
-            return {str(k): str(val) for k, val in v.items()}
-        if isinstance(v, str):
-            try:
-                data = json.loads(v)
-            except json.JSONDecodeError as exc:
-                raise ValueError(
-                    "RAG_TEXT_COLUMN_OVERRIDES must be valid JSON when provided"
-                ) from exc
-            if not isinstance(data, dict):
-                raise ValueError("RAG_TEXT_COLUMN_OVERRIDES JSON must describe an object")
-            return {str(k): str(val) for k, val in data.items()}
-        raise ValueError("Unsupported type for RAG_TEXT_COLUMN_OVERRIDES")
-
     # MCP configuration (declarative)
     mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
     mcp_servers_json: str | None = Field(None, alias="MCP_SERVERS_JSON")
@@ -109,25 +67,6 @@ class Settings(BaseSettings):
         "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",
         alias="DATABASE_URL",
     )
-
-    # RAG / embeddings
-    rag_embedding_model: str = Field(
-        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        alias="EMB_MODEL",
-    )
-    rag_embedding_dim: int = Field(384, alias="EMB_DIM")
-    rag_top_k: int = Field(8, alias="RAG_TOP_K")
-    rag_similarity_threshold: float = Field(0.20, alias="RAG_SIM_THRESHOLD")
-    rag_distance: str = Field("cosine", alias="RAG_DISTANCE")
-    rag_pgvector_lists: int = Field(100, alias="PGVECTOR_LISTS")
-    rag_table_prefix: str = Field("data_raw_", alias="RAG_TABLE_PREFIX")
-    rag_text_column_default: str = Field("commentaire", alias="RAG_TEXT_COLUMN_DEFAULT")
-    rag_text_column_overrides: dict[str, str] = Field(
-        default_factory=dict,
-        alias="RAG_TEXT_COLUMN_OVERRIDES",
-    )
-    rag_embedding_batch_size: int = Field(64, alias="RAG_EMBED_BATCH_SIZE")
-    rag_commit_every: int = Field(500, alias="RAG_COMMIT_EVERY")
 
     # Authentication
     jwt_secret_key: str = Field("change-me", alias="JWT_SECRET_KEY")

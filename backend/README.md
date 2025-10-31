@@ -62,19 +62,6 @@ Chargement et usage:
 - L’endpoint `GET /api/v1/auth/users` inclut un champ booléen `is_admin` pour refléter l’état réel de l’utilisateur côté base; le frontend s’appuie dessus pour neutraliser toute modification des droits de l’administrateur.
 - La colonne `must_reset_password` est ajoutée automatiquement au démarrage si elle n’existe pas encore. Elle force chaque nouvel utilisateur à passer par `POST /api/v1/auth/reset-password` (payload : `username`, `current_password`, `new_password`, `confirm_password`) avant d’obtenir un jeton. La réponse de login renvoie un code d’erreur `PASSWORD_RESET_REQUIRED` tant que le mot de passe n’a pas été mis à jour.
 
-### RAG embeddings (pgvector)
-
-- Configuration via `.env` : `EMB_MODEL`, `EMB_DIM`, `RAG_TOP_K`, `RAG_SIM_THRESHOLD`, `RAG_DISTANCE`, `PGVECTOR_LISTS`, `RAG_TABLE_PREFIX`, `RAG_TEXT_COLUMN_DEFAULT`, `RAG_TEXT_COLUMN_OVERRIDES`, `RAG_EMBED_BATCH_SIZE`, `RAG_COMMIT_EVERY`.
-- Au démarrage, `init_database()` assure l’extension `pgvector`, ajoute `embedding vector(EMB_DIM)` sur chaque table découverte dans `DATA_TABLES_DIR` (préfixées par `RAG_TABLE_PREFIX`) et crée l’index IVF (`lists=PGVECTOR_LISTS`, opclass selon `RAG_DISTANCE`).
-- Job d’initialisation idempotent : calcule les embeddings manquants (`embedding IS NULL`) en utilisant le modèle HuggingFace (ou autre) défini par `EMB_MODEL`, sans recalculer les lignes déjà vectorisées. 
-  ```bash
-  uv run python -m insight_backend.scripts.embed_vectors
-  # Limiter à une table (nom complet ou stem) :
-  uv run python -m insight_backend.scripts.embed_vectors --table data_raw_tickets_jira
-  ```
-- Batching contrôlé par `RAG_EMBED_BATCH_SIZE` (encode) et `RAG_COMMIT_EVERY` (transactions). Les colonnes texte sont sélectionnées via `RAG_TEXT_COLUMN_DEFAULT` ou les surcharges JSON `RAG_TEXT_COLUMN_OVERRIDES` (ex: `{"data_raw_tickets_jira":"description"}`).
-- Les logs `insight.scripts.embed` exposent progression (`tqdm`), temps par table et éventuels avertissements (colonnes manquantes, tables non trouvées).
-
 ### Journalisation
 
 - Logger `insight.api.chat`: trace chaque appel `POST /api/v1/chat/completions` (mode LLM sélectionné, nombre de messages, provider et taille de la réponse).
