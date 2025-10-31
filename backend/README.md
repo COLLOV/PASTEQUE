@@ -250,6 +250,9 @@ En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimul
 ## Evidence panel defaults
 
 - `EVIDENCE_LIMIT_DEFAULT` (int, default: 100): limite de lignes envoyées via SSE pour l’aperçu « evidence ». Utilisée à la fois pour la construction du `evidence_spec.limit` et pour la dérivation de SQL détaillé.
+
+Depuis 2025‑10‑31:
+- La dérivation du SQL « evidence » produit systématiquement un `SELECT *` (avec les mêmes `FROM`/`WHERE` et un `LIMIT`) y compris lorsque la requête d’origine n’est pas agrégée. Ainsi, le panel reçoit toujours des lignes complètes et peut afficher toutes les colonnes disponibles (l’aperçu de la liste reste plafonné côté front, la vue Détail montre tout).
 ## Historique des conversations
 
 Le backend persiste désormais les conversations et événements associés:

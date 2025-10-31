@@ -627,22 +627,23 @@ class ChatService:
         return columns or [], rows or []
 
     def _derive_evidence_sql(self, sql: str, *, limit: int | None = None) -> str | None:
-        """Attempt to derive a detail-level SELECT from an aggregate SQL.
+        """Derive a detail-level ``SELECT *`` keeping filters for the side panel.
 
-        This is a best-effort utility and logs on failure without masking errors.
-        Strategy: extract FROM ... [WHERE ...] then build SELECT * with same filters.
+        Best-effort: extract ``FROM ...`` and optional ``WHERE ...`` then build
+        ``SELECT *`` with the same filters. This now applies to BOTH aggregate and
+        non-aggregate queries so the evidence panel always receives complete rows.
+        We cap with ``LIMIT`` to avoid flooding the UI.
         """
         try:
             if limit is None:
                 limit = settings.evidence_limit_default
             s = sql.strip()
-            # Quick bail if looks like detail already (select * or explicit columns without COUNT/AVG/etc.)
+            # If already 'SELECT *', just ensure a LIMIT
             if re.search(r"\bselect\s+\*", s, re.I):
                 return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
-            if not re.search(r"\bcount\s*\(|\bavg\s*\(|\bmin\s*\(|\bmax\s*\(|\bsum\s*\(", s, re.I):
-                # Non-aggregate: just cap the limit
-                return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
-            # Extract FROM ... tail
+
+            # For any other SELECT (aggregate or not), derive a SELECT *
+            # Extract FROM ... tail from the main SELECT statement
             m_from = re.search(r"\bfrom\b\s+(.*)$", s, re.I | re.S)
             if not m_from:
                 return None
