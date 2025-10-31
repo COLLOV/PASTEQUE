@@ -707,6 +707,25 @@ export default function Chat() {
     }
   }
 
+  // Accessibility: focus management for Data panel
+  const dataPanelRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (showDataPanel) {
+      dataPanelRef.current?.focus()
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setShowDataPanel(false)
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+    }
+  }, [showDataPanel])
+
+  function includedTablesCount(total: number, excluded: Set<string>, effective: string[]): number {
+    // Prefer server effective tables when available, else derive locally
+    if (effective && effective.length > 0) return Math.max(effective.length, 0)
+    return total > 0 ? Math.max(total - excluded.size, 0) : 0
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
       {/* Colonne gauche: Ticket exploration */}
@@ -790,7 +809,7 @@ export default function Chat() {
                   Données
                   {(() => {
                     const total = dataTables.length
-                    const included = total > 0 ? Math.max((effectiveTables?.length || (total - excludedTables.size)), 0) : 0
+                    const included = includedTablesCount(total, excludedTables, effectiveTables)
                     return total > 0 ? (
                       <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{included}</span>
                     ) : null
@@ -875,12 +894,19 @@ export default function Chat() {
 
       {/* Panel Données utilisées */}
       {showDataPanel && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50" aria-hidden={false}>
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowDataPanel(false)} />
-          <div className="absolute left-1/2 top-16 -translate-x-1/2 w-[min(92vw,560px)] bg-white rounded-2xl border shadow-lg p-4">
+          <div
+            ref={dataPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="data-panel-title"
+            tabIndex={-1}
+            className="absolute left-1/2 top-16 -translate-x-1/2 w-[min(92vw,560px)] bg-white rounded-2xl border shadow-lg p-4 outline-none"
+          >
             <div className="flex items-center justify-between mb-2">
               <div>
-                <div className="text-sm font-semibold text-primary-900">Données utilisées</div>
+                <h2 id="data-panel-title" className="text-sm font-semibold text-primary-900">Données utilisées</h2>
                 <div className="text-[11px] text-primary-500">Cochez pour inclure, décochez pour exclure (par conversation)</div>
               </div>
               <button

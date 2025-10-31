@@ -59,6 +59,16 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+#### Métadonnées de requête (API)
+
+- `metadata.exclude_tables: string[]` — liste de tables à exclure pour la conversation en cours. Validée côté serveur (normalisation, limite de taille, filtrage sur tables connues/permises).
+- `metadata.conversation_id: number` — pour rattacher le message à une conversation existante (créée automatiquement sinon).
+- `metadata.save_as_default: boolean` — lorsqu’à `true` (par défaut), enregistre également les exclusions comme valeur par défaut du compte utilisateur. Mettre à `false` pour éviter de modifier ce réglage global.
+
+#### Métadonnées de streaming (SSE)
+
+- `meta.effective_tables: string[]` — tables effectivement actives (permissions – exclusions appliquées) envoyées au début du stream pour synchroniser l’UI.
+
 ### Données utilisées — visibilité + exclusions
 
 - UI dans le chat: bouton « Données » pour voir les tables disponibles et décocher celles à exclure (par conversation). Les exclusions sont appliquées au prochain message.

@@ -31,14 +31,22 @@ export interface Message {
   }
 }
 
+export interface ChatMetadata {
+  // Force NL→SQL pour cette requête
+  nl2sql?: boolean
+  // Identifiant conversation existante (créée automatiquement sinon)
+  conversation_id?: number
+  // Tables à exclure pour cette requête/conversation
+  exclude_tables?: string[]
+  // Demander au serveur d'enregistrer ces exclusions comme valeur par défaut utilisateur
+  save_as_default?: boolean
+  // Extension point
+  [key: string]: unknown
+}
+
 export interface ChatCompletionRequest {
   messages: Message[]
-  metadata?: {
-    nl2sql?: boolean
-    // Optionnel: tables à exclure pour cette requête
-    exclude_tables?: string[]
-    [key: string]: unknown
-  }
+  metadata?: ChatMetadata
 }
 
 export interface ChatCompletionResponse {

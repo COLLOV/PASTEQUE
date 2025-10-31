@@ -164,7 +164,7 @@ class ChatService:
                     tables = [name for name in tables if name.casefold() in allowed_lookup]
                 # 2) Appliquer les exclusions demandées par l'utilisateur (par conversation/requête)
                 meta_dict = payload.metadata if isinstance(payload.metadata, dict) else {}
-                exclude_raw = meta_dict.get("exclude_tables") if isinstance(meta_dict, dict) else None
+                exclude_raw = meta_dict.get("exclude_tables")
                 exclude_lookup: set[str] = set()
                 if isinstance(exclude_raw, (list, tuple)):
                     for item in exclude_raw:
@@ -193,16 +193,6 @@ class ChatService:
                         context="completion denied (no effective tables)",
                     )
                 tables = effective_tables
-                if not tables:
-                    message = (
-                        "Aucune table n'est disponible pour vos requêtes. "
-                        "Contactez un administrateur pour obtenir les accès nécessaires."
-                    )
-                    log.info("NL2SQL aborted: no tables available for user")
-                    return self._log_completion(
-                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl"}),
-                        context="completion denied (no tables)",
-                    )
                 schema: dict[str, list[str]] = {}
                 for name in tables:
                     cols = [c for c, _ in repo.get_schema(name)]

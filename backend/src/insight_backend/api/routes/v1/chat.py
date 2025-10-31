@@ -24,11 +24,92 @@ from ....repositories.user_table_permission_repository import UserTablePermissio
 from ....repositories.conversation_repository import ConversationRepository
 from ....repositories.user_repository import UserRepository
 from ....utils.text import sanitize_title
+from ....repositories.data_repository import DataRepository
 
 log = logging.getLogger("insight.api.chat")
 
 router = APIRouter(prefix="/chat")
 
+
+def _normalize_exclude_tables(raw: list[object], *, max_items: int = 1000, max_len: int = 255) -> list[str]:
+    """Validate and normalize a user-provided list of table names.
+
+    - caps list length to ``max_items``
+    - trims and truncates names to ``max_len``
+    - deduplicates case-insensitively while preserving first-seen casing
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+    count = 0
+    for item in raw:
+        if count >= max_items:
+            break
+        if not isinstance(item, str):
+            continue
+        cleaned = item.strip()[:max_len]
+        if not cleaned:
+            continue
+        key = cleaned.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(cleaned)
+        count += 1
+    return out
+
+
+def _apply_exclusions_and_defaults(
+    *,
+    session: Session,
+    user_id: int,
+    conversation_id: int,
+    metadata: dict,
+    allowed_tables: list[str] | None,
+) -> list[str]:
+    """Apply per-conversation exclusions and optionally save as user defaults.
+
+    Returns the effective excluded tables that were persisted or hydrated.
+    """
+    repo = ConversationRepository(session)
+    user_repo = UserRepository(session)
+
+    excludes_in = metadata.get("exclude_tables") if isinstance(metadata, dict) else None
+    save_default_flag = metadata.get("save_as_default") if isinstance(metadata, dict) else None
+    save_as_default = bool(save_default_flag) if save_default_flag is not None else True  # keep current behavior
+
+    if excludes_in is not None and isinstance(excludes_in, list):
+        # Validate and filter against known tables
+        normalized = _normalize_exclude_tables(excludes_in)
+        available = set(DataRepository(tables_dir=settings.tables_dir).list_tables())
+        allowed_lookup = {t.casefold() for t in (allowed_tables or list(available))}
+        filtered = [t for t in normalized if t.casefold() in allowed_lookup and t in available]
+        try:
+            persisted = repo.set_excluded_tables(conversation_id=conversation_id, tables=filtered)
+            if save_as_default:
+                user_repo.set_default_excluded_tables(user_id=user_id, tables=persisted)
+            return persisted
+        except Exception:
+            log.warning(
+                "Failed to persist exclude_tables (conversation_id=%s, user_id=%s)",
+                conversation_id,
+                user_id,
+                exc_info=True,
+            )
+            return []
+    # Hydrate from existing conversation or user defaults
+    try:
+        saved = repo.get_excluded_tables(conversation_id=conversation_id)
+        if not saved:
+            saved = user_repo.get_default_excluded_tables(user_id=user_id)
+        return saved or []
+    except Exception:
+        log.warning(
+            "Failed to hydrate exclude_tables (conversation_id=%s, user_id=%s)",
+            conversation_id,
+            user_id,
+            exc_info=True,
+        )
+        return []
 
 @router.post("/completions", response_model=ChatResponse)
 def chat_completion(  # type: ignore[valid-type]
@@ -86,30 +167,17 @@ def chat_completion(  # type: ignore[valid-type]
             conv = repo.create(user_id=current_user.id, title=title)
             session.flush()
             conv_id = conv.id
-        # Merge/persist per-conversation exclusions (settings)
-        meta_in = payload.metadata or {}
-        excludes_in = meta_in.get("exclude_tables") if isinstance(meta_in, dict) else None
-        if excludes_in is not None and isinstance(excludes_in, list):
-            try:
-                repo.set_excluded_tables(conversation_id=conv_id, tables=[str(x) for x in excludes_in])
-                # Update user default from current selection
-                UserRepository(session).set_default_excluded_tables(
-                    user_id=current_user.id,
-                    tables=[str(x) for x in excludes_in],
-                )
-            except Exception:
-                log.warning("Failed to persist exclude_tables for conversation_id=%s", conv_id, exc_info=True)
-        else:
-            # If none provided, hydrate from conversation or user defaults
-            try:
-                saved = repo.get_excluded_tables(conversation_id=conv_id)
-                if not saved:
-                    saved = UserRepository(session).get_default_excluded_tables(user_id=current_user.id)
-                if saved:
-                    payload.metadata = dict(payload.metadata or {})
-                    payload.metadata["exclude_tables"] = saved
-            except Exception:
-                log.debug("No saved exclusions found or failed to hydrate", exc_info=True)
+        # Merge/persist per-conversation exclusions (settings) with validation
+        saved = _apply_exclusions_and_defaults(
+            session=session,
+            user_id=current_user.id,
+            conversation_id=conv_id,
+            metadata=payload.metadata or {},
+            allowed_tables=allowed_tables,
+        )
+        if saved:
+            payload.metadata = dict(payload.metadata or {})
+            payload.metadata["exclude_tables"] = saved
 
         # Persist the last user message if any
         last = payload.messages[-1] if payload.messages else None
@@ -223,28 +291,17 @@ def chat_stream(  # type: ignore[valid-type]
         last = payload.messages[-1] if payload.messages else None
         if last and last.role == "user" and last.content:
             repo.append_message(conversation_id=conversation_id, role="user", content=last.content)
-        # Merge/persist per-conversation exclusions (settings)
-        meta_in = payload.metadata or {}
-        excludes_in = meta_in.get("exclude_tables") if isinstance(meta_in, dict) else None
-        if excludes_in is not None and isinstance(excludes_in, list):
-            try:
-                repo.set_excluded_tables(conversation_id=conversation_id, tables=[str(x) for x in excludes_in])
-                UserRepository(session).set_default_excluded_tables(
-                    user_id=current_user.id,
-                    tables=[str(x) for x in excludes_in],
-                )
-            except Exception:
-                log.warning("Failed to persist exclude_tables for conversation_id=%s", conversation_id, exc_info=True)
-        else:
-            try:
-                saved = repo.get_excluded_tables(conversation_id=conversation_id)
-                if not saved:
-                    saved = UserRepository(session).get_default_excluded_tables(user_id=current_user.id)
-                if saved:
-                    payload.metadata = dict(payload.metadata or {})
-                    payload.metadata["exclude_tables"] = saved
-            except Exception:
-                log.debug("No saved exclusions found or failed to hydrate", exc_info=True)
+        # Merge/persist per-conversation exclusions (settings) with validation
+        saved = _apply_exclusions_and_defaults(
+            session=session,
+            user_id=current_user.id,
+            conversation_id=conversation_id,
+            metadata=payload.metadata or {},
+            allowed_tables=allowed_tables,
+        )
+        if saved:
+            payload.metadata = dict(payload.metadata or {})
+            payload.metadata["exclude_tables"] = saved
 
     def generate() -> Iterator[bytes]:
         seq = 0
