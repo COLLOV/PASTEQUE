@@ -28,3 +28,18 @@ Notes
 - `pii` helps downstream agents avoid leaking personal data.
 - Additional optional keys per column: `unit`, `nullable`, `example`, `enum`.
 
+Generated dictionaries
+----------------------
+
+Date: 2025-10-31
+
+The following tables from `data/raw/` are now covered with minimal dictionaries (names only; descriptions/types to refine if needed):
+- `myfeelback_agences`
+- `myfeelback_app_mobile`
+- `myfeelback_nps`
+- `myfeelback_remboursements`
+- `myfeelback_service_client`
+- `myfeelback_souscriptions`
+- `tickets_jira`
+
+Edit these files to enrich column descriptions and add `pii` metadata where applicable.
