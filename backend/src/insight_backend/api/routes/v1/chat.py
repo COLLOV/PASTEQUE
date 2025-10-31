@@ -95,7 +95,11 @@ def chat_completion(  # type: ignore[valid-type]
     if last and last.role == "user":
         # Bypass router for explicit SQL passthrough
         if not last.content.strip().casefold().startswith("/sql "):
-            decision = RouterService().decide(last.content)
+            try:
+                decision = RouterService().decide(last.content)
+            except OpenAIBackendError as exc:
+                log.error("Router backend error: %s", exc)
+                raise HTTPException(status_code=502, detail=str(exc))
             log.info(
                 "Router decision: allow=%s route=%s conf=%.2f reason=%s",
                 decision.allow,
