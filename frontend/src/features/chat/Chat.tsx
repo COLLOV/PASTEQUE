@@ -33,11 +33,9 @@ function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string,
       return obj
     }
     if (row && typeof row === 'object') {
-      const obj: Record<string, unknown> = {}
-      headings.forEach(col => {
-        obj[col] = (row as Record<string, unknown>)[col]
-      })
-      return obj
+      // Preserve all keys present in object rows to expose every SQL column
+      // (do not restrict to LLM-selected headings).
+      return { ...(row as Record<string, unknown>) }
     }
     return { [headings[0]]: row }
   })
@@ -1082,12 +1080,39 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
   const allRows: Record<string, unknown>[] = data?.rows ?? []
   const rows = allRows.slice(0, limit)
   const extra = Math.max((count || 0) - rows.length, 0)
-  const columns: string[] = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns ?? [])
+  // Derive columns from the union of keys present in rows to ensure
+  // all SQL-returned fields are visible, regardless of LLM hints.
+  const derivedCols = useMemo(() => {
+    // PR#58: derive from a small, stable sample to keep order predictable
+    const SAMPLE = Math.min(20, rows.length)
+    const sample = rows.slice(0, SAMPLE)
+    const ordered = new Set<string>()
+    for (const r of sample) {
+      for (const k of Object.keys(r || {})) {
+        if (!ordered.has(k)) ordered.add(k)
+      }
+    }
+    return Array.from(ordered)
+  }, [rows])
+  const columns: string[] = (derivedCols.length > 0)
+    ? derivedCols
+    : (data?.columns ?? spec?.columns ?? [])
   const createdAtKey = spec?.display?.created_at
   const titleKey = spec?.display?.title
   const statusKey = spec?.display?.status
   const pkKey = spec?.pk
   const linkTpl = spec?.display?.link_template
+
+  if (import.meta?.env?.MODE !== 'production') {
+    try {
+      // Lightweight dev log for diagnostics
+      console.info('[evidence_panel] columns', {
+        from_spec: spec?.columns?.length ?? 0,
+        from_data: data?.columns?.length ?? 0,
+        derived: columns.length,
+      })
+    } catch {}
+  }
 
   // Local focus state: clicked ticket → full detail view
   const [selectedPk, setSelectedPk] = useState<string | null>(null)
