@@ -1,0 +1,40 @@
+version: 1
+table: myfeelback_nps
+title: MyFeelBack - NPS
+description: Mesures Net Promoter Score et attributs clients (source MyFeelBack).
+columns:
+  - name: feedback_id
+    type: integer
+    description: Identifiant unique du feedback.
+  - name: client_id
+    type: integer
+    description: Identifiant unique du client.
+    pii: true
+  - name: date_feedback
+    type: date
+    description: Date du feedback (YYYY-MM-DD).
+  - name: nps_score
+    type: integer
+    description: Score NPS déclaré (0–10).
+  - name: categorie
+    type: string
+    description: Catégorie NPS (détracteur, passif, promoteur) ou segment rattaché.
+  - name: profil_client
+    type: string
+    description: Profil/typologie du client.
+  - name: nb_contrats
+    type: integer
+    description: Nombre de contrats détenus par le client.
+  - name: a_eu_sinistre
+    type: boolean
+    description: Le client a‑t‑il eu un sinistre récemment ?
+  - name: a_contacte_service_client
+    type: boolean
+    description: Le client a‑t‑il contacté le service client ?
+  - name: utilise_app_mobile
+    type: boolean
+    description: Le client utilise‑t‑il l'application mobile ?
+  - name: commentaire
+    type: string
+    description: Commentaire libre saisi par le client.
+    pii: true
