@@ -40,7 +40,7 @@ columns:
 
 Chargement et usage:
 - `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
-- Le contenu est injecté en JSON compact dans le prompt NL→SQL (première question multi‑agent comprise), avec une taille plafonnée.
+- Le contenu est injecté en JSON compact dans le prompt NL→SQL (première question multi‑agent comprise), avec une taille plafonnée (variable `DATA_DICTIONARY_MAX_CHARS`, défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
 
 ### Base de données & authentification
 
