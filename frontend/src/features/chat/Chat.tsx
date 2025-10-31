@@ -65,6 +65,14 @@ export default function Chat() {
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
+  // Données utilisées (tables accessibles au LLM)
+  const [showDataPanel, setShowDataPanel] = useState(false)
+  const [dataTables, setDataTables] = useState<string[]>([])
+  const [effectiveTables, setEffectiveTables] = useState<string[]>([])
+  const [excludedTables, setExcludedTables] = useState<Set<string>>(new Set())
+  const [tablesLoading, setTablesLoading] = useState(false)
+  // Saving behavior: opt‑in for updating user defaults to avoid cross‑tab races
+  const [saveAsDefault, setSaveAsDefault] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const ticketPanelRef = useRef<HTMLDivElement>(null)
@@ -175,6 +183,11 @@ export default function Chat() {
       const baseMeta: Record<string, unknown> = {}
       if (sqlMode || isChartMode) baseMeta.nl2sql = true
       if (conversationId) baseMeta.conversation_id = conversationId
+      // Transmettre les exclusions de tables si présentes
+      if (excludedTables.size > 0) {
+        baseMeta.exclude_tables = Array.from(excludedTables)
+        if (saveAsDefault) baseMeta.save_as_default = true
+      }
       const payload: ChatCompletionRequest = { messages: next, metadata: baseMeta }
 
       await streamSSE('/chat/stream', payload, (type, data) => {
@@ -182,6 +195,12 @@ export default function Chat() {
           const meta = data as ChatStreamMeta
           if (typeof meta?.conversation_id === 'number') {
             setConversationId(meta.conversation_id)
+          }
+          // Synchronise la sélection effective côté serveur (affichage et cohérence UI)
+          if (Array.isArray(meta?.effective_tables)) {
+            const eff = meta.effective_tables.filter(x => typeof x === 'string') as string[]
+            setEffectiveTables(eff)
+            // Ne pas recalculer excludedTables à partir de effective_tables pour éviter flicker
           }
           setMessages(prev => {
             const copy = [...prev]
@@ -432,6 +451,7 @@ export default function Chat() {
         }>
         evidence_spec?: EvidenceSpec
         evidence_rows?: EvidenceRowsPayload
+        settings?: { exclude_tables?: string[] }
       }>(`/conversations/${id}`)
       setConversationId(data.id)
       setMessages(
@@ -467,6 +487,12 @@ export default function Chat() {
       } else {
         setEvidenceData(ev ?? null)
       }
+      // Persisted per-conversation exclusions (if any)
+      const ex = Array.isArray(data?.settings?.exclude_tables)
+        ? (data!.settings!.exclude_tables as unknown[]).filter((x): x is string => typeof x === 'string')
+        : []
+      setExcludedTables(new Set(ex))
+      setEffectiveTables([])
       closeHistory()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible')
@@ -674,6 +700,47 @@ export default function Chat() {
     }
   }
 
+  // Accessibility: focus management for Data panel
+  const dataPanelRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!showDataPanel) return
+    // Focus on open + Escape to close
+    dataPanelRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDataPanel(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showDataPanel])
+
+  function onDataPanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'Tab') return
+    const root = dataPanelRef.current
+    if (!root) return
+    const focusables = Array.from(root.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+    ))
+    if (focusables.length === 0) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    const current = document.activeElement as HTMLElement | null
+    if (e.shiftKey) {
+      if (current === first || !root.contains(current)) {
+        last.focus(); e.preventDefault()
+      }
+    } else {
+      if (current === last || !root.contains(current)) {
+        first.focus(); e.preventDefault()
+      }
+    }
+  }
+
+  function includedTablesCount(total: number, excluded: Set<string>, effective: string[]): number {
+    // Prefer server effective tables when available, else derive locally
+    if (effective && effective.length > 0) return Math.max(effective.length, 0)
+    return total > 0 ? Math.max(total - excluded.size, 0) : 0
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
       {/* Colonne gauche: Ticket exploration */}
@@ -716,7 +783,55 @@ export default function Chat() {
             {/* Desktop toolbar (sans boutons Historique/Nouveau chat pour éviter doublons avec le header) */}
             <div className="hidden lg:flex items-center justify-between mb-2">
               <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
-              <div />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowDataPanel(true)
+                    if (dataTables.length === 0 && !tablesLoading) {
+                      setTablesLoading(true)
+                      try {
+                        const items = await apiFetch<Array<{ name: string; path: string }>>('/data/tables')
+                        const names = (items || []).map(it => it?.name).filter((x): x is string => typeof x === 'string')
+                        setDataTables(names)
+                        // TODO: avoid extra fetch by returning last_conversation_settings in /conversations
+                        // Initialiser exclusions en conservant celles déjà cochées
+                        setExcludedTables(prev => new Set(Array.from(prev).filter(v => names.includes(v))))
+                        // Si nouvelle conversation et aucune exclusion encore définie, préremplir avec la dernière conversation
+                        if (!conversationId && excludedTables.size === 0 && history.length > 0) {
+                          try {
+                            const last = await apiFetch<{ settings?: { exclude_tables?: string[] } }>(`/conversations/${history[0].id}`)
+                            const ex = Array.isArray(last?.settings?.exclude_tables)
+                              ? (last!.settings!.exclude_tables as unknown[]).filter((x): x is string => typeof x === 'string')
+                              : []
+                            if (ex.length > 0) {
+                              const filtered = ex.filter(name => names.includes(name))
+                              setExcludedTables(new Set(filtered))
+                            }
+                          } catch (err) {
+                            // best-effort; ignore
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Failed to load tables', err)
+                      } finally {
+                        setTablesLoading(false)
+                      }
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                  title="Voir et exclure des tables pour cette conversation"
+                >
+                  Données
+                  {(() => {
+                    const total = dataTables.length
+                    const included = includedTablesCount(total, excludedTables, effectiveTables)
+                    return total > 0 ? (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{included}</span>
+                    ) : null
+                  })()}
+                </button>
+              </div>
             </div>
             {messages.map((message, index) => (
               <MessageBubble
@@ -792,6 +907,88 @@ export default function Chat() {
           </div>
         </div>
       </section>
+
+      {/* Panel Données utilisées */}
+      {showDataPanel && (
+        <div className="fixed inset-0 z-50" aria-hidden={false}>
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowDataPanel(false)} />
+          <div
+            ref={dataPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="data-panel-title"
+            onKeyDown={onDataPanelKeyDown}
+            tabIndex={-1}
+            className="absolute left-1/2 top-16 -translate-x-1/2 w-[min(92vw,560px)] bg-white rounded-2xl border shadow-lg p-4 outline-none"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 id="data-panel-title" className="text-sm font-semibold text-primary-900">Données utilisées</h2>
+                <div className="text-[11px] text-primary-500">Cochez pour inclure, décochez pour exclure (par conversation)</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDataPanel(false)}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
+                aria-label="Fermer"
+                title="Fermer"
+              >
+                <HiXMark className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="border rounded-lg p-2 max-h-[50vh] overflow-auto">
+              {tablesLoading ? (
+                <div className="text-sm text-primary-500">Chargement…</div>
+              ) : dataTables.length === 0 ? (
+                <div className="text-sm text-primary-500">Aucune table disponible.</div>
+              ) : (
+                <ul className="space-y-1">
+                  {dataTables.map(name => {
+                    const key = name.toLowerCase()
+                    const included = !excludedTables.has(name)
+                    const effective = effectiveTables.length > 0 ? effectiveTables.some(t => t.toLowerCase() === key) : undefined
+                    return (
+                      <li key={name} className="flex items-center justify-between gap-2">
+                        <label className={clsx('flex items-center gap-2 text-sm', loading && 'opacity-60 pointer-events-none')}
+                          title={effective === false ? 'Exclue (non utilisée côté serveur)' : effective === true ? 'Incluse (utilisée côté serveur)' : ''}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={included}
+                            disabled={loading}
+                            onChange={(e) => {
+                              setExcludedTables(prev => {
+                                const next = new Set(prev)
+                                if (e.target.checked) {
+                                  next.delete(name)
+                                } else {
+                                  next.add(name)
+                                }
+                                return next
+                              })
+                            }}
+                          />
+                          <span className="text-primary-800">{name}</span>
+                        </label>
+                        {typeof effective === 'boolean' && (
+                          <span className={clsx('text-[11px] rounded-full border px-2 py-[2px]', effective ? 'text-primary-600 border-primary-200' : 'text-primary-400 border-primary-100')}>{effective ? 'actif' : 'exclu'}</span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <label className="inline-flex items-center gap-2 text-xs text-primary-800">
+                <input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} />
+                Sauvegarder ces exclusions comme valeur par défaut
+              </label>
+              <div className="text-[11px] text-primary-500">Appliquées au prochain message. Pas de fallback.</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom sheet (mobile) for tickets */}
       {showTicketsSheet && (

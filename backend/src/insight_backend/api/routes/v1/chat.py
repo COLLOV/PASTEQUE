@@ -22,12 +22,98 @@ from ....engines.openai_engine import OpenAIChatEngine
 from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 from ....repositories.conversation_repository import ConversationRepository
+from ....repositories.user_repository import UserRepository
 from ....utils.text import sanitize_title
+from ....repositories.data_repository import DataRepository
 
 log = logging.getLogger("insight.api.chat")
 
 router = APIRouter(prefix="/chat")
 
+
+from ....utils.validation import normalize_table_names
+
+
+_last_settings_update_ts_by_user: dict[int, float] = {}
+
+
+def _apply_exclusions_and_defaults(
+    *,
+    session: Session,
+    user_id: int,
+    conversation_id: int,
+    metadata: dict,
+    allowed_tables: list[str] | None,
+) -> list[str]:
+    """Apply per-conversation exclusions and optionally save as user defaults.
+
+    Returns the effective excluded tables that were persisted or hydrated.
+    """
+    repo = ConversationRepository(session)
+    user_repo = UserRepository(session)
+
+    # Normalize metadata once to avoid TOCTOU between isinstance checks
+    metadata = dict(metadata) if isinstance(metadata, dict) else {}
+    excludes_in = metadata.get("exclude_tables")
+    # Apply review: make saving as default opt‑in to avoid race conditions between tabs
+    save_default_flag = metadata.get("save_as_default")
+    save_as_default = bool(save_default_flag) if save_default_flag is not None else False
+
+    if excludes_in is not None and isinstance(excludes_in, list):
+        # Lightweight rate limiting to avoid DB churn on settings updates
+        import time as _time
+        now = _time.time()
+        last = _last_settings_update_ts_by_user.get(user_id, 0.0)
+        if (now - last) < settings.settings_update_min_interval_s:
+            return repo.get_excluded_tables(conversation_id=conversation_id)
+        _last_settings_update_ts_by_user[user_id] = now
+
+        # Validate and filter against known tables (case‑insensitive mapping → canonical names)
+        normalized = normalize_table_names(excludes_in)
+        available_list = DataRepository(tables_dir=settings.tables_dir).list_tables()
+        canon_by_key = {name.casefold(): name for name in available_list}
+        allowed_keys = {t.casefold() for t in (allowed_tables or available_list)}
+        filtered_canon = []
+        for t in normalized:
+            key = t.casefold()
+            if key in allowed_keys and key in canon_by_key:
+                filtered_canon.append(canon_by_key[key])
+        from sqlalchemy.exc import SQLAlchemyError
+        try:
+            persisted = repo.set_excluded_tables(conversation_id=conversation_id, tables=filtered_canon)
+        except SQLAlchemyError:
+            log.warning(
+                "Failed to persist conversation exclude_tables (conversation_id=%s, user_id=%s)",
+                conversation_id,
+                user_id,
+                exc_info=True,
+            )
+            return []
+        # Saving as default is optional and independent; never mask conversation persistence on failure
+        if save_as_default:
+            try:
+                user_repo.set_default_excluded_tables(user_id=user_id, tables=persisted)
+            except SQLAlchemyError:
+                log.warning(
+                    "Failed to persist user default exclude_tables (user_id=%s)",
+                    user_id,
+                    exc_info=True,
+                )
+        return persisted
+    # Hydrate from existing conversation or user defaults
+    try:
+        saved = repo.get_excluded_tables(conversation_id=conversation_id)
+        if not saved:
+            saved = user_repo.get_default_excluded_tables(user_id=user_id)
+        return saved or []
+    except Exception:
+        log.warning(
+            "Failed to hydrate exclude_tables (conversation_id=%s, user_id=%s)",
+            conversation_id,
+            user_id,
+            exc_info=True,
+        )
+        return []
 
 @router.post("/completions", response_model=ChatResponse)
 def chat_completion(  # type: ignore[valid-type]
@@ -90,6 +176,18 @@ def chat_completion(  # type: ignore[valid-type]
         if last and last.role == "user" and last.content:
             repo.append_message(conversation_id=conv_id, role="user", content=last.content)
 
+        # Persist exclusions after a successful user-message append (same transaction)
+        saved = _apply_exclusions_and_defaults(
+            session=session,
+            user_id=current_user.id,
+            conversation_id=conv_id,
+            metadata=payload.metadata or {},
+            allowed_tables=allowed_tables,
+        )
+        if saved:
+            payload.metadata = dict(payload.metadata or {})
+            payload.metadata["exclude_tables"] = saved
+
     # Router gate on every user message (avoid useless SQL/NL2SQL work)
     last = payload.messages[-1] if payload.messages else None
     if last and last.role == "user":
@@ -114,20 +212,20 @@ def chat_completion(  # type: ignore[valid-type]
                 except SQLAlchemyError:
                     log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
                 return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
-
-    try:
-        resp = service.completion(payload, allowed_tables=allowed_tables)
-        # Persist assistant reply
-        if resp and isinstance(resp.reply, str):
-            try:
-                with transactional(session):
-                    repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
-            except SQLAlchemyError:
-                log.exception("Failed to persist assistant reply (conversation_id=%s)", conv_id)
-        # Return as-is (no conversation id field in schema), clients can fetch via separate API
-        return resp
-    except OpenAIBackendError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        try:
+            resp = service.completion(payload, allowed_tables=allowed_tables)
+            # Persist assistant reply
+            if resp and isinstance(resp.reply, str):
+                try:
+                    with transactional(session):
+                        repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
+                except SQLAlchemyError:
+                    log.warning("Failed to persist assistant reply (conversation_id=%s)", conv_id, exc_info=True)
+            # No need to re-apply exclusions here: they were persisted in the same transaction as the user message
+            # Return as-is (no conversation id field in schema), clients can fetch via separate API
+            return resp
+        except OpenAIBackendError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
 
 
 def _sse(event: str, data: dict) -> bytes:
@@ -216,6 +314,17 @@ def chat_stream(  # type: ignore[valid-type]
         last = payload.messages[-1] if payload.messages else None
         if last and last.role == "user" and last.content:
             repo.append_message(conversation_id=conversation_id, role="user", content=last.content)
+        # Merge/persist per-conversation exclusions (settings) with validation
+        saved = _apply_exclusions_and_defaults(
+            session=session,
+            user_id=current_user.id,
+            conversation_id=conversation_id,
+            metadata=payload.metadata or {},
+            allowed_tables=allowed_tables,
+        )
+        if saved:
+            payload.metadata = dict(payload.metadata or {})
+            payload.metadata["exclude_tables"] = saved
 
     def generate() -> Iterator[bytes]:
         seq = 0

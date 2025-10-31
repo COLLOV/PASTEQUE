@@ -152,6 +152,7 @@ def get_conversation(  # type: ignore[valid-type]
         "messages": messages,
         "evidence_spec": evidence_spec,
         "evidence_rows": evidence_rows,
+        "settings": (conv.settings or {}),
     }
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import String, Boolean, DateTime, func, text
+from sqlalchemy import String, Boolean, DateTime, func, text, JSON
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -37,3 +37,5 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    # Optional JSON settings per user (e.g., default excludes for NL→SQL)
+    settings: Mapped[dict | None] = mapped_column(JSON, nullable=True)

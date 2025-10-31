@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+import json
+from sqlalchemy import text
 
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
@@ -63,3 +65,69 @@ class ConversationRepository:
         self.session.query(Conversation).filter(Conversation.id == conversation_id).update({Conversation.updated_at: func.now()})
         log.debug("Added event (conversation_id=%s, kind=%s)", conversation_id, kind)
         return evt
+
+    # Settings (JSON)
+    def get_settings(self, *, conversation_id: int) -> dict[str, Any]:
+        conv = (
+            self.session.query(Conversation)
+            .filter(Conversation.id == conversation_id)
+            .one_or_none()
+        )
+        return dict(conv.settings or {}) if conv else {}
+
+    def set_settings(self, *, conversation_id: int, settings: dict[str, Any]) -> dict[str, Any]:
+        # Ensure plain JSON-serializable payload to avoid driver-specific surprises
+        payload = json.loads(json.dumps(settings or {}))
+        self.session.query(Conversation).filter(Conversation.id == conversation_id).update({
+            Conversation.settings: payload,
+            Conversation.updated_at: func.now(),
+        })
+        # Make sure it’s flushed when caller needs to read back in the same transaction
+        self.session.flush()
+        log.info("Conversation settings updated (conversation_id=%s, keys=%s)", conversation_id, ",".join(sorted(payload.keys())))
+        return payload
+
+    def get_excluded_tables(self, *, conversation_id: int) -> list[str]:
+        s = self.get_settings(conversation_id=conversation_id)
+        raw = s.get("exclude_tables") if isinstance(s, dict) else None
+        if not isinstance(raw, list):
+            return []
+        out: list[str] = []
+        seen: set[str] = set()
+        for item in raw:
+            if isinstance(item, str) and item.strip():
+                key = item.strip()
+                if key.casefold() in seen:
+                    continue
+                seen.add(key.casefold())
+                out.append(key)
+        return out
+
+    def set_excluded_tables(self, *, conversation_id: int, tables: list[str]) -> list[str]:
+        # Normalize and persist in settings JSON (atomic update when Postgres is available)
+        from ..utils.validation import normalize_table_names
+
+        normalized = normalize_table_names(tables)
+
+        # Postgres: do a jsonb_set to avoid read-modify-write races on unrelated keys
+        bind = self.session.get_bind()
+        if bind is not None and bind.dialect.name.startswith("postgres"):
+            payload_json = json.dumps(normalized)
+            self.session.execute(
+                text(
+                    "UPDATE conversations "
+                    "SET settings = jsonb_set(COALESCE(settings::jsonb, '{}'::jsonb), '{exclude_tables}', (:payload)::jsonb, true)::json, "
+                    "    updated_at = NOW() "
+                    "WHERE id = :cid"
+                ),
+                {"payload": payload_json, "cid": conversation_id},
+            )
+            self.session.flush()
+            log.info("Conversation exclude_tables set via jsonb_set (conversation_id=%s, count=%d)", conversation_id, len(normalized))
+            return normalized
+
+        # Fallback (non-Postgres): read-modify-write with flush
+        current = self.get_settings(conversation_id=conversation_id)
+        current["exclude_tables"] = normalized
+        self.set_settings(conversation_id=conversation_id, settings=current)
+        return normalized

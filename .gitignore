@@ -24,6 +24,11 @@ uv.lock
 logs/
 .start.out
 
+# PR review artifacts (local only)
+.gh_pr_*
+gh_*.log
+gh_pr.json
+
 # Data artifacts
 data/processed/*
 data/interim/*
