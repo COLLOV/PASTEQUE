@@ -185,7 +185,9 @@ Sous-panel « Tickets » — aperçu et détail (oct. 2025)
 - Clic sur un ticket: bascule en vue détail dans le même panel, avec toutes les colonnes visibles et sans troncature. Un bouton « Tout voir » permet de revenir à la liste.
 - À la fermeture du détail (« Tout voir »), la position de défilement du panel est restaurée au même endroit qu'avant l'ouverture.
 - Paramètres: voir `frontend/src/features/chat/Chat.tsx` → composant `TicketPanel`.
-  - `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu (par défaut: 5).
+- `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu (par défaut: 5).
+  - Les colonnes affichées sont dérivées à partir d'un petit échantillon (≤20 premières lignes)
+    pour garantir un ordre stable, puis priorisées (titre, statut, date, pk).
   - `PREVIEW_CHAR_MAX` — troncature des valeurs en aperçu.
   - L’ordre des colonnes privilégie `title`, `status`, `created_at`, puis le reste.
  
