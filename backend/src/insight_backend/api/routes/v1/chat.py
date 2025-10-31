@@ -107,11 +107,7 @@ def chat_completion(  # type: ignore[valid-type]
                 decision.reason,
             )
             if not decision.allow:
-                text = (
-                    "Ce n'est pas une question pour passer de la data à l'action. "
-                    "Essayez par exemple: ‘Combien de tickets en juin ?’, ‘Montre la répartition par service’, "
-                    "ou utilisez /sql SELECT ... pour exécuter une requête explicite."
-                )
+                text = "Ce n'est pas une question pour passer de la data à l'action"
                 try:
                     with transactional(session):
                         repo.append_message(conversation_id=conv_id, role="assistant", content=text)
@@ -244,11 +240,7 @@ def chat_stream(  # type: ignore[valid-type]
                     if not decision.allow:
                         prov = "router"
                         yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": "rule", "conversation_id": conversation_id, "route": decision.route, "confidence": decision.confidence})
-                        text = (
-                            "Ce n'est pas une question pour passer de la data à l'action. "
-                            "Essayez par exemple: ‘Combien de tickets en juin ?’, ‘Montre la répartition par service’, "
-                            "ou utilisez /sql SELECT ... pour exécuter une requête explicite."
-                        )
+                        text = "Ce n'est pas une question pour passer de la data à l'action"
                         for line in text.splitlines(True):
                             if not line:
                                 continue
