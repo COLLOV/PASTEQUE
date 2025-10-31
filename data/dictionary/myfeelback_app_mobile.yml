@@ -9,6 +9,7 @@ columns:
   - name: client_id
     type: integer
     description: Identifiant unique du client.
+    pii: true
   - name: date_feedback
     type: date
     description: Date du feedback (YYYY-MM-DD).
@@ -36,3 +37,4 @@ columns:
   - name: commentaire
     type: string
     description: Commentaire libre saisi par le client.
+    pii: true

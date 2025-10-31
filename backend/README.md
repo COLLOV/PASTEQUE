@@ -17,7 +17,7 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 
 But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
 
-- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionnary`).
+- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionary`).
 - Format: 1 fichier YAML par table (`<table>.yml`), par ex. `tickets_jira.yml`.
 - Schéma minimal:
 
@@ -40,7 +40,7 @@ columns:
 
 Chargement et usage:
 - `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
-- Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. Une taille maximale est appliquée pour contrôler le coût.
+- Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. La taille est plafonnée via `DATA_DICTIONARY_MAX_CHARS` (défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
 
 ### Base de données & authentification
 
