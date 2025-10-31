@@ -54,7 +54,7 @@ Un script dédié prépare les colonnes `vector` Postgres et calcule les embeddi
   - `EMBEDDING_COLUMN_DEFAULT` + `EMBEDDING_COLUMNS_OVERRIDES` (`table:colonne`) pour cibler la colonne texte; ex. `tickets_jira:description`.
   - `EMBEDDING_VECTOR_COLUMN` (nom de la colonne `vector` ajoutée dans chaque table).
   - `RAG_RETRIEVAL_K` (nombre de lignes similaires à remonter lors du RAG).
-- Exécution: `uv run python -m insight_backend.scripts.compute_embeddings` (ajouter `--tables` / `--model` / `--batch-size` pour override ponctuel).
+- Exécution: `uv run scripts/compute_embeddings.py` (ajouter `--tables` / `--model` / `--batch-size` pour override ponctuel).
 - Le script journalise la progression via `tqdm`, saute automatiquement les lignes déjà vectorisées (colonne non nulle) et crée l’extension `pgvector` + la colonne `vector(<dim>)` si besoin.
 
 ### Base de données & authentification
