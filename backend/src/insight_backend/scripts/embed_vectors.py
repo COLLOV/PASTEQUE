@@ -2,60 +2,22 @@ from __future__ import annotations
 
 import argparse
 import logging
-from dataclasses import dataclass
-from typing import Dict, Iterable, Sequence
+from typing import Dict, Iterable
 
 from sqlalchemy import text
 from tqdm import tqdm
 
 from ..core.config import settings
 from ..core.database import engine, discover_rag_tables, ensure_vector_schema
-
-try:
-    from sentence_transformers import SentenceTransformer
-except ImportError as exc:  # pragma: no cover - fast fail when dependency missing
-    raise SystemExit(
-        "sentence-transformers is required. Run `uv add sentence-transformers` inside backend/."
-    ) from exc
+from ..services.rag.common import (
+    parse_schema_table,
+    quote_identifier,
+    resolve_text_column,
+    vector_literal,
+)
+from ..services.rag.encoder import EmbeddingBackend
 
 log = logging.getLogger("insight.scripts.embed")
-
-
-def _quote(name: str) -> str:
-    preparer = engine.dialect.identifier_preparer
-    parts = [p for p in name.split(".") if p]
-    return ".".join(preparer.quote_identifier(part) for part in parts)
-
-
-def _vector_literal(values: Sequence[float]) -> str:
-    comps = []
-    for v in values:
-        # Preserve sign and precision; strip trailing zeros for compactness
-        text_val = f"{float(v):.12f}"
-        if "." in text_val:
-            text_val = text_val.rstrip("0").rstrip(".")
-        comps.append(text_val or "0")
-    return f"[{','.join(comps)}]"
-
-
-def _parse_schema_table(qualified: str) -> tuple[str | None, str]:
-    if "." in qualified:
-        schema, table = qualified.split(".", 1)
-        return schema, table
-    return None, qualified
-
-
-def _resolve_text_column(table: str, stem: str) -> str:
-    overrides = settings.rag_text_column_overrides
-    candidates = [
-        table,
-        table.split(".")[-1],
-        stem,
-    ]
-    for key in candidates:
-        if key in overrides:
-            return overrides[key]
-    return settings.rag_text_column_default
 
 
 def _column_exists(conn, schema: str | None, table: str, column: str) -> bool:
@@ -78,28 +40,6 @@ def _column_exists(conn, schema: str | None, table: str, column: str) -> bool:
         )
         row = conn.execute(sql, {"table": table, "column": column}).first()
     return bool(row)
-
-
-@dataclass
-class EmbeddingBackend:
-    model_name: str
-    normalize: bool
-    batch_size: int
-
-    def __post_init__(self) -> None:
-        self.model = SentenceTransformer(self.model_name, device="cpu")
-
-    def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        if not texts:
-            return []
-        vectors = self.model.encode(
-            list(texts),
-            batch_size=self.batch_size,
-            convert_to_numpy=True,
-            normalize_embeddings=self.normalize,
-            show_progress_bar=False,
-        )
-        return vectors.tolist()
 
 
 class EmbeddingJob:
@@ -155,8 +95,8 @@ class EmbeddingJob:
         return resolved
 
     def _process_table(self, conn, qualified: str, stem: str, remaining_global: int | None) -> tuple[int, int | None]:
-        schema, table = _parse_schema_table(qualified)
-        text_column = _resolve_text_column(qualified, stem)
+        schema, table = parse_schema_table(qualified)
+        text_column = resolve_text_column(qualified, stem)
         if not _column_exists(conn, schema, table, "id"):
             log.warning("Skipping %s: missing 'id' column.", qualified)
             return 0, remaining_global
@@ -164,8 +104,8 @@ class EmbeddingJob:
             log.warning("Skipping %s: missing text column '%s'.", qualified, text_column)
             return 0, remaining_global
 
-        table_sql = _quote(qualified)
-        column_sql = _quote(text_column)
+        table_sql = quote_identifier(qualified)
+        column_sql = quote_identifier(text_column)
         count_sql = text(
             f"""
             SELECT COUNT(*) FROM {table_sql}
@@ -224,7 +164,7 @@ class EmbeddingJob:
                     content = row.payload
                     if not content or not content.strip():
                         continue
-                    payloads.append({"id": row.id, "embedding": _vector_literal(vectors[idx])})
+                    payloads.append({"id": row.id, "embedding": vector_literal(vectors[idx])})
                     idx += 1
                 if not payloads:
                     break

@@ -74,6 +74,7 @@ Chargement et usage:
   ```
 - Batching contrôlé par `RAG_EMBED_BATCH_SIZE` (encode) et `RAG_COMMIT_EVERY` (transactions). Les colonnes texte sont sélectionnées via `RAG_TEXT_COLUMN_DEFAULT` ou les surcharges JSON `RAG_TEXT_COLUMN_OVERRIDES` (ex: `{"data_raw_tickets_jira":"description"}`).
 - Les logs `insight.scripts.embed` exposent progression (`tqdm`), temps par table et éventuels avertissements (colonnes manquantes, tables non trouvées).
+- Lorsqu’un plan multi-agent NL→SQL aboutit, `ChatService` exécute un RAG vectoriel en réutilisant la clause `WHERE` finale et renvoie les extraits (`metadata.rag`, section « Synthèse RAG » dans la réponse). Les distances supérieures à `RAG_SIM_THRESHOLD` sont filtrées.
 
 ### Journalisation
 
@@ -152,7 +153,7 @@ Accept: text/event-stream
 Évènements émis (ordre garanti):
 - `meta`: `{ request_id, provider, model }`
 - `delta`: `{ seq, content }` (répété)
-- `done`: `{ id, content_full, usage?, finish_reason?, elapsed_s }`
+- `done`: `{ id, content_full, usage?, finish_reason?, elapsed_s, metadata? }` (inclut `metadata.rag` quand présent)
 - `error`: `{ code, message }`
 
 En-têtes envoyés par le serveur: `Cache-Control: no-cache`, `X-Accel-Buffering: no`, `Connection: keep-alive`.
