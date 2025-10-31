@@ -8,6 +8,7 @@ from typing import Literal
 
 from ..core.config import settings
 from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
+from .nl2sql_service import _extract_json_blob  # reuse robust JSON extractor
 
 
 log = logging.getLogger("insight.services.router")
@@ -25,12 +26,16 @@ class RouterDecision:
 
 
 class RouterService:
-    """Lightweight router for the first user message.
+    """Lightweight router applied before NL→SQL/LLM.
 
     Modes (no implicit fallbacks):
-    - rule: deterministic regex-based classifier
+    - rule: deterministic regex-based classifier (permissive by default)
     - local: use vLLM via OpenAI-compatible API
     - api: use external OpenAI-compatible API
+
+    Notes:
+    - The API layer bypasses routing for explicit SQL commands that start with '/sql ' (case-insensitive).
+    - When ROUTER_MODE=false (handled by the API layer), routing is skipped entirely.
     """
 
     def decide(self, text: str) -> RouterDecision:
@@ -46,7 +51,7 @@ class RouterService:
     _RE_GREET = re.compile(r"\b(bonjour|salut|coucou|hello|hey)\b", re.I)
     _RE_PLEAS = re.compile(r"(ça va|ca va|merci|merci\s!|ok\b|test)", re.I)
     _RE_DATA = re.compile(
-        r"\b(donn[ée]e?s?|data|kpi|indicateur|m[ée]trique|stat(istiques?)?|graphi(que|ques)|courbe|table(au|aux)?|requ[êe]te?s?|sql|analyse|moyenne|r[ée]partition|taux|[ée]volution)\b",
+        r"\b(donn[ée]e?s?|data|kpi|indicateur|m[ée]trique|stat(istiques?)?|graphi(que|ques)|courbe|table(au|aux)?|requ[êe]te?s?|sql|analyse|moyenne|r[ée]partition|taux|[ée]volution|ticket[s]?)\b",
         re.I,
     )
     _RE_FEEDBACK = re.compile(
@@ -54,27 +59,54 @@ class RouterService:
         re.I,
     )
     _RE_FOYER = re.compile(r"\b(foyer|foyerinsight|m[ée]nage|household)\b", re.I)
+    _RE_QUESTION = re.compile(
+        r"\b(combien|quel(?:le|s)?|quand|comment|liste|montre|affiche|top|entre|par)\b|\?",
+        re.I,
+    )
+    _RE_TIME = re.compile(
+        r"\b(janv(?:ier)?|f[ée]vr(?:ier)?|mars|avril|mai|juin|juil(?:let)?|ao[ûu]t|sept(?:embre)?|oct(?:obre)?|nov(?:embre)?|d[ée]c(?:embre)?|20\d{2})\b",
+        re.I,
+    )
+
+    # Confidence scale and thresholds
+    _SHORT_MESSAGE_TOKEN_THRESHOLD = 3
+    _AMBIGUOUS_CONFIDENCE = 0.55
+    _CONF_FEEDBACK = 0.9
+    _CONF_DATA = 0.85
+    _CONF_FOYER = 0.7
+    _CONF_QUESTION = 0.75
+    _CONF_SHORT_TALK = 0.9
 
     def _decide_rule(self, text: str) -> RouterDecision:
+        """Heuristic routing order:
+        1) Domain cues (feedback, data keywords, foyer)
+        2) Interrogatives/time hints/digits → allow data
+        3) Very short greetings/pleasantries → block
+        4) Otherwise allow data (permissive default)
+        """
         t = text.strip()
         if not t:
             return RouterDecision(False, "none", 1.0, "Message vide")
-        # Obvious small talk / greetings
-        if self._RE_GREET.search(t) and not (self._RE_DATA.search(t) or self._RE_FEEDBACK.search(t)):
-            return RouterDecision(False, "none", 0.95, "Salutation/banalité détectée")
-        if self._RE_PLEAS.search(t) and not (self._RE_DATA.search(t) or self._FEEDBACK_OR_FOYER(t)):
-            return RouterDecision(False, "none", 0.9, "Formule de politesse/confirmation")
-
-        # Category routing
+        # Category routing (keep first); prioritize domain over generic data
         if self._RE_FEEDBACK.search(t):
-            return RouterDecision(True, "feedback", 0.9, "Termes liés au feedback détectés")
-        if self._RE_DATA.search(t):
-            return RouterDecision(True, "data", 0.85, "Termes analytiques/données détectés")
+            return RouterDecision(True, "feedback", self._CONF_FEEDBACK, "Termes liés au feedback détectés")
         if self._RE_FOYER.search(t):
-            return RouterDecision(True, "foyer", 0.7, "Référence au domaine Foyer")
+            return RouterDecision(True, "foyer", self._CONF_FOYER, "Référence au domaine Foyer")
+        if self._RE_DATA.search(t):
+            return RouterDecision(True, "data", self._CONF_DATA, "Termes analytiques/données détectés")
 
-        # Default: not actionable
-        return RouterDecision(False, "none", 0.6, "Aucun indice d'analyse de données")
+        # Permissive cues: interrogatives, time hints, numbers, or explicit '?'
+        has_digit = any(ch.isdigit() for ch in t)
+        if self._RE_QUESTION.search(t) or self._RE_TIME.search(t) or has_digit:
+            return RouterDecision(True, "data", self._CONF_QUESTION, "Formulation interrogative/indice temporel ou chiffre")
+
+        # Obvious small talk / greetings — only block if very short and no cues
+        token_count = len(re.findall(r"\w+", t))
+        if token_count <= self._SHORT_MESSAGE_TOKEN_THRESHOLD and (self._RE_GREET.search(t) or self._RE_PLEAS.search(t)):
+            return RouterDecision(False, "none", self._CONF_SHORT_TALK, "Salutation/banalité courte détectée")
+
+        # Default: permissive allow to reduce false negatives
+        return RouterDecision(True, "data", self._AMBIGUOUS_CONFIDENCE, "Ambigu mais permis (politique permissive)")
 
     def _FEEDBACK_OR_FOYER(self, t: str) -> bool:
         return bool(self._RE_FEEDBACK.search(t) or self._RE_FOYER.search(t))
@@ -97,6 +129,7 @@ class RouterService:
             "une pipeline de données (catégories: data, feedback, foyer). Réponds UNIQUEMENT en JSON\n"
             "avec les champs: allow (true|false), route ('data'|'feedback'|'foyer'|'none'),\n"
             "confidence (0..1), reason (français concis).\n"
+            "En cas de doute, préfère allow=true et route='data'.\n"
             "Exemples: 'coucou ça va' -> {\"allow\":false,\"route\":\"none\",...}."
         )
         messages = [
@@ -105,9 +138,11 @@ class RouterService:
         ]
         client = OpenAICompatibleClient(base_url=base_url, api_key=api_key, timeout_s=settings.openai_timeout_s)
         data = client.chat_completions(model=model, messages=messages, temperature=0)
+        raw = ""
         try:
             raw = data["choices"][0]["message"]["content"]
-            obj = json.loads(raw)
+            blob = _extract_json_blob(raw)
+            obj = json.loads(blob)
             allow = bool(obj.get("allow"))
             route = obj.get("route", "none")
             if route not in {"data", "feedback", "foyer", "none"}:
@@ -116,6 +151,6 @@ class RouterService:
             reason = str(obj.get("reason", "")) or "Classifié par LLM"
             return RouterDecision(allow, route, max(0.0, min(conf, 1.0)), reason)
         except Exception as e:
-            log.error("Échec du parsing JSON du routeur LLM: %s", e)
+            preview = (raw or "").strip()[:120]
+            log.error("Échec du parsing JSON du routeur LLM: %s | preview=%.120s", e, preview)
             raise OpenAIBackendError("Réponse LLM invalide pour le routeur") from e
-

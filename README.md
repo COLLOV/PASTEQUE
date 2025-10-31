@@ -77,9 +77,14 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Sécurité: pas de mécanismes de secours. Si toutes les tables sont exclues, la réponse l’indique explicitement et NL→SQL n’est pas tenté (`provider: nl2sql-acl`).
 - Détails et rationales: `plan/chat-data-visibility.md`.
 
-### Router (premier message)
+### Router (à chaque message)
 
-Un routeur léger empêche de lancer des requêtes SQL/NL→SQL sur un premier message non « data ». Configurez `ROUTER_MODE=rule|local|api` (voir `backend/.env.example`). Exemple de réponse bloquante: « Ce n'est pas une question pour passer de la data à l'action ».
+Un routeur léger s’exécute à chaque message utilisateur pour éviter de lancer des requêtes SQL/NL→SQL lorsque le message n’est pas orienté « data ».
+
+- Modes: `ROUTER_MODE=rule|local|api|false` (voir `backend/.env.example`).
+  - `false` désactive complètement le routeur (aucun blocage).
+- Politique par défaut plus permissive: questions, indices temporels (mois/années) ou chiffres déclenchent le mode data même avec une salutation.
+- Exemple de blocage: « Ce n'est pas une question pour passer de la data à l'action » (banalités très courtes uniquement).
 
 ### Historique des conversations (branche `feature/historique`)
 
