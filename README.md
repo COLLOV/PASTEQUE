@@ -63,7 +63,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 
 - `metadata.exclude_tables: string[]` — liste de tables à exclure pour la conversation en cours. Validée côté serveur (normalisation, limite de taille, filtrage sur tables connues/permises).
 - `metadata.conversation_id: number` — pour rattacher le message à une conversation existante (créée automatiquement sinon).
-- `metadata.save_as_default: boolean` — lorsqu’à `true` (par défaut), enregistre également les exclusions comme valeur par défaut du compte utilisateur. Mettre à `false` pour éviter de modifier ce réglage global.
+- `metadata.save_as_default: boolean` — lorsqu’à `true`, enregistre également les exclusions comme valeur par défaut du compte utilisateur. Par défaut `false` (opt‑in) pour éviter les conditions de concurrence entre plusieurs onglets.
 
 #### Métadonnées de streaming (SSE)
 
@@ -71,7 +71,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 
 ### Données utilisées — visibilité + exclusions
 
-- UI dans le chat: bouton « Données » pour voir les tables disponibles et décocher celles à exclure (par conversation). Les exclusions sont appliquées au prochain message.
+- UI dans le chat: bouton « Données » pour voir les tables disponibles et décocher celles à exclure (par conversation). Un bouton/checkbox « Sauvegarder comme valeur par défaut » permet d’enregistrer ces exclusions au niveau du compte (opt‑in). Les exclusions sont appliquées au prochain message.
 - Backend: `GET /api/v1/data/tables` expose les tables autorisées par l’ACL; `POST /chat/stream` accepte `metadata.exclude_tables: string[]` et publie `meta.effective_tables` (tables réellement actives) pendant le streaming.
 - Persistance: les exclusions sont sauvegardées par conversation (colonne JSON `conversations.settings`) et réappliquées automatiquement aux requêtes suivantes de la même conversation.
 - Sécurité: pas de mécanismes de secours. Si toutes les tables sont exclues, la réponse l’indique explicitement et NL→SQL n’est pas tenté (`provider: nl2sql-acl`).
