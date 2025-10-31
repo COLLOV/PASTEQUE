@@ -1,5 +1,8 @@
 import logging
 import re
+from typing import Any, Dict, Callable
+
+from sqlglot import parse_one, exp
 from pathlib import Path
 from typing import Protocol, Callable, Dict, Any, Iterable
 
@@ -627,47 +630,68 @@ class ChatService:
         return columns or [], rows or []
 
     def _derive_evidence_sql(self, sql: str, *, limit: int | None = None) -> str | None:
-        """Derive a detail-level ``SELECT *`` keeping filters for the side panel.
+        """Build a safe ``SELECT * ... LIMIT N`` for the evidence panel.
 
-        Best-effort: extract ``FROM ...`` and optional ``WHERE ...`` then build
-        ``SELECT *`` with the same filters. This now applies to BOTH aggregate and
-        non-aggregate queries so the evidence panel always receives complete rows.
-        We cap with ``LIMIT`` to avoid flooding the UI.
+        Rationale (PR#58 recommendations):
+        - Use SQL AST (sqlglot) instead of regex to avoid false matches in
+          string literals and to correctly handle CTEs.
+        - Apply to both aggregate and non-aggregate queries so the panel gets
+          full rows when possible.
+        - Skip set operations (UNION / INTERSECT / EXCEPT) to avoid producing
+          misleading evidence; the regular table payload remains available.
         """
         try:
             if limit is None:
                 limit = settings.evidence_limit_default
-            s = sql.strip()
-            # If already 'SELECT *', just ensure a LIMIT
+            s = (sql or "").strip()
+            if not s:
+                return None
+
+            # If already SELECT * then just ensure LIMIT.
             if re.search(r"\bselect\s+\*", s, re.I):
                 return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
 
-            # For any other SELECT (aggregate or not), derive a SELECT *
-            # Extract FROM ... tail from the main SELECT statement
-            m_from = re.search(r"\bfrom\b\s+(.*)$", s, re.I | re.S)
-            if not m_from:
+            node = parse_one(s, read=None)  # autodetect dialect, tolerant parser
+
+            # Reject DML/DDL early
+            if isinstance(node, (exp.Insert, exp.Update, exp.Delete, exp.Alter, exp.Drop, exp.Create)):
                 return None
-            tail = m_from.group(1)
-            # Cut at ORDER BY / LIMIT / OFFSET
-            tail = re.split(r"\border\s+by\b|\blimit\b|\boffset\b", tail, flags=re.I)[0].strip()
-            # Extract WHERE if present
-            where = None
-            m_where = re.search(r"\bwhere\b\s+(.*)$", tail, re.I | re.S)
-            if m_where:
-                where = re.split(r"\bgroup\s+by\b|\border\s+by\b|\blimit\b|\boffset\b", m_where.group(1), flags=re.I)[0].strip()
-                from_part = tail[: m_where.start()].strip()
+
+            # Handle SELECT (optionally with WITH ... CTEs)
+            select_node: exp.Select | None = None
+            if isinstance(node, exp.Select):
+                select_node = node
+            elif isinstance(node, exp.With) and isinstance(node.this, exp.Select):
+                select_node = node.this
+            # Skip set operations (UNION/INTERSECT/EXCEPT): non-trivial to preserve semantics safely
+            elif isinstance(node, (exp.Union, exp.Intersect, exp.Except)):
+                return None
+
+            if not select_node:
+                return None
+
+            # Clone FROM / WHERE (keep CTEs if any)
+            base_select = exp.select("*")
+            if select_node.args.get("from") is not None:
+                base_select.set("from", select_node.args["from"].copy())
             else:
-                from_part = tail
-            base = f"SELECT * FROM {from_part}"
-            if where:
-                base += f" WHERE {where}"
-            base += f" LIMIT {limit}"
-            # Ensure SELECT-only (no accidental DML)
-            if not re.match(r"^\s*select\b", base, re.I):
+                # No FROM → nothing to select as evidence
                 return None
-            if re.search(r";|\b(insert|update|delete|alter|drop|create)\b", base, re.I):
-                return None
-            return base
+
+            if select_node.args.get("where") is not None:
+                base_select.set("where", select_node.args["where"].copy())
+
+            # Preserve CTEs
+            if select_node.args.get("with") is not None:
+                base_select.set("with", select_node.args["with"].copy())
+
+            # Ensure a LIMIT cap
+            if base_select.args.get("limit") is None:
+                base_select.set("limit", exp.Limit(expression=exp.Literal.number(limit)))
+
+            # Render back to SQL (defaults to standard dialect)
+            derived = base_select.sql()
+            return derived
         except Exception:  # pragma: no cover - defensive
             log.warning("_derive_evidence_sql failed", exc_info=True)
             return None
