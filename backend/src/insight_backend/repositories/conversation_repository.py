@@ -105,25 +105,24 @@ class ConversationRepository:
 
     def set_excluded_tables(self, *, conversation_id: int, tables: list[str]) -> list[str]:
         # Normalize and persist in settings JSON (atomic update when Postgres is available)
-        from sqlalchemy.engine import Connection
-        from ..core.database import engine
         from ..utils.validation import normalize_table_names
 
         normalized = normalize_table_names(tables)
 
         # Postgres: do a jsonb_set to avoid read-modify-write races on unrelated keys
-        if engine.dialect.name.startswith("postgres"):
+        bind = self.session.get_bind()
+        if bind is not None and bind.dialect.name.startswith("postgres"):
             payload_json = json.dumps(normalized)
-            with engine.begin() as conn:  # type: Connection
-                conn.execute(
-                    text(
-                        "UPDATE conversations "
-                        "SET settings = jsonb_set(COALESCE(settings::jsonb, '{}'::jsonb), '{exclude_tables}', to_jsonb(:payload::json))::json, "
-                        "    updated_at = NOW() "
-                        "WHERE id = :cid"
-                    ),
-                    {"payload": payload_json, "cid": conversation_id},
-                )
+            self.session.execute(
+                text(
+                    "UPDATE conversations "
+                    "SET settings = jsonb_set(COALESCE(settings::jsonb, '{}'::jsonb), '{exclude_tables}', (:payload)::jsonb, true)::json, "
+                    "    updated_at = NOW() "
+                    "WHERE id = :cid"
+                ),
+                {"payload": payload_json, "cid": conversation_id},
+            )
+            self.session.flush()
             log.info("Conversation exclude_tables set via jsonb_set (conversation_id=%s, count=%d)", conversation_id, len(normalized))
             return normalized
 

@@ -212,7 +212,6 @@ def chat_completion(  # type: ignore[valid-type]
                 except SQLAlchemyError:
                     log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
                 return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
-
         try:
             resp = service.completion(payload, allowed_tables=allowed_tables)
             # Persist assistant reply
@@ -225,8 +224,8 @@ def chat_completion(  # type: ignore[valid-type]
             # No need to re-apply exclusions here: they were persisted in the same transaction as the user message
             # Return as-is (no conversation id field in schema), clients can fetch via separate API
             return resp
-    except OpenAIBackendError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        except OpenAIBackendError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
 
 
 def _sse(event: str, data: dict) -> bytes:
