@@ -1,0 +1,40 @@
+version: 1
+table: myfeelback_app_mobile
+title: MyFeelBack - Application mobile
+description: Retours clients sur l'application mobile (source MyFeelBack).
+columns:
+  - name: feedback_id
+    type: integer
+    description: Identifiant unique du feedback.
+  - name: client_id
+    type: integer
+    description: Identifiant unique du client.
+    pii: true
+  - name: date_feedback
+    type: date
+    description: Date du feedback (YYYY-MM-DD).
+  - name: version_app
+    type: string
+    description: Version de l'application (ex. 1.2.3).
+  - name: fonctionnalite
+    type: string
+    description: Fonctionnalité de l'application concernée.
+  - name: type_feedback
+    type: string
+    description: Nature du retour (bug, suggestion, avis, etc.).
+  - name: note_globale
+    type: integer
+    description: Satisfaction globale vis‑à‑vis de l'app (0–10).
+  - name: note_facilite
+    type: integer
+    description: Facilité d'utilisation perçue (0–10).
+  - name: note_design
+    type: integer
+    description: Appréciation du design (0–10).
+  - name: note_performance
+    type: integer
+    description: Appréciation des performances (0–10).
+  - name: commentaire
+    type: string
+    description: Commentaire libre saisi par le client.
+    pii: true

@@ -1,0 +1,19 @@
+version: 1
+table: example_table
+title: Exemple
+description: Table d'exemple pour illustrer le format du dictionnaire.
+columns:
+  - name: id
+    description: Identifiant unique
+    type: integer
+    pii: false
+    example: 123
+  - name: created_at
+    description: Date de création (YYYY-MM-DD)
+    type: date
+    pii: false
+  - name: status
+    description: Statut métier
+    type: string
+    enum: [open, closed, pending]
+    pii: false

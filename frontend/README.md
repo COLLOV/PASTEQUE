@@ -51,7 +51,7 @@ npm install
 npm run dev
 ```
 
-Configurer l'API via `.env.development` (voir `.env.development.example`). Le script racine `start.sh` met automatiquement à jour `VITE_API_URL` en fonction du port backend choisi.
+Configurer l'API via `.env.development` (voir `.env.development.example`). Le script racine `start.sh` lit `FRONTEND_DEV_URL` (hôte/port Vite), `VITE_API_URL` (base API) et, si présent, `FRONTEND_URLS`; il ne modifie plus ce fichier.
 
 ## Structure du Projet
 
@@ -105,7 +105,9 @@ src/
 Créez un fichier `.env.development` à la racine du frontend:
 
 ```env
-VITE_API_URL=http://localhost:8000
+FRONTEND_DEV_URL=http://localhost:5173
+FRONTEND_URLS=http://localhost:5173
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
 ### Path Aliases
@@ -169,7 +171,19 @@ import { login } from '@/services/auth'
  - Robustesse (29 oct. 2025): lors du chargement d’une conversation depuis l’historique,
    les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
    a persisté des lignes sous forme de tableaux (héritage de certaines réponses MindsDB).
-   Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
+Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
+
+Sous-panel « Tickets » — aperçu et détail (oct. 2025)
+
+- Aperçu limité pour garder le panel lisible:
+  - Nombre maximum de colonnes par ticket en liste.
+  - Nombre maximum de caractères par valeur (ellipsis au-delà).
+- Clic sur un ticket: bascule en vue détail dans le même panel, avec toutes les colonnes visibles et sans troncature. Un bouton « Tout voir » permet de revenir à la liste.
+- À la fermeture du détail (« Tout voir »), la position de défilement du panel est restaurée au même endroit qu'avant l'ouverture.
+- Paramètres: voir `frontend/src/features/chat/Chat.tsx` → composant `TicketPanel`.
+  - `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu.
+  - `PREVIEW_CHAR_MAX` — troncature des valeurs en aperçu.
+  - L’ordre des colonnes privilégie `title`, `status`, `created_at`, puis le reste.
  
 Affichage des « Détails » depuis l’historique (29 oct. 2025)
 
@@ -204,6 +218,7 @@ Fonctionnement du bouton « Graphique » (oct. 2025):
 
 - Le bouton est visible sur chaque réponse de l'assistant et s'active uniquement si un échantillon NL→SQL (colonnes + lignes) est disponible pour ce tour.
 - Le clic envoie `POST /mcp/chart` avec: `{ prompt: <message utilisateur précédent>, answer: <réponse>, dataset: { sql, columns, rows, row_count } }`.
+- Pendant l'appel, l'UI affiche une animation (spinner) et le libellé « Génération… » sur le bouton. Un indicateur global « Génération du graphique… » apparaît également dans le fil de discussion.
 - Le graphique est affiché dans un nouveau message assistant, avec bouton « Enregistrer dans le dashboard ».
 - S'il n'y a pas de données, le bouton reste désactivé (UX plus claire et cohérente).
 

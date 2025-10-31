@@ -1,0 +1,48 @@
+version: 1
+table: myfeelback_service_client
+title: MyFeelBack - Service client
+description: Retours clients sur les interactions avec le service client (source MyFeelBack).
+columns:
+  - name: feedback_id
+    type: integer
+    description: Identifiant unique du feedback.
+  - name: client_id
+    type: integer
+    description: Identifiant unique du client.
+    pii: true
+  - name: date_feedback
+    type: date
+    description: Date du feedback (YYYY-MM-DD).
+  - name: motif_contact
+    type: string
+    description: Raison du contact (ex. réclamation, information).
+  - name: canal
+    type: string
+    description: Canal de contact (téléphone, email, chat, etc.).
+  - name: temps_attente
+    type: integer
+    unit: minutes
+    description: Temps d'attente avant prise en charge (minutes).
+  - name: temps_resolution
+    type: integer
+    unit: minutes
+    description: Durée totale jusqu'à résolution (minutes).
+  - name: note_globale
+    type: integer
+    description: Satisfaction globale de l'échange (0–10).
+  - name: note_rapidite
+    type: integer
+    description: Appréciation de la rapidité de traitement (0–10).
+  - name: note_competence
+    type: integer
+    description: Compétence perçue de l'agent (0–10).
+  - name: note_amabilite
+    type: integer
+    description: Amabilité perçue de l'agent (0–10).
+  - name: probleme_resolu
+    type: boolean
+    description: Le problème a‑t‑il été résolu ?
+  - name: commentaire
+    type: string
+    description: Commentaire libre saisi par le client.
+    pii: true

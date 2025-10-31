@@ -3,6 +3,7 @@ from typing import List
 import logging
 
 from pydantic import Field
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +22,10 @@ class Settings(BaseSettings):
     data_root: str = Field("../data", alias="DATA_ROOT")
     vector_store_path: str = Field("../data/vector_store", alias="VECTOR_STORE_PATH")
     tables_dir: str = Field("../data", alias="DATA_TABLES_DIR")
+    # Default path fixed: 'dictionary' (not 'dictionnary')
+    data_dictionary_dir: str = Field("../data/dictionary", alias="DATA_DICTIONARY_DIR")
+    # Cap for injected data dictionary JSON in prompts
+    data_dictionary_max_chars: int = Field(6000, alias="DATA_DICTIONARY_MAX_CHARS")
 
     # LLM configuration
     llm_mode: str = Field("local", alias="LLM_MODE")  # "local" | "api"
@@ -32,6 +37,19 @@ class Settings(BaseSettings):
     # vLLM local
     vllm_base_url: str | None = Field("http://localhost:8000/v1", alias="VLLM_BASE_URL")
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
+
+    # Router gate (applied on every user message)
+    router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
+    router_model: str | None = Field(None, alias="ROUTER_MODEL")
+
+    @field_validator("router_mode", mode="before")
+    @classmethod
+    def _validate_router_mode(cls, v: str | None) -> str:
+        val = (v or "rule").strip().lower()
+        valid = {"rule", "local", "api", "false"}
+        if val not in valid:
+            raise ValueError(f"ROUTER_MODE must be one of {sorted(valid)}; got: {v!r}")
+        return val
 
     # MCP configuration (declarative)
     mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
@@ -117,3 +135,18 @@ def assert_secure_configuration() -> None:
         raise RuntimeError(
             "Insecure configuration detected for ENV!='development': " + "; ".join(problems)
         )
+
+def resolve_project_path(p: str) -> str:
+    """Resolve ``p`` to an absolute path relative to the repo root when needed.
+
+    - If ``p`` is absolute, return it unchanged.
+    - If relative, anchor it at the project root inferred from this file's location.
+    """
+    from pathlib import Path as _Path  # local import to keep public surface minimal
+
+    raw = _Path(p)
+    if raw.is_absolute():
+        return str(raw)
+    # backend/src/insight_backend/core/config.py → repo root is parents[4]
+    base = _Path(__file__).resolve().parents[4]
+    return str((base / raw).resolve())
