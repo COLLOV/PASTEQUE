@@ -1,14 +1,13 @@
 import logging
 import re
 from pathlib import Path
-from typing import Protocol, Callable, Dict, Any, Iterable, List
+from typing import Protocol, Callable, Dict, Any, Iterable
 
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
 from .nl2sql_service import NL2SQLService
-from .rag_service import TicketRAGService, TicketRAGResult, EmbeddingClientProtocol
 
 
 log = logging.getLogger("insight.services.chat")
@@ -34,10 +33,8 @@ class ChatService:
     Implémentation réelle à fournir ultérieurement.
     """
 
-    def __init__(self, engine: ChatEngine, *, llm_client: EmbeddingClientProtocol | None = None):
+    def __init__(self, engine: ChatEngine):
         self.engine = engine
-        self._llm_client = llm_client
-        self._ticket_rag: TicketRAGService | None = None
 
     def _llm_diag(self) -> str:
         if settings.llm_mode == "api":
@@ -541,32 +538,7 @@ class ChatService:
                             ),
                             context="completion done (nl2sql-fallback)",
                         )
-        request_payload = payload
-        rag_result: TicketRAGResult | None = None
-        use_rag, rag_top_k = self._should_use_rag(payload)
-        if use_rag:
-            rag_service = self._ensure_ticket_rag()
-            last_message = payload.messages[-1]
-            rag_result = rag_service.retrieve(last_message.content, top_k=rag_top_k)
-            if rag_result.items:
-                request_payload = ChatRequest(
-                    messages=self._inject_rag_context(payload.messages, rag_result),
-                    metadata=payload.metadata,
-                )
-                best = rag_result.items[0]
-                log.info(
-                    "Ticket RAG context attached: top=%d best_ticket=%s score=%.3f question=\"%s\"",
-                    len(rag_result.items),
-                    best.ticket_id,
-                    best.score,
-                    _preview_text(last_message.content, limit=160),
-                )
-            else:
-                log.warning("Ticket RAG returned no items despite enabled context")
-
-        response = self.engine.run(request_payload)
-        if rag_result is not None:
-            response = self._attach_rag_metadata(response, rag_result)
+        response = self.engine.run(payload)
         return self._log_completion(response, context="completion done (engine)")
 
     # ----------------------
@@ -755,98 +727,3 @@ class ChatService:
         except Exception:
             # Defensive: do not break the main flow, but keep traceback
             log.warning("Failed to emit evidence (helper)", exc_info=True)
-
-    def _should_use_rag(self, payload: ChatRequest) -> tuple[bool, int]:
-        if not settings.rag_enabled:
-            return False, 0
-        if not payload.messages:
-            return False, 0
-        if payload.messages[-1].role != "user":
-            return False, 0
-        top_k = settings.rag_top_k
-        meta = payload.metadata or {}
-        if isinstance(meta, dict):
-            rag_meta = meta.get("rag")
-            if isinstance(rag_meta, dict):
-                enabled = rag_meta.get("enabled")
-                if enabled is False:
-                    return False, 0
-                raw_top = rag_meta.get("top_k")
-                if raw_top is not None:
-                    try:
-                        top_k = int(raw_top)
-                    except Exception:
-                        raise ValueError("Invalid rag.top_k metadata") from None
-        if top_k <= 0:
-            return False, 0
-        return True, top_k
-
-    def _inject_rag_context(self, messages: List[ChatMessage], result: TicketRAGResult) -> List[ChatMessage]:
-        context = self._format_rag_prompt(result)
-        augmented = list(messages[:-1])
-        augmented.append(ChatMessage(role="system", content=context))
-        augmented.append(messages[-1])
-        return augmented
-
-    def _format_rag_prompt(self, result: TicketRAGResult) -> str:
-        header = (
-            "Contexte tickets: exploite uniquement ces informations pour ta réponse."
-            " Si elles sont insuffisantes, dis-le explicitement."
-        )
-        if not result.items:
-            return header
-        lines: list[str] = [header, ""]
-        for idx, item in enumerate(result.items, start=1):
-            lines.append(
-                f"Ticket {idx}: {item.ticket_id} (pertinence {item.score:.3f})"
-            )
-            if item.resume:
-                lines.append(f"Résumé: {item.resume}")
-            if item.description:
-                lines.append(f"Description: {item.description}")
-            if item.departement:
-                lines.append(f"Département: {item.departement}")
-            if item.creation_date:
-                lines.append(f"Créé le: {item.creation_date}")
-            lines.append("")
-        return "\n".join(lines).strip()
-
-    def _attach_rag_metadata(self, response: ChatResponse, result: TicketRAGResult) -> ChatResponse:
-        meta = dict(response.metadata or {})
-        meta["rag"] = {
-            "enabled": True,
-            "model": result.model,
-            "top_k": result.top_k,
-            "tickets": [
-                {
-                    "ticket_id": item.ticket_id,
-                    "resume": item.resume,
-                    "description": item.description,
-                    "departement": item.departement,
-                    "creation_date": item.creation_date,
-                    "score": round(item.score, 6),
-                }
-                for item in result.items
-            ],
-        }
-        response.metadata = meta
-        return response
-
-    def _ensure_ticket_rag(self) -> TicketRAGService:
-        if self._ticket_rag is not None:
-            return self._ticket_rag
-        if self._llm_client is None:
-            raise RuntimeError("RAG activé mais aucun client LLM n'est configuré")
-        columns = [c.strip() for c in settings.rag_ticket_text_columns.split(",") if c.strip()]
-        repo = DataRepository(tables_dir=Path(settings.tables_dir))
-        store_path = Path(settings.vector_store_path) / f"{settings.rag_ticket_table}.json"
-        self._ticket_rag = TicketRAGService(
-            repo=repo,
-            client=self._llm_client,
-            store_path=store_path,
-            table_name=settings.rag_ticket_table,
-            text_columns=columns,
-            embedding_model=settings.rag_embedding_model,
-            batch_size=max(1, settings.rag_embedding_batch_size),
-        )
-        return self._ticket_rag

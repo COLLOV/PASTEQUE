@@ -71,26 +71,11 @@ class Settings(BaseSettings):
     nl2sql_explore_rounds: int = Field(1, alias="NL2SQL_EXPLORE_ROUNDS")
     nl2sql_satisfaction_min_rows: int = Field(1, alias="NL2SQL_SATISFACTION_MIN_ROWS")
 
-    # RAG tickets
-    rag_enabled: bool = Field(False, alias="RAG_ENABLED")
-    rag_top_k: int = Field(3, alias="RAG_TOP_K")
-    rag_ticket_table: str = Field("tickets_jira", alias="RAG_TICKET_TABLE")
-    rag_ticket_text_columns: str = Field("resume,description", alias="RAG_TICKET_TEXT_COLUMNS")
-    rag_embedding_model_local: str = Field("text-embedding-3-small", alias="RAG_EMBEDDING_MODEL_LOCAL")
-    rag_embedding_model_api: str = Field("text-embedding-3-small", alias="RAG_EMBEDDING_MODEL_API")
-    rag_embedding_batch_size: int = Field(16, alias="RAG_EMBEDDING_BATCH_SIZE")
-
     @property
     def allowed_origins(self) -> List[str]:
         if self.allowed_origins_raw:
             return [item.strip() for item in self.allowed_origins_raw.split(",") if item.strip()]
         return ["http://localhost:5173"]
-
-    @property
-    def rag_embedding_model(self) -> str:
-        if self.llm_mode == "api":
-            return self.rag_embedding_model_api
-        return self.rag_embedding_model_local
 
 
 @lru_cache

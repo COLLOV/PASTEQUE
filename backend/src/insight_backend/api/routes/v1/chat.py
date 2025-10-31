@@ -56,7 +56,7 @@ def chat_completion(  # type: ignore[valid-type]
 
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
-    service = ChatService(engine, llm_client=client)
+    service = ChatService(engine)
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
@@ -137,7 +137,7 @@ def chat_stream(  # type: ignore[valid-type]
 
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
-    service = ChatService(engine, llm_client=client)
+    service = ChatService(engine)
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)

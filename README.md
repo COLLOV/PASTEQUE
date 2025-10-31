@@ -149,13 +149,6 @@ data/
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
 - Le backend filtre les lignes stdout non JSON renvoyées par le serveur MCP `chart` pour éviter les erreurs `Invalid JSON` dues aux logs d'initialisation.
 
-#### Agent RAG Tickets
-
-- Activez `RAG_ENABLED=true` pour déclencher l’agent RAG qui cherche les `RAG_TOP_K` tickets Jira les plus proches de la question (similarité cosinus sur embeddings).
-- Le backend construit un store persistant `VECTOR_STORE_PATH/<table>.json` depuis `RAG_TICKET_TABLE` et les colonnes `RAG_TICKET_TEXT_COLUMNS`; aucune réponse n’est envoyée si la génération d’embeddings échoue.
-- `RAG_EMBEDDING_MODEL_LOCAL` est utilisé en mode `local` (vLLM), `RAG_EMBEDDING_MODEL_API` en mode `api`; ajustez `RAG_EMBEDDING_BATCH_SIZE` selon la capacité du provider.
-- Les réponses incluent `metadata.rag` (tickets, scores, modèle) et un message système injecte le contexte avant la question utilisateur pour guider la génération.
-
 ### Sauvegarde des graphiques MCP
 
 - Chaque graphique généré via le chat peut être sauvegardé grâce au bouton **Enregistrer dans le dashboard**. Le backend persiste l’URL, le prompt, les métadonnées et la spec JSON.

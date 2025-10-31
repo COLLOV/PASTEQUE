@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Sequence
+from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
 
@@ -27,28 +27,17 @@ class OpenAICompatibleClient:
         self.api_key = api_key
         self.client = httpx.Client(timeout=timeout_s)
 
-    def _request(
-        self,
-        method: str,
-        path: str,
-        *,
-        json_payload: Dict[str, Any],
-        headers_extra: Dict[str, str] | None = None,
-        stream: bool = False,
-    ) -> httpx.Response:
-        url = f"{self.base_url}{path}"
+    def chat_completions(self, *, model: str, messages: List[Dict[str, str]], **params: Any) -> Dict[str, Any]:
+        url = f"{self.base_url}/chat/completions"
         headers: Dict[str, str] = {"Content-Type": "application/json"}
-        if headers_extra:
-            headers.update(headers_extra)
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        log.debug("%s %s", method.upper(), url)
+        payload: Dict[str, Any] = {"model": model, "messages": messages}
+        payload.update(params)
+        log.debug("POST %s model=%s", url, model)
         try:
-            if stream:
-                response = self.client.stream(method.upper(), url, headers=headers, json=json_payload)
-            else:
-                response = self.client.request(method.upper(), url, headers=headers, json=json_payload)
-            response.raise_for_status()
+            resp = self.client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
         except httpx.ConnectError as exc:
             log.error("LLM backend unreachable at %s: %s", url, exc)
             raise OpenAIBackendError(
@@ -57,7 +46,9 @@ class OpenAICompatibleClient:
             ) from exc
         except httpx.HTTPStatusError as exc:
             body = exc.response.text
-            log.error("LLM backend returned %s for %s: %s", exc.response.status_code, url, body)
+            log.error(
+                "LLM backend returned %s for %s: %s", exc.response.status_code, url, body
+            )
             raise OpenAIBackendError(
                 f"Le backend LLM a retourné un statut {exc.response.status_code}."
                 " Consultez ses logs pour plus de détails."
@@ -65,12 +56,6 @@ class OpenAICompatibleClient:
         except httpx.HTTPError as exc:
             log.error("LLM backend request failed for %s: %s", url, exc)
             raise OpenAIBackendError("Erreur lors de l'appel au backend LLM.") from exc
-        return response
-
-    def chat_completions(self, *, model: str, messages: List[Dict[str, str]], **params: Any) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {"model": model, "messages": messages}
-        payload.update(params)
-        resp = self._request("post", "/chat/completions", json_payload=payload)
         return resp.json()
 
     def stream_chat_completions(
@@ -80,21 +65,20 @@ class OpenAICompatibleClient:
 
         Yields parsed JSON dicts from lines starting with ``data: ``. Stops on ``[DONE]``.
         """
-        headers_extra = {"Accept": "text/event-stream"}
+        url = f"{self.base_url}/chat/completions"
+        headers: Dict[str, str] = {"Content-Type": "application/json", "Accept": "text/event-stream"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         payload: Dict[str, Any] = {"model": model, "messages": messages, "stream": True}
         payload.update(params)
-        response = self._request(
-            "post",
-            "/chat/completions",
-            json_payload=payload,
-            headers_extra=headers_extra,
-            stream=True,
-        )
+        log.debug("STREAM %s model=%s", url, model)
         try:
-            with response as resp:
+            with self.client.stream("POST", url, headers=headers, json=payload) as resp:
+                resp.raise_for_status()
                 for line in resp.iter_lines():
                     if not line:
                         continue
+                    # Expect SSE lines like: "data: {json}" or "data: [DONE]"
                     if not line.startswith("data: "):
                         continue
                     data = line[len("data: ") :].strip()
@@ -105,10 +89,21 @@ class OpenAICompatibleClient:
                     except Exception as exc:  # pragma: no cover - defensive parsing
                         log.error("Invalid SSE chunk: %s", exc)
                         continue
-        finally:
-            response.close()
-
-    def embeddings(self, *, model: str, inputs: Sequence[str]) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {"model": model, "input": list(inputs)}
-        resp = self._request("post", "/embeddings", json_payload=payload)
-        return resp.json()
+        except httpx.ConnectError as exc:
+            log.error("LLM backend unreachable at %s: %s", url, exc)
+            raise OpenAIBackendError(
+                f"Impossible de joindre le backend LLM ({self.base_url})."
+                " Assurez-vous que vLLM est démarré ou que la configuration OPENAI_BASE_URL est correcte."
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text
+            log.error(
+                "LLM backend returned %s for %s: %s", exc.response.status_code, url, body
+            )
+            raise OpenAIBackendError(
+                f"Le backend LLM a retourné un statut {exc.response.status_code}."
+                " Consultez ses logs pour plus de détails."
+            ) from exc
+        except httpx.HTTPError as exc:
+            log.error("LLM backend request failed for %s: %s", url, exc)
+            raise OpenAIBackendError("Erreur lors de l'appel au backend LLM.") from exc
