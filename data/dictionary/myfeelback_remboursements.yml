@@ -1,0 +1,39 @@
+version: 1
+table: myfeelback_remboursements
+title: MyFeelBack - Remboursements
+description: Données de sinistres et remboursements (source MyFeelBack).
+columns:
+  - name: sinistre_id
+    type: integer
+    description: Identifiant unique du sinistre.
+  - name: client_id
+    type: integer
+    description: Identifiant unique du client.
+    pii: true
+  - name: date_declaration
+    type: date
+    description: Date de déclaration du sinistre (YYYY-MM-DD).
+  - name: date_remboursement
+    type: date
+    description: Date de remboursement (YYYY-MM-DD).
+  - name: type_sinistre
+    type: string
+    description: Typologie du sinistre (ex. auto, habitation, santé).
+  - name: montant_reclame
+    type: number
+    unit: EUR
+    description: Montant réclamé par l'assuré (EUR).
+  - name: montant_rembourse
+    type: number
+    unit: EUR
+    description: Montant remboursé par l'assureur (EUR).
+  - name: statut
+    type: string
+    description: Statut du dossier de sinistre.
+  - name: departement
+    type: string
+    description: Code département d'occurrence (ex. 75).
+  - name: commentaire
+    type: string
+    description: Commentaire libre lié au dossier.
+    pii: true
