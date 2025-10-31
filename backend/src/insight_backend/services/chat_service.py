@@ -148,7 +148,7 @@ class ChatService:
         # NL→SQL (optional): per-request override via payload.metadata.nl2sql,
         # falling back to env `NL2SQL_ENABLED` when not specified.
         meta = payload.metadata or {}
-        nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
+        nl2sql_flag = meta.get("nl2sql")
         nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
 
         if payload.messages and nl2sql_enabled:
@@ -163,8 +163,7 @@ class ChatService:
                 if allowed_lookup is not None:
                     tables = [name for name in tables if name.casefold() in allowed_lookup]
                 # 2) Appliquer les exclusions demandées par l'utilisateur (par conversation/requête)
-                meta_dict = payload.metadata if isinstance(payload.metadata, dict) else {}
-                exclude_raw = meta_dict.get("exclude_tables")
+                exclude_raw = meta.get("exclude_tables")
                 exclude_lookup: set[str] = set()
                 if isinstance(exclude_raw, (list, tuple)):
                     for item in exclude_raw:
