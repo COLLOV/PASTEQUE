@@ -1,10 +1,11 @@
 import logging
+import json
 import re
 from pathlib import Path
 from typing import Protocol, Callable, Dict, Any, Iterable
 
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
-from ..core.config import settings
+from ..core.config import settings, resolve_project_path
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
@@ -21,6 +22,49 @@ def _preview_text(text: str, *, limit: int = 160) -> str:
         return compact
     cutoff = max(limit - 3, 1)
     return f"{compact[:cutoff]}..."
+
+
+def _serialize_dico_compact(dico: Dict[str, Any], *, limit: int) -> tuple[str, bool, int, int]:
+    """Return a JSON string for ``dico`` within ``limit`` chars when possible.
+
+    Falls back to a compact subset while keeping valid JSON. Returns a tuple
+    of (json_str, truncated_flag, kept_tables, kept_cols_per_table_max).
+    """
+    def _dumps(obj: Any) -> str:
+        return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
+    raw = _dumps(dico)
+    if len(raw) <= limit:
+        # no truncation
+        return raw, False, len(dico), max((len(v.get("columns", [])) for v in dico.values()), default=0)
+
+    # Try progressively smaller subsets: fewer columns per table, then fewer tables
+    tables = list(dico.items())
+    # Keep deterministic order by table name
+    tables.sort(key=lambda kv: kv[0])
+
+    for cols_cap in (5, 3, 1):
+        subset: Dict[str, Any] = {}
+        for name, spec in tables:
+            cols = list(spec.get("columns", []))
+            subset[name] = {k: v for k, v in spec.items() if k != "columns"}
+            subset[name]["columns"] = cols[:cols_cap]
+        s = _dumps(subset)
+        if len(s) <= limit:
+            return s, True, len(subset), cols_cap
+        # Also try reducing the number of tables for this cols_cap
+        for keep_tables in (3, 2, 1):
+            trimmed = {k: subset[k] for k in list(subset.keys())[:keep_tables]}
+            s2 = _dumps(trimmed)
+            if len(s2) <= limit:
+                return s2, True, keep_tables, cols_cap
+
+    # As a last resort, keep the first table and one column to remain valid JSON
+    if tables:
+        name, spec = tables[0]
+        minimal = {name: {"columns": list(spec.get("columns", []))[:1]}}
+        return _dumps(minimal), True, 1, 1
+    return _dumps({}), True, 0, 0
 
 
 class ChatEngine(Protocol):
@@ -177,21 +221,37 @@ class ChatService:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
                 # Load compact data dictionary (if available) limited to the current schema
-                dico_repo = DataDictionaryRepository(directory=Path(settings.data_dictionary_dir))
+                dico_repo = DataDictionaryRepository(
+                    directory=Path(resolve_project_path(settings.data_dictionary_dir))
+                )
                 dico = dico_repo.for_schema(schema)
                 contextual_question_with_dico = contextual_question
                 if dico:
                     try:
-                        import json as _json
-                        blob = _json.dumps(dico, ensure_ascii=False)
-                        # Cap to a reasonable size to keep prompts small
-                        if len(blob) > 6000:
-                            blob = blob[:6000] + "…"
+                        # Log if PII columns are present in the prompt material
+                        pii_hits: list[str] = []
+                        for t, spec in dico.items():
+                            for c in spec.get("columns", []):
+                                if bool(c.get("pii")):
+                                    pii_hits.append(f"{t}.{c.get('name')}")
+                        if pii_hits:
+                            log.warning("PII columns included in dictionary: %s", pii_hits)
+
+                        blob, truncated, kept_tables, kept_cols = _serialize_dico_compact(
+                            dico, limit=max(1, settings.data_dictionary_max_chars)
+                        )
+                        if truncated:
+                            log.warning(
+                                "Data dictionary truncated to %d chars (kept %d tables, ≤ %d cols/table)",
+                                settings.data_dictionary_max_chars,
+                                kept_tables,
+                                kept_cols,
+                            )
                         contextual_question_with_dico = (
                             f"{contextual_question}\n\nData dictionary (JSON):\n{blob}"
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log.error("Failed to serialize data dictionary JSON: %s", e, exc_info=True)
                 nl2sql = NL2SQLService()
                 log.info(
                     "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
