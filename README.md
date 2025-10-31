@@ -61,7 +61,12 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 
 ### Router (à chaque message)
 
-Un routeur léger s’exécute désormais à chaque message utilisateur pour éviter de lancer des requêtes SQL/NL→SQL lorsque le message n’est pas orienté « data ». Configurez `ROUTER_MODE=rule|local|api` (voir `backend/.env.example`). Exemple de réponse bloquante: « Ce n'est pas une question pour passer de la data à l'action ».
+Un routeur léger s’exécute à chaque message utilisateur pour éviter de lancer des requêtes SQL/NL→SQL lorsque le message n’est pas orienté « data ».
+
+- Modes: `ROUTER_MODE=rule|local|api|false` (voir `backend/.env.example`).
+  - `false` désactive complètement le routeur (aucun blocage).
+- Politique par défaut plus permissive: questions, indices temporels (mois/années) ou chiffres déclenchent le mode data même avec une salutation.
+- Exemple de blocage: « Ce n'est pas une question pour passer de la data à l'action » (banalités très courtes uniquement).
 
 ### Historique des conversations (branche `feature/historique`)
 

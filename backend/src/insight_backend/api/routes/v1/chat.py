@@ -92,7 +92,10 @@ def chat_completion(  # type: ignore[valid-type]
 
     # Router gate on every user message (avoid useless SQL/NL2SQL work)
     last = payload.messages[-1] if payload.messages else None
-    if last and last.role == "user":
+    router_mode = (settings.router_mode or "rule").strip().lower()
+    if router_mode == "false":
+        log.info("Router disabled (ROUTER_MODE=false), skipping gate (/completions)")
+    elif last and last.role == "user":
         # Bypass router for explicit SQL passthrough
         if not last.content.strip().casefold().startswith("/sql "):
             try:
@@ -208,7 +211,10 @@ def chat_stream(  # type: ignore[valid-type]
         try:
             # Router gate on every user message before any SQL activity
             last = payload.messages[-1] if payload.messages else None
-            if last and last.role == "user":
+            router_mode = (settings.router_mode or "rule").strip().lower()
+            if router_mode == "false":
+                log.info("Router disabled (ROUTER_MODE=false), skipping gate (/stream)")
+            elif last and last.role == "user":
                 # Bypass router for explicit SQL passthrough
                 if not last.content.strip().casefold().startswith("/sql "):
                     decision = RouterService().decide(last.content)

@@ -125,17 +125,18 @@ Objectif: éviter de déclencher des requêtes SQL/NL→SQL lorsque un message u
 
 - Activation: contrôlée par `ROUTER_MODE` (`rule` par défaut).
 - Modes disponibles:
-  - `rule` (défaut): heuristiques déterministes (aucun appel LLM).
+  - `rule` (défaut): heuristiques déterministes (aucun appel LLM), désormais plus permissives (interrogations/mois/années/chiffres autorisent).
   - `local`: LLM local via vLLM (`VLLM_BASE_URL`, `Z_LOCAL_MODEL` ou `ROUTER_MODEL`).
   - `api`: LLM distant OpenAI‑compatible (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` ou `ROUTER_MODEL`).
+  - `false`: désactive complètement la surcouche router (aucun blocage, aucun évènement lié au router).
 - Comportement:
   - Si un message est jugé « non actionnable », l’API répond immédiatement: « Ce n'est pas une question pour passer de la data à l'action » et aucune requête SQL n’est lancée pour ce message.
-  - Sinon, la route cible (`data` | `feedback` | `foyer`) est loggée. En mode stream, un évènement `meta` est émis uniquement lorsque le router bloque la requête (provider=`router`).
+  - Sinon, la route cible (`data` | `feedback` | `foyer`) est loggée. En mode stream, un évènement `meta` (provider=`router`) n’est émis que lors d’un blocage. Avec `ROUTER_MODE=false`, aucun évènement lié au router n’est émis.
 
 Variables d’environnement (voir `.env.example`):
 
 ```
-ROUTER_MODE=rule   # rule | local | api
+ROUTER_MODE=rule   # rule | local | api | false
 # ROUTER_MODEL=    # optionnel; sinon Z_LOCAL_MODEL/LLM_MODEL
 ```
 

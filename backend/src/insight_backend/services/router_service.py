@@ -46,7 +46,7 @@ class RouterService:
     _RE_GREET = re.compile(r"\b(bonjour|salut|coucou|hello|hey)\b", re.I)
     _RE_PLEAS = re.compile(r"(ça va|ca va|merci|merci\s!|ok\b|test)", re.I)
     _RE_DATA = re.compile(
-        r"\b(donn[ée]e?s?|data|kpi|indicateur|m[ée]trique|stat(istiques?)?|graphi(que|ques)|courbe|table(au|aux)?|requ[êe]te?s?|sql|analyse|moyenne|r[ée]partition|taux|[ée]volution)\b",
+        r"\b(donn[ée]e?s?|data|kpi|indicateur|m[ée]trique|stat(istiques?)?|graphi(que|ques)|courbe|table(au|aux)?|requ[êe]te?s?|sql|analyse|moyenne|r[ée]partition|taux|[ée]volution|ticket[s]?)\b",
         re.I,
     )
     _RE_FEEDBACK = re.compile(
@@ -54,18 +54,20 @@ class RouterService:
         re.I,
     )
     _RE_FOYER = re.compile(r"\b(foyer|foyerinsight|m[ée]nage|household)\b", re.I)
+    _RE_QUESTION = re.compile(
+        r"\b(combien|quel(?:le|s)?|quand|comment|liste|montre|affiche|top|entre|par)\b|\?",
+        re.I,
+    )
+    _RE_TIME = re.compile(
+        r"\b(janv(?:ier)?|f[ée]vr(?:ier)?|mars|avril|mai|juin|juil(?:let)?|ao[ûu]t|sept(?:embre)?|oct(?:obre)?|nov(?:embre)?|d[ée]c(?:embre)?|20\d{2})\b",
+        re.I,
+    )
 
     def _decide_rule(self, text: str) -> RouterDecision:
         t = text.strip()
         if not t:
             return RouterDecision(False, "none", 1.0, "Message vide")
-        # Obvious small talk / greetings
-        if self._RE_GREET.search(t) and not (self._RE_DATA.search(t) or self._RE_FEEDBACK.search(t)):
-            return RouterDecision(False, "none", 0.95, "Salutation/banalité détectée")
-        if self._RE_PLEAS.search(t) and not (self._RE_DATA.search(t) or self._FEEDBACK_OR_FOYER(t)):
-            return RouterDecision(False, "none", 0.9, "Formule de politesse/confirmation")
-
-        # Category routing
+        # Category routing (keep first)
         if self._RE_FEEDBACK.search(t):
             return RouterDecision(True, "feedback", 0.9, "Termes liés au feedback détectés")
         if self._RE_DATA.search(t):
@@ -73,8 +75,18 @@ class RouterService:
         if self._RE_FOYER.search(t):
             return RouterDecision(True, "foyer", 0.7, "Référence au domaine Foyer")
 
-        # Default: not actionable
-        return RouterDecision(False, "none", 0.6, "Aucun indice d'analyse de données")
+        # Permissive cues: interrogatives, time hints, numbers, or explicit '?'
+        has_digit = any(ch.isdigit() for ch in t)
+        if self._RE_QUESTION.search(t) or self._RE_TIME.search(t) or has_digit:
+            return RouterDecision(True, "data", 0.75, "Formulation interrogative/indice temporel ou chiffre")
+
+        # Obvious small talk / greetings — only block if very short and no cues
+        token_count = len(re.findall(r"\w+", t))
+        if token_count <= 3 and (self._RE_GREET.search(t) or self._RE_PLEAS.search(t)):
+            return RouterDecision(False, "none", 0.9, "Salutation/banalité courte détectée")
+
+        # Default: permissive allow to reduce false negatives
+        return RouterDecision(True, "data", 0.55, "Ambigu mais permis (politique permissive)")
 
     def _FEEDBACK_OR_FOYER(self, t: str) -> bool:
         return bool(self._RE_FEEDBACK.search(t) or self._RE_FOYER.search(t))
@@ -97,6 +109,7 @@ class RouterService:
             "une pipeline de données (catégories: data, feedback, foyer). Réponds UNIQUEMENT en JSON\n"
             "avec les champs: allow (true|false), route ('data'|'feedback'|'foyer'|'none'),\n"
             "confidence (0..1), reason (français concis).\n"
+            "En cas de doute, préfère allow=true et route='data'.\n"
             "Exemples: 'coucou ça va' -> {\"allow\":false,\"route\":\"none\",...}."
         )
         messages = [
@@ -118,4 +131,3 @@ class RouterService:
         except Exception as e:
             log.error("Échec du parsing JSON du routeur LLM: %s", e)
             raise OpenAIBackendError("Réponse LLM invalide pour le routeur") from e
-
