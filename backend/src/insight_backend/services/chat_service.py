@@ -1,12 +1,14 @@
 import logging
+import json
 import re
 from pathlib import Path
 from typing import Protocol, Callable, Dict, Any, Iterable
 
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
-from ..core.config import settings
+from ..core.config import settings, resolve_project_path
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
+from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 
 
@@ -20,6 +22,49 @@ def _preview_text(text: str, *, limit: int = 160) -> str:
         return compact
     cutoff = max(limit - 3, 1)
     return f"{compact[:cutoff]}..."
+
+
+def _serialize_dico_compact(dico: Dict[str, Any], *, limit: int) -> tuple[str, bool, int, int]:
+    """Return a JSON string for ``dico`` within ``limit`` chars when possible.
+
+    Falls back to a compact subset while keeping valid JSON. Returns a tuple
+    of (json_str, truncated_flag, kept_tables, kept_cols_per_table_max).
+    """
+    def _dumps(obj: Any) -> str:
+        return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
+    raw = _dumps(dico)
+    if len(raw) <= limit:
+        # no truncation
+        return raw, False, len(dico), max((len(v.get("columns", [])) for v in dico.values()), default=0)
+
+    # Try progressively smaller subsets: fewer columns per table, then fewer tables
+    tables = list(dico.items())
+    # Keep deterministic order by table name
+    tables.sort(key=lambda kv: kv[0])
+
+    for cols_cap in (5, 3, 1):
+        subset: Dict[str, Any] = {}
+        for name, spec in tables:
+            cols = list(spec.get("columns", []))
+            subset[name] = {k: v for k, v in spec.items() if k != "columns"}
+            subset[name]["columns"] = cols[:cols_cap]
+        s = _dumps(subset)
+        if len(s) <= limit:
+            return s, True, len(subset), cols_cap
+        # Also try reducing the number of tables for this cols_cap
+        for keep_tables in (3, 2, 1):
+            trimmed = {k: subset[k] for k in list(subset.keys())[:keep_tables]}
+            s2 = _dumps(trimmed)
+            if len(s2) <= limit:
+                return s2, True, keep_tables, cols_cap
+
+    # As a last resort, keep the first table and one column to remain valid JSON
+    if tables:
+        name, spec = tables[0]
+        minimal = {name: {"columns": list(spec.get("columns", []))[:1]}}
+        return _dumps(minimal), True, 1, 1
+    return _dumps({}), True, 0, 0
 
 
 class ChatEngine(Protocol):
@@ -175,11 +220,43 @@ class ChatService:
                 for name in tables:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
+                # Load compact data dictionary (if available) limited to the current schema
+                dico_repo = DataDictionaryRepository(
+                    directory=Path(resolve_project_path(settings.data_dictionary_dir))
+                )
+                dico = dico_repo.for_schema(schema)
+                contextual_question_with_dico = contextual_question
+                if dico:
+                    try:
+                        # Log if PII columns are present in the prompt material
+                        pii_hits: list[str] = []
+                        for t, spec in dico.items():
+                            for c in spec.get("columns", []):
+                                if bool(c.get("pii")):
+                                    pii_hits.append(f"{t}.{c.get('name')}")
+                        if pii_hits:
+                            log.warning("PII columns included in dictionary: %s", pii_hits)
+
+                        blob, truncated, kept_tables, kept_cols = _serialize_dico_compact(
+                            dico, limit=max(1, settings.data_dictionary_max_chars)
+                        )
+                        if truncated:
+                            log.warning(
+                                "Data dictionary truncated to %d chars (kept %d tables, ≤ %d cols/table)",
+                                settings.data_dictionary_max_chars,
+                                kept_tables,
+                                kept_cols,
+                            )
+                        contextual_question_with_dico = (
+                            f"{contextual_question}\n\nData dictionary (JSON):\n{blob}"
+                        )
+                    except Exception as e:
+                        log.error("Failed to serialize data dictionary JSON: %s", e, exc_info=True)
                 nl2sql = NL2SQLService()
                 log.info(
                     "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
                     _preview_text(raw_question, limit=200),
-                    _preview_text(contextual_question, limit=200),
+                    _preview_text(contextual_question_with_dico, limit=200),
                 )
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
                 
@@ -214,7 +291,7 @@ class ChatService:
                                 except Exception:
                                     observations = None
                             plan = nl2sql.explore(
-                                question=contextual_question,
+                                question=contextual_question_with_dico,
                                 schema=schema,
                                 max_steps=settings.nl2sql_plan_max_steps,
                                 observations=observations,
@@ -269,7 +346,7 @@ class ChatService:
                         # Ask Explorateur to propose chart axes based on evidence (optional)
                         try:
                             axes = nl2sql.propose_axes(
-                                question=contextual_question,
+                                question=contextual_question,  # pas de dico nécessaire ici (pas de génération SQL)
                                 schema=schema,
                                 evidence=evidence,
                                 max_items=3,
@@ -286,7 +363,7 @@ class ChatService:
                         # Ask Analyst to produce final SQL using evidence
                         try:
                             final_sql = nl2sql.generate_with_evidence(
-                                question=contextual_question,
+                                question=contextual_question_with_dico,
                                 schema=schema,
                                 evidence=evidence,
                             )
@@ -373,7 +450,12 @@ class ChatService:
                 # Multi-step planning if enabled
                 if settings.nl2sql_plan_enabled:
                     try:
-                        plan = nl2sql.plan(question=contextual_question, schema=schema, max_steps=settings.nl2sql_plan_max_steps)
+                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
+                        plan = nl2sql.plan(
+                            question=contextual_question_with_dico,
+                            schema=schema,
+                            max_steps=settings.nl2sql_plan_max_steps,
+                        )
                         log.info("NL2SQL plan (%d steps)", len(plan))
                         if events:
                             try:
@@ -462,7 +544,8 @@ class ChatService:
                 else:
                     # Single-shot NL→SQL with natural-language synthesis
                     try:
-                        sql = nl2sql.generate(question=contextual_question, schema=schema)
+                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
+                        sql = nl2sql.generate(question=contextual_question_with_dico, schema=schema)
                         log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
                         if events:
                             try:

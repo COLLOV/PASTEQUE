@@ -1,0 +1,20 @@
+version: 1
+table: tickets_jira
+title: Tickets Jira
+description: Tickets d'incidents/imports Jira.
+columns:
+  - name: ticket_id
+    type: string
+    description: Identifiant du ticket Jira (ex. ABC-123).
+  - name: resume
+    type: string
+    description: Résumé/titre court du ticket.
+  - name: description
+    type: string
+    description: Description détaillée du ticket.
+  - name: creation_date
+    type: date
+    description: Date de création (YYYY-MM-DD).
+  - name: departement
+    type: string
+    description: Code département ou unité impactée.

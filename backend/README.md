@@ -13,6 +13,35 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
+### Dictionnaire de données (YAML)
+
+But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
+
+- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionary`).
+- Format: 1 fichier YAML par table (`<table>.yml`), par ex. `tickets_jira.yml`.
+- Schéma minimal:
+
+```yaml
+version: 1
+table: tickets_jira
+title: Tickets Jira
+description: Tickets d'incidents JIRA
+columns:
+  - name: ticket_id
+    description: Identifiant unique du ticket
+    type: integer
+    synonyms: [id, issue_id]
+    pii: false
+  - name: created_at
+    description: Date de création (YYYY-MM-DD)
+    type: date
+    pii: false
+```
+
+Chargement et usage:
+- `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
+- Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. La taille est plafonnée via `DATA_DICTIONARY_MAX_CHARS` (défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
+
 ### Base de données & authentification
 
 - Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :
@@ -118,6 +147,27 @@ En-têtes envoyés par le serveur: `Cache-Control: no-cache`, `X-Accel-Buffering
 Notes de prod:
 - Si vous terminez derrière Nginx/Cloudflare, désactivez le buffering pour ce chemin.
 - Un seul flux actif par requête; le client doit annuler via `AbortController` si nécessaire.
+
+### Router à chaque message
+
+Objectif: éviter de déclencher des requêtes SQL/NL→SQL lorsque un message utilisateur n’est pas orienté « data ».
+
+- Activation: contrôlée par `ROUTER_MODE` (`rule` par défaut).
+- Modes disponibles:
+  - `rule` (défaut): heuristiques déterministes (aucun appel LLM), désormais plus permissives (interrogations/mois/années/chiffres autorisent).
+  - `local`: LLM local via vLLM (`VLLM_BASE_URL`, `Z_LOCAL_MODEL` ou `ROUTER_MODEL`).
+  - `api`: LLM distant OpenAI‑compatible (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` ou `ROUTER_MODEL`).
+  - `false`: désactive complètement la surcouche router (aucun blocage, aucun évènement lié au router).
+- Comportement:
+  - Si un message est jugé « non actionnable », l’API répond immédiatement: « Ce n'est pas une question pour passer de la data à l'action » et aucune requête SQL n’est lancée pour ce message.
+  - Sinon, la route cible (`data` | `feedback` | `foyer`) est loggée. En mode stream, un évènement `meta` (provider=`router`) n’est émis que lors d’un blocage. Avec `ROUTER_MODE=false`, aucun évènement lié au router n’est émis.
+
+Variables d’environnement (voir `.env.example`):
+
+```
+ROUTER_MODE=rule   # rule | local | api | false
+# ROUTER_MODEL=    # optionnel; sinon Z_LOCAL_MODEL/LLM_MODEL
+```
 
 ### MCP – configuration déclarative
 

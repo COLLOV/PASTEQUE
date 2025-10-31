@@ -25,7 +25,37 @@ const resolvePort = () => {
   return parsed;
 };
 
+const resolvePublicBaseUrl = (port) => {
+  const value = process.env.GPT_VIS_SSR_PUBLIC_URL;
+
+  if (!value) {
+    return new URL(`http://localhost:${port}/`);
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch (error) {
+    throw new Error(
+      `Invalid GPT_VIS_SSR_PUBLIC_URL "${value}" (must be a valid absolute URL): ${error.message}`,
+    );
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(
+      `Unsupported GPT_VIS_SSR_PUBLIC_URL protocol "${parsed.protocol}" (expected http or https)`,
+    );
+  }
+
+  if (!parsed.pathname.endsWith('/')) {
+    parsed.pathname = `${parsed.pathname}/`;
+  }
+
+  return parsed;
+};
+
 const port = resolvePort();
+const publicBaseUrl = resolvePublicBaseUrl(port);
 const outputDir = resolve(
   process.env.VIS_IMAGE_DIR || join(process.cwd(), DEFAULT_OUT_SUBDIR),
 );
@@ -60,7 +90,7 @@ const handleGenerate = async (req, res) => {
     vis.destroy();
     vis = null;
 
-    const url = `http://localhost:${port}/charts/${name}`;
+    const url = new URL(`charts/${name}`, publicBaseUrl).toString();
     console.info('[vis-ssr] generated chart', { url, filePath });
 
     res.json({ success: true, url, resultObj: url });
@@ -87,6 +117,6 @@ app.use('/charts', express.static(outputDir));
 
 app.listen(port, () => {
   console.info(
-    `[vis-ssr] server listening on http://localhost:${port} with output directory ${outputDir}`,
+    `[vis-ssr] server listening on port ${port} with output directory ${outputDir} (public base ${publicBaseUrl.href})`,
   );
 });
