@@ -178,10 +178,16 @@ Sous-panel « Tickets » — aperçu et détail (oct. 2025)
 - Aperçu limité pour garder le panel lisible:
   - Nombre maximum de colonnes par ticket en liste.
   - Nombre maximum de caractères par valeur (ellipsis au-delà).
+- Colonnes affichées: le panel dérive désormais ses colonnes de l'union des clés
+  réellement présentes dans les lignes SQL renvoyées (échantillon). Les suggestions
+  du LLM (`spec.columns`) ne restreignent plus l'affichage. L'aperçu reste limité
+  par `PREVIEW_COL_MAX`, tandis que la vue Détail affiche toutes les colonnes.
 - Clic sur un ticket: bascule en vue détail dans le même panel, avec toutes les colonnes visibles et sans troncature. Un bouton « Tout voir » permet de revenir à la liste.
 - À la fermeture du détail (« Tout voir »), la position de défilement du panel est restaurée au même endroit qu'avant l'ouverture.
 - Paramètres: voir `frontend/src/features/chat/Chat.tsx` → composant `TicketPanel`.
-  - `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu.
+- `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu (par défaut: 5).
+  - Les colonnes affichées sont dérivées à partir d'un petit échantillon (≤20 premières lignes)
+    pour garantir un ordre stable, puis priorisées (titre, statut, date, pk).
   - `PREVIEW_CHAR_MAX` — troncature des valeurs en aperçu.
   - L’ordre des colonnes privilégie `title`, `status`, `created_at`, puis le reste.
  
