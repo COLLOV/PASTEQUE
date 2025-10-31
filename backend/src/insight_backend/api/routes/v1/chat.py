@@ -74,28 +74,42 @@ def _apply_exclusions_and_defaults(
     user_repo = UserRepository(session)
 
     excludes_in = metadata.get("exclude_tables") if isinstance(metadata, dict) else None
+    # Apply review: make saving as default opt‑in to avoid race conditions between tabs
     save_default_flag = metadata.get("save_as_default") if isinstance(metadata, dict) else None
-    save_as_default = bool(save_default_flag) if save_default_flag is not None else True  # keep current behavior
+    save_as_default = bool(save_default_flag) if save_default_flag is not None else False
 
     if excludes_in is not None and isinstance(excludes_in, list):
-        # Validate and filter against known tables
+        # Validate and filter against known tables (case‑insensitive mapping → canonical names)
         normalized = _normalize_exclude_tables(excludes_in)
-        available = set(DataRepository(tables_dir=settings.tables_dir).list_tables())
-        allowed_lookup = {t.casefold() for t in (allowed_tables or list(available))}
-        filtered = [t for t in normalized if t.casefold() in allowed_lookup and t in available]
+        available_list = DataRepository(tables_dir=settings.tables_dir).list_tables()
+        canon_by_key = {name.casefold(): name for name in available_list}
+        allowed_keys = {t.casefold() for t in (allowed_tables or available_list)}
+        filtered_canon = []
+        for t in normalized:
+            key = t.casefold()
+            if key in allowed_keys and key in canon_by_key:
+                filtered_canon.append(canon_by_key[key])
         try:
-            persisted = repo.set_excluded_tables(conversation_id=conversation_id, tables=filtered)
-            if save_as_default:
-                user_repo.set_default_excluded_tables(user_id=user_id, tables=persisted)
-            return persisted
+            persisted = repo.set_excluded_tables(conversation_id=conversation_id, tables=filtered_canon)
         except Exception:
             log.warning(
-                "Failed to persist exclude_tables (conversation_id=%s, user_id=%s)",
+                "Failed to persist conversation exclude_tables (conversation_id=%s, user_id=%s)",
                 conversation_id,
                 user_id,
                 exc_info=True,
             )
             return []
+        # Saving as default is optional and independent; never mask conversation persistence on failure
+        if save_as_default:
+            try:
+                user_repo.set_default_excluded_tables(user_id=user_id, tables=persisted)
+            except Exception:
+                log.warning(
+                    "Failed to persist user default exclude_tables (user_id=%s)",
+                    user_id,
+                    exc_info=True,
+                )
+        return persisted
     # Hydrate from existing conversation or user defaults
     try:
         saved = repo.get_excluded_tables(conversation_id=conversation_id)
@@ -214,7 +228,7 @@ def chat_completion(  # type: ignore[valid-type]
                 with transactional(session):
                     repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
             except SQLAlchemyError:
-                log.exception("Failed to persist assistant reply (conversation_id=%s)", conv_id)
+                log.warning("Failed to persist assistant reply (conversation_id=%s)", conv_id, exc_info=True)
         # Return as-is (no conversation id field in schema), clients can fetch via separate API
         return resp
     except OpenAIBackendError as exc:
