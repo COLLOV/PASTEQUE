@@ -65,7 +65,6 @@ export interface ChatStreamDone {
   usage?: any
   finish_reason?: string
   elapsed_s?: number
-  metadata?: Record<string, unknown>
 }
 
 export interface ChartDatasetPayload {

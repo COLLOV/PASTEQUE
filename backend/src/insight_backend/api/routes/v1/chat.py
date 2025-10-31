@@ -299,10 +299,8 @@ def chat_stream(  # type: ignore[valid-type]
                         log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
                     yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | etc.
                 resp = result_holder.get("resp")
-                metadata_out: dict[str, Any] | None = None
                 if isinstance(resp, ChatResponse):
                     text = resp.reply or ""
-                    metadata_out = resp.metadata or {}
                 else:
                     text = ""
                 for line in text.splitlines(True):
@@ -318,16 +316,16 @@ def chat_stream(  # type: ignore[valid-type]
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
 
-                done_payload: Dict[str, Any] = {
-                    "id": trace_id,
-                    "content_full": text,
-                    "usage": None,
-                    "finish_reason": "stop",
-                    "elapsed_s": round(elapsed, 3),
-                }
-                if metadata_out:
-                    done_payload["metadata"] = metadata_out
-                yield _sse("done", done_payload)
+                yield _sse(
+                    "done",
+                    {
+                        "id": trace_id,
+                        "content_full": text,
+                        "usage": None,
+                        "finish_reason": "stop",
+                        "elapsed_s": round(elapsed, 3),
+                    },
+                )
                 return
 
             # Per-request override: if payload.metadata.nl2sql is explicitly set, use it;
@@ -424,14 +422,16 @@ def chat_stream(  # type: ignore[valid-type]
                     repo.append_message(conversation_id=conversation_id, role="assistant", content=content_full)
             except SQLAlchemyError:
                 log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
-            done_payload: Dict[str, Any] = {
-                "id": trace_id,
-                "content_full": content_full,
-                "usage": None,
-                "finish_reason": "stop",
-                "elapsed_s": round(elapsed, 3),
-            }
-            yield _sse("done", done_payload)
+            yield _sse(
+                "done",
+                {
+                    "id": trace_id,
+                    "content_full": content_full,
+                    "usage": None,
+                    "finish_reason": "stop",
+                    "elapsed_s": round(elapsed, 3),
+                },
+            )
         except OpenAIBackendError as exc:
             yield _sse("error", {"code": "backend_error", "message": str(exc)})
         except Exception as exc:  # pragma: no cover - unexpected

@@ -10,7 +10,6 @@ from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
-from .rag.retriever import RAGRetriever, RagPayload
 
 
 log = logging.getLogger("insight.services.chat")
@@ -81,7 +80,6 @@ class ChatService:
 
     def __init__(self, engine: ChatEngine):
         self.engine = engine
-        self.rag = RAGRetriever()
 
     def _llm_diag(self) -> str:
         if settings.llm_mode == "api":
@@ -414,25 +412,16 @@ class ChatService:
                             try:
                                 ev_for_answer = evidence + [{"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}]
                                 answer = nl2sql.write(question=contextual_question, evidence=ev_for_answer).strip()
-                                rag_payload = self._run_rag(question=raw_question, final_sql=str(final_sql))
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                                rag_summary = self._rag_summary(rag_payload) if rag_payload else None
-                                if rag_summary:
-                                    reply_text = (
-                                        f"{reply_text}\n\nSynthèse RAG (tickets similaires) :\n{rag_summary}"
-                                    )
-                                metadata: Dict[str, Any] = {
-                                    "provider": "nl2sql-multiagent",
-                                    "rounds_used": r,
-                                    "sql": final_sql,
-                                    "agents": ["explorateur", "analyste", "redaction"],
-                                }
-                                if rag_payload:
-                                    metadata["rag"] = self._rag_metadata(rag_payload)
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=reply_text,
-                                        metadata=metadata,
+                                        metadata={
+                                            "provider": "nl2sql-multiagent",
+                                            "rounds_used": r,
+                                            "sql": final_sql,
+                                            "agents": ["explorateur", "analyste", "redaction"],
+                                        },
                                     ),
                                     context="completion done (nl2sql-multiagent)",
                                 )
@@ -705,50 +694,6 @@ class ChatService:
             "limit": settings.evidence_limit_default,
         }
         return spec
-
-    def _run_rag(self, *, question: str, final_sql: str) -> RagPayload | None:
-        try:
-            payload = self.rag.retrieve(question=question, final_sql=final_sql)
-            if payload:
-                log.info(
-                    "RAG retrieved %d snippets (table=%s threshold=%.2f)",
-                    len(payload.snippets),
-                    payload.table,
-                    settings.rag_similarity_threshold,
-                )
-            return payload
-        except Exception as exc:  # pragma: no cover - defensive
-            log.warning("RAG retrieval failed: %s", exc, exc_info=True)
-            return None
-
-    def _rag_summary(self, payload: RagPayload | None) -> str | None:
-        if not payload or not payload.snippets:
-            return None
-        lines: list[str] = []
-        for idx, snippet in enumerate(payload.snippets, start=1):
-            excerpt = _preview_text(str(snippet.text), limit=200)
-            lines.append(f"{idx}. #{snippet.id} — {excerpt} (distance={snippet.distance:.3f})")
-        return "\n".join(lines)
-
-    def _rag_metadata(self, payload: RagPayload) -> Dict[str, Any]:
-        return {
-            "table": payload.table,
-            "stem": payload.stem,
-            "where": payload.where_sql,
-            "distance_operator": payload.distance_operator,
-            "top_k": settings.rag_top_k,
-            "threshold": settings.rag_similarity_threshold,
-            "snippets": [
-                {
-                    "id": snippet.id,
-                    "text": snippet.text,
-                    "distance": snippet.distance,
-                    "score": snippet.score,
-                    "record": snippet.record,
-                }
-                for snippet in payload.snippets
-            ],
-        }
 
     def _normalize_result(self, data: Any) -> tuple[list[Any], list[Any]]:
         """Extract columns and rows from MindsDB result payloads."""

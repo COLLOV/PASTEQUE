@@ -305,8 +305,6 @@ export default function Chat() {
         } else if (type === 'done') {
           const done = data as ChatStreamDone
           finalAnswer = done.content_full || ''
-          const meta = (done as any)?.metadata
-          const ragMeta = meta && typeof meta === 'object' ? (meta as Record<string, unknown>).rag : undefined
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
@@ -319,23 +317,11 @@ export default function Chat() {
                 ...(latestDataset ? { chartDataset: latestDataset } : {}),
                 details: {
                   ...(copy[idx].details || {}),
-                  elapsed: done.elapsed_s,
-                  ...(meta && typeof meta === 'object' ? { metadata: meta } : {}),
-                  ...(ragMeta ? { rag: ragMeta } : {})
+                  elapsed: done.elapsed_s
                 }
               }
             } else {
-              copy.push({
-                id: createMessageId(),
-                role: 'assistant',
-                content: done.content_full,
-                ...(latestDataset ? { chartDataset: latestDataset } : {}),
-                details: {
-                  ...(meta && typeof meta === 'object' ? { metadata: meta } : {}),
-                  ...(ragMeta ? { rag: ragMeta } : {}),
-                  elapsed: done.elapsed_s
-                }
-              })
+              copy.push({ id: createMessageId(), role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
             }
             return copy
           })
@@ -1252,7 +1238,7 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
           </div>
         )}
         {/* Détails n'apparaissent que lorsque le message est finalisé */}
-        {!isUser && !message.ephemeral && message.details && (message.details.steps?.length || message.details.plan || (message.details as any)?.rag) ? (
+        {!isUser && !message.ephemeral && message.details && (message.details.steps?.length || message.details.plan) ? (
           <div className="mt-2 text-xs">
             {showDetails && (
               <div className="mt-1 space-y-2 text-primary-700">
@@ -1281,26 +1267,6 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                     </ul>
                   </div>
                 )}
-                {(() => {
-                  const rag: any = (message.details as any)?.rag
-                  if (!rag || !Array.isArray(rag.snippets) || rag.snippets.length === 0) return null
-                  return (
-                    <div className="text-[11px]">
-                      <div className="uppercase tracking-wide text-primary-500 mb-1">RAG (tickets similaires)</div>
-                      <ul className="space-y-1 max-h-40 overflow-auto">
-                        {rag.snippets.map((snip: any, idx: number) => (
-                          <li key={idx} className="break-words">
-                            <span className="font-semibold">#{snip?.id ?? '—'}:</span>{' '}
-                            <span>{typeof snip?.text === 'string' ? snip.text : ''}</span>
-                            {typeof snip?.distance === 'number' && (
-                              <span className="text-primary-500 ml-1">({snip.distance.toFixed(3)})</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )
-                })()}
               </div>
             )}
           </div>
