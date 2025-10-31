@@ -59,6 +59,14 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+### Données utilisées — visibilité + exclusions (plan)
+
+- Objectif: afficher, directement dans le chat, les tables auxquelles le LLM a accès et permettre d’exclure certaines tables pour la conversation en cours.
+- Backend: `GET /api/v1/data/tables` expose les tables autorisées (droits serveur). Le chat acceptera `metadata.exclude_tables: string[]` et publiera via SSE `meta.effective_tables` la sélection effectivement appliquée.
+- Frontend: panneau « Données utilisées » avec cases à cocher (ON=inclure, OFF=exclure). Les exclusions sont envoyées dans `metadata.exclude_tables` à chaque message; elles sont strictement appliquées côté serveur (aucun fallback).
+- Sécurité: l’autorité reste côté serveur (permissions utilisateur). Si aucune table n’est active, NL→SQL est refusé avec un message clair (`provider: nl2sql-acl`).
+- Détails d’implémentation et critères d’acceptation: voir `plan/chat-data-visibility.md`.
+
 ### Historique des conversations (branche `feature/historique`)
 
 - Persistance côté backend des conversations, messages et événements (`conversations`, `conversation_messages`, `conversation_events`).
