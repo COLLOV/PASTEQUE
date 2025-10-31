@@ -63,3 +63,57 @@ class ConversationRepository:
         self.session.query(Conversation).filter(Conversation.id == conversation_id).update({Conversation.updated_at: func.now()})
         log.debug("Added event (conversation_id=%s, kind=%s)", conversation_id, kind)
         return evt
+
+    # Settings (JSON)
+    def get_settings(self, *, conversation_id: int) -> dict[str, Any]:
+        conv = (
+            self.session.query(Conversation)
+            .filter(Conversation.id == conversation_id)
+            .one_or_none()
+        )
+        return dict(conv.settings or {}) if conv else {}
+
+    def set_settings(self, *, conversation_id: int, settings: dict[str, Any]) -> dict[str, Any]:
+        payload = dict(settings or {})
+        self.session.query(Conversation).filter(Conversation.id == conversation_id).update({
+            Conversation.settings: payload,
+            Conversation.updated_at: func.now(),
+        })
+        log.info("Conversation settings updated (conversation_id=%s, keys=%s)", conversation_id, ",".join(sorted(payload.keys())))
+        return payload
+
+    def get_excluded_tables(self, *, conversation_id: int) -> list[str]:
+        s = self.get_settings(conversation_id=conversation_id)
+        raw = s.get("exclude_tables") if isinstance(s, dict) else None
+        if not isinstance(raw, list):
+            return []
+        out: list[str] = []
+        seen: set[str] = set()
+        for item in raw:
+            if isinstance(item, str) and item.strip():
+                key = item.strip()
+                if key.casefold() in seen:
+                    continue
+                seen.add(key.casefold())
+                out.append(key)
+        return out
+
+    def set_excluded_tables(self, *, conversation_id: int, tables: list[str]) -> list[str]:
+        # Normalize and persist in settings JSON
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in tables:
+            if not isinstance(item, str):
+                continue
+            cleaned = item.strip()
+            if not cleaned:
+                continue
+            key = cleaned.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append(cleaned)
+        current = self.get_settings(conversation_id=conversation_id)
+        current["exclude_tables"] = normalized
+        self.set_settings(conversation_id=conversation_id, settings=current)
+        return normalized

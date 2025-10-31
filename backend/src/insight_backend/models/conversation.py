@@ -26,6 +26,9 @@ class Conversation(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+    # JSON settings per conversation (e.g., NL→SQL preferences like excluded tables)
+    settings: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
     user: Mapped["User"] = relationship("User")
     messages: Mapped[list["ConversationMessage"]] = relationship(
         "ConversationMessage",

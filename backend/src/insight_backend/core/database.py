@@ -29,6 +29,7 @@ def init_database() -> None:
 
     Base.metadata.create_all(bind=engine)
     _ensure_conversation_indexes()
+    _ensure_conversation_settings_column()
     _ensure_user_password_reset_column()
     _ensure_admin_column()
     log.info("Database initialized (tables ensured).")
@@ -140,6 +141,30 @@ def _ensure_conversation_indexes() -> None:
         for sql in stmts:
             conn.execute(text(sql))
     log.info("Conversation composite indexes ensured.")
+
+
+def _ensure_conversation_settings_column() -> None:
+    """Ensure a JSON settings column exists on conversations for per-conversation prefs.
+
+    Stores items like {"exclude_tables": ["tickets", ...]}.
+    """
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("conversations")}
+        if "settings" in columns:
+            log.debug("conversations.settings column already present.")
+            return
+        stmt = text("ALTER TABLE conversations ADD COLUMN settings JSON")
+        try:
+            connection.execute(stmt)
+            log.info("Added settings column to conversations table.")
+        except DBAPIError as exc:  # pragma: no cover - defensive
+            # If another process created it or backend doesn't support JSON IF NOT EXISTS semantics
+            message = str(getattr(exc, "orig", exc)).lower()
+            if "duplicate column" in message or "already exists" in message:
+                log.debug("settings column already exists (race).")
+            else:
+                raise
 
 
 def transactional(session: Session):

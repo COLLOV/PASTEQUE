@@ -458,6 +458,7 @@ export default function Chat() {
         }>
         evidence_spec?: EvidenceSpec
         evidence_rows?: EvidenceRowsPayload
+        settings?: { exclude_tables?: string[] }
       }>(`/conversations/${id}`)
       setConversationId(data.id)
       setMessages(
@@ -493,6 +494,12 @@ export default function Chat() {
       } else {
         setEvidenceData(ev ?? null)
       }
+      // Persisted per-conversation exclusions (if any)
+      const ex = Array.isArray(data?.settings?.exclude_tables)
+        ? (data!.settings!.exclude_tables as unknown[]).filter((x): x is string => typeof x === 'string')
+        : []
+      setExcludedTables(new Set(ex))
+      setEffectiveTables([])
       closeHistory()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible')

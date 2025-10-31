@@ -63,6 +63,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 
 - UI dans le chat: bouton « Données » pour voir les tables disponibles et décocher celles à exclure (par conversation). Les exclusions sont appliquées au prochain message.
 - Backend: `GET /api/v1/data/tables` expose les tables autorisées par l’ACL; `POST /chat/stream` accepte `metadata.exclude_tables: string[]` et publie `meta.effective_tables` (tables réellement actives) pendant le streaming.
+- Persistance: les exclusions sont sauvegardées par conversation (colonne JSON `conversations.settings`) et réappliquées automatiquement aux requêtes suivantes de la même conversation.
 - Sécurité: pas de mécanismes de secours. Si toutes les tables sont exclues, la réponse l’indique explicitement et NL→SQL n’est pas tenté (`provider: nl2sql-acl`).
 - Détails et rationales: `plan/chat-data-visibility.md`.
 

@@ -84,6 +84,24 @@ def chat_completion(  # type: ignore[valid-type]
             conv = repo.create(user_id=current_user.id, title=title)
             session.flush()
             conv_id = conv.id
+        # Merge/persist per-conversation exclusions (settings)
+        meta_in = payload.metadata or {}
+        excludes_in = meta_in.get("exclude_tables") if isinstance(meta_in, dict) else None
+        if excludes_in is not None and isinstance(excludes_in, list):
+            try:
+                repo.set_excluded_tables(conversation_id=conv_id, tables=[str(x) for x in excludes_in])
+            except Exception:
+                log.warning("Failed to persist exclude_tables for conversation_id=%s", conv_id, exc_info=True)
+        else:
+            # If none provided, hydrate from existing settings for this conversation
+            try:
+                saved = repo.get_excluded_tables(conversation_id=conv_id)
+                if saved:
+                    payload.metadata = dict(payload.metadata or {})
+                    payload.metadata["exclude_tables"] = saved
+            except Exception:
+                log.debug("No saved exclusions found or failed to hydrate", exc_info=True)
+
         # Persist the last user message if any
         last = payload.messages[-1] if payload.messages else None
         if last and last.role == "user" and last.content:
@@ -174,6 +192,22 @@ def chat_stream(  # type: ignore[valid-type]
         last = payload.messages[-1] if payload.messages else None
         if last and last.role == "user" and last.content:
             repo.append_message(conversation_id=conversation_id, role="user", content=last.content)
+        # Merge/persist per-conversation exclusions (settings)
+        meta_in = payload.metadata or {}
+        excludes_in = meta_in.get("exclude_tables") if isinstance(meta_in, dict) else None
+        if excludes_in is not None and isinstance(excludes_in, list):
+            try:
+                repo.set_excluded_tables(conversation_id=conversation_id, tables=[str(x) for x in excludes_in])
+            except Exception:
+                log.warning("Failed to persist exclude_tables for conversation_id=%s", conversation_id, exc_info=True)
+        else:
+            try:
+                saved = repo.get_excluded_tables(conversation_id=conversation_id)
+                if saved:
+                    payload.metadata = dict(payload.metadata or {})
+                    payload.metadata["exclude_tables"] = saved
+            except Exception:
+                log.debug("No saved exclusions found or failed to hydrate", exc_info=True)
 
     def generate() -> Iterator[bytes]:
         seq = 0
