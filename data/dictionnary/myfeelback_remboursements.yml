@@ -9,6 +9,7 @@ columns:
   - name: client_id
     type: integer
     description: Identifiant unique du client.
+    pii: true
   - name: date_declaration
     type: date
     description: Date de déclaration du sinistre (YYYY-MM-DD).
@@ -35,3 +36,4 @@ columns:
   - name: commentaire
     type: string
     description: Commentaire libre lié au dossier.
+    pii: true
