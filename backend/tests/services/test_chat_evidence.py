@@ -135,24 +135,19 @@ def test_format_retrieval_highlight_with_payload():
                 "source_column": "description",
                 "values": {"description": "Portail inaccessible", "priority": "high"},
             }
-        ],
-        question="Comment améliorer le support ?",
+        ]
     )
     assert (
         highlight
-        == "De la donnée à l'action : Pour répondre à « Comment améliorer le support ? », "
-        "Résolvez « Portail inaccessible » avec l'équipe tickets (priority=high). "
+        == "De la donnée à l'action : Irritant — tickets : « Portail inaccessible » (priority=high). "
         "Prochain pas : préparez un plan d'action ciblé avec l'équipe tickets pour résoudre ces irritants."
     )
 
 
 def test_format_retrieval_highlight_handles_error():
     svc = ChatService(DummyEngine())
-    text = svc._format_retrieval_highlight([], question="Quels irritants ?", error="timeout")
-    assert (
-        text
-        == "De la donnée à l'action : Pour répondre à « Quels irritants ? », récupération indisponible (timeout)."
-    )
+    text = svc._format_retrieval_highlight([], error="timeout")
+    assert text == "De la donnée à l'action : récupération indisponible (timeout)."
 
 
 def test_append_highlight_adds_separator():
