@@ -1,6 +1,5 @@
-from functools import cached_property, lru_cache
+from functools import lru_cache
 from typing import Dict, List
-import json
 import logging
 
 from pydantic import Field
@@ -52,6 +51,18 @@ class Settings(BaseSettings):
             raise ValueError(f"ROUTER_MODE must be one of {sorted(valid)}; got: {v!r}")
         return val
 
+    @field_validator("embedding_tables", mode="before")
+    @classmethod
+    def _parse_embedding_tables(cls, raw: str | list[str] | None) -> list[str]:
+        if raw is None:
+            return []
+        if isinstance(raw, str):
+            items = [part.strip() for part in raw.split(",")]
+            return [item for item in items if item]
+        if isinstance(raw, list):
+            return [item.strip() for item in raw if item and item.strip()]
+        raise TypeError("EMBEDDING_TABLES must be a comma-separated string or list of strings")
+
     @field_validator("embedding_column_default", mode="before")
     @classmethod
     def _validate_embedding_default(cls, raw: str | None) -> str:
@@ -67,6 +78,43 @@ class Settings(BaseSettings):
         if not value:
             raise ValueError("EMBEDDING_VECTOR_COLUMN cannot be empty")
         return value
+
+    @field_validator("embedding_column_overrides", mode="before")
+    @classmethod
+    def _parse_embedding_overrides(
+        cls, raw: str | Dict[str, str] | None
+    ) -> Dict[str, str]:
+        if raw is None:
+            return {}
+        if isinstance(raw, dict):
+            parsed: Dict[str, str] = {}
+            for key, value in raw.items():
+                key_norm = (key or "").strip()
+                val_norm = (value or "").strip()
+                if not key_norm or not val_norm:
+                    raise ValueError("EMBEDDING_COLUMNS_OVERRIDES entries must be non-empty")
+                parsed[key_norm.lower()] = val_norm
+            return parsed
+        if isinstance(raw, str):
+            parsed: Dict[str, str] = {}
+            for part in raw.split(","):
+                if not part.strip():
+                    continue
+                table, sep, column = part.partition(":")
+                table_name = table.strip()
+                column_name = column.strip()
+                if not sep or not table_name or not column_name:
+                    raise ValueError(
+                        "EMBEDDING_COLUMNS_OVERRIDES must use the format 'table:column'"
+                    )
+                parsed[table_name.lower()] = column_name
+            return parsed
+        raise TypeError(
+            "EMBEDDING_COLUMNS_OVERRIDES must be a comma-separated string like 'table:column'"
+        )
+
+    def embedding_column_for(self, table_name: str) -> str:
+        return self.embedding_column_overrides.get(table_name.lower(), self.embedding_column_default)
 
     # MCP configuration (declarative)
     mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
@@ -86,10 +134,10 @@ class Settings(BaseSettings):
     )
     embedding_dim: int = Field(384, alias="EMBEDDING_DIM")
     embedding_batch_size: int = Field(64, alias="EMBEDDING_BATCH_SIZE")
-    embedding_tables_raw: str | None = Field(None, alias="EMBEDDING_TABLES")
+    embedding_tables: list[str] = Field(default_factory=list, alias="EMBEDDING_TABLES")
     embedding_column_default: str = Field("commentaire", alias="EMBEDDING_COLUMN_DEFAULT")
-    embedding_column_overrides_raw: str | None = Field(
-        None,
+    embedding_column_overrides: Dict[str, str] = Field(
+        default_factory=dict,
         alias="EMBEDDING_COLUMNS_OVERRIDES",
     )
     embedding_vector_column: str = Field("embedding_vector", alias="EMBEDDING_VECTOR_COLUMN")
@@ -127,65 +175,6 @@ class Settings(BaseSettings):
         if self.allowed_origins_raw:
             return [item.strip() for item in self.allowed_origins_raw.split(",") if item.strip()]
         return ["http://localhost:5173"]
-
-    @staticmethod
-    def _split_csv(raw: str | None) -> list[str]:
-        if not raw:
-            return []
-        stripped = raw.strip()
-        if not stripped:
-            return []
-        if stripped.startswith("["):
-            try:
-                parsed = json.loads(stripped)
-            except json.JSONDecodeError:
-                parsed = None
-            if isinstance(parsed, list):
-                return [str(item).strip() for item in parsed if str(item).strip()]
-        return [item.strip() for item in stripped.split(",") if item.strip()]
-
-    @staticmethod
-    def _parse_overrides(raw: str | None) -> Dict[str, str]:
-        result: Dict[str, str] = {}
-        if not raw:
-            return result
-        stripped = raw.strip()
-        if not stripped:
-            return result
-        if stripped.startswith("{"):
-            try:
-                parsed = json.loads(stripped)
-            except json.JSONDecodeError:
-                parsed = None
-            if isinstance(parsed, dict):
-                for key, value in parsed.items():
-                    key_norm = (str(key) if key is not None else "").strip()
-                    val_norm = (str(value) if value is not None else "").strip()
-                    if not key_norm or not val_norm:
-                        raise ValueError("EMBEDDING_COLUMNS_OVERRIDES entries must be non-empty")
-                    result[key_norm.lower()] = val_norm
-                return result
-        for part in stripped.split(","):
-            if not part.strip():
-                continue
-            table, sep, column = part.partition(":")
-            table_name = table.strip()
-            column_name = column.strip()
-            if not sep or not table_name or not column_name:
-                raise ValueError("EMBEDDING_COLUMNS_OVERRIDES must use the format 'table:column'")
-            result[table_name.lower()] = column_name
-        return result
-
-    @cached_property
-    def embedding_tables(self) -> list[str]:
-        return self._split_csv(self.embedding_tables_raw)
-
-    @cached_property
-    def embedding_column_overrides(self) -> Dict[str, str]:
-        return self._parse_overrides(self.embedding_column_overrides_raw)
-
-    def embedding_column_for(self, table_name: str) -> str:
-        return self.embedding_column_overrides.get(table_name.lower(), self.embedding_column_default)
 
 
 @lru_cache
