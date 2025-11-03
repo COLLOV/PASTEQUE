@@ -3,15 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 import csv
-from pathlib import Path
-from typing import Dict, List
 import json
+import logging
+import math
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Sequence
 
 from ..core.config import settings
 import sqlglot
 from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..repositories.data_repository import DataRepository
+
+
+log = logging.getLogger("insight.services.nl2sql")
 
 
 def _extract_sql(text: str) -> str:
@@ -145,6 +150,13 @@ def _collect_cte_names(sql: str) -> set[str]:
     return names
 
 
+def _chunked(seq: Sequence[Any], size: int) -> Iterable[Sequence[Any]]:
+    if size <= 0:
+        raise ValueError("chunk size must be > 0")
+    for idx in range(0, len(seq), size):
+        yield seq[idx : idx + size]
+
+
 def _ensure_required_prefix(sql: str) -> None:
     """Validate that every referenced table uses the configured schema prefix.
 
@@ -206,6 +218,148 @@ class NL2SQLService:
             ),
             str(model),
         )
+
+    def _embedding_client_and_model(self) -> tuple[OpenAICompatibleClient, str]:
+        if settings.embedding_model is None:
+            raise RuntimeError(
+                "EMBEDDING_MODEL doit être configuré pour activer la recherche RAG."
+            )
+
+        if settings.llm_mode == "local":
+            base_url = settings.vllm_base_url
+            api_key = None
+        elif settings.llm_mode == "api":
+            base_url = settings.openai_base_url
+            api_key = settings.openai_api_key
+        else:
+            raise RuntimeError("Invalid LLM_MODE; expected 'local' or 'api'")
+
+        if not base_url:
+            raise RuntimeError("Embedding backend base_url not configured")
+
+        return (
+            OpenAICompatibleClient(
+                base_url=base_url,
+                api_key=api_key,
+                timeout_s=settings.openai_timeout_s,
+            ),
+            str(settings.embedding_model),
+        )
+
+    def _sanitize_row_for_prompt(self, row: Dict[str, Any], *, truncate: int) -> Dict[str, str]:
+        capped = max(10, truncate)
+        sanitized: Dict[str, str] = {}
+        for key, value in row.items():
+            name = str(key or "").strip()
+            if not name:
+                continue
+            if "embedding" in name.lower():
+                continue
+            text = "" if value is None else str(value).strip()
+            if not text:
+                continue
+            if len(text) > capped:
+                text = f"{text[:capped]}..."
+            sanitized[name] = text
+        return sanitized
+
+    def _row_to_text(self, table: str, row: Dict[str, str]) -> str:
+        if not row:
+            return ""
+        parts = [f"{col}: {val}" for col, val in row.items()]
+        return f"{table} | " + " | ".join(parts)
+
+    def retrieve_similar_rows(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+    ) -> List[Dict[str, object]]:
+        top_k = settings.nl2sql_rag_top_k
+        if top_k <= 0:
+            return []
+
+        q = (question or "").strip()
+        if not q:
+            raise RuntimeError("La question utilisateur est vide; impossible de lancer le RAG.")
+
+        repo = DataRepository(tables_dir=Path(settings.tables_dir))
+        max_rows = settings.nl2sql_rag_max_rows_per_table
+        truncate = settings.nl2sql_value_truncate
+        candidates: List[tuple[str, Dict[str, str], str]] = []
+
+        for table in sorted(schema.keys()):
+            try:
+                for row in repo.iter_rows(table, limit=max_rows):
+                    sanitized = self._sanitize_row_for_prompt(row, truncate=truncate)
+                    if not sanitized:
+                        continue
+                    text = self._row_to_text(table, sanitized)
+                    if not text:
+                        continue
+                    candidates.append((table, sanitized, text))
+            except FileNotFoundError:
+                log.warning("RAG: table introuvable %s", table)
+                continue
+
+        total_candidates = len(candidates)
+        if total_candidates == 0:
+            log.info("RAG: aucune ligne candidate (tables=%s)", sorted(schema.keys()))
+            return []
+
+        client, model = self._embedding_client_and_model()
+        try:
+            question_vectors = client.embeddings(model=model, inputs=[q])
+            if not question_vectors:
+                raise RuntimeError("Le backend d'embeddings n'a fourni aucun vecteur pour la question.")
+            q_vector = question_vectors[0]
+            q_norm = math.sqrt(sum(val * val for val in q_vector))
+            if q_norm == 0:
+                raise RuntimeError("Vecteur embedding de la question nul.")
+
+            batch_size = settings.nl2sql_rag_embedding_batch
+            scored: List[Dict[str, object]] = []
+            for chunk in _chunked(candidates, batch_size):
+                payload = [item[2] for item in chunk]
+                vectors = client.embeddings(model=model, inputs=payload)
+                if len(vectors) != len(chunk):
+                    raise RuntimeError("Le backend d'embeddings a retourné un compte inattendu.")
+                for (table, sanitized, _), vec in zip(chunk, vectors):
+                    row_norm = math.sqrt(sum(val * val for val in vec))
+                    if row_norm == 0:
+                        continue
+                    dot = sum(a * b for a, b in zip(q_vector, vec))
+                    similarity = dot / (q_norm * row_norm)
+                    scored.append(
+                        {
+                            "table": table,
+                            "row": sanitized,
+                            "similarity": round(float(similarity), 6),
+                        }
+                    )
+        finally:
+            client.close()
+
+        if not scored:
+            log.info("RAG: embeddings valides inexistants (candidats=%d)", total_candidates)
+            return []
+
+        scored.sort(key=lambda item: item["similarity"], reverse=True)
+        selected = scored[:top_k]
+        log.info(
+            "RAG: sélectionné %d lignes (top_k=%d, candidats=%d)",
+            len(selected),
+            top_k,
+            total_candidates,
+        )
+        if selected:
+            top = selected[0]
+            log.info(
+                "RAG: meilleur match table=%s similarité=%.4f",
+                top["table"],
+                float(top["similarity"]),
+            )
+        return selected
 
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
         # Input validation (defensive)

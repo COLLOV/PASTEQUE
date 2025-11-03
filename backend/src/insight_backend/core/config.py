@@ -77,6 +77,20 @@ class Settings(BaseSettings):
             raise ValueError("MINDSDB_EMBEDDING_BATCH_SIZE must be > 0")
         return v
 
+    @field_validator("nl2sql_rag_top_k")
+    @classmethod
+    def _validate_rag_top_k(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("NL2SQL_RAG_TOP_K must be >= 0")
+        return v
+
+    @field_validator("nl2sql_rag_max_rows_per_table", "nl2sql_rag_embedding_batch")
+    @classmethod
+    def _validate_rag_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("NL2SQL RAG configuration values must be > 0")
+        return v
+
     # Database
     database_url: str = Field(
         "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",
@@ -103,6 +117,9 @@ class Settings(BaseSettings):
     nl2sql_multiagent_enabled: bool = Field(False, alias="NL2SQL_MULTIAGENT_ENABLED")
     nl2sql_explore_rounds: int = Field(1, alias="NL2SQL_EXPLORE_ROUNDS")
     nl2sql_satisfaction_min_rows: int = Field(1, alias="NL2SQL_SATISFACTION_MIN_ROWS")
+    nl2sql_rag_top_k: int = Field(3, alias="NL2SQL_RAG_TOP_K")
+    nl2sql_rag_max_rows_per_table: int = Field(200, alias="NL2SQL_RAG_MAX_ROWS_PER_TABLE")
+    nl2sql_rag_embedding_batch: int = Field(32, alias="NL2SQL_RAG_EMBEDDING_BATCH")
 
     @property
     def allowed_origins(self) -> List[str]:

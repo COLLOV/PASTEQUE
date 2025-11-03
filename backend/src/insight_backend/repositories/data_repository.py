@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import csv
-from typing import Iterable
+from typing import Iterable, Iterator
 import logging
 
 
@@ -72,3 +72,21 @@ class DataRepository:
         cols = [(h, None) for h in header]
         log.info("Schéma table '%s' (%d colonnes)", table_name, len(cols))
         return cols
+
+    def iter_rows(self, table_name: str, *, limit: int | None = None) -> Iterator[dict[str, str]]:
+        """Yield rows from ``table_name`` as dictionaries.
+
+        Rows are sourced from CSV/TSV files stored under ``tables_dir``. ``limit`` keeps
+        the iteration bounded to avoid unbounded memory usage on large tables.
+        """
+        path = self._resolve_table_path(table_name)
+        if path is None:
+            raise FileNotFoundError(f"Table introuvable: {table_name}")
+
+        delimiter = "," if path.suffix.lower() == ".csv" else "\t"
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle, delimiter=delimiter)
+            for idx, row in enumerate(reader):
+                if limit is not None and idx >= limit:
+                    break
+                yield {k: (v if v is not None else "") for k, v in row.items()}

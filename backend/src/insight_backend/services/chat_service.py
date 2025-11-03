@@ -438,7 +438,42 @@ class ChatService:
                         if len(frows) >= min_rows:
                             # Writer: synthesize final textual interpretation
                             try:
-                                ev_for_answer = evidence + [{"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}]
+                                try:
+                                    rag_rows = nl2sql.retrieve_similar_rows(
+                                        question=raw_question,
+                                        schema=schema,
+                                    )
+                                except Exception as rag_exc:
+                                    log.error("RAG agent failed: %s", rag_exc, exc_info=True)
+                                    return self._log_completion(
+                                        ChatResponse(
+                                            reply=(
+                                                "Échec de la récupération contextuelle (RAG): "
+                                                f"{rag_exc}\n" + self._llm_diag()
+                                            ),
+                                            metadata={"provider": "nl2sql-rag"},
+                                        ),
+                                        context="completion done (nl2sql-rag-error)",
+                                    )
+
+                                ev_for_answer = list(evidence)
+                                if rag_rows:
+                                    ev_for_answer.append(
+                                        {
+                                            "purpose": "rag",
+                                            "top_k": settings.nl2sql_rag_top_k,
+                                            "rows": rag_rows,
+                                        }
+                                    )
+                                ev_for_answer.append(
+                                    {
+                                        "purpose": "answer",
+                                        "sql": final_sql,
+                                        "columns": fcols,
+                                        "rows": frows,
+                                    }
+                                )
+
                                 answer = nl2sql.write(question=contextual_question, evidence=ev_for_answer).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
                                 return self._log_completion(
@@ -448,7 +483,8 @@ class ChatService:
                                             "provider": "nl2sql-multiagent",
                                             "rounds_used": r,
                                             "sql": final_sql,
-                                            "agents": ["explorateur", "analyste", "redaction"],
+                                            "agents": ["explorateur", "analyste", "rag", "redaction"],
+                                            "rag_rows": len(rag_rows),
                                         },
                                     ),
                                     context="completion done (nl2sql-multiagent)",
