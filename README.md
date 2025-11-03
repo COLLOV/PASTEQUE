@@ -147,6 +147,19 @@ data/
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.
 - Le script `start.sh` pousse automatiquement `data/raw/*.csv|tsv` dans MindsDB à chaque démarrage : les logs `insight.services.mindsdb_sync` détaillent les fichiers envoyés.
+- Pour enrichir ces tables avec une colonne d'embeddings avant l'upload, définissez `MINDSDB_EMBEDDINGS_CONFIG_PATH` dans `backend/.env`. Ce chemin doit pointer vers un fichier YAML décrivant les colonnes à vectoriser :
+
+```yaml
+default_model: text-embedding-3-small  # optionnel (sinon EMBEDDING_MODEL / LLM_MODEL / Z_LOCAL_MODEL)
+batch_size: 16                         # optionnel (sinon MINDSDB_EMBEDDING_BATCH_SIZE)
+tables:
+  products:
+    source_column: description         # colonne texte à vectoriser
+    embedding_column: description_embedding  # nouvelle colonne contenant le vecteur JSON
+    # model: text-embedding-3-small    # optionnel, surcharge par table
+```
+
+Le script `start.sh` génère alors la colonne d'embedding (JSON de floats) avant de pousser la table vers MindsDB. Les erreurs de configuration (table manquante, colonne absente…) stoppent le démarrage afin d'éviter toute incohérence silencieuse. Le backend réutilise automatiquement le mode LLM local (`LLM_MODE=local` + vLLM) ou API (`LLM_MODE=api` + `OPENAI_BASE_URL`/`OPENAI_API_KEY`). Vous pouvez ajuster la taille de batch via `MINDSDB_EMBEDDING_BATCH_SIZE` et fournir un modèle dédié via `EMBEDDING_MODEL`.
 
 ### Visualisations (NL→SQL & MCP Chart)
 
