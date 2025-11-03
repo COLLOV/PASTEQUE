@@ -161,7 +161,7 @@ class ChatService:
         except Exception as exc:
             message = _preview_text(str(exc), limit=160)
             log.error("Retrieval agent failed: %s", message)
-            return [], self._format_retrieval_highlight([], error=message)
+            return [], self._format_retrieval_highlight([], question=question, error=message)
 
         if events and payload:
             meta: Dict[str, Any] = {"retrieval": {"rows": payload}}
@@ -172,22 +172,31 @@ class ChatService:
             except Exception:
                 log.warning("Failed to emit retrieval meta", exc_info=True)
 
-        return payload, self._format_retrieval_highlight(payload)
+        return payload, self._format_retrieval_highlight(payload, question=question)
 
     def _format_retrieval_highlight(
         self,
         payload: List[Dict[str, Any]],
         *,
+        question: str | None = None,
         error: str | None = None,
     ) -> str:
         prefix = "De la donnée à l'action : "
+        question_excerpt = ""
+        if question:
+            stripped_question = question.strip()
+            if stripped_question:
+                question_excerpt = f"Pour répondre à « {_preview_text(stripped_question, limit=120)} », "
         if error:
-            return f"{prefix}récupération indisponible ({error})."
+            return f"{prefix}{question_excerpt}récupération indisponible ({error})."
         if not payload:
-            return f"{prefix}aucun exemple rapproché n'a été trouvé dans les données vectorisées."
+            return (
+                f"{prefix}{question_excerpt}"
+                "aucun exemple rapproché n'a été trouvé dans les données vectorisées."
+            )
 
         tables_counter: Counter[str] = Counter()
-        segments: List[str] = []
+        actions: List[str] = []
         positive_hits = 0
         negative_hits = 0
         first_positive_table: str | None = None
@@ -216,9 +225,14 @@ class ChatService:
                 label = "Focus"
 
             extras = self._format_extras(item)
-            sentence = f"{label} — {table} : « {focus_raw} »{extras}."
-            segments.append(sentence)
-            if len(segments) >= 3:
+            action = self._build_item_action(
+                table=table,
+                focus=focus_raw,
+                sentiment=sentiment,
+                extras=extras,
+            )
+            actions.append(action)
+            if len(actions) >= 3:
                 break
 
         action_sentence = self._build_action_message(
@@ -229,10 +243,13 @@ class ChatService:
             first_negative_table=first_negative_table,
         )
 
-        body = " ".join(segments)
+        body = " ; ".join(actions)
+        message = f"{prefix}{question_excerpt}{body}"
+        if actions:
+            message = f"{message}."
         if action_sentence:
-            return f"{prefix}{body} {action_sentence}"
-        return f"{prefix}{body}"
+            message = f"{message} {action_sentence}"
+        return message
 
     @staticmethod
     def _normalize_for_sentiment(value: str) -> str:
@@ -320,6 +337,27 @@ class ChatService:
                 "pour amplifier la dynamique."
             )
         return "Prochain pas : partagez ces retours positifs avec les équipes."
+
+    @staticmethod
+    def _build_item_action(
+        *,
+        table: str,
+        focus: str,
+        sentiment: str,
+        extras: str,
+    ) -> str:
+        if sentiment == "positive":
+            verb = "Amplifiez"
+        elif sentiment == "negative":
+            verb = "Résolvez"
+        else:
+            verb = "Analysez"
+        focus_label = focus or "Retour client"
+        team = ""
+        table_name = (table or "").strip()
+        if table_name and table_name != "-":
+            team = f" avec l'équipe {table_name}"
+        return f"{verb} « {focus_label} »{team}{extras}"
 
     @staticmethod
     def _append_highlight(base: str, highlight: str) -> str:
