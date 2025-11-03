@@ -49,6 +49,6 @@ def test_write_injects_retrieval_context(monkeypatch: pytest.MonkeyPatch) -> Non
     assert result == "stub response"
     assert client.last_messages is not None
     system_prompt = client.last_messages[0]["content"]
-    assert "Mise en avant" in system_prompt
+    assert "De la donnée à l'action" in system_prompt
     user_payload = client.last_messages[1]["content"]
     assert "retrieval_context" in user_payload

@@ -139,19 +139,18 @@ def test_format_retrieval_highlight_with_payload():
     )
     assert (
         highlight
-        == "Mise en avant : Synthèse — Portail inaccessible (1 retour, table tickets). "
-        "Conseil — priorisez un plan d'action dans tickets pour corriger ces irritants "
-        "et informer rapidement les équipes du suivi."
+        == "De la donnée à l'action : Irritant — tickets : « Portail inaccessible » (priority=high). "
+        "Prochain pas : préparez un plan d'action ciblé avec l'équipe tickets pour résoudre ces irritants."
     )
 
 
 def test_format_retrieval_highlight_handles_error():
     svc = ChatService(DummyEngine())
     text = svc._format_retrieval_highlight([], error="timeout")
-    assert text == "Mise en avant : récupération indisponible (timeout)."
+    assert text == "De la donnée à l'action : récupération indisponible (timeout)."
 
 
 def test_append_highlight_adds_separator():
-    result = ChatService._append_highlight("Réponse", "Mise en avant : Exemple")
-    assert result.endswith("Mise en avant : Exemple")
+    result = ChatService._append_highlight("Réponse", "De la donnée à l'action : Exemple")
+    assert result.endswith("De la donnée à l'action : Exemple")
     assert "\n\n" in result

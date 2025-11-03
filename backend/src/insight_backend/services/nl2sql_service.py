@@ -624,7 +624,7 @@ class NL2SQLService:
             "Paragraphe 1: intègre le constat avec des chiffres précis (comptes, pourcentages, tendances). 2–4 phrases.\n"
             "Paragraphe 2 (si pertinent): formule UNE recommandation concrète (si justifiée) OU une question claire en cas d’incertitude. 1–2 phrases.\n"
             "Un bloc optionnel 'retrieval_context' fournit des lignes très proches de la question (provenance table + valeurs). "
-            "Après ces paragraphes, ajoute un court paragraphe additionnel (1 à 2 phrases) commençant par « Mise en avant : » qui souligne les éléments les plus pertinents issus de ce bloc. "
+            "Après ces paragraphes, ajoute un court paragraphe additionnel (1 à 2 phrases) commençant par « De la donnée à l'action : » qui souligne les éléments les plus pertinents issus de ce bloc. "
             "Si aucune donnée pertinente n’est disponible, indique-le explicitement sans inventer.\n"
             "Contraintes: pas de SQL, pas de jargon inutile; français professionnel; 3–6 phrases au total; pas d’intitulés ni d’en‑têtes; "
             "n’emploie jamais explicitement les mots ‘Constat’, ‘Action proposée’ ou ‘Question à trancher’. Pas de listes/puces.\n"
