@@ -4,6 +4,7 @@ import logging
 
 from pydantic import Field
 from pydantic import field_validator
+from pydantic import ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,6 +62,9 @@ class Settings(BaseSettings):
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
     mindsdb_embeddings_config_path: str | None = Field(None, alias="MINDSDB_EMBEDDINGS_CONFIG_PATH")
     mindsdb_embedding_batch_size: int = Field(16, alias="MINDSDB_EMBEDDING_BATCH_SIZE")
+    rag_top_n: int = Field(3, alias="RAG_TOP_N")
+    rag_table_row_cap: int = Field(500, alias="RAG_TABLE_ROW_CAP")
+    rag_max_columns: int = Field(6, alias="RAG_MAX_COLUMNS")
 
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
@@ -75,6 +79,13 @@ class Settings(BaseSettings):
     def _validate_embedding_batch(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("MINDSDB_EMBEDDING_BATCH_SIZE must be > 0")
+        return v
+
+    @field_validator("rag_top_n", "rag_table_row_cap", "rag_max_columns")
+    @classmethod
+    def _validate_positive_int(cls, v: int, info: ValidationInfo) -> int:
+        if v <= 0:
+            raise ValueError(f"{info.field_name.upper()} must be > 0")
         return v
 
     # Database

@@ -12,6 +12,7 @@ from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
+from .retrieval_service import RetrievalService
 
 
 log = logging.getLogger("insight.services.chat")
@@ -82,6 +83,7 @@ class ChatService:
 
     def __init__(self, engine: ChatEngine):
         self.engine = engine
+        self._retrieval_service: RetrievalService | None = None
 
     def _llm_diag(self) -> str:
         if settings.llm_mode == "api":
@@ -436,25 +438,54 @@ class ChatService:
                             fallback_rows=last_rows,
                         )
                         if len(frows) >= min_rows:
-                            # Writer: synthesize final textual interpretation
+                            ev_for_answer = evidence + [
+                                {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
+                            ]
                             try:
-                                ev_for_answer = evidence + [{"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}]
-                                answer = nl2sql.write(question=contextual_question, evidence=ev_for_answer).strip()
+                                retrieval = self._retrieval_service or RetrievalService()
+                                self._retrieval_service = retrieval
+                                similar_rows = retrieval.retrieve(
+                                    question=contextual_question,
+                                    top_n=settings.rag_top_n,
+                                )
+                                retrieval_payload = [row.as_payload() for row in similar_rows]
+                            except Exception as e:
+                                log.error("Retrieval agent failed: %s", e)
+                                return self._log_completion(
+                                    ChatResponse(
+                                        reply=f"Échec de la récupération contextuelle: {e}\n{self._llm_diag()}",
+                                        metadata={"provider": "nl2sql-retrieval"},
+                                    ),
+                                    context="completion done (nl2sql-retrieval-error)",
+                                )
+                            if events and retrieval_payload:
+                                try:
+                                    events("meta", {"retrieval": {"rows": retrieval_payload, "round": r}})
+                                except Exception:
+                                    log.warning("Failed to emit retrieval meta", exc_info=True)
+                            try:
+                                answer = nl2sql.write(
+                                    question=contextual_question,
+                                    evidence=ev_for_answer,
+                                    retrieval_context=retrieval_payload,
+                                ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                                metadata = {
+                                    "provider": "nl2sql-multiagent",
+                                    "rounds_used": r,
+                                    "sql": final_sql,
+                                    "agents": ["explorateur", "analyste", "redaction"],
+                                }
+                                if retrieval_payload:
+                                    metadata["retrieval_rows"] = retrieval_payload
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=reply_text,
-                                        metadata={
-                                            "provider": "nl2sql-multiagent",
-                                            "rounds_used": r,
-                                            "sql": final_sql,
-                                            "agents": ["explorateur", "analyste", "redaction"],
-                                        },
+                                        metadata=metadata,
                                     ),
                                     context="completion done (nl2sql-multiagent)",
                                 )
                             except Exception as e:
-                                # Do not mask; bubble up explicitly
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}",

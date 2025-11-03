@@ -181,11 +181,15 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
   - Explorateur (#1→#3): propose et exécute de petites requêtes de découverte (DISTINCT, MIN/MAX, COUNT par catégorie, échantillons LIMIT 20) et suggère des axes de visualisation. Événements SSE: `plan` (purpose: explore), `sql`/`rows` (purpose: explore), `meta.axes_suggestions`.
   - Analyste (answer): fusionne proprement les trouvailles en UNE requête finale (SELECT‑only) qui répond précisément à la question. Événements SSE: `sql`/`rows` (purpose: answer).
   - Rédaction: interprète le résultat final et produit une réponse textuelle concise en français (prose directe, sans intitulés), en 1–2 paragraphes courts. Le premier intègre le constat avec des chiffres; le second (optionnel) conclut par une recommandation concrète si justifiée, sinon par une question claire. Aucun SQL, 3–6 phrases.
+  - Récupérateur: calcule l’embedding de la question, interroge les tables vectorisées déclarées dans `data/mindsdb_embeddings.yaml`, puis transmet au rédacteur les `RAG_TOP_N` lignes les plus proches. La réponse inclut désormais un paragraphe final « Mise en avant : … » qui met en lumière ces exemples (et précise l’absence de correspondances le cas échéant).
   - Itération: si le résultat final est jugé insuffisant (moins de `NL2SQL_SATISFACTION_MIN_ROWS` lignes), une nouvelle ronde d’exploration est lancée, jusqu’à `NL2SQL_EXPLORE_ROUNDS`.
 - Variables d’environnement:
   - `NL2SQL_MULTIAGENT_ENABLED=false` — active le mode par défaut.
   - `NL2SQL_EXPLORE_ROUNDS=1` — nombre de rondes d’exploration max.
   - `NL2SQL_SATISFACTION_MIN_ROWS=1` — seuil minimal de lignes pour considérer la réponse satisfaisante.
+  - `RAG_TOP_N=3` — nombre de lignes similaires injectées dans le contexte du rédacteur (via MindsDB).
+  - `RAG_TABLE_ROW_CAP=500` — limite de lignes chargées par table pour le calcul local de similarité.
+  - `RAG_MAX_COLUMNS=6` — nombre maximal de colonnes retenues par ligne pour le prompt de rédaction.
 - LLM:
   - Mode local: `LLM_MODE=local` + `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
   - Mode API: `LLM_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
