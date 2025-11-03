@@ -124,3 +124,16 @@ async def reset_password(payload: ResetPasswordRequest, session: Session = Depen
         new_password=payload.new_password,
     )
     session.commit()
+
+
+@router.delete("/auth/users/{username}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    service = AuthService(UserRepository(session))
+    service.delete_user(username=username)
+    session.commit()

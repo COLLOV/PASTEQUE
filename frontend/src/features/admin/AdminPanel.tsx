@@ -148,6 +148,39 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleDeleteUser(targetUsername: string) {
+    if (!overview) return
+    const target = overview.users.find(u => u.username === targetUsername)
+    if (!target) return
+    if (target.is_admin) return
+
+    const confirmed = window.confirm(`Supprimer l'utilisateur "${targetUsername}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+
+    setUpdatingUsers(prev => new Set(prev).add(targetUsername))
+    try {
+      await apiFetch<void>(`/auth/users/${encodeURIComponent(targetUsername)}`, {
+        method: 'DELETE',
+      })
+      setOverview(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          users: prev.users.filter(u => u.username !== targetUsername),
+        }
+      })
+      setStatus({ type: 'success', message: `Utilisateur ${targetUsername} supprimé.` })
+    } catch (err) {
+      setStatus({ type: 'error', message: err instanceof Error ? err.message : 'Suppression impossible.' })
+    } finally {
+      setUpdatingUsers(prev => {
+        const next = new Set(prev)
+        next.delete(targetUsername)
+        return next
+      })
+    }
+  }
+
   const tables = overview?.tables ?? []
   const users = overview?.users ?? []
 
@@ -294,6 +327,18 @@ export default function AdminPanel() {
                             <span className="text-xs font-semibold text-primary-600">
                               Accès administrateur
                             </span>
+                          )}
+                          {!isAdminRow && (
+                            <div className="pt-1">
+                              <Button
+                                variant="danger"
+                                size="xs"
+                                onClick={() => handleDeleteUser(user.username)}
+                                disabled={isUpdating}
+                              >
+                                Supprimer
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </td>
