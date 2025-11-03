@@ -15,7 +15,7 @@ def _parse_table(arg: str) -> EmbeddingTableConfig:
     parts = [segment.strip() for segment in arg.split(":")]
     if len(parts) < 2:
         raise argparse.ArgumentTypeError(
-            "Expected format '[schema.]table:text_column[:id_column][:embedding_column]'."
+            "Expected format '[base.]table:text_column[:id_column][:embedding_column]'."
         )
     table = parts[0]
     text_column = parts[1]
