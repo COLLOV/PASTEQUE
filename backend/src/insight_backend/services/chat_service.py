@@ -4,7 +4,7 @@ import re
 
 from sqlglot import parse_one, exp
 from pathlib import Path
-from typing import Protocol, Callable, Dict, Any, Iterable
+from typing import Protocol, Callable, Dict, Any, Iterable, List
 
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings, resolve_project_path
@@ -103,6 +103,92 @@ class ChatService:
             _preview_text(response.reply),
         )
         return response
+
+    def _get_retrieval_service(self) -> RetrievalService:
+        if self._retrieval_service is None:
+            self._retrieval_service = RetrievalService()
+        return self._retrieval_service
+
+    def _retrieve_context(
+        self,
+        *,
+        question: str,
+        events: Callable[[str, Dict[str, Any]], None] | None = None,
+        round_label: int | None = None,
+    ) -> tuple[List[Dict[str, Any]], str]:
+        payload: List[Dict[str, Any]] = []
+        try:
+            service = self._get_retrieval_service()
+            rows = service.retrieve(question=question, top_n=settings.rag_top_n)
+            payload = [row.as_payload() for row in rows]
+        except Exception as exc:
+            message = _preview_text(str(exc), limit=160)
+            log.error("Retrieval agent failed: %s", message)
+            return [], self._format_retrieval_highlight([], error=message)
+
+        if events and payload:
+            meta: Dict[str, Any] = {"retrieval": {"rows": payload}}
+            if round_label is not None:
+                meta["retrieval"]["round"] = round_label
+            try:
+                events("meta", meta)
+            except Exception:
+                log.warning("Failed to emit retrieval meta", exc_info=True)
+
+        return payload, self._format_retrieval_highlight(payload)
+
+    def _format_retrieval_highlight(
+        self,
+        payload: List[Dict[str, Any]],
+        *,
+        error: str | None = None,
+    ) -> str:
+        prefix = "Mise en avant : "
+        if error:
+            return f"{prefix}récupération indisponible ({error})."
+        if not payload:
+            return f"{prefix}aucun exemple rapproché n'a été trouvé dans les données vectorisées."
+
+        parts: List[str] = []
+        for item in payload:
+            table = str(item.get("table") or "-")
+            score = item.get("score")
+            if isinstance(score, (int, float)):
+                score_txt = f"{score:.4f}"
+            else:
+                score_txt = str(score or "-")
+            focus = str(item.get("focus") or "").strip()
+            if focus and len(focus) > 180:
+                focus = focus[:177] + "..."
+            values = item.get("values")
+            extras: List[str] = []
+            if isinstance(values, dict):
+                for key, value in values.items():
+                    if key == item.get("source_column"):
+                        continue
+                    if value in (None, ""):
+                        continue
+                    extras.append(f"{key}={value}")
+                    if len(extras) >= 2:
+                        break
+            segment = f"{table} (score {score_txt})"
+            if focus:
+                segment += f" — {focus}"
+            if extras:
+                segment += f" ({'; '.join(extras)})"
+            parts.append(segment)
+
+        return prefix + "; ".join(parts) + "."
+
+    @staticmethod
+    def _append_highlight(base: str, highlight: str) -> str:
+        base_stripped = (base or "").rstrip()
+        highlight_stripped = (highlight or "").strip()
+        if not highlight_stripped:
+            return base_stripped
+        if not base_stripped:
+            return highlight_stripped
+        return f"{base_stripped}\n\n{highlight_stripped}"
 
     def completion(
         self,
@@ -441,28 +527,11 @@ class ChatService:
                             ev_for_answer = evidence + [
                                 {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
                             ]
-                            try:
-                                retrieval = self._retrieval_service or RetrievalService()
-                                self._retrieval_service = retrieval
-                                similar_rows = retrieval.retrieve(
-                                    question=contextual_question,
-                                    top_n=settings.rag_top_n,
-                                )
-                                retrieval_payload = [row.as_payload() for row in similar_rows]
-                            except Exception as e:
-                                log.error("Retrieval agent failed: %s", e)
-                                return self._log_completion(
-                                    ChatResponse(
-                                        reply=f"Échec de la récupération contextuelle: {e}\n{self._llm_diag()}",
-                                        metadata={"provider": "nl2sql-retrieval"},
-                                    ),
-                                    context="completion done (nl2sql-retrieval-error)",
-                                )
-                            if events and retrieval_payload:
-                                try:
-                                    events("meta", {"retrieval": {"rows": retrieval_payload, "round": r}})
-                                except Exception:
-                                    log.warning("Failed to emit retrieval meta", exc_info=True)
+                            retrieval_payload, highlight_text = self._retrieve_context(
+                                question=contextual_question,
+                                events=events,
+                                round_label=r,
+                            )
                             try:
                                 answer = nl2sql.write(
                                     question=contextual_question,
@@ -470,14 +539,14 @@ class ChatService:
                                     retrieval_context=retrieval_payload,
                                 ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                                reply_text = self._append_highlight(reply_text, highlight_text)
                                 metadata = {
                                     "provider": "nl2sql-multiagent",
                                     "rounds_used": r,
                                     "sql": final_sql,
                                     "agents": ["explorateur", "analyste", "redaction"],
+                                    "retrieval_rows": retrieval_payload,
                                 }
-                                if retrieval_payload:
-                                    metadata["retrieval_rows"] = retrieval_payload
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=reply_text,
@@ -486,10 +555,15 @@ class ChatService:
                                     context="completion done (nl2sql-multiagent)",
                                 )
                             except Exception as e:
+                                error_reply = f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}"
+                                error_reply = self._append_highlight(error_reply, highlight_text)
                                 return self._log_completion(
                                     ChatResponse(
-                                        reply=f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}",
-                                        metadata={"provider": "nl2sql-multiagent-synth"},
+                                        reply=error_reply,
+                                        metadata={
+                                            "provider": "nl2sql-multiagent-synth",
+                                            "retrieval_rows": retrieval_payload,
+                                        },
                                     ),
                                     context="completion done (nl2sql-multiagent-synth-error)",
                                 )
@@ -572,9 +646,14 @@ class ChatService:
                         if columns and rows:
                             last_columns = columns
                             last_rows = rows
+                    retrieval_payload, highlight_text = self._retrieve_context(
+                        question=contextual_question,
+                        events=events,
+                    )
                     try:
                         answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                        reply_text = self._append_highlight(reply_text, highlight_text)
                         # Provide an evidence_spec + evidence rows via helper
                         target_sql = (
                             plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
@@ -588,15 +667,27 @@ class ChatService:
                             fallback_rows=last_rows,
                         )
                         return self._log_completion(
-                            ChatResponse(reply=reply_text, metadata={"provider": "nl2sql-plan+mindsdb", "plan": plan}),
+                            ChatResponse(
+                                reply=reply_text,
+                                metadata={
+                                    "provider": "nl2sql-plan+mindsdb",
+                                    "plan": plan,
+                                    "retrieval_rows": retrieval_payload,
+                                },
+                            ),
                             context="completion done (nl2sql-plan)",
                         )
                     except Exception as e:
                         log.error("NL2SQL synthesis failed: %s", e)
+                        error_reply = f"Échec de la synthèse: {e}\n{self._llm_diag()}"
+                        error_reply = self._append_highlight(error_reply, highlight_text)
                         return self._log_completion(
                             ChatResponse(
-                                reply=f"Échec de la synthèse: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql-synth"},
+                                reply=error_reply,
+                                metadata={
+                                    "provider": "nl2sql-synth",
+                                    "retrieval_rows": retrieval_payload,
+                                },
                             ),
                             context="completion done (nl2sql-synth-error)",
                         )
@@ -650,11 +741,23 @@ class ChatService:
                         "columns": columns,
                         "rows": rows,
                     }]
+                    retrieval_payload, highlight_text = self._retrieve_context(
+                        question=contextual_question,
+                        events=events,
+                    )
                     try:
                         answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                        reply_text = self._append_highlight(reply_text, highlight_text)
                         return self._log_completion(
-                            ChatResponse(reply=reply_text, metadata={"provider": "nl2sql+mindsdb", "sql": sql}),
+                            ChatResponse(
+                                reply=reply_text,
+                                metadata={
+                                    "provider": "nl2sql+mindsdb",
+                                    "sql": sql,
+                                    "retrieval_rows": retrieval_payload,
+                                },
+                            ),
                             context="completion done (nl2sql)",
                         )
                     except Exception as e:
@@ -673,10 +776,16 @@ class ChatService:
                         else:
                             err = data.get("error_message") if isinstance(data, dict) else None
                             text = f"SQL: {sql}\n" + (err or "(Aucune ligne)")
+                        text = self._append_highlight(text, highlight_text)
                         return self._log_completion(
                             ChatResponse(
                                 reply=text,
-                                metadata={"provider": "nl2sql-synth-fallback", "error": str(e), "sql": sql},
+                                metadata={
+                                    "provider": "nl2sql-synth-fallback",
+                                    "error": str(e),
+                                    "sql": sql,
+                                    "retrieval_rows": retrieval_payload,
+                                },
                             ),
                             context="completion done (nl2sql-fallback)",
                         )
