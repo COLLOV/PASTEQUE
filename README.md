@@ -193,6 +193,7 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
   - `EMBEDDING_MODEL` — requis: modèle compatible `/embeddings` côté vLLM ou provider externe.
 
 > Sans `EMBEDDING_MODEL` explicite, l’agent RAG échoue volontairement pour éviter les réponses sans contexte fiable.
+- L’onglet **Espace admin → Options debug du chat** permet d’afficher ou non les lignes RAG récupérées dans le panneau « Détails » des réponses assistant.
 - LLM:
   - Mode local: `LLM_MODE=local` + `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
   - Mode API: `LLM_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.

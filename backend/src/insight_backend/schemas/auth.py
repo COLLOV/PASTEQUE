@@ -80,3 +80,11 @@ class UserWithPermissionsResponse(BaseModel):
 class UserPermissionsOverviewResponse(BaseModel):
     tables: list[str]
     users: list[UserWithPermissionsResponse]
+
+
+class AdminSettingsResponse(BaseModel):
+    rag_debug_enabled: bool = False
+
+
+class AdminSettingsUpdateRequest(BaseModel):
+    rag_debug_enabled: bool
