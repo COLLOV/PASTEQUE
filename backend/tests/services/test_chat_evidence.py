@@ -122,3 +122,34 @@ def test_emit_evidence_with_derived_sql():
     kinds = [k for k, _ in bucket]
     assert kinds.count("sql") >= 1
     assert "meta" in kinds and "rows" in kinds
+
+
+def test_format_retrieval_highlight_with_payload():
+    svc = ChatService(DummyEngine())
+    highlight = svc._format_retrieval_highlight(
+        [
+            {
+                "table": "tickets",
+                "score": 0.9234,
+                "focus": "Portail inaccessible",
+                "source_column": "description",
+                "values": {"description": "Portail inaccessible", "priority": "high"},
+            }
+        ]
+    )
+    assert highlight.startswith("Mise en avant :")
+    assert "tickets" in highlight
+    assert "0.9234" in highlight
+    assert "Portail inaccessible" in highlight
+
+
+def test_format_retrieval_highlight_handles_error():
+    svc = ChatService(DummyEngine())
+    text = svc._format_retrieval_highlight([], error="timeout")
+    assert text == "Mise en avant : récupération indisponible (timeout)."
+
+
+def test_append_highlight_adds_separator():
+    result = ChatService._append_highlight("Réponse", "Mise en avant : Exemple")
+    assert result.endswith("Mise en avant : Exemple")
+    assert "\n\n" in result
