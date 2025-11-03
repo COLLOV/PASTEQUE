@@ -189,8 +189,8 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
   - `NL2SQL_SATISFACTION_MIN_ROWS=1` — seuil minimal de lignes pour considérer la réponse satisfaisante.
   - `NL2SQL_RAG_TOP_K=3` — nombre de lignes similaires retournées au rédacteur (mettre `0` pour désactiver le RAG).
   - `NL2SQL_RAG_MAX_ROWS_PER_TABLE=200` — limite de lignes scannées par table avant calcul des embeddings.
-- `NL2SQL_RAG_EMBEDDING_BATCH=32` — taille des batchs envoyés au backend embeddings.
-- `EMBEDDING_MODEL` — requis: modèle compatible `/embeddings` côté vLLM ou provider externe.
+  - `NL2SQL_RAG_EMBEDDING_BATCH=32` — taille des batchs envoyés au backend embeddings.
+  - `EMBEDDING_MODEL` — requis: modèle compatible `/embeddings` côté vLLM ou provider externe.
 
 > Sans `EMBEDDING_MODEL` explicite, l’agent RAG échoue volontairement pour éviter les réponses sans contexte fiable.
 - LLM:
