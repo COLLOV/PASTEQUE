@@ -21,6 +21,13 @@ Script combiné (depuis la racine):
 - `./start_full.sh` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
 - Exemple: définir `BACKEND_DEV_URL=http://0.0.0.0:8000`, `FRONTEND_DEV_URL=http://localhost:5173` puis lancer `./start.sh`.
 
+### Embeddings (MindsDB)
+
+- Les variables d’environnement `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `EMBEDDING_BATCH_SIZE`, `EMBEDDING_DEVICE` et `RAG_RETRIEVAL_TOP_N` (cf. `backend/.env.example`) pilotent le modèle sentence-transformers chargé localement.
+- Calculer/mettre à jour les vecteurs directement dans MindsDB :  
+  `cd backend && uv run python -m insight_backend.scripts.compute_embeddings --table files.ma_table:description`  
+  Répétez `--table` pour chaque source `[base.]table:colonne_texte[:col_id][:col_embedding]`. Sans préfixe, la base `files` est choisie. Le script crée la colonne `VECTOR(dimension)` si besoin, ignore les lignes déjà vectorisées (`IS NULL`) et journalise la progression avec `tqdm`.
+
 Compatibilité shell:
 
 - Les scripts `start.sh` et `start_full.sh` sont compatibles avec le Bash macOS 3.2 et `/bin/sh`. La normalisation en minuscules de `CONTAINER_RUNTIME` n'utilise plus l'expansion Bash 4 `${var,,}` mais une transformation POSIX via `tr`.
