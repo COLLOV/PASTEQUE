@@ -25,6 +25,11 @@ Compatibilité shell:
 
 - Les scripts `start.sh` et `start_full.sh` sont compatibles avec le Bash macOS 3.2 et `/bin/sh`. La normalisation en minuscules de `CONTAINER_RUNTIME` n'utilise plus l'expansion Bash 4 `${var,,}` mais une transformation POSIX via `tr`.
 
+Jeu de données local :
+
+- Générer les CSV d'exemple dans `data/raw/` : `uv run python data/generate_all_data.py`
+- Synchroniser vers MindsDB (si `start.sh` n'est pas utilisé) : `uv run python -m insight_backend.services.mindsdb_sync`
+
 Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR` / `GPT_VIS_SSR_PUBLIC_URL`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production.
 
 Lancer manuellement si besoin:

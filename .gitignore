@@ -34,6 +34,7 @@ data/processed/*
 data/interim/*
 data/vector_store/*
 data/models/*
+data/raw/.mindsdb_sync_state.json
 !data/processed/.gitkeep
 !data/interim/.gitkeep
 !data/vector_store/.gitkeep
