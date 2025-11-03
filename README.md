@@ -41,12 +41,6 @@ Frontend (depuis `frontend/`):
 1. Installer deps: `npm i` ou `pnpm i` ou `yarn`
 2. Lancer: `npm run dev`
 
-### Embeddings RAG
-
-- Définir dans `backend/.env` les variables `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `EMBEDDING_TABLES`, `EMBEDDING_COLUMN_DEFAULT`/`EMBEDDING_COLUMNS_OVERRIDES`, `EMBEDDING_VECTOR_COLUMN`, `EMBEDDING_BATCH_SIZE` et `RAG_RETRIEVAL_K`.
-- Calculer / mettre à jour les vecteurs: `cd backend && uv run python -m insight_backend.scripts.compute_embeddings` (options `--tables`, `--model`, `--batch-size` possibles).
-- Les colonnes `vector(<dim>)` sont créées automatiquement dans Postgres (extension `pgvector` incluse) et seules les lignes sans embedding sont retraitées. Une barre de progression `tqdm` s'affiche pour chaque table.
-
 SSR GPT-Vis (depuis `vis-ssr/`):
 
 1. Installer deps: `npm install`

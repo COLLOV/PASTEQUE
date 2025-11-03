@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Dict, List
+from typing import List
 import logging
 
 from pydantic import Field
@@ -51,71 +51,6 @@ class Settings(BaseSettings):
             raise ValueError(f"ROUTER_MODE must be one of {sorted(valid)}; got: {v!r}")
         return val
 
-    @field_validator("embedding_tables", mode="before")
-    @classmethod
-    def _parse_embedding_tables(cls, raw: str | list[str] | None) -> list[str]:
-        if raw is None:
-            return []
-        if isinstance(raw, str):
-            items = [part.strip() for part in raw.split(",")]
-            return [item for item in items if item]
-        if isinstance(raw, list):
-            return [item.strip() for item in raw if item and item.strip()]
-        raise TypeError("EMBEDDING_TABLES must be a comma-separated string or list of strings")
-
-    @field_validator("embedding_column_default", mode="before")
-    @classmethod
-    def _validate_embedding_default(cls, raw: str | None) -> str:
-        value = (raw or "").strip()
-        if not value:
-            raise ValueError("EMBEDDING_COLUMN_DEFAULT cannot be empty")
-        return value
-
-    @field_validator("embedding_vector_column", mode="before")
-    @classmethod
-    def _validate_vector_column(cls, raw: str | None) -> str:
-        value = (raw or "").strip()
-        if not value:
-            raise ValueError("EMBEDDING_VECTOR_COLUMN cannot be empty")
-        return value
-
-    @field_validator("embedding_column_overrides", mode="before")
-    @classmethod
-    def _parse_embedding_overrides(
-        cls, raw: str | Dict[str, str] | None
-    ) -> Dict[str, str]:
-        if raw is None:
-            return {}
-        if isinstance(raw, dict):
-            parsed: Dict[str, str] = {}
-            for key, value in raw.items():
-                key_norm = (key or "").strip()
-                val_norm = (value or "").strip()
-                if not key_norm or not val_norm:
-                    raise ValueError("EMBEDDING_COLUMNS_OVERRIDES entries must be non-empty")
-                parsed[key_norm.lower()] = val_norm
-            return parsed
-        if isinstance(raw, str):
-            parsed: Dict[str, str] = {}
-            for part in raw.split(","):
-                if not part.strip():
-                    continue
-                table, sep, column = part.partition(":")
-                table_name = table.strip()
-                column_name = column.strip()
-                if not sep or not table_name or not column_name:
-                    raise ValueError(
-                        "EMBEDDING_COLUMNS_OVERRIDES must use the format 'table:column'"
-                    )
-                parsed[table_name.lower()] = column_name
-            return parsed
-        raise TypeError(
-            "EMBEDDING_COLUMNS_OVERRIDES must be a comma-separated string like 'table:column'"
-        )
-
-    def embedding_column_for(self, table_name: str) -> str:
-        return self.embedding_column_overrides.get(table_name.lower(), self.embedding_column_default)
-
     # MCP configuration (declarative)
     mcp_config_path: str | None = Field("../plan/Z/mcp.config.json", alias="MCP_CONFIG_PATH")
     mcp_servers_json: str | None = Field(None, alias="MCP_SERVERS_JSON")
@@ -126,22 +61,6 @@ class Settings(BaseSettings):
 
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
-
-    # RAG / embeddings
-    embedding_model: str = Field(
-        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        alias="EMBEDDING_MODEL",
-    )
-    embedding_dim: int = Field(384, alias="EMBEDDING_DIM")
-    embedding_batch_size: int = Field(64, alias="EMBEDDING_BATCH_SIZE")
-    embedding_tables: list[str] = Field(default_factory=list, alias="EMBEDDING_TABLES")
-    embedding_column_default: str = Field("commentaire", alias="EMBEDDING_COLUMN_DEFAULT")
-    embedding_column_overrides: Dict[str, str] = Field(
-        default_factory=dict,
-        alias="EMBEDDING_COLUMNS_OVERRIDES",
-    )
-    embedding_vector_column: str = Field("embedding_vector", alias="EMBEDDING_VECTOR_COLUMN")
-    rag_retrieval_k: int = Field(3, alias="RAG_RETRIEVAL_K")
 
     # Database
     database_url: str = Field(

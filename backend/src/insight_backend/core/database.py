@@ -4,16 +4,11 @@ import logging
 from contextlib import contextmanager
 from typing import Iterator, Generator
 
-from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
 from .config import settings
-
-try:  # pragma: no cover - optional dependency guard
-    from pgvector.psycopg import register_vector as _register_pgvector
-except ImportError:  # pragma: no cover - package missing at runtime
-    _register_pgvector = None
 
 
 log = logging.getLogger("insight.core.database")
@@ -24,12 +19,6 @@ class Base(DeclarativeBase):
 
 
 engine = create_engine(settings.database_url, echo=False, pool_pre_ping=True)
-
-if _register_pgvector is not None:
-    @event.listens_for(engine, "connect")
-    def _register_vector(dbapi_connection, _) -> None:  # pragma: no cover - simple adapter
-        _register_pgvector(dbapi_connection)
-
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
