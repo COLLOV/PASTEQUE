@@ -124,38 +124,18 @@ def test_emit_evidence_with_derived_sql():
     assert "meta" in kinds and "rows" in kinds
 
 
-def test_format_retrieval_highlight_with_payload():
+def test_prepare_retrieval_context_merges_rows_and_error():
     svc = ChatService(DummyEngine())
-    highlight = svc._format_retrieval_highlight(
-        [
-            {
-                "table": "tickets",
-                "score": 0.9234,
-                "focus": "Portail inaccessible",
-                "source_column": "description",
-                "values": {"description": "Portail inaccessible", "priority": "high"},
-            }
-        ],
-        question="Comment améliorer le support ?",
-    )
-    assert (
-        highlight
-        == "De la donnée à l'action : Pour répondre à « Comment améliorer le support ? », "
-        "Résolvez « Portail inaccessible » avec l'équipe tickets (priority=high). "
-        "Prochain pas : préparez un plan d'action ciblé avec l'équipe tickets pour résoudre ces irritants."
-    )
+    rows = [
+        {"table": "tickets", "focus": "Portail inaccessible", "values": {"priority": "high"}},
+    ]
+    context = svc._prepare_retrieval_context(rows, error="timeout")
+    assert context is not None
+    assert context[0]["table"] == "tickets"
+    assert context[-1]["message"] == "timeout"
 
 
-def test_format_retrieval_highlight_handles_error():
+def test_prepare_retrieval_context_none_when_empty():
     svc = ChatService(DummyEngine())
-    text = svc._format_retrieval_highlight([], question="Quels irritants ?", error="timeout")
-    assert (
-        text
-        == "De la donnée à l'action : Pour répondre à « Quels irritants ? », récupération indisponible (timeout)."
-    )
-
-
-def test_append_highlight_adds_separator():
-    result = ChatService._append_highlight("Réponse", "De la donnée à l'action : Exemple")
-    assert result.endswith("De la donnée à l'action : Exemple")
-    assert "\n\n" in result
+    context = svc._prepare_retrieval_context([], error=None)
+    assert context is None

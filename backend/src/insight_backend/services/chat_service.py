@@ -1,9 +1,6 @@
 import logging
 import json
 import re
-import unicodedata
-from collections import Counter
-
 from sqlglot import parse_one, exp
 from pathlib import Path
 from typing import Protocol, Callable, Dict, Any, Iterable, List
@@ -18,42 +15,6 @@ from .retrieval_service import RetrievalService
 
 
 log = logging.getLogger("insight.services.chat")
-
-_POSITIVE_HINTS: tuple[str, ...] = (
-    "satisf",
-    "positif",
-    "chaleur",
-    "accueil",
-    "rapide",
-    "fluide",
-    "clair",
-    "amelior",
-    "apprec",
-    "recom",
-    "solution",
-)
-_NEGATIVE_HINTS: tuple[str, ...] = (
-    "attente",
-    "retard",
-    "problem",
-    "diffic",
-    "insatisf",
-    "mecontent",
-    "lent",
-    "bug",
-    "erreur",
-    "plainte",
-    "irrit",
-    "baisse",
-    "rupture",
-    "manque",
-    "defaut",
-    "mauvais",
-    "frustr",
-    "blocage",
-    "incident",
-    "inaccess",
-)
 
 def _preview_text(text: str, *, limit: int = 160) -> str:
     """Return a single-line preview capped at ``limit`` characters."""
@@ -152,7 +113,7 @@ class ChatService:
         question: str,
         events: Callable[[str, Dict[str, Any]], None] | None = None,
         round_label: int | None = None,
-    ) -> tuple[List[Dict[str, Any]], str]:
+    ) -> tuple[List[Dict[str, Any]], str | None]:
         payload: List[Dict[str, Any]] = []
         try:
             service = self._get_retrieval_service()
@@ -161,7 +122,7 @@ class ChatService:
         except Exception as exc:
             message = _preview_text(str(exc), limit=160)
             log.error("Retrieval agent failed: %s", message)
-            return [], self._format_retrieval_highlight([], question=question, error=message)
+            return [], message
 
         if events and payload:
             meta: Dict[str, Any] = {"retrieval": {"rows": payload}}
@@ -172,202 +133,21 @@ class ChatService:
             except Exception:
                 log.warning("Failed to emit retrieval meta", exc_info=True)
 
-        return payload, self._format_retrieval_highlight(payload, question=question)
+        return payload, None
 
-    def _format_retrieval_highlight(
-        self,
+    @staticmethod
+    def _prepare_retrieval_context(
         payload: List[Dict[str, Any]],
         *,
-        question: str | None = None,
         error: str | None = None,
-    ) -> str:
-        prefix = "De la donnée à l'action : "
-        question_excerpt = ""
-        if question:
-            stripped_question = question.strip()
-            if stripped_question:
-                question_excerpt = f"Pour répondre à « {_preview_text(stripped_question, limit=120)} », "
+    ) -> List[Dict[str, Any]] | None:
+        if not payload and not error:
+            return None
+        context: List[Dict[str, Any]] = [dict(item) for item in payload]
         if error:
-            return f"{prefix}{question_excerpt}récupération indisponible ({error})."
-        if not payload:
-            return (
-                f"{prefix}{question_excerpt}"
-                "aucun exemple rapproché n'a été trouvé dans les données vectorisées."
-            )
+            context.append({"status": "error", "message": error})
+        return context
 
-        tables_counter: Counter[str] = Counter()
-        actions: List[str] = []
-        positive_hits = 0
-        negative_hits = 0
-        first_positive_table: str | None = None
-        first_negative_table: str | None = None
-
-        for item in payload:
-            table = str(item.get("table") or "").strip() or "-"
-            tables_counter[table] += 1
-
-            focus_raw = str(item.get("focus") or "").strip()
-            if not focus_raw:
-                focus_raw = "Retour client sans libellé"
-
-            sentiment = self._classify_focus(focus_raw)
-            if sentiment == "positive":
-                positive_hits += 1
-                if first_positive_table is None and table != "-":
-                    first_positive_table = table
-                label = "Point fort"
-            elif sentiment == "negative":
-                negative_hits += 1
-                if first_negative_table is None and table != "-":
-                    first_negative_table = table
-                label = "Irritant"
-            else:
-                label = "Focus"
-
-            extras = self._format_extras(item)
-            action = self._build_item_action(
-                table=table,
-                focus=focus_raw,
-                sentiment=sentiment,
-                extras=extras,
-            )
-            actions.append(action)
-            if len(actions) >= 3:
-                break
-
-        action_sentence = self._build_action_message(
-            positive_hits=positive_hits,
-            negative_hits=negative_hits,
-            tables_counter=tables_counter,
-            first_positive_table=first_positive_table,
-            first_negative_table=first_negative_table,
-        )
-
-        body = " ; ".join(actions)
-        message = f"{prefix}{question_excerpt}{body}"
-        if actions:
-            message = f"{message}."
-        if action_sentence:
-            message = f"{message} {action_sentence}"
-        return message
-
-    @staticmethod
-    def _normalize_for_sentiment(value: str) -> str:
-        if not value:
-            return ""
-        decomposed = unicodedata.normalize("NFKD", value)
-        stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-        return stripped.casefold()
-
-    @staticmethod
-    def _classify_focus(value: str) -> str:
-        normalized = ChatService._normalize_for_sentiment(value)
-        if not normalized:
-            return "neutral"
-        has_positive = any(token in normalized for token in _POSITIVE_HINTS)
-        has_negative = any(token in normalized for token in _NEGATIVE_HINTS)
-        if has_positive and not has_negative:
-            return "positive"
-        if has_negative and not has_positive:
-            return "negative"
-        return "neutral"
-
-    @staticmethod
-    def _format_extras(item: Dict[str, Any]) -> str:
-        values = item.get("values")
-        if not isinstance(values, dict):
-            return ""
-        source = item.get("source_column")
-        extras: List[str] = []
-        for key, value in values.items():
-            if key == source:
-                continue
-            if value in (None, ""):
-                continue
-            extras.append(f"{key}={value}")
-            if len(extras) >= 1:
-                break
-        if not extras:
-            return ""
-        return f" ({'; '.join(extras)})"
-
-    @staticmethod
-    def _build_action_message(
-        *,
-        positive_hits: int,
-        negative_hits: int,
-        tables_counter: Counter[str],
-        first_positive_table: str | None,
-        first_negative_table: str | None,
-    ) -> str:
-        if positive_hits == 0 and negative_hits == 0:
-            if tables_counter:
-                main_table = tables_counter.most_common(1)[0][0]
-                if main_table and main_table != "-":
-                    return (
-                        f"Prochain pas : passez en revue ces retours avec l'équipe {main_table} "
-                        "pour préparer la réponse adaptée."
-                    )
-            return "Prochain pas : examinez ces retours avec les équipes concernées."
-
-        if negative_hits > 0 and positive_hits > 0:
-            target = first_negative_table or tables_counter.most_common(1)[0][0]
-            if target and target != "-":
-                return (
-                    f"Prochain pas : valorisez les points forts tout en lançant un plan correctif "
-                    f"avec l'équipe {target}."
-                )
-            return (
-                "Prochain pas : valorisez les points forts identifiés et traitez rapidement les irritants."
-            )
-
-        if negative_hits > 0:
-            target = first_negative_table or tables_counter.most_common(1)[0][0]
-            if target and target != "-":
-                return (
-                    f"Prochain pas : préparez un plan d'action ciblé avec l'équipe {target} "
-                    "pour résoudre ces irritants."
-                )
-            return "Prochain pas : préparez un plan d'action ciblé pour résoudre ces irritants."
-
-        target = first_positive_table or tables_counter.most_common(1)[0][0]
-        if target and target != "-":
-            return (
-                f"Prochain pas : partagez ces retours positifs avec l'équipe {target} "
-                "pour amplifier la dynamique."
-            )
-        return "Prochain pas : partagez ces retours positifs avec les équipes."
-
-    @staticmethod
-    def _build_item_action(
-        *,
-        table: str,
-        focus: str,
-        sentiment: str,
-        extras: str,
-    ) -> str:
-        if sentiment == "positive":
-            verb = "Amplifiez"
-        elif sentiment == "negative":
-            verb = "Résolvez"
-        else:
-            verb = "Analysez"
-        focus_label = focus or "Retour client"
-        team = ""
-        table_name = (table or "").strip()
-        if table_name and table_name != "-":
-            team = f" avec l'équipe {table_name}"
-        return f"{verb} « {focus_label} »{team}{extras}"
-
-    @staticmethod
-    def _append_highlight(base: str, highlight: str) -> str:
-        base_stripped = (base or "").rstrip()
-        highlight_stripped = (highlight or "").strip()
-        if not highlight_stripped:
-            return base_stripped
-        if not base_stripped:
-            return highlight_stripped
-        return f"{base_stripped}\n\n{highlight_stripped}"
 
     def completion(
         self,
@@ -706,19 +486,22 @@ class ChatService:
                             ev_for_answer = evidence + [
                                 {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
                             ]
-                            retrieval_payload, highlight_text = self._retrieve_context(
+                            retrieval_payload, retrieval_error = self._retrieve_context(
                                 question=contextual_question,
                                 events=events,
                                 round_label=r,
+                            )
+                            retrieval_context = self._prepare_retrieval_context(
+                                retrieval_payload,
+                                error=retrieval_error,
                             )
                             try:
                                 answer = nl2sql.write(
                                     question=contextual_question,
                                     evidence=ev_for_answer,
-                                    retrieval_context=retrieval_payload,
+                                    retrieval_context=retrieval_context,
                                 ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                                reply_text = self._append_highlight(reply_text, highlight_text)
                                 metadata = {
                                     "provider": "nl2sql-multiagent",
                                     "rounds_used": r,
@@ -726,6 +509,8 @@ class ChatService:
                                     "agents": ["explorateur", "analyste", "redaction"],
                                     "retrieval_rows": retrieval_payload,
                                 }
+                                if retrieval_error:
+                                    metadata["retrieval_error"] = retrieval_error
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=reply_text,
@@ -735,13 +520,13 @@ class ChatService:
                                 )
                             except Exception as e:
                                 error_reply = f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}"
-                                error_reply = self._append_highlight(error_reply, highlight_text)
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=error_reply,
                                         metadata={
                                             "provider": "nl2sql-multiagent-synth",
                                             "retrieval_rows": retrieval_payload,
+                                            "retrieval_error": retrieval_error,
                                         },
                                     ),
                                     context="completion done (nl2sql-multiagent-synth-error)",
@@ -825,14 +610,21 @@ class ChatService:
                         if columns and rows:
                             last_columns = columns
                             last_rows = rows
-                    retrieval_payload, highlight_text = self._retrieve_context(
+                    retrieval_payload, retrieval_error = self._retrieve_context(
                         question=contextual_question,
                         events=events,
                     )
+                    retrieval_context = self._prepare_retrieval_context(
+                        retrieval_payload,
+                        error=retrieval_error,
+                    )
                     try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
+                        answer = nl2sql.write(
+                            question=contextual_question,
+                            evidence=evidence,
+                            retrieval_context=retrieval_context,
+                        ).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        reply_text = self._append_highlight(reply_text, highlight_text)
                         # Provide an evidence_spec + evidence rows via helper
                         target_sql = (
                             plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
@@ -852,6 +644,7 @@ class ChatService:
                                     "provider": "nl2sql-plan+mindsdb",
                                     "plan": plan,
                                     "retrieval_rows": retrieval_payload,
+                                    "retrieval_error": retrieval_error,
                                 },
                             ),
                             context="completion done (nl2sql-plan)",
@@ -859,13 +652,13 @@ class ChatService:
                     except Exception as e:
                         log.error("NL2SQL synthesis failed: %s", e)
                         error_reply = f"Échec de la synthèse: {e}\n{self._llm_diag()}"
-                        error_reply = self._append_highlight(error_reply, highlight_text)
                         return self._log_completion(
                             ChatResponse(
                                 reply=error_reply,
                                 metadata={
                                     "provider": "nl2sql-synth",
                                     "retrieval_rows": retrieval_payload,
+                                    "retrieval_error": retrieval_error,
                                 },
                             ),
                             context="completion done (nl2sql-synth-error)",
@@ -920,22 +713,32 @@ class ChatService:
                         "columns": columns,
                         "rows": rows,
                     }]
-                    retrieval_payload, highlight_text = self._retrieve_context(
+                    retrieval_payload, retrieval_error = self._retrieve_context(
                         question=contextual_question,
                         events=events,
                     )
+                    retrieval_context = self._prepare_retrieval_context(
+                        retrieval_payload,
+                        error=retrieval_error,
+                    )
                     try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
+                        answer = nl2sql.write(
+                            question=contextual_question,
+                            evidence=evidence,
+                            retrieval_context=retrieval_context,
+                        ).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        reply_text = self._append_highlight(reply_text, highlight_text)
+                        metadata = {
+                            "provider": "nl2sql+mindsdb",
+                            "sql": sql,
+                            "retrieval_rows": retrieval_payload,
+                        }
+                        if retrieval_error:
+                            metadata["retrieval_error"] = retrieval_error
                         return self._log_completion(
                             ChatResponse(
                                 reply=reply_text,
-                                metadata={
-                                    "provider": "nl2sql+mindsdb",
-                                    "sql": sql,
-                                    "retrieval_rows": retrieval_payload,
-                                },
+                                metadata=metadata,
                             ),
                             context="completion done (nl2sql)",
                         )
@@ -955,7 +758,8 @@ class ChatService:
                         else:
                             err = data.get("error_message") if isinstance(data, dict) else None
                             text = f"SQL: {sql}\n" + (err or "(Aucune ligne)")
-                        text = self._append_highlight(text, highlight_text)
+                        if retrieval_error:
+                            text = f"{text}\n\nRécupération indisponible: {retrieval_error}"
                         return self._log_completion(
                             ChatResponse(
                                 reply=text,
@@ -964,6 +768,7 @@ class ChatService:
                                     "error": str(e),
                                     "sql": sql,
                                     "retrieval_rows": retrieval_payload,
+                                    "retrieval_error": retrieval_error,
                                 },
                             ),
                             context="completion done (nl2sql-fallback)",
