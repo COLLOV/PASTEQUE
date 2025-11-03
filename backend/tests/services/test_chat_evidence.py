@@ -137,12 +137,10 @@ def test_format_retrieval_highlight_with_payload():
             }
         ]
     )
-    assert (
-        highlight
-        == "Mise en avant : Synthèse — Portail inaccessible (1 retour, table tickets). "
-        "Conseil — priorisez un plan d'action dans tickets pour corriger ces irritants "
-        "et informer rapidement les équipes du suivi."
-    )
+    assert highlight.startswith("Mise en avant :")
+    assert "tickets" in highlight
+    assert "0.9234" in highlight
+    assert "Portail inaccessible" in highlight
 
 
 def test_format_retrieval_highlight_handles_error():

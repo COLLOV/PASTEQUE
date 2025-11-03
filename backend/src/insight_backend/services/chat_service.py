@@ -1,8 +1,6 @@
 import logging
 import json
 import re
-import unicodedata
-from collections import Counter, defaultdict
 
 from sqlglot import parse_one, exp
 from pathlib import Path
@@ -19,41 +17,6 @@ from .retrieval_service import RetrievalService
 
 log = logging.getLogger("insight.services.chat")
 
-_POSITIVE_HINTS: tuple[str, ...] = (
-    "satisf",
-    "positif",
-    "chaleur",
-    "accueil",
-    "rapide",
-    "fluide",
-    "clair",
-    "amelior",
-    "apprec",
-    "recom",
-    "solution",
-)
-_NEGATIVE_HINTS: tuple[str, ...] = (
-    "attente",
-    "retard",
-    "problem",
-    "diffic",
-    "insatisf",
-    "mecontent",
-    "lent",
-    "bug",
-    "erreur",
-    "plainte",
-    "irrit",
-    "baisse",
-    "rupture",
-    "manque",
-    "defaut",
-    "mauvais",
-    "frustr",
-    "blocage",
-    "incident",
-    "inaccess",
-)
 
 def _preview_text(text: str, *, limit: int = 160) -> str:
     """Return a single-line preview capped at ``limit`` characters."""
@@ -186,113 +149,36 @@ class ChatService:
         if not payload:
             return f"{prefix}aucun exemple rapproché n'a été trouvé dans les données vectorisées."
 
-        tables_counter: Counter[str] = Counter()
-        focus_counter: Counter[str] = Counter()
-        focus_display: dict[str, str] = {}
-        focus_tables: dict[str, set[str]] = defaultdict(set)
-        positive_hits = 0
-        negative_hits = 0
-
+        parts: List[str] = []
         for item in payload:
-            table = str(item.get("table") or "").strip() or "-"
-            tables_counter[table] += 1
+            table = str(item.get("table") or "-")
+            score = item.get("score")
+            if isinstance(score, (int, float)):
+                score_txt = f"{score:.4f}"
+            else:
+                score_txt = str(score or "-")
+            focus = str(item.get("focus") or "").strip()
+            if focus and len(focus) > 180:
+                focus = focus[:177] + "..."
+            values = item.get("values")
+            extras: List[str] = []
+            if isinstance(values, dict):
+                for key, value in values.items():
+                    if key == item.get("source_column"):
+                        continue
+                    if value in (None, ""):
+                        continue
+                    extras.append(f"{key}={value}")
+                    if len(extras) >= 2:
+                        break
+            segment = f"{table} (score {score_txt})"
+            if focus:
+                segment += f" — {focus}"
+            if extras:
+                segment += f" ({'; '.join(extras)})"
+            parts.append(segment)
 
-            focus_raw = str(item.get("focus") or "").strip()
-            if focus_raw:
-                key = focus_raw.casefold()
-                focus_counter[key] += 1
-                focus_display.setdefault(key, focus_raw)
-                focus_tables[key].add(table)
-
-                normalized = self._normalize_for_sentiment(focus_raw)
-                if normalized:
-                    if any(token in normalized for token in _POSITIVE_HINTS):
-                        positive_hits += 1
-                    if any(token in normalized for token in _NEGATIVE_HINTS):
-                        negative_hits += 1
-
-        summary_chunks: List[str] = []
-        if focus_counter:
-            for key, count in focus_counter.most_common(3):
-                label = focus_display.get(key, "")
-                if not label:
-                    continue
-                tables_suffix = self._format_table_suffix(focus_tables.get(key, set()))
-                chunk = f"{label} ({self._format_retour_count(count)}{tables_suffix})"
-                summary_chunks.append(chunk)
-        else:
-            for table, count in tables_counter.most_common(3):
-                chunk = f"{self._format_retour_count(count)} sur {table}"
-                summary_chunks.append(chunk)
-
-        summary_body = "; ".join(summary_chunks)
-        if summary_body:
-            summary_sentence = f"Synthèse — {summary_body}."
-        else:
-            summary_sentence = "Synthèse — revue manuelle recommandée."
-
-        advice_sentence = self._build_advice(
-            positive_hits=positive_hits,
-            negative_hits=negative_hits,
-            main_table=tables_counter.most_common(1)[0][0] if tables_counter else None,
-        )
-
-        return f"{prefix}{summary_sentence} {advice_sentence}"
-
-    @staticmethod
-    def _normalize_for_sentiment(value: str) -> str:
-        if not value:
-            return ""
-        decomposed = unicodedata.normalize("NFKD", value)
-        stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-        return stripped.casefold()
-
-    @staticmethod
-    def _format_table_suffix(tables: set[str] | None) -> str:
-        if not tables:
-            return ""
-        clean = [t.strip() for t in tables if isinstance(t, str)]
-        clean = [t for t in clean if t and t != "-"]
-        if not clean:
-            return ""
-        clean.sort()
-        if len(clean) == 1:
-            return f", table {clean[0]}"
-        display = " / ".join(clean[:3])
-        if len(clean) > 3:
-            display = f"{display}..."
-        return f", tables {display}"
-
-    @staticmethod
-    def _format_retour_count(count: int) -> str:
-        qty = max(0, int(count))
-        suffix = "s" if qty > 1 else ""
-        return f"{qty} retour{suffix}"
-
-    @staticmethod
-    def _build_advice(
-        *,
-        positive_hits: int,
-        negative_hits: int,
-        main_table: str | None,
-    ) -> str:
-        location = ""
-        if main_table and main_table != "-":
-            location = f" dans {main_table}"
-        if negative_hits > positive_hits:
-            return (
-                f"Conseil — priorisez un plan d'action{location} pour corriger ces irritants "
-                "et informer rapidement les équipes du suivi."
-            )
-        if positive_hits > negative_hits:
-            return (
-                f"Conseil — capitalisez sur ce point fort{location} en partageant les bonnes "
-                "pratiques et en vérifiant leur diffusion."
-            )
-        return (
-            f"Conseil — analysez ces retours{location} avec les équipes et co-construisez "
-            "les prochaines étapes."
-        )
+        return prefix + "; ".join(parts) + "."
 
     @staticmethod
     def _append_highlight(base: str, highlight: str) -> str:
