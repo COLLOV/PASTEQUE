@@ -42,6 +42,14 @@ Chargement et usage:
 - `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
 - Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. La taille est plafonnée via `DATA_DICTIONARY_MAX_CHARS` (défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
 
+### RAG & embeddings vectoriels
+
+- Variables d'environnement (`.env`) :  
+  `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `EMBEDDING_BATCH_SIZE`, `EMBEDDING_DEVICE`, `RAG_RETRIEVAL_TOP_N`. Par défaut on utilise le modèle local `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (384 dimensions, CPU).
+- Calcul des embeddings :  
+  `uv run python -m insight_backend.scripts.compute_embeddings --table public.tickets:description:ticket_id:description_embedding`  
+  Répéter `--table` pour chaque table `[schéma.]table:colonne_texte[:col_id][:col_embedding]`. Le script crée automatiquement l'extension `vector`, ajoute la colonne si besoin et saute les lignes déjà calculées (colonne non nulle). Une barre de progression `tqdm` est affichée dans les logs.
+
 ### Base de données & authentification
 
 - Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :

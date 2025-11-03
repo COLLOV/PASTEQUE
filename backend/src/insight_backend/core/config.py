@@ -61,6 +61,14 @@ class Settings(BaseSettings):
 
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
+    # Embeddings / RAG configuration
+    embedding_model: str = Field(
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", alias="EMBEDDING_MODEL"
+    )
+    embedding_dimension: int = Field(384, alias="EMBEDDING_DIMENSION")
+    embedding_batch_size: int = Field(64, alias="EMBEDDING_BATCH_SIZE")
+    rag_retrieval_top_n: int = Field(5, alias="RAG_RETRIEVAL_TOP_N")
+    embedding_device: str = Field("cpu", alias="EMBEDDING_DEVICE")
 
     # Database
     database_url: str = Field(
