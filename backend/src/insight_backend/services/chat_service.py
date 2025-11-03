@@ -243,6 +243,7 @@ class ChatService:
         return stripped.casefold()
 
     @staticmethod
+    @staticmethod
     def _classify_focus(value: str) -> str:
         normalized = ChatService._normalize_for_sentiment(value)
         if not normalized:
