@@ -1,18 +1,13 @@
 import csv
 import random
 from datetime import datetime, timedelta
-from pathlib import Path
 
 # Configuration commune
 start_date = datetime.now() - timedelta(days=180)
 nb_records = 500
 
-output_dir = Path(__file__).resolve().parent / "raw"
-output_dir.mkdir(parents=True, exist_ok=True)
-
 print("🚀 Génération de tous les fichiers CSV...")
 print("="*60)
-print(f"Écriture des fichiers dans: {output_dir}")
 
 # ============================================================================
 # 1. TICKETS JIRA (IT INTERNE)
@@ -213,7 +208,7 @@ for i in range(1, nb_records + 1):
 
 tickets.sort(key=lambda x: x["creation_date"])
 
-with (output_dir / 'tickets_jira.csv').open('w', newline='', encoding='utf-8') as f:
+with open('data/tickets_jira.csv', 'w', newline='', encoding='utf-8') as f:
     fieldnames = ['ticket_id', 'resume', 'description', 'creation_date', 'departement']
     writer = csv.DictWriter(f, fieldnames=fieldnames)
     writer.writeheader()
@@ -357,7 +352,7 @@ for i in range(1, nb_records + 1):
 
 remboursements.sort(key=lambda x: x["date_declaration"])
 
-with (output_dir / 'myfeelback_remboursements.csv').open('w', newline='', encoding='utf-8') as f:
+with open('data/myfeelback_remboursements.csv', 'w', newline='', encoding='utf-8') as f:
     fieldnames = [
         'sinistre_id', 'client_id', 'date_declaration', 'date_remboursement',
         'type_sinistre', 'montant_reclame', 'montant_rembourse', 'statut',
@@ -421,7 +416,7 @@ for i in range(1, nb_records + 1):
     }
     souscriptions.append(record)
 
-with (output_dir / 'myfeelback_souscriptions.csv').open('w', newline='', encoding='utf-8') as f:
+with open('data/myfeelback_souscriptions.csv', 'w', newline='', encoding='utf-8') as f:
     writer = csv.DictWriter(f, fieldnames=souscriptions[0].keys())
     writer.writeheader()
     writer.writerows(souscriptions)
@@ -478,7 +473,7 @@ for i in range(1, nb_records + 1):
     }
     service_client.append(record)
 
-with (output_dir / 'myfeelback_service_client.csv').open('w', newline='', encoding='utf-8') as f:
+with open('data/myfeelback_service_client.csv', 'w', newline='', encoding='utf-8') as f:
     writer = csv.DictWriter(f, fieldnames=service_client[0].keys())
     writer.writeheader()
     writer.writerows(service_client)
@@ -535,7 +530,7 @@ for i in range(1, nb_records + 1):
     }
     app_mobile.append(record)
 
-with (output_dir / 'myfeelback_app_mobile.csv').open('w', newline='', encoding='utf-8') as f:
+with open('data/myfeelback_app_mobile.csv', 'w', newline='', encoding='utf-8') as f:
     writer = csv.DictWriter(f, fieldnames=app_mobile[0].keys())
     writer.writeheader()
     writer.writerows(app_mobile)
@@ -599,7 +594,7 @@ for i in range(1, nb_records + 1):
     }
     nps_data.append(record)
 
-with (output_dir / 'myfeelback_nps.csv').open('w', newline='', encoding='utf-8') as f:
+with open('data/myfeelback_nps.csv', 'w', newline='', encoding='utf-8') as f:
     writer = csv.DictWriter(f, fieldnames=nps_data[0].keys())
     writer.writeheader()
     writer.writerows(nps_data)
@@ -655,7 +650,7 @@ for i in range(1, nb_records + 1):
     }
     agences_feedback.append(record)
 
-with (output_dir / 'myfeelback_agences.csv').open('w', newline='', encoding='utf-8') as f:
+with open('data/myfeelback_agences.csv', 'w', newline='', encoding='utf-8') as f:
     writer = csv.DictWriter(f, fieldnames=agences_feedback[0].keys())
     writer.writeheader()
     writer.writerows(agences_feedback)
