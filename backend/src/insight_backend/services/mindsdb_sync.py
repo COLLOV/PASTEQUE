@@ -4,36 +4,27 @@ import csv
 import json
 import logging
 import tempfile
-from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 from typing import Callable
-import yaml
-from tqdm import tqdm
-import hashlib
 
-from ..core.config import resolve_project_path, settings
+from tqdm import tqdm
+
+from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
 from ..integrations.openai_client import OpenAIBackendError, OpenAICompatibleClient
 from ..repositories.data_repository import DataRepository
+from .mindsdb_embeddings import (
+    EmbeddingConfig,
+    EmbeddingTableConfig,
+    build_embedding_client,
+    load_embedding_config,
+)
 
 
 log = logging.getLogger("insight.services.mindsdb_sync")
 
 STATE_FILENAME = ".mindsdb_sync_state.json"
-
-
-@dataclass(frozen=True)
-class EmbeddingTableConfig:
-    source_column: str
-    embedding_column: str
-    model: str | None = None
-
-
-@dataclass(frozen=True)
-class EmbeddingConfig:
-    tables: dict[str, EmbeddingTableConfig]
-    default_model: str
-    batch_size: int
 
 
 def sync_all_tables() -> list[str]:
@@ -43,7 +34,7 @@ def sync_all_tables() -> list[str]:
         log.info("No tables found in %s", repo.tables_dir)
         return []
 
-    config = _load_embedding_config(settings.mindsdb_embeddings_config_path)
+    config = load_embedding_config(settings.mindsdb_embeddings_config_path)
     state_path = _state_path(repo.tables_dir)
     previous_state = _load_state(state_path)
     next_state: dict[str, dict[str, object]] = {}
@@ -57,7 +48,7 @@ def sync_all_tables() -> list[str]:
             raise FileNotFoundError(
                 f"MindsDB embedding configuration references missing tables: {', '.join(missing)}"
             )
-        embedding_client, embedding_default_model = _build_embedding_client(config)
+        embedding_client, embedding_default_model = build_embedding_client(config)
 
     client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
     uploaded: list[str] = []
@@ -125,105 +116,6 @@ def sync_all_tables() -> list[str]:
 
     log.info("Uploaded %d tables to MindsDB", len(uploaded))
     return uploaded
-
-
-def _load_embedding_config(raw_path: str | None) -> EmbeddingConfig | None:
-    if not raw_path:
-        log.info("MINDSDB_EMBEDDINGS_CONFIG_PATH not set; tables will be uploaded without embeddings.")
-        return None
-
-    resolved = Path(resolve_project_path(raw_path))
-    if not resolved.exists():
-        raise FileNotFoundError(f"MindsDB embedding config not found: {resolved}")
-
-    with resolved.open("r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
-
-    if not isinstance(data, dict):
-        raise ValueError("MindsDB embedding config must be a mapping at the top level.")
-
-    default_model = data.get("default_model")
-    if default_model is not None and not isinstance(default_model, str):
-        raise ValueError("default_model must be a string when provided.")
-
-    batch_size = data.get("batch_size", settings.mindsdb_embedding_batch_size)
-    if not isinstance(batch_size, int) or batch_size <= 0:
-        raise ValueError("batch_size must be a positive integer.")
-
-    tables_section = data.get("tables") or {}
-    if not isinstance(tables_section, dict):
-        raise ValueError("tables must be a mapping of table names.")
-
-    tables: dict[str, EmbeddingTableConfig] = {}
-    for table_name, table_config in tables_section.items():
-        if not isinstance(table_name, str):
-            raise ValueError("Table names in the embedding config must be strings.")
-        if not isinstance(table_config, dict):
-            raise ValueError(f"Configuration for table {table_name!r} must be a mapping.")
-        source_column = table_config.get("source_column")
-        embedding_column = table_config.get("embedding_column")
-        model = table_config.get("model")
-        if not source_column or not isinstance(source_column, str):
-            raise ValueError(f"Table {table_name!r} requires a string 'source_column'.")
-        if not embedding_column or not isinstance(embedding_column, str):
-            raise ValueError(f"Table {table_name!r} requires a string 'embedding_column'.")
-        if model is not None and not isinstance(model, str):
-            raise ValueError(f"Table {table_name!r} has an invalid 'model' value (must be string).")
-        tables[table_name] = EmbeddingTableConfig(
-            source_column=source_column,
-            embedding_column=embedding_column,
-            model=model,
-        )
-
-    if not tables:
-        log.warning("Embedding config %s defines no tables. Uploading without embeddings.", resolved)
-        return None
-
-    resolved_default = _default_embedding_model(default_model)
-    log.info(
-        "Loaded embedding config from %s (%d table(s), batch_size=%d, default_model=%s)",
-        resolved,
-        len(tables),
-        batch_size,
-        resolved_default,
-    )
-    return EmbeddingConfig(tables=tables, default_model=resolved_default, batch_size=batch_size)
-
-
-def _default_embedding_model(configured: str | None) -> str:
-    mode = (settings.llm_mode or "").strip().lower()
-    if mode == "local":
-        candidate = configured or settings.embedding_model or settings.z_local_model
-    elif mode == "api":
-        candidate = configured or settings.embedding_model or settings.llm_model
-    else:
-        raise RuntimeError("LLM_MODE must be 'local' or 'api' to compute embeddings.")
-    if not candidate:
-        raise RuntimeError("No embedding model configured (check EMBEDDING_MODEL or default model).")
-    return candidate
-
-
-def _build_embedding_client(config: EmbeddingConfig) -> tuple[OpenAICompatibleClient, str]:
-    mode = (settings.llm_mode or "").strip().lower()
-    if mode == "local":
-        base_url = settings.vllm_base_url
-        api_key = None
-    elif mode == "api":
-        base_url = settings.openai_base_url
-        api_key = settings.openai_api_key
-    else:
-        raise RuntimeError("LLM_MODE must be 'local' or 'api' to compute embeddings.")
-
-    if not base_url:
-        raise RuntimeError(f"Embedding backend base URL missing for LLM_MODE={settings.llm_mode!r}.")
-
-    client = OpenAICompatibleClient(
-        base_url=base_url,
-        api_key=api_key,
-        timeout_s=settings.openai_timeout_s,
-    )
-    log.info("Initialised embedding backend (mode=%s, base_url=%s)", mode, base_url)
-    return client, config.default_model
 
 
 def _augment_with_embeddings(

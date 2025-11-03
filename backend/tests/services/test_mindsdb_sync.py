@@ -83,7 +83,7 @@ def test_sync_all_tables_adds_embedding_column(tmp_path: Path, monkeypatch: pyte
         lambda base_url, token: _StubMindsDBClient(uploads=uploads),
     )
     monkeypatch.setattr(
-        "insight_backend.services.mindsdb_sync.OpenAICompatibleClient",
+        "insight_backend.services.mindsdb_embeddings.OpenAICompatibleClient",
         lambda base_url, api_key, timeout_s: _StubEmbeddingClient(calls=embedding_calls),
     )
 
@@ -140,7 +140,7 @@ def test_sync_all_tables_skips_when_unchanged(tmp_path: Path, monkeypatch: pytes
         lambda base_url, token: _StubMindsDBClient(uploads=uploads),
     )
     monkeypatch.setattr(
-        "insight_backend.services.mindsdb_sync.OpenAICompatibleClient",
+        "insight_backend.services.mindsdb_embeddings.OpenAICompatibleClient",
         lambda base_url, api_key, timeout_s: _StubEmbeddingClient(calls=embedding_calls),
     )
 
@@ -158,7 +158,7 @@ def test_sync_all_tables_skips_when_unchanged(tmp_path: Path, monkeypatch: pytes
         raising=True,
     )
     monkeypatch.setattr(
-        "insight_backend.services.mindsdb_sync.OpenAICompatibleClient",
+        "insight_backend.services.mindsdb_embeddings.OpenAICompatibleClient",
         lambda base_url, api_key, timeout_s: _StubEmbeddingClient(calls=second_calls),
         raising=True,
     )
@@ -196,7 +196,7 @@ def test_sync_all_tables_missing_source_column_raises(tmp_path: Path, monkeypatc
         lambda base_url, token: _StubMindsDBClient(uploads=[]),
     )
     monkeypatch.setattr(
-        "insight_backend.services.mindsdb_sync.OpenAICompatibleClient",
+        "insight_backend.services.mindsdb_embeddings.OpenAICompatibleClient",
         lambda base_url, api_key, timeout_s: _StubEmbeddingClient(calls=[]),
     )
 
