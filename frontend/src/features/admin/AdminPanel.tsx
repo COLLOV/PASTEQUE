@@ -7,7 +7,8 @@ import type {
   CreateUserResponse,
   UpdateUserPermissionsRequest,
   UserPermissionsOverviewResponse,
-  UserWithPermissionsResponse
+  UserWithPermissionsResponse,
+  AdminResetPasswordResponse,
 } from '@/types/user'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
 
@@ -182,6 +183,44 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleResetPassword(targetUsername: string) {
+    const target = overview?.users.find(u => u.username === targetUsername)
+    if (!target) return
+    const confirmed = window.confirm(
+      `Réinitialiser le mot de passe de "${targetUsername}" ?\nUn mot de passe temporaire sera généré et l'utilisateur devra le changer à la prochaine connexion.`
+    )
+    if (!confirmed) return
+
+    setUpdatingUsers(prev => new Set(prev).add(targetUsername))
+    try {
+      const res = await apiFetch<AdminResetPasswordResponse>(
+        `/auth/users/${encodeURIComponent(targetUsername)}/reset-password`,
+        { method: 'POST' }
+      )
+      const temp = res?.temporary_password || ''
+      if (temp) {
+        setStatus({
+          type: 'success',
+          message: `Mot de passe temporaire pour ${targetUsername} : ${temp} (copiez et transmettez-le à l'utilisateur).`,
+        })
+        // Offer quick copy to clipboard
+        try {
+          await navigator.clipboard.writeText(temp)
+        } catch {/* noop */}
+      } else {
+        setStatus({ type: 'success', message: `Mot de passe de ${targetUsername} réinitialisé.` })
+      }
+    } catch (err) {
+      setStatus({ type: 'error', message: err instanceof Error ? err.message : 'Réinitialisation impossible.' })
+    } finally {
+      setUpdatingUsers(prev => {
+        const next = new Set(prev)
+        next.delete(targetUsername)
+        return next
+      })
+    }
+  }
+
   const tables = overview?.tables ?? []
   const users = overview?.users ?? []
 
@@ -329,8 +368,16 @@ export default function AdminPanel() {
                               Accès administrateur
                             </span>
                           )}
-                          {!isAdminRow && (
-                            <div className="pt-1">
+                          <div className="pt-1 flex gap-2">
+                            <Button
+                              variant="secondary"
+                              size="xs"
+                              onClick={() => handleResetPassword(user.username)}
+                              disabled={isUpdating}
+                            >
+                              Réinitialiser mot de passe
+                            </Button>
+                            {!isAdminRow && (
                               <Button
                                 variant="danger"
                                 size="xs"
@@ -339,8 +386,8 @@ export default function AdminPanel() {
                               >
                                 Supprimer
                               </Button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </td>
                       {tables.map(table => {
