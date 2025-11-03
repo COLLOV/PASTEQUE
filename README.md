@@ -68,6 +68,14 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 #### Métadonnées de streaming (SSE)
 
 - `meta.effective_tables: string[]` — tables effectivement actives (permissions – exclusions appliquées) envoyées au début du stream pour synchroniser l’UI.
+- `retrieval.rows[]` — lorsque `RETRIEVAL_ENABLED=true`, événement diffusé après `meta` contenant les lignes les plus proches (table, score cosinus, extrait texte, payload sérialisé).
+
+### Agent de récupération vectorielle
+
+- Activer `RETRIEVAL_ENABLED=true` (et définir `MINDSDB_EMBEDDINGS_CONFIG_PATH`) pour injecter automatiquement les `RETRIEVAL_TOP_K` lignes les plus similaires dans le prompt du LLM. Le mode local (`LLM_MODE=local`) et le mode API (`LLM_MODE=api`) sont supportés via les mêmes credos que pour le chat.
+- Le backend réutilise les embeddings générés lors du sync MindsDB (`embedding_column` défini dans le YAML). Les tables filtrées par l’ACL ou par `metadata.exclude_tables` sont respectées : aucune donnée non autorisée n’entre dans le contexte.
+- Chaque réponse enrichie publie un message `system` avant la question utilisateur ainsi qu’un événement SSE `retrieval` (sérialisé côté conversation via `conversation_events`) — pratique pour tracer le contexte utilisé.
+- Limiter la taille des extraits injectés avec `RETRIEVAL_PREVIEW_CHARS` (400 par défaut) pour éviter de saturer le contexte LLM. Pas de mécanisme de secours : si l’index est vide ou invalide, la requête échoue explicitement.
 
 ### Données utilisées — visibilité + exclusions
 

@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
     embedding_model: str | None = Field(None, alias="EMBEDDING_MODEL")
 
+    # Retrieval augmentation (vector search)
+    retrieval_enabled: bool = Field(False, alias="RETRIEVAL_ENABLED")
+    retrieval_top_k: int = Field(5, alias="RETRIEVAL_TOP_K")
+    retrieval_preview_chars: int = Field(400, alias="RETRIEVAL_PREVIEW_CHARS")
+
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
     router_model: str | None = Field(None, alias="ROUTER_MODEL")
@@ -75,6 +80,20 @@ class Settings(BaseSettings):
     def _validate_embedding_batch(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("MINDSDB_EMBEDDING_BATCH_SIZE must be > 0")
+        return v
+
+    @field_validator("retrieval_top_k")
+    @classmethod
+    def _validate_retrieval_top_k(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("RETRIEVAL_TOP_K must be > 0")
+        return v
+
+    @field_validator("retrieval_preview_chars")
+    @classmethod
+    def _validate_retrieval_preview_chars(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("RETRIEVAL_PREVIEW_CHARS must be > 0")
         return v
 
     # Database

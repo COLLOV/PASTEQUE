@@ -504,9 +504,21 @@ def chat_stream(  # type: ignore[valid-type]
                 )
                 return
 
+            retrieval_event_payload = service.enrich_with_retrieval(payload, allowed_tables=allowed_tables)
             # 2) Default LLM streaming
             # Default LLM streaming branch
             yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model, "conversation_id": conversation_id})
+            if retrieval_event_payload:
+                try:
+                    with transactional(session):
+                        repo.add_event(conversation_id=conversation_id, kind="retrieval", payload=retrieval_event_payload)
+                except SQLAlchemyError:
+                    log.warning(
+                        "Failed to persist retrieval event (conversation_id=%s)",
+                        conversation_id,
+                        exc_info=True,
+                    )
+                yield _sse("retrieval", retrieval_event_payload)
             full: list[str] = []
             for event in engine.stream(payload):
                 if event.get("type") == "delta":

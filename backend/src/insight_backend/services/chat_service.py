@@ -12,6 +12,7 @@ from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
+from .retrieval_service import RetrievalAgent, RetrievalResult
 
 
 log = logging.getLogger("insight.services.chat")
@@ -649,12 +650,148 @@ class ChatService:
                             ),
                             context="completion done (nl2sql-fallback)",
                         )
+        self.enrich_with_retrieval(payload, allowed_tables=allowed_tables, events=events)
         response = self.engine.run(payload)
         return self._log_completion(response, context="completion done (engine)")
 
     # ----------------------
     # Helpers
     # ----------------------
+    def enrich_with_retrieval(
+        self,
+        payload: ChatRequest,
+        *,
+        allowed_tables: Iterable[str] | None,
+        events: Callable[[str, Dict[str, Any]], None] | None = None,
+    ) -> Dict[str, Any] | None:
+        if not settings.retrieval_enabled:
+            return None
+        if not payload.messages:
+            return None
+        last = payload.messages[-1]
+        if last.role != "user":
+            return None
+        question = last.content.strip()
+        if not question or question.casefold().startswith("/sql "):
+            return None
+        results = self._run_retrieval(
+            question=question,
+            allowed_tables=allowed_tables,
+            excluded_tables=self._metadata_exclusions(payload.metadata),
+        )
+        if not results:
+            log.info(
+                "Retrieval agent returned no rows (question=\"%s\")",
+                _preview_text(question),
+            )
+            return None
+        context = self._build_retrieval_context(question=question, results=results)
+        payload.messages = self._inject_retrieval_message(payload.messages, context)
+        event_payload = self._serialize_retrieval(results)
+        if events:
+            try:
+                events("retrieval", event_payload)
+            except Exception:
+                log.warning("Failed to emit retrieval event", exc_info=True)
+        log.info(
+            "Retrieval context injected: top=%d tables=%s",
+            len(results),
+            sorted({r.table for r in results}),
+        )
+        return event_payload
+
+    def _metadata_exclusions(self, metadata: Dict[str, Any] | None) -> list[str]:
+        if not isinstance(metadata, dict):
+            return []
+        raw = metadata.get("exclude_tables")
+        values: list[str] = []
+        if isinstance(raw, (list, tuple)):
+            for item in raw:
+                if isinstance(item, str):
+                    entry = item.strip()
+                    if entry:
+                        values.append(entry)
+        return values
+
+    def _run_retrieval(
+        self,
+        *,
+        question: str,
+        allowed_tables: Iterable[str] | None,
+        excluded_tables: Iterable[str],
+    ) -> list[RetrievalResult]:
+        agent = RetrievalAgent()
+        return agent.retrieve(
+            question=question,
+            top_k=settings.retrieval_top_k,
+            allowed_tables=allowed_tables,
+            excluded_tables=excluded_tables,
+        )
+
+    def _inject_retrieval_message(
+        self,
+        messages: list[ChatMessage],
+        context: str,
+    ) -> list[ChatMessage]:
+        sys_msg = ChatMessage(role="system", content=context)
+        updated = list(messages)
+        if updated:
+            updated.insert(max(len(updated) - 1, 0), sys_msg)
+        else:
+            updated.append(sys_msg)
+        return updated
+
+    def _build_retrieval_context(
+        self,
+        *,
+        question: str,
+        results: list[RetrievalResult],
+    ) -> str:
+        limit = max(1, settings.retrieval_preview_chars)
+        lines = [
+            "Contexte récupéré depuis les tables vectorielles (similarité cosinus).",
+            f"Question utilisateur: {question.strip()}",
+            f"Top {len(results)} lignes similaires:",
+        ]
+        for idx, item in enumerate(results, start=1):
+            snippet = _preview_text(item.source_text, limit=limit)
+            payload_preview = {
+                key: self._stringify_for_event(value)
+                for key, value in item.payload.items()
+            }
+            payload_blob = json.dumps(payload_preview, ensure_ascii=False)
+            payload_compact = _preview_text(payload_blob, limit=limit)
+            lines.append(
+                f"{idx}. table={item.table} score={item.score:.3f} source_col={item.source_column} text={snippet}"
+            )
+            if payload_compact:
+                lines.append(f"   row={payload_compact}")
+        return "\n".join(lines)
+
+    def _serialize_retrieval(self, results: list[RetrievalResult]) -> Dict[str, Any]:
+        rows: list[Dict[str, Any]] = []
+        for item in results:
+            payload = {
+                key: self._stringify_for_event(value)
+                for key, value in item.payload.items()
+            }
+            rows.append(
+                {
+                    "table": item.table,
+                    "score": item.score,
+                    "model": item.model,
+                    "source_column": item.source_column,
+                    "source_text": item.source_text,
+                    "payload": payload,
+                }
+            )
+        return {"rows": rows, "count": len(rows)}
+
+    def _stringify_for_event(self, value: Any) -> Any:
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        return str(value)
+
     def _prepare_nl2sql_question(self, messages: list[ChatMessage]) -> tuple[str, str]:
         """Return the raw user question plus a context-enriched variant for NL→SQL."""
         if not messages:
