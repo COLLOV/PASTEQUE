@@ -61,6 +61,10 @@ class UserRepository:
         log.debug("Loaded %d users (admin scope)", len(users))
         return users
 
+    def delete_user(self, user: User) -> None:
+        self.session.delete(user)
+        log.info("User deleted: %s", user.username)
+
     # ----- Settings helpers -----
     def get_settings(self, *, user_id: int) -> dict[str, Any]:
         user = self.session.query(User).filter(User.id == user_id).one_or_none()

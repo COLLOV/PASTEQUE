@@ -80,3 +80,8 @@ class UserWithPermissionsResponse(BaseModel):
 class UserPermissionsOverviewResponse(BaseModel):
     tables: list[str]
     users: list[UserWithPermissionsResponse]
+
+
+class AdminResetPasswordResponse(BaseModel):
+    username: str
+    temporary_password: str

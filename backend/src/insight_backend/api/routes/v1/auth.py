@@ -17,6 +17,7 @@ from ....schemas.auth import (
     UserResponse,
     ResetPasswordRequest,
     UserWithPermissionsResponse,
+    AdminResetPasswordResponse,
 )
 from ....services.auth_service import AuthService
 from ....services.data_service import DataService
@@ -124,3 +125,30 @@ async def reset_password(payload: ResetPasswordRequest, session: Session = Depen
         new_password=payload.new_password,
     )
     session.commit()
+
+
+@router.delete("/auth/users/{username}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    service = AuthService(UserRepository(session))
+    service.delete_user(username=username)
+    session.commit()
+
+
+@router.post("/auth/users/{username}/reset-password", response_model=AdminResetPasswordResponse)
+async def admin_reset_password(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> AdminResetPasswordResponse:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    service = AuthService(UserRepository(session))
+    temp = service.admin_reset_password(username=username)
+    session.commit()
+    return AdminResetPasswordResponse(username=username, temporary_password=temp)

@@ -7,7 +7,8 @@ import type {
   CreateUserResponse,
   UpdateUserPermissionsRequest,
   UserPermissionsOverviewResponse,
-  UserWithPermissionsResponse
+  UserWithPermissionsResponse,
+  AdminResetPasswordResponse,
 } from '@/types/user'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
 
@@ -143,6 +144,78 @@ export default function AdminPanel() {
       setUpdatingUsers(prev => {
         const next = new Set(prev)
         next.delete(username)
+        return next
+      })
+    }
+  }
+
+  async function handleDeleteUser(targetUsername: string) {
+    if (!overview) return
+    const target = overview.users.find(u => u.username === targetUsername)
+    if (!target) return
+    if (target.is_admin) return
+
+    const confirmed = window.confirm(`Supprimer l'utilisateur "${targetUsername}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+
+    setUpdatingUsers(prev => new Set(prev).add(targetUsername))
+    try {
+      await apiFetch<void>(`/auth/users/${encodeURIComponent(targetUsername)}`, {
+        method: 'DELETE',
+      })
+      setOverview(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          users: prev.users.filter(u => u.username !== targetUsername),
+        }
+      })
+      setStatus({ type: 'success', message: `Utilisateur ${targetUsername} supprimé.` })
+    } catch (err) {
+      await loadPermissions() // rollback UI if deletion failed
+      setStatus({ type: 'error', message: err instanceof Error ? err.message : 'Suppression impossible.' })
+    } finally {
+      setUpdatingUsers(prev => {
+        const next = new Set(prev)
+        next.delete(targetUsername)
+        return next
+      })
+    }
+  }
+
+  async function handleResetPassword(targetUsername: string) {
+    const target = overview?.users.find(u => u.username === targetUsername)
+    if (!target) return
+    const confirmed = window.confirm(
+      `Réinitialiser le mot de passe de "${targetUsername}" ?\nUn mot de passe temporaire sera généré et l'utilisateur devra le changer à la prochaine connexion.`
+    )
+    if (!confirmed) return
+
+    setUpdatingUsers(prev => new Set(prev).add(targetUsername))
+    try {
+      const res = await apiFetch<AdminResetPasswordResponse>(
+        `/auth/users/${encodeURIComponent(targetUsername)}/reset-password`,
+        { method: 'POST' }
+      )
+      const temp = res?.temporary_password || ''
+      if (temp) {
+        setStatus({
+          type: 'success',
+          message: `Mot de passe temporaire pour ${targetUsername} : ${temp} (copiez et transmettez-le à l'utilisateur).`,
+        })
+        // Offer quick copy to clipboard
+        try {
+          await navigator.clipboard.writeText(temp)
+        } catch {/* noop */}
+      } else {
+        setStatus({ type: 'success', message: `Mot de passe de ${targetUsername} réinitialisé.` })
+      }
+    } catch (err) {
+      setStatus({ type: 'error', message: err instanceof Error ? err.message : 'Réinitialisation impossible.' })
+    } finally {
+      setUpdatingUsers(prev => {
+        const next = new Set(prev)
+        next.delete(targetUsername)
         return next
       })
     }
@@ -295,6 +368,26 @@ export default function AdminPanel() {
                               Accès administrateur
                             </span>
                           )}
+                          <div className="pt-1 flex gap-2">
+                            <Button
+                              variant="secondary"
+                              size="xs"
+                              onClick={() => handleResetPassword(user.username)}
+                              disabled={isUpdating}
+                            >
+                              Réinitialiser mot de passe
+                            </Button>
+                            {!isAdminRow && (
+                              <Button
+                                variant="danger"
+                                size="xs"
+                                onClick={() => handleDeleteUser(user.username)}
+                                disabled={isUpdating}
+                              >
+                                Supprimer
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </td>
                       {tables.map(table => {
