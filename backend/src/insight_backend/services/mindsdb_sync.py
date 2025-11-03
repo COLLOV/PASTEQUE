@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable
 import yaml
 from tqdm import tqdm
+import hashlib
 
 from ..core.config import resolve_project_path, settings
 from ..integrations.mindsdb_client import MindsDBClient
@@ -17,6 +18,8 @@ from ..repositories.data_repository import DataRepository
 
 
 log = logging.getLogger("insight.services.mindsdb_sync")
+
+STATE_FILENAME = ".mindsdb_sync_state.json"
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,9 @@ def sync_all_tables() -> list[str]:
         return []
 
     config = _load_embedding_config(settings.mindsdb_embeddings_config_path)
+    state_path = _state_path(repo.tables_dir)
+    previous_state = _load_state(state_path)
+    next_state: dict[str, dict[str, object]] = {}
 
     embedding_client: OpenAICompatibleClient | None = None
     embedding_default_model: str | None = None
@@ -59,6 +65,24 @@ def sync_all_tables() -> list[str]:
         for path in files:
             table_name = path.stem
             table_cfg = config.tables.get(table_name) if config else None
+            source_hash = _compute_file_hash(path)
+            embedding_signature: dict[str, object] | None = None
+            if table_cfg and embedding_default_model:
+                resolved_model = table_cfg.model or embedding_default_model
+                embedding_signature = {
+                    "model": resolved_model,
+                    "source_column": table_cfg.source_column,
+                    "embedding_column": table_cfg.embedding_column,
+                }
+            previous_entry = previous_state.get(table_name) if previous_state else None
+            if (
+                previous_entry
+                and previous_entry.get("source_hash") == source_hash
+                and previous_entry.get("embedding") == embedding_signature
+            ):
+                log.info("Skipping %s (cached, unchanged)", table_name)
+                next_state[table_name] = previous_entry
+                continue
             tmp_path: Path | None = None
             try:
                 if table_cfg:
@@ -78,13 +102,17 @@ def sync_all_tables() -> list[str]:
                         table_name,
                         table_cfg.source_column,
                         table_cfg.embedding_column,
-                        table_cfg.model or embedding_default_model,
+                        embedding_signature["model"] if embedding_signature else None,
                     )
                 else:
                     upload_source = path
                     log.info("Uploading %s without embeddings", table_name)
-                client.upload_file(upload_source)
+                client.upload_file(upload_source, table_name=table_name)
                 uploaded.append(path.name)
+                next_state[table_name] = {
+                    "source_hash": source_hash,
+                    "embedding": embedding_signature,
+                }
             finally:
                 if tmp_path:
                     tmp_path.unlink(missing_ok=True)
@@ -92,6 +120,8 @@ def sync_all_tables() -> list[str]:
         client.close()
         if embedding_client:
             embedding_client.close()
+
+    _save_state(state_path, next_state)
 
     log.info("Uploaded %d tables to MindsDB", len(uploaded))
     return uploaded
@@ -299,3 +329,35 @@ def _batch_embeddings(
         if progress_callback:
             progress_callback(len(chunk))
     return results
+
+
+def _compute_file_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _state_path(tables_dir: Path) -> Path:
+    return tables_dir / STATE_FILENAME
+
+
+def _load_state(path: Path) -> dict[str, dict[str, object]]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("Failed to load MindsDB sync state %s: %s (resetting cache)", path, exc)
+        return {}
+
+
+def _save_state(path: Path, state: dict[str, dict[str, object]]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(path)
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("Failed to persist MindsDB sync state %s: %s", path, exc)

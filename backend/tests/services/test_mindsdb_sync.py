@@ -12,12 +12,12 @@ from insight_backend.services.mindsdb_sync import sync_all_tables
 
 
 class _StubMindsDBClient:
-    def __init__(self, *, uploads: list[str]):
+    def __init__(self, *, uploads: list[tuple[str | None, str]]):
         self._uploads = uploads
 
-    def upload_file(self, path: str | Path) -> None:
+    def upload_file(self, path: str | Path, *, table_name: str | None = None) -> None:
         p = Path(path)
-        self._uploads.append(p.read_text(encoding="utf-8"))
+        self._uploads.append((table_name, p.read_text(encoding="utf-8")))
 
     def close(self) -> None:  # pragma: no cover - nothing to clean
         return
@@ -75,7 +75,7 @@ def test_sync_all_tables_adds_embedding_column(tmp_path: Path, monkeypatch: pyte
     monkeypatch.setattr(settings, "tables_dir", str(tables_dir))
     monkeypatch.setattr(settings, "mindsdb_embeddings_config_path", str(config_path))
 
-    uploads: list[str] = []
+    uploads: list[tuple[str | None, str]] = []
     embedding_calls: list[dict[str, object]] = []
 
     monkeypatch.setattr(
@@ -94,12 +94,79 @@ def test_sync_all_tables_adds_embedding_column(tmp_path: Path, monkeypatch: pyte
     assert all(call["model"] == "test-embed" for call in embedding_calls)
 
     assert len(uploads) == 1
-    reader = csv.DictReader(io.StringIO(uploads[0]))
+    table_name, payload = uploads[0]
+    assert table_name == "products"
+    reader = csv.DictReader(io.StringIO(payload))
     assert reader.fieldnames == ["id", "text", "text_embedding"]
     rows = list(reader)
     assert len(rows) == 2
     assert json.loads(rows[0]["text_embedding"]) == [0.0, 0.5]
     assert json.loads(rows[1]["text_embedding"]) == [1.0, 1.5]
+
+    state_path = tables_dir / ".mindsdb_sync_state.json"
+    assert state_path.exists()
+    state_data = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state_data["products"]["embedding"]["model"] == "test-embed"
+
+
+def test_sync_all_tables_skips_when_unchanged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tables_dir = tmp_path / "tables"
+    tables_dir.mkdir()
+    csv_path = tables_dir / "products.csv"
+    csv_path.write_text("id,text\n1,hello\n2,world\n", encoding="utf-8")
+
+    config_path = tmp_path / "embed.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "default_model: test-embed",
+                "tables:",
+                "  products:",
+                "    source_column: text",
+                "    embedding_column: text_embedding",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(settings, "tables_dir", str(tables_dir))
+    monkeypatch.setattr(settings, "mindsdb_embeddings_config_path", str(config_path))
+
+    uploads: list[tuple[str | None, str]] = []
+    embedding_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        "insight_backend.services.mindsdb_sync.MindsDBClient",
+        lambda base_url, token: _StubMindsDBClient(uploads=uploads),
+    )
+    monkeypatch.setattr(
+        "insight_backend.services.mindsdb_sync.OpenAICompatibleClient",
+        lambda base_url, api_key, timeout_s: _StubEmbeddingClient(calls=embedding_calls),
+    )
+
+    first_run = sync_all_tables()
+    assert first_run == ["products.csv"]
+    assert uploads  # at least one upload
+    assert embedding_calls
+
+    # Reset collectors for second run
+    second_uploads: list[tuple[str | None, str]] = []
+    second_calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "insight_backend.services.mindsdb_sync.MindsDBClient",
+        lambda base_url, token: _StubMindsDBClient(uploads=second_uploads),
+        raising=True,
+    )
+    monkeypatch.setattr(
+        "insight_backend.services.mindsdb_sync.OpenAICompatibleClient",
+        lambda base_url, api_key, timeout_s: _StubEmbeddingClient(calls=second_calls),
+        raising=True,
+    )
+
+    second_run = sync_all_tables()
+    assert second_run == []
+    assert second_uploads == []
+    assert second_calls == []
 
 
 def test_sync_all_tables_missing_source_column_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
