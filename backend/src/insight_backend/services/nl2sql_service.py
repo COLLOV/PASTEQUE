@@ -398,6 +398,22 @@ class NL2SQLService:
         if not out:
             raise RuntimeError("Aucune requête exploitable dans le plan")
         return out
+
+    def synthesize(self, *, question: str, evidence: List[Dict[str, object]]) -> str:
+        client, model = self._client_and_model()
+        system = (
+            "You are an analyst. Given a question and the results of prior SQL queries,"
+            " write a concise answer in French. Use numbers and be precise."
+            " If data is insufficient, say so. Do not include SQL in the final answer."
+        )
+        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        resp = client.chat_completions(
+            model=model,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
     # --- Multi‑agent helpers -------------------------------------------------
     def explore(
         self,
