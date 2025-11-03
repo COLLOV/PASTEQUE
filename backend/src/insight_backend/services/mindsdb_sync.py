@@ -6,7 +6,9 @@ import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 import yaml
+from tqdm import tqdm
 
 from ..core.config import resolve_project_path, settings
 from ..integrations.mindsdb_client import MindsDBClient
@@ -230,7 +232,15 @@ def _augment_with_embeddings(
     embeddings: list[list[float]] = []
     model = table_cfg.model or default_model
     if rows:
-        embeddings = _batch_embeddings(client=client, model=model, texts=texts, batch_size=batch_size)
+        desc = f"Embeddings {table_name}"
+        with tqdm(total=len(rows), desc=desc, unit="row", leave=False) as progress:
+            embeddings = _batch_embeddings(
+                client=client,
+                model=model,
+                texts=texts,
+                batch_size=batch_size,
+                progress_callback=progress.update,
+            )
         if len(embeddings) != len(rows):
             raise OpenAIBackendError(
                 f"Embedding backend returned {len(embeddings)} vectors for {len(rows)} rows."
@@ -269,6 +279,7 @@ def _batch_embeddings(
     model: str,
     texts: list[str],
     batch_size: int,
+    progress_callback: Callable[[int], None] | None = None,
 ) -> list[list[float]]:
     results: list[list[float]] = []
     for start in range(0, len(texts), batch_size):
@@ -285,4 +296,6 @@ def _batch_embeddings(
                 f"Embedding backend returned {len(vectors)} vectors for chunk of size {len(chunk)}."
             )
         results.extend(vectors)
+        if progress_callback:
+            progress_callback(len(chunk))
     return results

@@ -160,6 +160,7 @@ tables:
 ```
 
 Le script `start.sh` génère alors la colonne d'embedding (JSON de floats) avant de pousser la table vers MindsDB. Les erreurs de configuration (table manquante, colonne absente…) stoppent le démarrage afin d'éviter toute incohérence silencieuse. Le backend réutilise automatiquement le mode LLM local (`LLM_MODE=local` + vLLM) ou API (`LLM_MODE=api` + `OPENAI_BASE_URL`/`OPENAI_API_KEY`). Vous pouvez ajuster la taille de batch via `MINDSDB_EMBEDDING_BATCH_SIZE` et fournir un modèle dédié via `EMBEDDING_MODEL`.
+Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l'avancement du calcul des embeddings lors du démarrage.
 
 ### Visualisations (NL→SQL & MCP Chart)
 
