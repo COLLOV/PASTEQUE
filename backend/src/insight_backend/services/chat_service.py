@@ -2,7 +2,7 @@ import logging
 import json
 import re
 import unicodedata
-from collections import Counter
+from collections import Counter, defaultdict
 
 from sqlglot import parse_one, exp
 from pathlib import Path
@@ -180,59 +180,64 @@ class ChatService:
         *,
         error: str | None = None,
     ) -> str:
-        prefix = "De la donnée à l'action : "
+        prefix = "Mise en avant : "
         if error:
             return f"{prefix}récupération indisponible ({error})."
         if not payload:
             return f"{prefix}aucun exemple rapproché n'a été trouvé dans les données vectorisées."
 
         tables_counter: Counter[str] = Counter()
-        segments: List[str] = []
+        focus_counter: Counter[str] = Counter()
+        focus_display: dict[str, str] = {}
+        focus_tables: dict[str, set[str]] = defaultdict(set)
         positive_hits = 0
         negative_hits = 0
-        first_positive_table: str | None = None
-        first_negative_table: str | None = None
 
         for item in payload:
             table = str(item.get("table") or "").strip() or "-"
             tables_counter[table] += 1
 
             focus_raw = str(item.get("focus") or "").strip()
-            if not focus_raw:
-                focus_raw = "Retour client sans libellé"
+            if focus_raw:
+                key = focus_raw.casefold()
+                focus_counter[key] += 1
+                focus_display.setdefault(key, focus_raw)
+                focus_tables[key].add(table)
 
-            sentiment = self._classify_focus(focus_raw)
-            if sentiment == "positive":
-                positive_hits += 1
-                if first_positive_table is None and table != "-":
-                    first_positive_table = table
-                label = "Point fort"
-            elif sentiment == "negative":
-                negative_hits += 1
-                if first_negative_table is None and table != "-":
-                    first_negative_table = table
-                label = "Irritant"
-            else:
-                label = "Focus"
+                normalized = self._normalize_for_sentiment(focus_raw)
+                if normalized:
+                    if any(token in normalized for token in _POSITIVE_HINTS):
+                        positive_hits += 1
+                    if any(token in normalized for token in _NEGATIVE_HINTS):
+                        negative_hits += 1
 
-            extras = self._format_extras(item)
-            sentence = f"{label} — {table} : « {focus_raw} »{extras}."
-            segments.append(sentence)
-            if len(segments) >= 3:
-                break
+        summary_chunks: List[str] = []
+        if focus_counter:
+            for key, count in focus_counter.most_common(3):
+                label = focus_display.get(key, "")
+                if not label:
+                    continue
+                tables_suffix = self._format_table_suffix(focus_tables.get(key, set()))
+                chunk = f"{label} ({self._format_retour_count(count)}{tables_suffix})"
+                summary_chunks.append(chunk)
+        else:
+            for table, count in tables_counter.most_common(3):
+                chunk = f"{self._format_retour_count(count)} sur {table}"
+                summary_chunks.append(chunk)
 
-        action_sentence = self._build_action_message(
+        summary_body = "; ".join(summary_chunks)
+        if summary_body:
+            summary_sentence = f"Synthèse — {summary_body}."
+        else:
+            summary_sentence = "Synthèse — revue manuelle recommandée."
+
+        advice_sentence = self._build_advice(
             positive_hits=positive_hits,
             negative_hits=negative_hits,
-            tables_counter=tables_counter,
-            first_positive_table=first_positive_table,
-            first_negative_table=first_negative_table,
+            main_table=tables_counter.most_common(1)[0][0] if tables_counter else None,
         )
 
-        body = " ".join(segments)
-        if action_sentence:
-            return f"{prefix}{body} {action_sentence}"
-        return f"{prefix}{body}"
+        return f"{prefix}{summary_sentence} {advice_sentence}"
 
     @staticmethod
     def _normalize_for_sentiment(value: str) -> str:
@@ -243,84 +248,51 @@ class ChatService:
         return stripped.casefold()
 
     @staticmethod
-    @staticmethod
-    def _classify_focus(value: str) -> str:
-        normalized = ChatService._normalize_for_sentiment(value)
-        if not normalized:
-            return "neutral"
-        has_positive = any(token in normalized for token in _POSITIVE_HINTS)
-        has_negative = any(token in normalized for token in _NEGATIVE_HINTS)
-        if has_positive and not has_negative:
-            return "positive"
-        if has_negative and not has_positive:
-            return "negative"
-        return "neutral"
+    def _format_table_suffix(tables: set[str] | None) -> str:
+        if not tables:
+            return ""
+        clean = [t.strip() for t in tables if isinstance(t, str)]
+        clean = [t for t in clean if t and t != "-"]
+        if not clean:
+            return ""
+        clean.sort()
+        if len(clean) == 1:
+            return f", table {clean[0]}"
+        display = " / ".join(clean[:3])
+        if len(clean) > 3:
+            display = f"{display}..."
+        return f", tables {display}"
 
     @staticmethod
-    def _format_extras(item: Dict[str, Any]) -> str:
-        values = item.get("values")
-        if not isinstance(values, dict):
-            return ""
-        source = item.get("source_column")
-        extras: List[str] = []
-        for key, value in values.items():
-            if key == source:
-                continue
-            if value in (None, ""):
-                continue
-            extras.append(f"{key}={value}")
-            if len(extras) >= 1:
-                break
-        if not extras:
-            return ""
-        return f" ({'; '.join(extras)})"
+    def _format_retour_count(count: int) -> str:
+        qty = max(0, int(count))
+        suffix = "s" if qty > 1 else ""
+        return f"{qty} retour{suffix}"
 
     @staticmethod
-    def _build_action_message(
+    def _build_advice(
         *,
         positive_hits: int,
         negative_hits: int,
-        tables_counter: Counter[str],
-        first_positive_table: str | None,
-        first_negative_table: str | None,
+        main_table: str | None,
     ) -> str:
-        if positive_hits == 0 and negative_hits == 0:
-            if tables_counter:
-                main_table = tables_counter.most_common(1)[0][0]
-                if main_table and main_table != "-":
-                    return (
-                        f"Prochain pas : passez en revue ces retours avec l'équipe {main_table} "
-                        "pour préparer la réponse adaptée."
-                    )
-            return "Prochain pas : examinez ces retours avec les équipes concernées."
-
-        if negative_hits > 0 and positive_hits > 0:
-            target = first_negative_table or tables_counter.most_common(1)[0][0]
-            if target and target != "-":
-                return (
-                    f"Prochain pas : valorisez les points forts tout en lançant un plan correctif "
-                    f"avec l'équipe {target}."
-                )
+        location = ""
+        if main_table and main_table != "-":
+            location = f" dans {main_table}"
+        if negative_hits > positive_hits:
             return (
-                "Prochain pas : valorisez les points forts identifiés et traitez rapidement les irritants."
+                f"Conseil — priorisez un plan d'action{location} pour corriger ces irritants "
+                "et informer rapidement les équipes du suivi."
             )
-
-        if negative_hits > 0:
-            target = first_negative_table or tables_counter.most_common(1)[0][0]
-            if target and target != "-":
-                return (
-                    f"Prochain pas : préparez un plan d'action ciblé avec l'équipe {target} "
-                    "pour résoudre ces irritants."
-                )
-            return "Prochain pas : préparez un plan d'action ciblé pour résoudre ces irritants."
-
-        target = first_positive_table or tables_counter.most_common(1)[0][0]
-        if target and target != "-":
+        if positive_hits > negative_hits:
             return (
-                f"Prochain pas : partagez ces retours positifs avec l'équipe {target} "
-                "pour amplifier la dynamique."
+                f"Conseil — capitalisez sur ce point fort{location} en partageant les bonnes "
+                "pratiques et en vérifiant leur diffusion."
             )
-        return "Prochain pas : partagez ces retours positifs avec les équipes."
+        return (
+            f"Conseil — analysez ces retours{location} avec les équipes et co-construisez "
+            "les prochaines étapes."
+        )
 
     @staticmethod
     def _append_highlight(base: str, highlight: str) -> str:
