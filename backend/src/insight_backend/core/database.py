@@ -28,27 +28,7 @@ engine = create_engine(settings.database_url, echo=False, pool_pre_ping=True)
 if _register_pgvector is not None:
     @event.listens_for(engine, "connect")
     def _register_vector(dbapi_connection, _) -> None:  # pragma: no cover - simple adapter
-        try:
-            prev_autocommit = getattr(dbapi_connection, "autocommit", None)
-            if prev_autocommit is not None:
-                dbapi_connection.autocommit = True
-            with dbapi_connection.cursor() as cur:
-                cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            if prev_autocommit is None:
-                dbapi_connection.commit()
-        except Exception:  # pragma: no cover - extension create errors logged for visibility
-            logging.getLogger("insight.core.database").exception(
-                "Failed ensuring pgvector extension; proceeding without automatic creation."
-            )
-        finally:
-            if getattr(dbapi_connection, "autocommit", None) is not None:
-                dbapi_connection.autocommit = prev_autocommit
-        try:
-            _register_pgvector(dbapi_connection)
-        except Exception:  # pragma: no cover - registration fails if extension missing
-            logging.getLogger("insight.core.database").warning(
-                "pgvector type registration skipped (extension unavailable)."
-            )
+        _register_pgvector(dbapi_connection)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
