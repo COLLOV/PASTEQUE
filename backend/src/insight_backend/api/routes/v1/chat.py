@@ -144,9 +144,11 @@ def chat_completion(  # type: ignore[valid-type]
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
+    user_repo = UserRepository(session)
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    feature_flags = user_repo.get_admin_feature_flags()
     # Ensure conversation + persist user message atomically
     repo = ConversationRepository(session)
     meta = payload.metadata or {}
@@ -213,7 +215,11 @@ def chat_completion(  # type: ignore[valid-type]
                     log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
                 return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
         try:
-            resp = service.completion(payload, allowed_tables=allowed_tables)
+            resp = service.completion(
+                payload,
+                allowed_tables=allowed_tables,
+                debug_options=feature_flags,
+            )
             # Persist assistant reply
             if resp and isinstance(resp.reply, str):
                 try:
@@ -278,9 +284,11 @@ def chat_stream(  # type: ignore[valid-type]
     client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
     engine = OpenAIChatEngine(client=client, model=model)
     service = ChatService(engine)
+    user_repo = UserRepository(session)
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    feature_flags = user_repo.get_admin_feature_flags()
 
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"
     started = time.perf_counter()
@@ -386,7 +394,12 @@ def chat_stream(  # type: ignore[valid-type]
                 result_holder: dict[str, object] = {}
 
                 def worker() -> None:
-                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
+                    resp = service.completion(
+                        payload,
+                        events=emit,
+                        allowed_tables=allowed_tables,
+                        debug_options=feature_flags,
+                    )
                     result_holder["resp"] = resp
                     q.put(("__final__", resp))
 
@@ -455,7 +468,12 @@ def chat_stream(  # type: ignore[valid-type]
                 result_holder: dict[str, object] = {}
 
                 def worker() -> None:
-                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
+                    resp = service.completion(
+                        payload,
+                        events=emit,
+                        allowed_tables=allowed_tables,
+                        debug_options=feature_flags,
+                    )
                     result_holder["resp"] = resp
                     q.put(("__final__", resp))
 

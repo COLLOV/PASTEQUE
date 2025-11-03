@@ -12,6 +12,7 @@ from ....schemas.auth import (
     CreateUserRequest,
     LoginRequest,
     TokenResponse,
+    FeatureFlagsPayload,
     UpdateUserPermissionsRequest,
     UserPermissionsOverviewResponse,
     UserResponse,
@@ -61,7 +62,12 @@ async def list_users_with_permissions(
             )
         )
 
-    return UserPermissionsOverviewResponse(tables=tables, users=responses)
+    flags = user_repo.get_admin_feature_flags()
+    return UserPermissionsOverviewResponse(
+        tables=tables,
+        users=responses,
+        feature_flags=FeatureFlagsPayload(**flags) if flags else FeatureFlagsPayload(),
+    )
 
 
 @router.post("/auth/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -113,6 +119,21 @@ async def update_user_table_permissions(
         allowed_tables=updated,
         is_admin=user_is_admin(target),
     )
+
+
+@router.put("/auth/feature-flags", response_model=FeatureFlagsPayload)
+async def update_feature_flags(
+    payload: FeatureFlagsPayload,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> FeatureFlagsPayload:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    user_repo = UserRepository(session)
+    updated = user_repo.set_admin_feature_flags(flags=payload.model_dump())
+    session.commit()
+    return FeatureFlagsPayload(**updated)
 
 
 @router.post("/auth/reset-password", status_code=status.HTTP_204_NO_CONTENT)

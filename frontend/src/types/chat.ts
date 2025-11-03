@@ -28,7 +28,17 @@ export interface Message {
     plan?: any
     steps?: Array<{ step?: number; purpose?: string; sql?: string }>
     samples?: Array<{ step?: number; columns?: string[]; row_count?: number }>
+    rag?: {
+      topK?: number
+      items: RagTicketDetail[]
+    }
   }
+}
+
+export interface RagTicketDetail {
+  table: string
+  similarity: number | null
+  row: Record<string, string>
 }
 
 export interface ChatMetadata {

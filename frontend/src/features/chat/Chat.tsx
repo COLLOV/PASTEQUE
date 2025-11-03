@@ -304,6 +304,48 @@ export default function Chat() {
               description: sqlInfo.purpose,
             }
           }
+        } else if (type === 'rag') {
+          const rawRows: unknown[] = Array.isArray(data?.rows) ? data.rows : []
+          const items = rawRows
+            .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+            .map((item: Record<string, unknown>, index: number) => {
+              const table = typeof item.table === 'string' && item.table ? item.table : `ticket-${index + 1}`
+              const simRaw = typeof item.similarity === 'number' ? item.similarity : Number(item.similarity)
+              const similarity = Number.isFinite(simRaw) ? Number(simRaw) : null
+              const rowObj = item.row && typeof item.row === 'object' ? (item.row as Record<string, unknown>) : {}
+              const entries = Object.entries(rowObj)
+                .filter(([key]) => typeof key === 'string' && key)
+                .map(([key, value]) => [key, value == null ? '' : String(value)])
+              const row: Record<string, string> = {}
+              for (const [key, value] of entries) {
+                row[key] = value
+              }
+              return {
+                table,
+                similarity,
+                row,
+              }
+            })
+          const topK = typeof data?.top_k === 'number' ? data.top_k : undefined
+          if (items.length > 0 || typeof topK === 'number') {
+            setMessages(prev => {
+              const copy = [...prev]
+              const idx = copy.findIndex(m => m.ephemeral)
+              if (idx >= 0) {
+                copy[idx] = {
+                  ...copy[idx],
+                  details: {
+                    ...(copy[idx].details || {}),
+                    rag: {
+                      topK,
+                      items,
+                    },
+                  },
+                }
+              }
+              return copy
+            })
+          }
         } else if (type === 'delta') {
           const delta = data as ChatStreamDelta
           setMessages(prev => {
@@ -1487,6 +1529,46 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+                {message.details.rag && message.details.rag.items.length > 0 && (
+                  <div className="text-[11px]">
+                    <div className="uppercase tracking-wide text-primary-500 mb-1">
+                      Tickets RAG
+                      {typeof message.details.rag.topK === 'number' ? (
+                        <span className="ml-2 text-primary-400">top {message.details.rag.topK}</span>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      {message.details.rag.items.map((item, index) => {
+                        const entries = Object.entries(item.row)
+                          .sort((a, b) => a[0].localeCompare(b[0], 'fr', { sensitivity: 'base' }))
+                        return (
+                          <div key={`${item.table}-${index}`} className="border border-primary-100 rounded-md p-2 bg-primary-25">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <span className="font-medium text-primary-800 truncate" title={item.table}>{item.table}</span>
+                              {typeof item.similarity === 'number' ? (
+                                <span className="text-primary-500">sim {item.similarity.toFixed(3)}</span>
+                              ) : null}
+                            </div>
+                            {entries.length > 0 ? (
+                              <table className="min-w-full">
+                                <tbody>
+                                  {entries.map(([key, value]) => (
+                                    <tr key={key} className="border-t border-primary-100">
+                                      <td className="pr-2 py-1 text-primary-400 whitespace-nowrap align-top">{key}</td>
+                                      <td className="py-1 text-primary-800 break-all">{value}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <div className="text-primary-400 italic">Aucun détail disponible.</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

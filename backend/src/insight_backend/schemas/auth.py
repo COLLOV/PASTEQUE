@@ -77,6 +77,11 @@ class UserWithPermissionsResponse(BaseModel):
         )
 
 
+class FeatureFlagsPayload(BaseModel):
+    show_rag_ticket_content: bool = False
+
+
 class UserPermissionsOverviewResponse(BaseModel):
     tables: list[str]
     users: list[UserWithPermissionsResponse]
+    feature_flags: FeatureFlagsPayload = Field(default_factory=FeatureFlagsPayload)

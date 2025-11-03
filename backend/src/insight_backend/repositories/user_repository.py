@@ -62,6 +62,13 @@ class UserRepository:
         return users
 
     # ----- Settings helpers -----
+    def get_admin_user(self) -> User | None:
+        return (
+            self.session.query(User)
+            .filter(User.username == settings.admin_username)
+            .one_or_none()
+        )
+
     def get_settings(self, *, user_id: int) -> dict[str, Any]:
         user = self.session.query(User).filter(User.id == user_id).one_or_none()
         return dict(user.settings or {}) if user else {}
@@ -95,3 +102,30 @@ class UserRepository:
         s["default_exclude_tables"] = normalized
         self.set_settings(user_id=user_id, settings=s)
         return normalized
+
+    def get_admin_feature_flags(self) -> dict[str, bool]:
+        admin = self.get_admin_user()
+        if not admin:
+            log.warning("Admin user %s introuvable pour la lecture des feature flags", settings.admin_username)
+            return {}
+        settings_payload = dict(admin.settings or {})
+        raw_flags = settings_payload.get("feature_flags")
+        if not isinstance(raw_flags, dict):
+            return {}
+        flags: dict[str, bool] = {}
+        for key, value in raw_flags.items():
+            flags[str(key)] = bool(value)
+        return flags
+
+    def set_admin_feature_flags(self, *, flags: dict[str, bool]) -> dict[str, bool]:
+        admin = self.get_admin_user()
+        if not admin:
+            raise RuntimeError(f"Admin user {settings.admin_username!r} introuvable")
+        current = dict(admin.settings or {})
+        sanitized = {str(k): bool(v) for k, v in (flags or {}).items()}
+        current["feature_flags"] = sanitized
+        self.set_settings(user_id=admin.id, settings=current)
+        admin.settings = current
+        self.session.flush()
+        log.info("Admin feature flags mis à jour: %s", ",".join(sorted(sanitized.keys())))
+        return sanitized

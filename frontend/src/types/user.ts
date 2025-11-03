@@ -18,8 +18,13 @@ export interface UserWithPermissionsResponse {
 export interface UserPermissionsOverviewResponse {
   tables: string[]
   users: UserWithPermissionsResponse[]
+  feature_flags: FeatureFlagsPayload
 }
 
 export interface UpdateUserPermissionsRequest {
   allowed_tables: string[]
+}
+
+export interface FeatureFlagsPayload {
+  show_rag_ticket_content: boolean
 }

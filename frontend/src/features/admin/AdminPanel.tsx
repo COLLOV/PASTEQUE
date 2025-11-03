@@ -7,7 +7,8 @@ import type {
   CreateUserResponse,
   UpdateUserPermissionsRequest,
   UserPermissionsOverviewResponse,
-  UserWithPermissionsResponse
+  UserWithPermissionsResponse,
+  FeatureFlagsPayload
 } from '@/types/user'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
 
@@ -31,6 +32,7 @@ export default function AdminPanel() {
   const [permissionsLoading, setPermissionsLoading] = useState(true)
   const [permissionsError, setPermissionsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
+  const [updatingFlags, setUpdatingFlags] = useState(false)
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
 
@@ -39,7 +41,12 @@ export default function AdminPanel() {
     setPermissionsError('')
     try {
       const response = await apiFetch<UserPermissionsOverviewResponse>('/auth/users')
-      setOverview(response ?? { tables: [], users: [] })
+      if (response) {
+        const flags: FeatureFlagsPayload = response.feature_flags ?? { show_rag_ticket_content: false }
+        setOverview({ ...response, feature_flags: flags })
+      } else {
+        setOverview({ tables: [], users: [], feature_flags: { show_rag_ticket_content: false } })
+      }
     } catch (err) {
       setPermissionsError(
         err instanceof Error ? err.message : 'Chargement des droits impossible.'
@@ -148,8 +155,35 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleToggleRagDebug(nextChecked: boolean) {
+    if (!overview || updatingFlags) return
+    setUpdatingFlags(true)
+    setStatus(null)
+    try {
+      const payload = await apiFetch<FeatureFlagsPayload>('/auth/feature-flags', {
+        method: 'PUT',
+        body: JSON.stringify({ show_rag_ticket_content: nextChecked }),
+      })
+      setOverview(prev => (prev ? { ...prev, feature_flags: payload } : prev))
+      setStatus({
+        type: 'success',
+        message: nextChecked
+          ? 'Affichage du contenu RAG activé pour le debug.'
+          : 'Affichage du contenu RAG désactivé.'
+      })
+    } catch (err) {
+      setStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Mise à jour du debug RAG impossible.'
+      })
+    } finally {
+      setUpdatingFlags(false)
+    }
+  }
+
   const tables = overview?.tables ?? []
   const users = overview?.users ?? []
+  const featureFlags = overview?.feature_flags ?? { show_rag_ticket_content: false }
 
   return (
     <div className="max-w-5xl mx-auto animate-fade-in space-y-6">
@@ -183,6 +217,29 @@ export default function AdminPanel() {
           </p>
         </div>
       )}
+
+      <Card variant="elevated">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary-950 mb-1">
+              Options de debug
+            </h3>
+            <p className="text-sm text-primary-600">
+              Activez l’affichage des tickets sélectionnés par le RAG dans les détails du chat pour faciliter le diagnostic.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-2 text-sm text-primary-800">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={featureFlags.show_rag_ticket_content}
+              disabled={updatingFlags}
+              onChange={(event) => handleToggleRagDebug(event.target.checked)}
+            />
+            <span>Afficher le contenu RAG dans le chat</span>
+          </label>
+        </div>
+      </Card>
 
       <Card variant="elevated">
         <h3 className="text-lg font-semibold text-primary-950 mb-4">

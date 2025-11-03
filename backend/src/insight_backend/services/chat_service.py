@@ -108,6 +108,7 @@ class ChatService:
         *,
         events: Callable[[str, Dict[str, Any]], None] | None = None,
         allowed_tables: Iterable[str] | None = None,
+        debug_options: Dict[str, Any] | None = None,
     ) -> ChatResponse:  # type: ignore[valid-type]
         metadata_keys = list((payload.metadata or {}).keys())
         message_count = len(payload.messages)
@@ -129,6 +130,8 @@ class ChatService:
             )
         # Lightweight command passthrough for MindsDB SQL without changing the UI.
         # If the last user message starts with '/sql ', execute it against MindsDB and return the result.
+        debug_flags = dict(debug_options or {})
+        show_rag_debug = bool(debug_flags.get("show_rag_ticket_content"))
         if payload.messages:
             last = payload.messages[-1]
             if last.role == "user" and last.content.strip().casefold().startswith("/sql "):
@@ -458,6 +461,17 @@ class ChatService:
 
                                 ev_for_answer = list(evidence)
                                 if rag_rows:
+                                    if show_rag_debug and events:
+                                        try:
+                                            events(
+                                                "rag",
+                                                {
+                                                    "rows": rag_rows,
+                                                    "top_k": settings.nl2sql_rag_top_k,
+                                                },
+                                            )
+                                        except Exception:
+                                            log.warning("Failed to emit rag debug rows", exc_info=True)
                                     ev_for_answer.append(
                                         {
                                             "purpose": "rag",
