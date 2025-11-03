@@ -29,7 +29,7 @@ class Conversation(Base):
     # JSON settings per conversation (e.g., NL→SQL preferences like excluded tables)
     settings: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
-    user: Mapped["User"] = relationship("User")
+    user: Mapped["User"] = relationship("User", back_populates="conversations")
     messages: Mapped[list["ConversationMessage"]] = relationship(
         "ConversationMessage",
         back_populates="conversation",

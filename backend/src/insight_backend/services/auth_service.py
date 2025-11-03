@@ -78,9 +78,8 @@ class AuthService:
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         # Never allow deleting the configured admin account
-        if user.is_admin:
-            from ..core.security import user_is_admin  # local import to avoid cycles
-            if user_is_admin(user):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete admin user")
+        from ..core.security import user_is_admin  # local import to avoid cycles
+        if user_is_admin(user):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete admin user")
         self.repo.delete_user(user)
         log.info("User removed via admin API: %s", username)

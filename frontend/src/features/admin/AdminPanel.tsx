@@ -171,6 +171,7 @@ export default function AdminPanel() {
       })
       setStatus({ type: 'success', message: `Utilisateur ${targetUsername} supprimé.` })
     } catch (err) {
+      await loadPermissions() // rollback UI if deletion failed
       setStatus({ type: 'error', message: err instanceof Error ? err.message : 'Suppression impossible.' })
     } finally {
       setUpdatingUsers(prev => {
