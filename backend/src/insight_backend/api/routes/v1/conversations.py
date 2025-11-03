@@ -97,7 +97,6 @@ def get_conversation(  # type: ignore[valid-type]
             if last_user_ts is not None:
                 steps: list[dict[str, Any]] = []
                 plan: dict[str, Any] | None = None
-                rag: dict[str, Any] | None = None
                 for evt in evs:
                     ts = evt.created_at
                     if ts < last_user_ts or ts > msg.created_at:
@@ -110,20 +109,8 @@ def get_conversation(  # type: ignore[valid-type]
                         })
                     elif evt.kind == "plan" and isinstance(evt.payload, dict):
                         plan = evt.payload
-                    elif evt.kind == "rag" and isinstance(evt.payload, dict):
-                        payload_rows = evt.payload.get("rows")
-                        if isinstance(payload_rows, list) and payload_rows:
-                            rag = {
-                                "rows": payload_rows,
-                                "top_k": evt.payload.get("top_k"),
-                                "question": evt.payload.get("question"),
-                            }
-                if steps or plan or rag:
-                    details = {"steps": steps}
-                    if plan is not None:
-                        details["plan"] = plan
-                    if rag is not None:
-                        details["rag"] = rag
+                if steps or plan:
+                    details = {"steps": steps} | ({"plan": plan} if plan is not None else {})
         payload: dict[str, Any] = {
             "role": msg.role,
             "content": msg.content,

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -19,16 +17,12 @@ from ....schemas.auth import (
     UserResponse,
     ResetPasswordRequest,
     UserWithPermissionsResponse,
-    AdminSettingsResponse,
-    AdminSettingsUpdateRequest,
 )
 from ....services.auth_service import AuthService
 from ....services.data_service import DataService
 
 
 router = APIRouter()
-
-log = logging.getLogger("insight.api.auth")
 
 
 @router.post("/auth/login", response_model=TokenResponse)
@@ -130,38 +124,3 @@ async def reset_password(payload: ResetPasswordRequest, session: Session = Depen
         new_password=payload.new_password,
     )
     session.commit()
-
-
-@router.get("/auth/admin/settings", response_model=AdminSettingsResponse)
-async def get_admin_settings(
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-) -> AdminSettingsResponse:
-    if not user_is_admin(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-
-    repo = UserRepository(session)
-    try:
-        enabled = repo.get_admin_rag_debug()
-    except Exception as exc:  # pragma: no cover - defensive
-        log.warning("Failed to load admin settings: %s", exc, exc_info=True)
-        enabled = False
-    return AdminSettingsResponse(rag_debug_enabled=enabled)
-
-
-@router.put("/auth/admin/settings", response_model=AdminSettingsResponse)
-async def update_admin_settings(
-    payload: AdminSettingsUpdateRequest,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-) -> AdminSettingsResponse:
-    if not user_is_admin(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-
-    repo = UserRepository(session)
-    try:
-        enabled = repo.set_admin_rag_debug(payload.rag_debug_enabled)
-        session.commit()
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
-    return AdminSettingsResponse(rag_debug_enabled=enabled)

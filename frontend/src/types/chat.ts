@@ -28,20 +28,7 @@ export interface Message {
     plan?: any
     steps?: Array<{ step?: number; purpose?: string; sql?: string }>
     samples?: Array<{ step?: number; columns?: string[]; row_count?: number }>
-    rag?: RagEvidence
   }
-}
-
-export interface RagRow {
-  table: string
-  similarity?: number
-  row: Record<string, string>
-}
-
-export interface RagEvidence {
-  top_k?: number
-  question?: string
-  rows: RagRow[]
 }
 
 export interface ChatMetadata {

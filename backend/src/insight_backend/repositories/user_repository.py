@@ -95,30 +95,3 @@ class UserRepository:
         s["default_exclude_tables"] = normalized
         self.set_settings(user_id=user_id, settings=s)
         return normalized
-
-    # ----- Admin debug helpers -----
-    def _get_admin_user(self) -> User | None:
-        return (
-            self.session.query(User)
-            .filter(User.username == settings.admin_username)
-            .one_or_none()
-        )
-
-    def get_admin_rag_debug(self) -> bool:
-        admin = self._get_admin_user()
-        if not admin or not isinstance(admin.settings, dict):
-            return False
-        value = admin.settings.get("debug_show_rag_rows")
-        return bool(value)
-
-    def set_admin_rag_debug(self, enabled: bool) -> bool:
-        admin = self._get_admin_user()
-        if not admin:
-            raise ValueError("Admin user not found; ensure admin account is provisioned")
-        current = dict(admin.settings or {})
-        current["debug_show_rag_rows"] = bool(enabled)
-        admin.settings = current
-        # Ensure the ORM tracks the change when the caller wants to read in the same transaction
-        self.session.flush()
-        log.info("Admin debug_show_rag_rows set to %s", bool(enabled))
-        return bool(current["debug_show_rag_rows"])

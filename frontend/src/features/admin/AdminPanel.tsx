@@ -16,10 +16,6 @@ interface Status {
   message: string
 }
 
-interface AdminSettingsResponse {
-  rag_debug_enabled: boolean
-}
-
 function formatDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -34,10 +30,6 @@ export default function AdminPanel() {
   const [overview, setOverview] = useState<UserPermissionsOverviewResponse | null>(null)
   const [permissionsLoading, setPermissionsLoading] = useState(true)
   const [permissionsError, setPermissionsError] = useState('')
-  const [adminSettings, setAdminSettings] = useState<AdminSettingsResponse | null>(null)
-  const [settingsLoading, setSettingsLoading] = useState(true)
-  const [settingsError, setSettingsError] = useState('')
-  const [updatingSettings, setUpdatingSettings] = useState(false)
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
@@ -57,29 +49,9 @@ export default function AdminPanel() {
     }
   }, [])
 
-  const loadAdminSettings = useCallback(async () => {
-    setSettingsLoading(true)
-    setSettingsError('')
-    try {
-      const response = await apiFetch<AdminSettingsResponse>('/auth/admin/settings')
-      setAdminSettings(response ?? { rag_debug_enabled: false })
-    } catch (err) {
-      setSettingsError(
-        err instanceof Error ? err.message : 'Chargement des options impossible.'
-      )
-      setAdminSettings(null)
-    } finally {
-      setSettingsLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
     loadPermissions()
   }, [loadPermissions])
-
-  useEffect(() => {
-    loadAdminSettings()
-  }, [loadAdminSettings])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -176,35 +148,6 @@ export default function AdminPanel() {
     }
   }
 
-  async function handleToggleRagDebug() {
-    if (settingsLoading || updatingSettings || !adminSettings) return
-    const previous = adminSettings.rag_debug_enabled
-    const next = !previous
-    setAdminSettings({ rag_debug_enabled: next })
-    setUpdatingSettings(true)
-    try {
-      const response = await apiFetch<AdminSettingsResponse>('/auth/admin/settings', {
-        method: 'PUT',
-        body: JSON.stringify({ rag_debug_enabled: next })
-      })
-      setAdminSettings(response ?? { rag_debug_enabled: next })
-      setStatus({
-        type: 'success',
-        message: next
-          ? 'Affichage des lignes RAG dans le chat activé.'
-          : 'Affichage des lignes RAG dans le chat désactivé.'
-      })
-    } catch (err) {
-      setAdminSettings({ rag_debug_enabled: previous })
-      setStatus({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Mise à jour impossible.'
-      })
-    } finally {
-      setUpdatingSettings(false)
-    }
-  }
-
   const tables = overview?.tables ?? []
   const users = overview?.users ?? []
 
@@ -281,38 +224,6 @@ export default function AdminPanel() {
             {loadingUser ? 'Création en cours…' : 'Créer l\'utilisateur'}
           </Button>
         </form>
-      </Card>
-
-      <Card variant="elevated">
-        <div className="flex flex-col gap-2 mb-4">
-          <h3 className="text-lg font-semibold text-primary-950">
-            Options debug du chat
-          </h3>
-          <p className="text-sm text-primary-600">
-            Affiche les lignes récupérées par l’agent RAG dans le panneau «&nbsp;Détails&nbsp;» des réponses assistant.
-          </p>
-        </div>
-        {settingsError && (
-          <p className="text-sm text-red-600 mb-3">{settingsError}</p>
-        )}
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-primary-700">
-            Afficher les lignes RAG dans le panneau Détails
-          </div>
-          {settingsLoading ? (
-            <Loader size="sm" />
-          ) : (
-            <label className="inline-flex items-center gap-2 text-primary-700 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(adminSettings?.rag_debug_enabled)}
-                onChange={handleToggleRagDebug}
-                disabled={settingsLoading || updatingSettings || !adminSettings}
-              />
-              <span>{Boolean(adminSettings?.rag_debug_enabled) ? 'Activé' : 'Désactivé'}</span>
-            </label>
-          )}
-        </div>
       </Card>
 
       <Card variant="elevated">

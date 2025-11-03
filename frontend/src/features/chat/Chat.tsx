@@ -304,45 +304,6 @@ export default function Chat() {
               description: sqlInfo.purpose,
             }
           }
-        } else if (type === 'rag') {
-          const rawRows = Array.isArray(data?.rows) ? (data.rows as any[]) : []
-          const sanitized = rawRows
-            .map(row => {
-              if (!row || typeof row !== 'object') return null
-              const table = typeof (row as any).table === 'string' ? (row as any).table : '—'
-              const similarityValue = (row as any).similarity
-              const similarity = typeof similarityValue === 'number' ? similarityValue : undefined
-              const rawCells = (row as any).row
-              const cells: Record<string, string> = {}
-              if (rawCells && typeof rawCells === 'object') {
-                Object.entries(rawCells as Record<string, unknown>).forEach(([key, value]) => {
-                  if (!key) return
-                  const text = value == null ? '' : String(value)
-                  cells[key] = text
-                })
-              }
-              return { table, similarity, row: cells }
-            })
-            .filter(Boolean) as { table: string; similarity?: number; row: Record<string, string> }[]
-
-          setMessages(prev => {
-            const copy = [...prev]
-            const idx = copy.findIndex(m => m.ephemeral)
-            if (idx >= 0) {
-              copy[idx] = {
-                ...copy[idx],
-                details: {
-                  ...(copy[idx].details || {}),
-                  rag: {
-                    top_k: typeof data?.top_k === 'number' ? data.top_k : undefined,
-                    question: typeof data?.question === 'string' ? data.question : undefined,
-                    rows: sanitized,
-                  },
-                },
-              }
-            }
-            return copy
-          })
         } else if (type === 'delta') {
           const delta = data as ChatStreamDelta
           setMessages(prev => {
@@ -1526,33 +1487,6 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                         </li>
                       ))}
                     </ul>
-                  </div>
-                )}
-                {message.details.rag && Array.isArray(message.details.rag.rows) && message.details.rag.rows.length > 0 && (
-                  <div className="text-[11px]">
-                    <div className="uppercase tracking-wide text-primary-500 mb-1">RAG (debug)</div>
-                    <ul className="space-y-1 max-h-40 overflow-auto pr-1">
-                      {message.details.rag.rows.map((item, idx) => {
-                        const entries = Object.entries(item.row || {}).slice(0, 4)
-                        const preview = entries.map(([k, v]) => `${k}: ${v}`).join(' • ')
-                        return (
-                          <li key={idx} className="leading-snug">
-                            <div className="font-semibold text-primary-600 flex items-center gap-2">
-                              <span>{item.table || '—'}</span>
-                              {typeof item.similarity === 'number' && (
-                                <span className="text-[10px] text-primary-400">{(item.similarity * 100).toFixed(1)}%</span>
-                              )}
-                            </div>
-                            {preview && (
-                              <div className="text-primary-500">{preview}</div>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                    {message.details.rag.question && (
-                      <div className="mt-1 text-primary-500 italic">Question: {message.details.rag.question}</div>
-                    )}
                   </div>
                 )}
               </div>

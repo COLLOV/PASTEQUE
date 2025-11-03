@@ -108,9 +108,7 @@ class ChatService:
         *,
         events: Callable[[str, Dict[str, Any]], None] | None = None,
         allowed_tables: Iterable[str] | None = None,
-        debug: dict[str, bool] | None = None,
     ) -> ChatResponse:  # type: ignore[valid-type]
-        debug = debug or {}
         metadata_keys = list((payload.metadata or {}).keys())
         message_count = len(payload.messages)
         if payload.messages:
@@ -467,19 +465,6 @@ class ChatService:
                                             "rows": rag_rows,
                                         }
                                     )
-                                    if debug.get("show_rag_rows") and events:
-                                        try:
-                                            events(
-                                                "rag",
-                                                {
-                                                    "rows": rag_rows,
-                                                    "top_k": settings.nl2sql_rag_top_k,
-                                                    "question": raw_question,
-                                                },
-                                            )
-                                        except Exception:
-                                            log.warning("Failed to emit rag event", exc_info=True)
-
                                 ev_for_answer.append(
                                     {
                                         "purpose": "answer",

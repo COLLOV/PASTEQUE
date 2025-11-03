@@ -115,15 +115,6 @@ def _apply_exclusions_and_defaults(
         )
         return []
 
-
-def _rag_debug_config(session: Session) -> dict[str, bool]:
-    try:
-        enabled = UserRepository(session).get_admin_rag_debug()
-    except Exception:
-        log.warning("Failed to load admin RAG debug flag", exc_info=True)
-        enabled = False
-    return {"show_rag_rows": bool(enabled)}
-
 @router.post("/completions", response_model=ChatResponse)
 def chat_completion(  # type: ignore[valid-type]
     payload: ChatRequest,
@@ -156,8 +147,6 @@ def chat_completion(  # type: ignore[valid-type]
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
-    debug_config = _rag_debug_config(session)
-    debug_config = _rag_debug_config(session)
     # Ensure conversation + persist user message atomically
     repo = ConversationRepository(session)
     meta = payload.metadata or {}
@@ -224,7 +213,7 @@ def chat_completion(  # type: ignore[valid-type]
                     log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
                 return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
         try:
-            resp = service.completion(payload, allowed_tables=allowed_tables, debug=debug_config)
+            resp = service.completion(payload, allowed_tables=allowed_tables)
             # Persist assistant reply
             if resp and isinstance(resp.reply, str):
                 try:
@@ -397,7 +386,7 @@ def chat_stream(  # type: ignore[valid-type]
                 result_holder: dict[str, object] = {}
 
                 def worker() -> None:
-                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables, debug=debug_config)
+                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
                     result_holder["resp"] = resp
                     q.put(("__final__", resp))
 
@@ -466,7 +455,7 @@ def chat_stream(  # type: ignore[valid-type]
                 result_holder: dict[str, object] = {}
 
                 def worker() -> None:
-                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables, debug=debug_config)
+                    resp = service.completion(payload, events=emit, allowed_tables=allowed_tables)
                     result_holder["resp"] = resp
                     q.put(("__final__", resp))
 
