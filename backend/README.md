@@ -131,6 +131,8 @@ Les embeddings sont configurables indépendamment du LLM:
 - `EMBEDDING_MODE=api` (défaut): envoie les requêtes vers un backend OpenAI‑compatible (`OPENAI_BASE_URL` + `OPENAI_API_KEY`) en utilisant `EMBEDDING_MODEL` ou la valeur `model` déclarée dans `mindsdb_embeddings.yaml`.
 - `EMBEDDING_MODE=local`: charge un modèle SentenceTransformers (`EMBEDDING_LOCAL_MODEL`, par défaut `sentence-transformers/all-MiniLM-L6-v2`) pour calculer les vecteurs en local, sans dépendre de vLLM.
 
+En mode local, `EMBEDDING_LOCAL_MODEL` prime sur la clé `default_model` du YAML (et sur toute valeur `model` absente), afin de pouvoir surcharger rapidement le modèle depuis l'environnement.
+
 `MINDSDB_EMBEDDINGS_CONFIG_PATH` décrit toujours les tables/colonnes à vectoriser. Le script `start.sh` applique la configuration choisie avant chaque import vers MindsDB. Les logs `insight.services.mindsdb_embeddings` précisent le mode et le modèle utilisés.
 
 ### Mise en avant RAG

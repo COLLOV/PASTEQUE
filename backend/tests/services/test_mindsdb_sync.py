@@ -11,7 +11,12 @@ import pytest
 
 from insight_backend.core.config import settings
 from insight_backend.services.mindsdb_sync import sync_all_tables
-from insight_backend.services.mindsdb_embeddings import build_embedding_client, EmbeddingConfig, EmbeddingTableConfig
+from insight_backend.services.mindsdb_embeddings import (
+    build_embedding_client,
+    default_embedding_model,
+    EmbeddingConfig,
+    EmbeddingTableConfig,
+)
 
 
 class _StubMindsDBClient:
@@ -58,7 +63,10 @@ def _reset_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_build_embedding_client_local(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "embedding_mode", "local")
     monkeypatch.setattr(settings, "embedding_local_model", "hf-test-model")
+    monkeypatch.setattr(settings, "embedding_model", None)
 
+    resolved_default = default_embedding_model("config-embed-model")
+    assert resolved_default == "hf-test-model"
     config = EmbeddingConfig(
         tables={
             "dummy": EmbeddingTableConfig(
@@ -67,7 +75,7 @@ def test_build_embedding_client_local(monkeypatch: pytest.MonkeyPatch) -> None:
                 model=None,
             )
         },
-        default_model="hf-test-model",
+        default_model=resolved_default,
         batch_size=2,
     )
 

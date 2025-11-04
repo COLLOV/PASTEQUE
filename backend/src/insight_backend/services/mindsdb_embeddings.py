@@ -107,7 +107,11 @@ def default_embedding_model(configured: str | None) -> str:
     """Return the embedding model that should be used given current settings."""
     mode = (settings.embedding_mode or "").strip().lower()
     if mode == "local":
-        candidate = configured or settings.embedding_local_model or settings.embedding_model
+        candidate = (
+            settings.embedding_local_model
+            or configured
+            or settings.embedding_model
+        )
     elif mode == "api":
         candidate = configured or settings.embedding_model or settings.llm_model
     else:

@@ -152,7 +152,7 @@ data/
 - Pour enrichir ces tables avec une colonne d'embeddings avant l'upload, définissez `MINDSDB_EMBEDDINGS_CONFIG_PATH` dans `backend/.env`. Ce chemin doit pointer vers un fichier YAML décrivant les colonnes à vectoriser :
 
 ```yaml
-default_model: text-embedding-3-small  # optionnel (sinon EMBEDDING_MODEL / LLM_MODEL / Z_LOCAL_MODEL)
+default_model: text-embedding-3-small  # optionnel (mode API: sinon EMBEDDING_MODEL / LLM_MODEL / Z_LOCAL_MODEL)
 batch_size: 16                         # optionnel (sinon MINDSDB_EMBEDDING_BATCH_SIZE)
 tables:
   products:
@@ -163,7 +163,7 @@ tables:
 
 Le script `start.sh` génère alors la colonne d'embedding (JSON de floats) avant de pousser la table vers MindsDB. Les erreurs de configuration (table manquante, colonne absente…) stoppent le démarrage afin d'éviter toute incohérence silencieuse. Les embeddings peuvent désormais s'appuyer sur un backend dédié via `EMBEDDING_MODE` :
 
-- `local` charge un modèle `sentence-transformers` (par défaut `EMBEDDING_LOCAL_MODEL` / `default_model`).
+- `local` charge un modèle `sentence-transformers` (`EMBEDDING_LOCAL_MODEL` prioritaire, sinon `default_model` si défini).
 - `api` utilise un endpoint OpenAI‑compatible (`OPENAI_BASE_URL` + `OPENAI_API_KEY`) et le modèle `EMBEDDING_MODEL`.
 
 Vous pouvez ajuster la taille de batch via `MINDSDB_EMBEDDING_BATCH_SIZE`. Chaque table peut toujours surcharger le modèle via la clé `model` de la configuration YAML.
