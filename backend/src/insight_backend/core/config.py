@@ -30,6 +30,7 @@ class Settings(BaseSettings):
 
     # LLM configuration
     llm_mode: str = Field("local", alias="LLM_MODE")  # "local" | "api"
+    embedding_mode: str | None = Field(None, alias="EMBEDDING_MODE")
     # OpenAI-compatible (API provider Z or others)
     openai_base_url: str | None = Field(None, alias="OPENAI_BASE_URL")
     openai_api_key: str | None = Field(None, alias="OPENAI_API_KEY")
@@ -43,6 +44,28 @@ class Settings(BaseSettings):
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
     router_model: str | None = Field(None, alias="ROUTER_MODEL")
+
+    @field_validator("llm_mode", mode="before")
+    @classmethod
+    def _validate_llm_mode(cls, v: str | None) -> str:
+        val = (v or "local").strip().lower()
+        valid = {"local", "api"}
+        if val not in valid:
+            raise ValueError(f"LLM_MODE must be one of {sorted(valid)}; got: {v!r}")
+        return val
+
+    @field_validator("embedding_mode", mode="before")
+    @classmethod
+    def _validate_embedding_mode(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        val = v.strip().lower()
+        if not val:
+            return None
+        valid = {"local", "api"}
+        if val not in valid:
+            raise ValueError(f"EMBEDDING_MODE must be one of {sorted(valid)} when set; got: {v!r}")
+        return val
 
     @field_validator("router_mode", mode="before")
     @classmethod

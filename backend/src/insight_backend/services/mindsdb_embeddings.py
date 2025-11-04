@@ -15,6 +15,15 @@ from ..integrations.openai_client import OpenAICompatibleClient
 log = logging.getLogger("insight.services.mindsdb_embeddings")
 
 
+def resolve_embedding_mode() -> str:
+    """Return the configured embedding mode, falling back to LLM mode."""
+    raw = settings.embedding_mode or settings.llm_mode
+    mode = (raw or "").strip().lower()
+    if mode not in {"local", "api"}:
+        raise RuntimeError("EMBEDDING_MODE/LLM_MODE must be 'local' or 'api' to compute embeddings.")
+    return mode
+
+
 @dataclass(frozen=True)
 class EmbeddingTableConfig:
     source_column: str
@@ -95,13 +104,11 @@ def load_embedding_config(raw_path: str | None) -> EmbeddingConfig | None:
 
 def default_embedding_model(configured: str | None) -> str:
     """Return the embedding model that should be used given current settings."""
-    mode = (settings.llm_mode or "").strip().lower()
+    mode = resolve_embedding_mode()
     if mode == "local":
         candidate = configured or settings.embedding_model or settings.z_local_model
     elif mode == "api":
         candidate = configured or settings.embedding_model or settings.llm_model
-    else:
-        raise RuntimeError("LLM_MODE must be 'local' or 'api' to compute embeddings.")
     if not candidate:
         raise RuntimeError("No embedding model configured (check EMBEDDING_MODEL or default model).")
     return candidate
@@ -109,15 +116,13 @@ def default_embedding_model(configured: str | None) -> str:
 
 def build_embedding_client(config: EmbeddingConfig) -> tuple[OpenAICompatibleClient, str]:
     """Instantiate the OpenAI-compatible client used for embeddings."""
-    mode = (settings.llm_mode or "").strip().lower()
+    mode = resolve_embedding_mode()
     if mode == "local":
         base_url = settings.vllm_base_url
         api_key = None
     elif mode == "api":
         base_url = settings.openai_base_url
         api_key = settings.openai_api_key
-    else:
-        raise RuntimeError("LLM_MODE must be 'local' or 'api' to compute embeddings.")
     if not base_url:
         raise RuntimeError("Embedding backend base URL is missing.")
     timeout = settings.openai_timeout_s
