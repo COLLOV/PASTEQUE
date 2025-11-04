@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import String, Boolean, DateTime, func, text
+from sqlalchemy import String, Boolean, DateTime, func, text, JSON
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,6 +12,7 @@ from ..core.database import Base
 if TYPE_CHECKING:
     from .chart import Chart
     from .user_table_permission import UserTablePermission
+    from .conversation import Conversation
 
 
 class User(Base):
@@ -32,8 +33,15 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     charts: Mapped[list["Chart"]] = relationship("Chart", back_populates="user", cascade="all,delete-orphan")
+    conversations: Mapped[list["Conversation"]] = relationship(
+        "Conversation",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     table_permissions: Mapped[list["UserTablePermission"]] = relationship(
         "UserTablePermission",
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    # Optional JSON settings per user (e.g., default excludes for NL→SQL)
+    settings: Mapped[dict | None] = mapped_column(JSON, nullable=True)

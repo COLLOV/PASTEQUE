@@ -10,15 +10,22 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 
 - `frontend/` – UI React, pages, composants, services d’appel API.
 - `backend/` – API FastAPI, routes -> services -> dépôts, schémas.
+- `vis-ssr/` – serveur Express pour GPT-Vis (SSR) qui génère les visuels côté serveur.
 - `data/` – `raw/`, `processed/`, `interim/`, `vector_store/`, `models/`.
 
 ## Démarrage rapide
 
 Script combiné (depuis la racine):
 
-- `./start.sh <port_frontend> <port_backend>` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), met à jour `frontend/.env.development` (`VITE_API_URL`), recrée systématiquement le conteneur Docker `mindsdb_container` via la commande `docker run …` (avec affichage du statut et des derniers logs), **attend que l’API HTTP de MindsDB réponde avant de poursuivre**, synchronise toutes les tables locales dans MindsDB, puis configure `ALLOWED_ORIGINS` côté backend pour accepter le port front choisi avant de lancer le backend via `uv` et le frontend Vite.
-- `./start_full.sh <port_frontend> <port_backend>` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
-- Exemple: `./start.sh 5173 8000` (ou `./start.sh 8080 8081` selon vos besoins).
+- `./start.sh` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), recrée systématiquement le conteneur `mindsdb_container` via `${CONTAINER_RUNTIME} run …` (`CONTAINER_RUNTIME` défini dans `backend/.env`, valeurs supportées : `docker` ou `podman`), attend que l’API MindsDB réponde, synchronise les tables locales, puis configure `ALLOWED_ORIGINS` côté backend avant de lancer backend, frontend et SSR. Les hôtes/ports sont lus dans `backend/.env` (`BACKEND_DEV_URL`) et `frontend/.env.development` (`FRONTEND_DEV_URL`), tandis que `VITE_API_URL` sert de base d’appels pour le frontend. Optionnellement, `FRONTEND_URLS` peut lister plusieurs origines pour CORS (séparées par des virgules).
+- `./start_full.sh` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
+- Exemple: définir `BACKEND_DEV_URL=http://0.0.0.0:8000`, `FRONTEND_DEV_URL=http://localhost:5173` puis lancer `./start.sh`.
+
+Compatibilité shell:
+
+- Les scripts `start.sh` et `start_full.sh` sont compatibles avec le Bash macOS 3.2 et `/bin/sh`. La normalisation en minuscules de `CONTAINER_RUNTIME` n'utilise plus l'expansion Bash 4 `${var,,}` mais une transformation POSIX via `tr`.
+
+Avant le premier lancement, copier `vis-ssr/.env.ssr.example` en `vis-ssr/.env`, puis ajuster `GPT_VIS_SSR_PORT` (et éventuellement `VIS_IMAGE_DIR` / `GPT_VIS_SSR_PUBLIC_URL`). Le script refusera de démarrer si cette configuration manque, afin d’éviter les surprises en production.
 
 Lancer manuellement si besoin:
 
@@ -27,14 +34,21 @@ Backend (depuis `backend/`):
 1. Installer `uv` si nécessaire: voir https://docs.astral.sh/uv
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
-4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence.
+4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (`BACKEND_DEV_URL` pour l’hôte/port d’écoute du backend, PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, `CONTAINER_RUNTIME` = `docker` ou `podman` pour le lancement de MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence.
 
 Frontend (depuis `frontend/`):
 
 1. Installer deps: `npm i` ou `pnpm i` ou `yarn`
 2. Lancer: `npm run dev`
 
-Configurer l’URL d’API côté front via `frontend/.env.development` (voir `.example`).
+SSR GPT-Vis (depuis `vis-ssr/`):
+
+1. Installer deps: `npm install`
+2. Copier `.env.ssr.example` en `.env` et ajuster `GPT_VIS_SSR_PORT` / `VIS_IMAGE_DIR` / `GPT_VIS_SSR_PUBLIC_URL`
+3. Lancer: `npm run start` (endpoint `POST /generate` + statiques `/charts/*`, PNG rendu via `@antv/gpt-vis-ssr`)
+4. Ajuster l'URL du plan/Z/mcp.config.json (variable VIS_REQUEST_SERVER) en fonction du `GPT_VIS_SSR_PORT` port choisi. Si le domaine public diffère de `localhost`, renseigner `GPT_VIS_SSR_PUBLIC_URL` (URL absolue, http(s)) pour que les liens de rendu retournés par l'API SSR soient corrects.
+
+Configurer le frontend via `frontend/.env.development` (`FRONTEND_DEV_URL`, `VITE_API_URL`, `FRONTEND_URLS` si plusieurs origines sont nécessaires).
 Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
 
 ### Streaming Chat
@@ -43,14 +57,51 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL et échantillons (métadonnées techniques masquées pour alléger l’UI).
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
+- Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
+
+#### Métadonnées de requête (API)
+
+- `metadata.exclude_tables: string[]` — liste de tables à exclure pour la conversation en cours. Validée côté serveur (normalisation, limite de taille, filtrage sur tables connues/permises).
+- `metadata.conversation_id: number` — pour rattacher le message à une conversation existante (créée automatiquement sinon).
+- `metadata.save_as_default: boolean` — lorsqu’à `true`, enregistre également les exclusions comme valeur par défaut du compte utilisateur. Par défaut `false` (opt‑in) pour éviter les conditions de concurrence entre plusieurs onglets.
+
+#### Métadonnées de streaming (SSE)
+
+- `meta.effective_tables: string[]` — tables effectivement actives (permissions – exclusions appliquées) envoyées au début du stream pour synchroniser l’UI.
+
+### Données utilisées — visibilité + exclusions
+
+- UI dans le chat: bouton « Données » pour voir les tables disponibles et décocher celles à exclure (par conversation). Un bouton/checkbox « Sauvegarder comme valeur par défaut » permet d’enregistrer ces exclusions au niveau du compte (opt‑in). Les exclusions sont appliquées au prochain message.
+- Backend: `GET /api/v1/data/tables` expose les tables autorisées par l’ACL; `POST /chat/stream` accepte `metadata.exclude_tables: string[]` et publie `meta.effective_tables` (tables réellement actives) pendant le streaming.
+- Persistance: les exclusions sont sauvegardées par conversation (colonne JSON `conversations.settings`) et réappliquées automatiquement aux requêtes suivantes de la même conversation.
+- Sécurité: pas de mécanismes de secours. Si toutes les tables sont exclues, la réponse l’indique explicitement et NL→SQL n’est pas tenté (`provider: nl2sql-acl`).
+- Détails et rationales: `plan/chat-data-visibility.md`.
+
+### Router (à chaque message)
+
+Un routeur léger s’exécute à chaque message utilisateur pour éviter de lancer des requêtes SQL/NL→SQL lorsque le message n’est pas orienté « data ».
+
+- Modes: `ROUTER_MODE=rule|local|api|false` (voir `backend/.env.example`).
+  - `false` désactive complètement le routeur (aucun blocage).
+- Politique par défaut plus permissive: questions, indices temporels (mois/années) ou chiffres déclenchent le mode data même avec une salutation.
+- Exemple de blocage: « Ce n'est pas une question pour passer de la data à l'action » (banalités très courtes uniquement).
+
+### Historique des conversations (branche `feature/historique`)
+
+- Persistance côté backend des conversations, messages et événements (`conversations`, `conversation_messages`, `conversation_events`).
+- SSE `meta` inclut `conversation_id` pour qu’un premier message crée la conversation automatiquement.
+- Endpoints: `GET /api/v1/conversations`, `GET /api/v1/conversations/{id}`, `POST /api/v1/conversations`.
+- UI (header): « Historique » pour lister/ouvrir une discussion passée, « Nouveau chat » (remplace « Chat ») pour repartir de zéro.
 
 ### Gestion des utilisateurs (admin)
 
-- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Chat**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
+- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Nouveau chat**, **Historique**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
 - Tout nouvel utilisateur (y compris l’administrateur initial) doit définir un mot de passe définitif lors de sa première connexion. Le backend retourne un code `PASSWORD_RESET_REQUIRED` si un utilisateur tente de se connecter avec son mot de passe provisoire: le frontend affiche alors un formulaire dédié qui impose la saisie du nouveau mot de passe deux fois avant de poursuivre.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 - L’API `POST /api/v1/auth/reset-password` (sans jeton) attend `{ username, current_password, new_password, confirm_password }`. En cas de succès elle renvoie `204` ; le frontend relance automatiquement la connexion avec le nouveau secret.
 - `GET /api/v1/auth/users` expose désormais un champ `is_admin` par utilisateur : l’interface s’en sert pour signaler l’administrateur réel et bloque toute modification de ses autorisations dans la matrice.
+- `DELETE /api/v1/auth/users/{username}` (token Bearer requis, admin uniquement) supprime un utilisateur non‑admin ainsi que ses conversations, graphiques et droits associés (cascade). Opération irréversible. Codes d’erreur possibles: `400` (tentative de suppression de l’admin), `404` (utilisateur introuvable), `403` (appelant non‑admin).
+- `POST /api/v1/auth/users/{username}/reset-password` (admin uniquement) génère un mot de passe temporaire et force l’utilisateur à le changer lors de la prochaine connexion (`must_reset_password=true`). Le mot de passe généré est renvoyé dans la réponse et n’est pas journalisé côté serveur.
 - Les tokens d’authentification expirent désormais au bout de 4 heures. Si un token devient invalide, le frontend purge la session et redirige automatiquement vers la page de connexion pour éviter les erreurs silencieuses côté utilisateur.
 - Le panneau admin inclut maintenant une matrice des droits sur les tables CSV/TSV présentes dans `data/raw/`. Chaque case permet d’autoriser ou de retirer l’accès par utilisateur; l’administrateur conserve un accès complet par défaut.
 - Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.
@@ -103,11 +154,29 @@ data/
 
 - Deux boutons icônes vivent dans la zone d’input :
   - « Activer NL→SQL (MindsDB) » envoie `metadata.nl2sql=true` à `POST /api/v1/chat/stream` pour déclencher ponctuellement le mode NL→SQL sans modifier l’environnement.
-  - « Activer MCP Chart » lance le flux complet : streaming du chat pour récupérer SQL + dataset, puis `POST /api/v1/mcp/chart` avec le prompt, la réponse textuelle et les données collectées.
+- « Activer MCP Chart » lance le flux complet : streaming du chat pour récupérer SQL + dataset, puis `POST /api/v1/mcp/chart` avec le prompt, la réponse textuelle et les données collectées.
+- Nouveau (2025‑10‑27): une barre d’actions « Graphique » et « Détails » est affichée sous chaque réponse de l’assistant. « Graphique » déclenche `POST /api/v1/mcp/chart` avec le dataset NL→SQL mémorisé lorsqu’il est disponible (sinon le bouton est désactivé). « Détails » affiche/masque le SQL exécuté, les échantillons et le plan.
 - Le frontend capture le dernier dataset NL→SQL (SQL, colonnes, lignes tronquées à `NL2SQL_MAX_ROWS`) et le transmet tel quel au backend; sans résultat exploitable, aucun graphique n’est généré et un message explicite est renvoyé.
 - Le backend n’explore plus les CSV `data/raw/` pendant cette étape : l’agent `pydantic-ai` exploite exclusivement les données reçues via l’outil `get_sql_result`. Les helpers `load_dataset` / `aggregate_counts` restent disponibles avant l’appel `generate_*_chart` si besoin.
 - La réponse API inclut l’URL du rendu, les métadonnées (titre, description, spec JSON) ainsi que la requête SQL source et son volume de lignes pour garder la traçabilité côté frontend.
+
+#### Mode Multi‑agent (Explorateur + Analyste + Rédaction)
+
+- Activez `NL2SQL_MULTIAGENT_ENABLED=true` dans `backend/.env` pour en faire le mode par défaut, ou envoyez `metadata: { nl2sql: true, multiagent: true }` à `POST /api/v1/chat/stream` pour l’activer au coup‑par‑coup.
+- Déroulé:
+  - Explorateur (#1→#3): propose et exécute de petites requêtes de découverte (DISTINCT, MIN/MAX, COUNT par catégorie, échantillons LIMIT 20) et suggère des axes de visualisation. Événements SSE: `plan` (purpose: explore), `sql`/`rows` (purpose: explore), `meta.axes_suggestions`.
+  - Analyste (answer): fusionne proprement les trouvailles en UNE requête finale (SELECT‑only) qui répond précisément à la question. Événements SSE: `sql`/`rows` (purpose: answer).
+  - Rédaction: interprète le résultat final et produit une réponse textuelle concise en français (prose directe, sans intitulés), en 1–2 paragraphes courts. Le premier intègre le constat avec des chiffres; le second (optionnel) conclut par une recommandation concrète si justifiée, sinon par une question claire. Aucun SQL, 3–6 phrases.
+  - Itération: si le résultat final est jugé insuffisant (moins de `NL2SQL_SATISFACTION_MIN_ROWS` lignes), une nouvelle ronde d’exploration est lancée, jusqu’à `NL2SQL_EXPLORE_ROUNDS`.
+- Variables d’environnement:
+  - `NL2SQL_MULTIAGENT_ENABLED=false` — active le mode par défaut.
+  - `NL2SQL_EXPLORE_ROUNDS=1` — nombre de rondes d’exploration max.
+  - `NL2SQL_SATISFACTION_MIN_ROWS=1` — seuil minimal de lignes pour considérer la réponse satisfaisante.
+- LLM:
+  - Mode local: `LLM_MODE=local` + `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
+  - Mode API: `LLM_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
+- Le backend filtre les lignes stdout non JSON renvoyées par le serveur MCP `chart` pour éviter les erreurs `Invalid JSON` dues aux logs d'initialisation.
 
 ### Sauvegarde des graphiques MCP
 
@@ -121,6 +190,21 @@ data/
 - 2025-10-21: L'état vide du chat (« Discutez avec vos données ») est maintenant centré via un overlay `fixed` non interactif: pas de scroll tant qu'aucun message n'est présent; la barre de saisie reste accessible.
  - 2025-10-21: Ajout d'un petit avertissement sous la zone de saisie: « L'IA peut faire des erreurs, FoyerInsight aussi. »
 
+## Maintenance
+
+- 2025-10-29: Correction d'un échec de build frontend (TS2451) dû à une double déclaration `const meta` dans `frontend/src/features/chat/Chat.tsx`. La duplication a été supprimée.
+
+## Sécurité configuration (backend)
+
+Depuis cette branche, le backend applique un garde‑fou de configuration: en environnement non‑développement (`ENV` différent de `development`/`dev`/`local`), le démarrage échoue si des valeurs par défaut non sûres sont détectées.
+
+Vérifications effectuées:
+- `JWT_SECRET_KEY == "change-me"`
+- `ADMIN_PASSWORD == "admin"`
+- `DATABASE_URL` contient `postgres:postgres@`
+
+Corrigez ces variables dans `backend/.env` ou vos secrets d’exécution avant déploiement. En développement, ces valeurs restent acceptées mais des avertissements sont journalisés. Détails dans `backend/README.md`.
+
 ## Plan UI — Panneau « Éléments de preuve » (générique) pour /chat
 
 - Objectif: après une requête (SQL MindsDB ou Graph), afficher un panneau latéral listant les éléments de preuve (tickets ou autre entité) réellement utilisés pour produire la réponse.
@@ -131,7 +215,7 @@ data/
 
 - Capture dataset: dans `frontend/src/features/chat/Chat.tsx`, conserver le dernier `rows` dont `purpose: 'evidence'` (colonnes + lignes + `row_count`) + `evidence_spec`; marquer `sourceMode = 'sql' | 'graph'`.
 - Bouton contextuel: afficher « {entity_label} (N) » selon `evidence_spec.entity_label`; bouton désactivé + tooltip si spec absent.
-- Panneau latéral: slide‑over à droite (min‑w 320px, max‑w 40vw), overlay cliquable, fermeture `Esc` et croix; en‑tête avec `entity_label`, période éventuelle fournie par le spec, et mode (SQL MindsDB | Graph).
+- Panneau latéral: **desktop** → volet fixe à gauche (≈420px). **mobile** → bottom‑sheet (≈70% hauteur) avec overlay cliquable; fermeture `Esc` et croix; en‑tête avec `entity_label`, période éventuelle fournie par le spec, et mode (SQL MindsDB | Graph).
 - Liste générique: rendu simple réutilisant `Card`/styles locaux; champs pris dans `display.{title,created_at,status}` et `pk`; tri par `display.created_at` si fourni; max 100 lignes (ou `spec.limit`) avec badge « +N ».
 - États UI: `loading`, `vide` (« Aucun élément de preuve »), `erreur` (texte clair); messages discrets uniquement.
 - Accessibilité: focus piégé dans le panneau, navigation clavier complète, contraste AA; responsive ≥ 360px.

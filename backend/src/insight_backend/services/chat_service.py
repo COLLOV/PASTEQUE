@@ -1,12 +1,16 @@
 import logging
+import json
 import re
+
+from sqlglot import parse_one, exp
 from pathlib import Path
 from typing import Protocol, Callable, Dict, Any, Iterable
 
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
-from ..core.config import settings
+from ..core.config import settings, resolve_project_path
 from ..integrations.mindsdb_client import MindsDBClient
 from ..repositories.data_repository import DataRepository
+from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 
 
@@ -20,6 +24,49 @@ def _preview_text(text: str, *, limit: int = 160) -> str:
         return compact
     cutoff = max(limit - 3, 1)
     return f"{compact[:cutoff]}..."
+
+
+def _serialize_dico_compact(dico: Dict[str, Any], *, limit: int) -> tuple[str, bool, int, int]:
+    """Return a JSON string for ``dico`` within ``limit`` chars when possible.
+
+    Falls back to a compact subset while keeping valid JSON. Returns a tuple
+    of (json_str, truncated_flag, kept_tables, kept_cols_per_table_max).
+    """
+    def _dumps(obj: Any) -> str:
+        return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
+    raw = _dumps(dico)
+    if len(raw) <= limit:
+        # no truncation
+        return raw, False, len(dico), max((len(v.get("columns", [])) for v in dico.values()), default=0)
+
+    # Try progressively smaller subsets: fewer columns per table, then fewer tables
+    tables = list(dico.items())
+    # Keep deterministic order by table name
+    tables.sort(key=lambda kv: kv[0])
+
+    for cols_cap in (5, 3, 1):
+        subset: Dict[str, Any] = {}
+        for name, spec in tables:
+            cols = list(spec.get("columns", []))
+            subset[name] = {k: v for k, v in spec.items() if k != "columns"}
+            subset[name]["columns"] = cols[:cols_cap]
+        s = _dumps(subset)
+        if len(s) <= limit:
+            return s, True, len(subset), cols_cap
+        # Also try reducing the number of tables for this cols_cap
+        for keep_tables in (3, 2, 1):
+            trimmed = {k: subset[k] for k in list(subset.keys())[:keep_tables]}
+            s2 = _dumps(trimmed)
+            if len(s2) <= limit:
+                return s2, True, keep_tables, cols_cap
+
+    # As a last resort, keep the first table and one column to remain valid JSON
+    if tables:
+        name, spec = tables[0]
+        minimal = {name: {"columns": list(spec.get("columns", []))[:1]}}
+        return _dumps(minimal), True, 1, 1
+    return _dumps({}), True, 0, 0
 
 
 class ChatEngine(Protocol):
@@ -97,19 +144,8 @@ class ChatService:
                         pass
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
                 data = client.sql(sql)
-                # Normalize common MindsDB shapes
-                rows = []
-                columns = []
-                if isinstance(data, dict):
-                    # MindsDB table shape
-                    if data.get("type") == "table":
-                        columns = data.get("column_names") or []
-                        rows = data.get("data") or []
-                    # Alternate shapes
-                    if not rows:
-                        rows = data.get("result", {}).get("rows") or data.get("rows") or rows
-                    if not columns:
-                        columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                # Normalize using a single canonical helper
+                columns, rows = self._normalize_result(data)
 
                 if events:
                     snapshot = {
@@ -159,7 +195,7 @@ class ChatService:
         # NL→SQL (optional): per-request override via payload.metadata.nl2sql,
         # falling back to env `NL2SQL_ENABLED` when not specified.
         meta = payload.metadata or {}
-        nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
+        nl2sql_flag = meta.get("nl2sql")
         nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
 
         if payload.messages and nl2sql_enabled:
@@ -169,35 +205,285 @@ class ChatService:
                 # Build schema from local CSV headers
                 repo = DataRepository(tables_dir=Path(settings.tables_dir))
                 tables = repo.list_tables()
+                # 1) Appliquer les permissions (si non‑admin)
                 allowed_lookup = {name.casefold() for name in allowed_tables} if allowed_tables is not None else None
                 if allowed_lookup is not None:
                     tables = [name for name in tables if name.casefold() in allowed_lookup]
-                if not tables:
+                # 2) Appliquer les exclusions demandées par l'utilisateur (par conversation/requête)
+                exclude_raw = meta.get("exclude_tables")
+                exclude_lookup: set[str] = set()
+                if isinstance(exclude_raw, (list, tuple)):
+                    for item in exclude_raw:
+                        if isinstance(item, str) and item.strip():
+                            exclude_lookup.add(item.strip().casefold())
+                effective_tables = [name for name in tables if name.casefold() not in exclude_lookup]
+                # Synchroniser l'UI (stream): publier les tables effectivement actives
+                if events:
+                    try:
+                        events("meta", {"effective_tables": effective_tables})
+                    except Exception:
+                        log.debug("Failed to emit effective_tables meta", exc_info=True)
+                # Si aucune table, bloquer explicitement le flux NL→SQL (pas de fallback)
+                if not effective_tables:
                     message = (
-                        "Aucune table n'est disponible pour vos requêtes. "
-                        "Contactez un administrateur pour obtenir les accès nécessaires."
+                        "Aucune table active pour vos requêtes après application des exclusions. "
+                        "Réactivez des tables dans le panneau ‘Données utilisées’."
                     )
-                    log.info("NL2SQL aborted: no tables available for user")
+                    log.info(
+                        "NL2SQL aborted: no effective tables (allowed=%s, exclude=%s)",
+                        sorted(list(allowed_lookup or set())),
+                        sorted(list(exclude_lookup)),
+                    )
                     return self._log_completion(
-                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl"}),
-                        context="completion denied (no tables)",
+                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl", "effective_tables": []}),
+                        context="completion denied (no effective tables)",
                     )
+                tables = effective_tables
                 schema: dict[str, list[str]] = {}
                 for name in tables:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
+                # Load compact data dictionary (if available) limited to the current schema
+                dico_repo = DataDictionaryRepository(
+                    directory=Path(resolve_project_path(settings.data_dictionary_dir))
+                )
+                dico = dico_repo.for_schema(schema)
+                contextual_question_with_dico = contextual_question
+                if dico:
+                    try:
+                        # Log if PII columns are present in the prompt material
+                        pii_hits: list[str] = []
+                        for t, spec in dico.items():
+                            for c in spec.get("columns", []):
+                                if bool(c.get("pii")):
+                                    pii_hits.append(f"{t}.{c.get('name')}")
+                        if pii_hits:
+                            log.warning("PII columns included in dictionary: %s", pii_hits)
+
+                        blob, truncated, kept_tables, kept_cols = _serialize_dico_compact(
+                            dico, limit=max(1, settings.data_dictionary_max_chars)
+                        )
+                        if truncated:
+                            log.warning(
+                                "Data dictionary truncated to %d chars (kept %d tables, ≤ %d cols/table)",
+                                settings.data_dictionary_max_chars,
+                                kept_tables,
+                                kept_cols,
+                            )
+                        contextual_question_with_dico = (
+                            f"{contextual_question}\n\nData dictionary (JSON):\n{blob}"
+                        )
+                    except Exception as e:
+                        log.error("Failed to serialize data dictionary JSON: %s", e, exc_info=True)
                 nl2sql = NL2SQLService()
+                log.info(
+                    "NL2SQL tables selected: %s (allowed=%s)",
+                    tables,
+                    sorted(list(allowed_lookup or set())) if allowed_lookup is not None else "<admin/all>",
+                )
                 log.info(
                     "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
                     _preview_text(raw_question, limit=200),
-                    _preview_text(contextual_question, limit=200),
+                    _preview_text(contextual_question_with_dico, limit=200),
                 )
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
+                
+                # Multi‑agent mode (Explorer + Analyst)
+                multiagent_flag = (payload.metadata or {}).get("multiagent") if isinstance(payload.metadata, dict) else None
+                multiagent_enabled = bool(multiagent_flag) if (multiagent_flag is not None) else settings.nl2sql_multiagent_enabled
+                if multiagent_enabled:
+                    evidence: list[dict[str, object]] = []
+                    last_columns: list[Any] = []
+                    last_rows: list[Any] = []
+                    rounds = max(1, settings.nl2sql_explore_rounds)
+                    min_rows = max(0, settings.nl2sql_satisfaction_min_rows)
+                    if events:
+                        try:
+                            events(
+                                "plan",
+                                {
+                                    "mode": "multiagent",
+                                    "explore_rounds": rounds,
+                                    "satisfaction_min_rows": min_rows,
+                                },
+                            )
+                        except Exception:  # pragma: no cover
+                            pass
+                    for r in range(1, rounds + 1):
+                        try:
+                            observations = None
+                            if evidence:
+                                # Keep a compact summary for prompt control
+                                try:
+                                    observations = f"Evidence so far: {len(evidence)} items."
+                                except Exception:
+                                    observations = None
+                            plan = nl2sql.explore(
+                                question=contextual_question_with_dico,
+                                schema=schema,
+                                max_steps=settings.nl2sql_plan_max_steps,
+                                observations=observations,
+                            )
+                            log.info("NL2SQL explore round %d: %d queries", r, len(plan))
+                            if events:
+                                try:
+                                    events("plan", {"round": r, "steps": plan, "purpose": "explore"})
+                                except Exception:  # pragma: no cover
+                                    pass
+                        except Exception as e:
+                            log.error("NL2SQL explore failed (round %d): %s", r, e)
+                            return self._log_completion(
+                                ChatResponse(
+                                    reply=f"Échec de l'exploration (tour {r}): {e}\n{self._llm_diag()}",
+                                    metadata={"provider": "nl2sql-explore"},
+                                ),
+                                context="completion done (nl2sql-explore-error)",
+                            )
+                        # Execute exploration queries
+                        for idx, item in enumerate(plan, start=1):
+                            sql = item["sql"]
+                            purpose = item.get("purpose", "explore")
+                            log.info("MindsDB SQL (explore r=%d step=%d) [%s]: %s", r, idx, purpose or "explore", _preview_text(str(sql), limit=200))
+                            if events:
+                                try:
+                                    events("sql", {"sql": sql, "purpose": "explore", "round": r, "step": idx})
+                                except Exception:
+                                    log.warning("Failed to emit sql event (explore)", exc_info=True)
+                            data = client.sql(sql)
+                            columns, rows = self._normalize_result(data)
+                            if events:
+                                try:
+                                    events(
+                                        "rows",
+                                        {
+                                            "round": r,
+                                            "step": idx,
+                                            "purpose": "explore",
+                                            "columns": columns,
+                                            "rows": rows,
+                                            "row_count": len(rows),
+                                        },
+                                    )
+                                except Exception:
+                                    log.warning("Failed to emit rows event (explore)", exc_info=True)
+                            evidence.append({"purpose": purpose or "explore", "sql": sql, "columns": columns, "rows": rows})
+                            if columns and rows:
+                                last_columns = columns
+                                last_rows = rows
+
+                        # Ask Explorateur to propose chart axes based on evidence (optional)
+                        try:
+                            axes = nl2sql.propose_axes(
+                                question=contextual_question,  # pas de dico nécessaire ici (pas de génération SQL)
+                                schema=schema,
+                                evidence=evidence,
+                                max_items=3,
+                            )
+                            log.info("Axes proposés (r=%d): %s", r, axes)
+                            if events:
+                                try:
+                                    events("meta", {"axes_suggestions": axes, "round": r})
+                                except Exception:
+                                    log.warning("Failed to emit axes suggestions", exc_info=True)
+                        except Exception as e:
+                            log.warning("Proposition d'axes indisponible: %s", e)
+
+                        # Ask Analyst to produce final SQL using evidence
+                        try:
+                            final_sql = nl2sql.generate_with_evidence(
+                                question=contextual_question_with_dico,
+                                schema=schema,
+                                evidence=evidence,
+                            )
+                        except Exception as e:
+                            log.error("NL2SQL analyst failed to generate SQL: %s", e)
+                            return self._log_completion(
+                                ChatResponse(
+                                    reply=f"Échec de la génération SQL (analyste): {e}\n{self._llm_diag()}",
+                                    metadata={"provider": "nl2sql-analyst"},
+                                ),
+                                context="completion done (nl2sql-analyst-error)",
+                            )
+                        log.info("MindsDB SQL (final): %s", _preview_text(str(final_sql), limit=200))
+                        if events:
+                            try:
+                                events("sql", {"sql": final_sql, "purpose": "answer", "round": r})
+                            except Exception:
+                                log.warning("Failed to emit sql event (final)", exc_info=True)
+                        result = client.sql(final_sql)
+                        fcols, frows = self._normalize_result(result)
+                        if events:
+                            try:
+                                events(
+                                    "rows",
+                                    {
+                                        "purpose": "answer",
+                                        "round": r,
+                                        "columns": fcols,
+                                        "rows": frows,
+                                        "row_count": len(frows),
+                                    },
+                                )
+                            except Exception:
+                                log.warning("Failed to emit rows event (final)", exc_info=True)
+                        # Emit evidence for the side panel based on the final result or last non-empty exploration
+                        self._emit_evidence(
+                            events=events,
+                            client=client,
+                            label_hint=raw_question,
+                            base_sql=final_sql,
+                            fallback_columns=last_columns,
+                            fallback_rows=last_rows,
+                        )
+                        if len(frows) >= min_rows:
+                            # Writer: synthesize final textual interpretation
+                            try:
+                                ev_for_answer = evidence + [{"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}]
+                                answer = nl2sql.write(question=contextual_question, evidence=ev_for_answer).strip()
+                                reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                                return self._log_completion(
+                                    ChatResponse(
+                                        reply=reply_text,
+                                        metadata={
+                                            "provider": "nl2sql-multiagent",
+                                            "rounds_used": r,
+                                            "sql": final_sql,
+                                            "agents": ["explorateur", "analyste", "redaction"],
+                                        },
+                                    ),
+                                    context="completion done (nl2sql-multiagent)",
+                                )
+                            except Exception as e:
+                                # Do not mask; bubble up explicitly
+                                return self._log_completion(
+                                    ChatResponse(
+                                        reply=f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}",
+                                        metadata={"provider": "nl2sql-multiagent-synth"},
+                                    ),
+                                    context="completion done (nl2sql-multiagent-synth-error)",
+                                )
+                        # Not satisfied; continue another explore round if available
+                    # After all rounds, no satisfactory result
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=(
+                                "Impossible de produire une réponse satisfaisante après l'exploration. "
+                                "Affinez votre question ou vérifiez les données disponibles.\n" + self._llm_diag()
+                            ),
+                            metadata={"provider": "nl2sql-multiagent-empty"},
+                        ),
+                        context="completion done (nl2sql-multiagent-empty)",
+                    )
 
                 # Multi-step planning if enabled
                 if settings.nl2sql_plan_enabled:
                     try:
-                        plan = nl2sql.plan(question=contextual_question, schema=schema, max_steps=settings.nl2sql_plan_max_steps)
+                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
+                        plan = nl2sql.plan(
+                            question=contextual_question_with_dico,
+                            schema=schema,
+                            max_steps=settings.nl2sql_plan_max_steps,
+                        )
                         log.info("NL2SQL plan (%d steps)", len(plan))
                         if events:
                             try:
@@ -230,17 +516,8 @@ class ChatService:
                             except Exception:
                                 log.warning("Failed to emit sql event (plan step)", exc_info=True)
                         data = client.sql(sql)
-                        # Normalize
-                        rows: list = []
-                        columns: list = []
-                        if isinstance(data, dict):
-                            if data.get("type") == "table":
-                                columns = data.get("column_names") or []
-                                rows = data.get("data") or []
-                            if not rows:
-                                rows = data.get("result", {}).get("rows") or data.get("rows") or rows
-                            if not columns:
-                                columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                        # Normalize using a single canonical helper
+                        columns, rows = self._normalize_result(data)
                         if events:
                             try:
                                 events(
@@ -295,7 +572,8 @@ class ChatService:
                 else:
                     # Single-shot NL→SQL with natural-language synthesis
                     try:
-                        sql = nl2sql.generate(question=contextual_question, schema=schema)
+                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
+                        sql = nl2sql.generate(question=contextual_question_with_dico, schema=schema)
                         log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
                         if events:
                             try:
@@ -313,16 +591,7 @@ class ChatService:
                         )
                     data = client.sql(sql)
                     # Normalize to columns/rows and synthesize final answer
-                    rows = []
-                    columns = []
-                    if isinstance(data, dict):
-                        if data.get("type") == "table":
-                            columns = data.get("column_names") or []
-                            rows = data.get("data") or []
-                        if not rows:
-                            rows = data.get("result", {}).get("rows") or data.get("rows") or rows
-                        if not columns:
-                            columns = data.get("result", {}).get("columns") or data.get("columns") or columns
+                    columns, rows = self._normalize_result(data)
                     if events:
                         try:
                             events(
@@ -469,47 +738,69 @@ class ChatService:
         return columns or [], rows or []
 
     def _derive_evidence_sql(self, sql: str, *, limit: int | None = None) -> str | None:
-        """Attempt to derive a detail-level SELECT from an aggregate SQL.
+        """Build a safe ``SELECT * ... LIMIT N`` for the evidence panel.
 
-        This is a best-effort utility and logs on failure without masking errors.
-        Strategy: extract FROM ... [WHERE ...] then build SELECT * with same filters.
+        Rationale (PR#58 recommendations):
+        - Use SQL AST (sqlglot) instead of regex to avoid false matches in
+          string literals and to correctly handle CTEs.
+        - Apply to both aggregate and non-aggregate queries so the panel gets
+          full rows when possible.
+        - Skip set operations (UNION / INTERSECT / EXCEPT) to avoid producing
+          misleading evidence; the regular table payload remains available.
         """
         try:
             if limit is None:
                 limit = settings.evidence_limit_default
-            s = sql.strip()
-            # Quick bail if looks like detail already (select * or explicit columns without COUNT/AVG/etc.)
+            s = (sql or "").strip()
+            if not s:
+                return None
+
+            # If already SELECT * then just ensure LIMIT.
             if re.search(r"\bselect\s+\*", s, re.I):
                 return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
-            if not re.search(r"\bcount\s*\(|\bavg\s*\(|\bmin\s*\(|\bmax\s*\(|\bsum\s*\(", s, re.I):
-                # Non-aggregate: just cap the limit
-                return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
-            # Extract FROM ... tail
-            m_from = re.search(r"\bfrom\b\s+(.*)$", s, re.I | re.S)
-            if not m_from:
+
+            node = parse_one(s, read=None)  # autodetect dialect, tolerant parser
+
+            # Reject DML/DDL early
+            if isinstance(node, (exp.Insert, exp.Update, exp.Delete, exp.Alter, exp.Drop, exp.Create)):
                 return None
-            tail = m_from.group(1)
-            # Cut at ORDER BY / LIMIT / OFFSET
-            tail = re.split(r"\border\s+by\b|\blimit\b|\boffset\b", tail, flags=re.I)[0].strip()
-            # Extract WHERE if present
-            where = None
-            m_where = re.search(r"\bwhere\b\s+(.*)$", tail, re.I | re.S)
-            if m_where:
-                where = re.split(r"\bgroup\s+by\b|\border\s+by\b|\blimit\b|\boffset\b", m_where.group(1), flags=re.I)[0].strip()
-                from_part = tail[: m_where.start()].strip()
+
+            # Handle SELECT (optionally with WITH ... CTEs)
+            select_node: exp.Select | None = None
+            if isinstance(node, exp.Select):
+                select_node = node
+            elif isinstance(node, exp.With) and isinstance(node.this, exp.Select):
+                select_node = node.this
+            # Skip set operations (UNION/INTERSECT/EXCEPT): non-trivial to preserve semantics safely
+            elif isinstance(node, (exp.Union, exp.Intersect, exp.Except)):
+                return None
+
+            if not select_node:
+                return None
+
+            # Clone FROM / WHERE (keep CTEs if any)
+            base_select = exp.select("*")
+            if select_node.args.get("from") is not None:
+                base_select.set("from", select_node.args["from"].copy())
             else:
-                from_part = tail
-            base = f"SELECT * FROM {from_part}"
-            if where:
-                base += f" WHERE {where}"
-            base += f" LIMIT {limit}"
-            # Ensure SELECT-only (no accidental DML)
-            if not re.match(r"^\s*select\b", base, re.I):
+                # No FROM → nothing to select as evidence
                 return None
-            if re.search(r";|\b(insert|update|delete|alter|drop|create)\b", base, re.I):
-                return None
-            return base
-        except Exception as e:  # pragma: no cover - defensive
+
+            if select_node.args.get("where") is not None:
+                base_select.set("where", select_node.args["where"].copy())
+
+            # Preserve CTEs
+            if select_node.args.get("with") is not None:
+                base_select.set("with", select_node.args["with"].copy())
+
+            # Ensure a LIMIT cap
+            if base_select.args.get("limit") is None:
+                base_select.set("limit", exp.Limit(expression=exp.Literal.number(limit)))
+
+            # Render back to SQL (defaults to standard dialect)
+            derived = base_select.sql()
+            return derived
+        except Exception:  # pragma: no cover - defensive
             log.warning("_derive_evidence_sql failed", exc_info=True)
             return None
 

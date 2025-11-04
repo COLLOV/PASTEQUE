@@ -5,6 +5,10 @@ from typing import Any
 
 from sqlalchemy import String, Text, DateTime, ForeignKey, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .user import User
 
 from ..core.database import Base
 

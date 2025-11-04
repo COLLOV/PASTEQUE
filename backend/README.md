@@ -13,6 +13,35 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
+### Dictionnaire de données (YAML)
+
+But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
+
+- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionary`).
+- Format: 1 fichier YAML par table (`<table>.yml`), par ex. `tickets_jira.yml`.
+- Schéma minimal:
+
+```yaml
+version: 1
+table: tickets_jira
+title: Tickets Jira
+description: Tickets d'incidents JIRA
+columns:
+  - name: ticket_id
+    description: Identifiant unique du ticket
+    type: integer
+    synonyms: [id, issue_id]
+    pii: false
+  - name: created_at
+    description: Date de création (YYYY-MM-DD)
+    type: date
+    pii: false
+```
+
+Chargement et usage:
+- `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
+- Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. La taille est plafonnée via `DATA_DICTIONARY_MAX_CHARS` (défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
+
 ### Base de données & authentification
 
 - Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :
@@ -31,6 +60,8 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
   ```
 - L’endpoint `POST /api/v1/auth/login` vérifie les identifiants et retourne un jeton `Bearer` (JWT HS256).
 - L’endpoint `GET /api/v1/auth/users` inclut un champ booléen `is_admin` pour refléter l’état réel de l’utilisateur côté base; le frontend s’appuie dessus pour neutraliser toute modification des droits de l’administrateur.
+- L’endpoint `DELETE /api/v1/auth/users/{username}` (admin requis) supprime un utilisateur non‑admin et cascade ses objets dépendants (conversations, graphiques, ACL). Opération irréversible. Codes d’erreur: `400` (admin protégé), `404` (utilisateur absent), `403` (non‑admin).
+- L’endpoint `POST /api/v1/auth/users/{username}/reset-password` (admin requis) génère un mot de passe temporaire, active `must_reset_password=true` et renvoie le secret temporaire (non journalisé). L’utilisateur devra le changer via `POST /api/v1/auth/reset-password`.
 - La colonne `must_reset_password` est ajoutée automatiquement au démarrage si elle n’existe pas encore. Elle force chaque nouvel utilisateur à passer par `POST /api/v1/auth/reset-password` (payload : `username`, `current_password`, `new_password`, `confirm_password`) avant d’obtenir un jeton. La réponse de login renvoie un code d’erreur `PASSWORD_RESET_REQUIRED` tant que le mot de passe n’a pas été mis à jour.
 
 ### Journalisation
@@ -41,6 +72,28 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 - Les logs sont au niveau INFO par défaut via `core.logging.configure_logging`; ajuster `LOG_LEVEL` dans l’environnement si besoin.
 - Les réponses NL→SQL envoyées au frontend sont désormais uniquement en langage naturel; les requêtes SQL restent accessibles via les métadonnées ou les logs si besoin.
 - Le générateur NL→SQL refuse désormais les requêtes qui n’appliquent pas le préfixe `files.` sur toutes les tables (`/api/v1/mindsdb/sync-files` garde le même schéma).
+
+### Garde‑fous de configuration
+
+En environnements non‑développement (`ENV` différent de `development`/`dev`/`local`), le backend refuse de démarrer si des valeurs par défaut non sûres sont détectées:
+
+- `JWT_SECRET_KEY == "change-me"`
+- `ADMIN_PASSWORD == "admin"`
+- `DATABASE_URL` contient `postgres:postgres@`
+
+Corrigez ces variables dans `backend/.env` (ou vos secrets d’exécution) avant le déploiement. En développement, ces valeurs sont tolérées mais un avertissement est journalisé.
+
+### Sécurité et robustesse (conversations)
+
+- L’endpoint `GET /api/v1/conversations/{id}/dataset` ne ré‑exécute que des requêtes strictement `SELECT` validées via un parseur SQL (sqlglot). Les contraintes suivantes sont appliquées:
+  - Une seule instruction (pas de `;` ni de commentaires),
+  - Pas de `UNION/EXCEPT/INTERSECT`, pas de `SELECT … INTO`,
+  - Aucune opération DML/DDL (INSERT/UPDATE/DELETE/ALTER/DROP/CREATE),
+  - Toutes les tables doivent respecter le préfixe configuré par `NL2SQL_DB_PREFIX` (par défaut: `files`),
+  - Ajout automatique d’un `LIMIT` si absent (valeur: `EVIDENCE_LIMIT_DEFAULT`, 100 par défaut).
+- Les titres de conversations sont assainis côté API (suppression caractères de contrôle, crochets d’angle, normalisation d’espace, longueur ≤ 120).
+- Les écritures (création de conversation, messages, événements) sont encapsulées dans des transactions SQLAlchemy pour éviter les incohérences en cas d’erreur.
+- Des index composites sont créés automatiquement pour accélérer l’accès à l’historique: `(conversation_id, created_at)` sur `conversation_messages` et `conversation_events`.
 
 ### LLM « Z » – deux modes
 
@@ -96,6 +149,27 @@ En-têtes envoyés par le serveur: `Cache-Control: no-cache`, `X-Accel-Buffering
 Notes de prod:
 - Si vous terminez derrière Nginx/Cloudflare, désactivez le buffering pour ce chemin.
 - Un seul flux actif par requête; le client doit annuler via `AbortController` si nécessaire.
+
+### Router à chaque message
+
+Objectif: éviter de déclencher des requêtes SQL/NL→SQL lorsque un message utilisateur n’est pas orienté « data ».
+
+- Activation: contrôlée par `ROUTER_MODE` (`rule` par défaut).
+- Modes disponibles:
+  - `rule` (défaut): heuristiques déterministes (aucun appel LLM), désormais plus permissives (interrogations/mois/années/chiffres autorisent).
+  - `local`: LLM local via vLLM (`VLLM_BASE_URL`, `Z_LOCAL_MODEL` ou `ROUTER_MODEL`).
+  - `api`: LLM distant OpenAI‑compatible (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLM_MODEL` ou `ROUTER_MODEL`).
+  - `false`: désactive complètement la surcouche router (aucun blocage, aucun évènement lié au router).
+- Comportement:
+  - Si un message est jugé « non actionnable », l’API répond immédiatement: « Ce n'est pas une question pour passer de la data à l'action » et aucune requête SQL n’est lancée pour ce message.
+  - Sinon, la route cible (`data` | `feedback` | `foyer`) est loggée. En mode stream, un évènement `meta` (provider=`router`) n’est émis que lors d’un blocage. Avec `ROUTER_MODE=false`, aucun évènement lié au router n’est émis.
+
+Variables d’environnement (voir `.env.example`):
+
+```
+ROUTER_MODE=rule   # rule | local | api | false
+# ROUTER_MODEL=    # optionnel; sinon Z_LOCAL_MODEL/LLM_MODEL
+```
 
 ### MCP – configuration déclarative
 
@@ -197,6 +271,12 @@ Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL
 
 Échantillons pour aider la génération (optionnel):
 
+### Notes de maintenance
+
+ - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 3 blocs similaires: passage `/sql`, NL→SQL plan, NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
+ - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
+ - 2025-10-31: Evidence panel — dérivation de la requête `SELECT *` désormais basée sur l'AST (sqlglot) au lieu de regex, en conservant `WHERE` et CTE, et en plafonnant avec `LIMIT`. Les opérations en ensemble (UNION/INTERSECT/EXCEPT) sont ignorées par sécurité. Tests: `uv run pytest` → 20 tests OK.
+
 ```
 NL2SQL_INCLUDE_SAMPLES=true
 NL2SQL_ROWS_PER_TABLE=3   # 3–5 conseillé
@@ -223,3 +303,34 @@ En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimul
 ## Evidence panel defaults
 
 - `EVIDENCE_LIMIT_DEFAULT` (int, default: 100): limite de lignes envoyées via SSE pour l’aperçu « evidence ». Utilisée à la fois pour la construction du `evidence_spec.limit` et pour la dérivation de SQL détaillé.
+
+Depuis 2025‑10‑31:
+- La dérivation du SQL « evidence » produit systématiquement un `SELECT *` (avec les mêmes `FROM`/`WHERE` et un `LIMIT`) y compris lorsque la requête d’origine n’est pas agrégée. Ainsi, le panel reçoit toujours des lignes complètes et peut afficher toutes les colonnes disponibles (l’aperçu de la liste reste plafonné côté front, la vue Détail montre tout).
+## Historique des conversations
+
+Le backend persiste désormais les conversations et événements associés:
+
+- Tables: `conversations`, `conversation_messages`, `conversation_events`.
+- Les routes exposées (préfixe `${API_PREFIX}/v1`):
+  - `GET /conversations` — liste des conversations de l’utilisateur courant (id, title, updated_at).
+  - `GET /conversations/{id}` — détail d’une conversation (messages, dernier `evidence_spec` et ses lignes si présentes).
+  - Depuis 2025‑10‑29: `evidence_rows.rows` est normalisé en liste d’objets (clé = nom de colonne),
+    même si la source a persisté une liste de tableaux. Cela garantit la cohérence avec le
+    streaming SSE et évite que le panneau « Tickets » n’affiche des cellules vides.
+  - Depuis 2025‑10‑29: chaque message assistant peut inclure `details` (optionnel),
+    reconstruit à partir des `conversation_events` entre le dernier message utilisateur et ce message:
+    - `details.steps`: événements `sql` successifs (avec `step`, `purpose`, `sql`).
+    - `details.plan`: dernier événement `plan` s’il est présent.
+  - Depuis 2025‑10‑29: `GET /conversations/{id}/dataset?message_index=N` rejoue la dernière requête SQL (hors « evidence »)
+    liée au message assistant d’index `N`, avec un `LIMIT` de sécurité (`EVIDENCE_LIMIT_DEFAULT`).
+    Réponse: `{ dataset: { sql, columns, rows, row_count, step, description } }`.
+  - Depuis 2025‑10‑29: `POST /conversations/{id}/chart` enregistre un évènement `chart` (url + métadonnées). Ces
+    évènements sont réintégrés dans le flux `messages` lors du `GET /conversations/{id}` afin que les graphiques
+    réapparaissent dans l’historique de la conversation.
+  - `POST /conversations` — crée une conversation (optionnel: `{ "title": "..." }`).
+
+Intégration au flux `/chat/stream`:
+
+- Le client peut passer `metadata.conversation_id` pour rattacher un message à une conversation existante.
+- Si absent, le backend crée une conversation et renvoie l’identifiant dans l’événement `meta` (`conversation_id`).
+- Les événements `sql`/`rows`/`plan`/`meta` sont ajoutés en base et la réponse finale de l’assistant est enregistrée comme message.

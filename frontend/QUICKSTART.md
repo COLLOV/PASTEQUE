@@ -12,7 +12,9 @@ npm install
 Créez un fichier `.env.development`:
 
 ```env
-VITE_API_URL=http://localhost:8000
+FRONTEND_DEV_URL=http://localhost:5173
+FRONTEND_URLS=http://localhost:5173
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
 ## Développement
@@ -209,7 +211,7 @@ const response = await apiFetch<MyResponse>('/api/endpoint', {
 ## Dépannage
 
 ### Erreur "VITE_API_URL manquant"
-→ Créez le fichier `.env.development` avec `VITE_API_URL`
+→ Créez le fichier `.env.development` avec `VITE_API_URL` (ajoutez `FRONTEND_URLS` si vous devez ouvrir le backend à d'autres origines)
 
 ### Erreur TypeScript
 → Vérifiez avec `npm run type-check`

@@ -1,16 +1,85 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-  echo "Usage: ./start.sh <frontend_port> <backend_port>" >&2
+if [[ $# -ne 0 ]]; then
+  echo "Usage: ./start.sh (configuration is read from frontend/.env.development and backend/.env)" >&2
   exit 1
 fi
 
-FRONTEND_PORT="$1"
-BACKEND_PORT="$2"
+SSR_DIR="vis-ssr"
+SSR_ENV_FILE="${SSR_DIR}/.env"
+SSR_ENV_TEMPLATE="${SSR_DIR}/.env.ssr.example"
+BACKEND_ENV_FILE="backend/.env"
 
 is_number() {
   [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+read_env_var() {
+  local file="$1"
+  local key="$2"
+
+  ENV_FILE="$file" ENV_KEY="$key" python3 <<'PY'
+import os
+from pathlib import Path
+
+path = Path(os.environ["ENV_FILE"])
+key = os.environ["ENV_KEY"]
+value = ""
+
+if path.exists():
+    for raw in path.read_text().splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, val = stripped.split("=", 1)
+        if name.strip() == key:
+            val = val.strip()
+            if (
+                (val.startswith('"') and val.endswith('"'))
+                or (val.startswith("'") and val.endswith("'"))
+            ):
+                val = val[1:-1]
+            value = val
+            break
+
+print(value)
+PY
+}
+
+parse_url_components() {
+  local url="$1"
+
+  URL_VALUE="$url" python3 <<'PY'
+import os
+import sys
+from urllib.parse import urlparse
+
+raw = os.environ["URL_VALUE"].strip()
+if not raw:
+    print("ERROR", file=sys.stderr)
+    sys.exit(1)
+
+parsed = urlparse(raw)
+host = parsed.hostname
+port = parsed.port
+scheme = parsed.scheme
+
+if host is None:
+    print("ERROR", file=sys.stderr)
+    sys.exit(1)
+
+if port is None:
+    if scheme == "https":
+        port = 443
+    elif scheme == "http":
+        port = 80
+    else:
+        print("ERROR", file=sys.stderr)
+        sys.exit(1)
+
+print(f"{host} {port} {scheme or ''}")
+PY
 }
 
 require_command() {
@@ -52,6 +121,12 @@ free_port() {
 cleanup() {
   local code=$?
 
+  if [[ -n "${SSR_PID:-}" ]] && kill -0 "$SSR_PID" >/dev/null 2>&1; then
+    echo "[start] Stopping GPT-Vis SSR (PID $SSR_PID)"
+    kill "$SSR_PID" >/dev/null 2>&1 || true
+    wait "$SSR_PID" 2>/dev/null || true
+  fi
+
   if [[ -n "${BACKEND_PID:-}" ]] && kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
     echo "[start] Stopping backend (PID $BACKEND_PID)"
     kill "$BACKEND_PID" >/dev/null 2>&1 || true
@@ -69,9 +144,104 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for cmd in lsof uv npm python3 docker curl; do
+for cmd in lsof uv npm python3 curl node; do
   require_command "$cmd"
 done
+
+if [[ ! -f "$BACKEND_ENV_FILE" ]]; then
+  echo "ERROR: Backend configuration '$BACKEND_ENV_FILE' not found." >&2
+  exit 1
+fi
+
+CONTAINER_RUNTIME_RAW="$(read_env_var "$BACKEND_ENV_FILE" "CONTAINER_RUNTIME")"
+
+if [[ -z "$CONTAINER_RUNTIME_RAW" ]]; then
+  echo "ERROR: CONTAINER_RUNTIME must be defined in '$BACKEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+# macOS ships Bash 3.2 (no ${var,,}); use POSIX tr instead
+CONTAINER_RUNTIME="$(printf '%s' "$CONTAINER_RUNTIME_RAW" | tr '[:upper:]' '[:lower:]')"
+
+case "$CONTAINER_RUNTIME" in
+  docker|podman)
+    ;;
+  *)
+    echo "ERROR: Unsupported CONTAINER_RUNTIME '$CONTAINER_RUNTIME_RAW'. Use 'docker' or 'podman'." >&2
+    exit 1
+    ;;
+esac
+
+require_command "$CONTAINER_RUNTIME"
+echo "[start] Container runtime -> $CONTAINER_RUNTIME"
+
+BACKEND_DEV_URL="$(read_env_var "$BACKEND_ENV_FILE" "BACKEND_DEV_URL")"
+if [[ -z "$BACKEND_DEV_URL" ]]; then
+  echo "ERROR: BACKEND_DEV_URL must be defined in '$BACKEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+if ! read -r BACKEND_HOST BACKEND_PORT BACKEND_SCHEME < <(parse_url_components "$BACKEND_DEV_URL"); then
+  echo "ERROR: Unable to parse BACKEND_DEV_URL '$BACKEND_DEV_URL'." >&2
+  exit 1
+fi
+
+if ! is_number "$BACKEND_PORT"; then
+  echo "ERROR: BACKEND_DEV_URL must include a numeric port. Got '$BACKEND_DEV_URL'." >&2
+  exit 1
+fi
+if [[ "${BACKEND_SCHEME:-}" == "https" ]]; then
+  echo "[start] WARNING: BACKEND_DEV_URL uses https; start.sh launches uvicorn without TLS certificates." >&2
+fi
+
+FRONTEND_ENV_FILE="frontend/.env.development"
+
+if [[ ! -f "$FRONTEND_ENV_FILE" ]]; then
+  echo "ERROR: Frontend configuration '$FRONTEND_ENV_FILE' not found. Copy 'frontend/.env.development.example' and update it." >&2
+  exit 1
+fi
+
+FRONTEND_DEV_URL="$(read_env_var "$FRONTEND_ENV_FILE" "FRONTEND_DEV_URL")"
+
+if [[ -z "$FRONTEND_DEV_URL" ]]; then
+  echo "ERROR: FRONTEND_DEV_URL must be defined in '$FRONTEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+if ! read -r FRONTEND_HOST FRONTEND_PORT FRONTEND_SCHEME < <(parse_url_components "$FRONTEND_DEV_URL"); then
+  echo "ERROR: Unable to parse FRONTEND_DEV_URL '$FRONTEND_DEV_URL'." >&2
+  exit 1
+fi
+
+if ! is_number "$FRONTEND_PORT"; then
+  echo "ERROR: FRONTEND_DEV_URL must include a numeric port. Got '$FRONTEND_DEV_URL'." >&2
+  exit 1
+fi
+if [[ "${FRONTEND_SCHEME:-}" == "https" ]]; then
+  echo "[start] WARNING: FRONTEND_DEV_URL uses https; Vite dev server will run without TLS." >&2
+fi
+
+VITE_API_URL_VALUE="$(read_env_var "$FRONTEND_ENV_FILE" "VITE_API_URL")"
+
+if [[ -z "$VITE_API_URL_VALUE" ]]; then
+  echo "ERROR: VITE_API_URL must be defined in '$FRONTEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+CUSTOM_FRONTEND_URLS="$(read_env_var "$FRONTEND_ENV_FILE" "FRONTEND_URLS")"
+
+if [[ -n "$CUSTOM_FRONTEND_URLS" ]]; then
+  ALLOWED_ORIGINS_VALUE="$CUSTOM_FRONTEND_URLS"
+  echo "[start] frontend origin(s) from $FRONTEND_ENV_FILE -> $ALLOWED_ORIGINS_VALUE"
+else
+  ALLOWED_ORIGINS_VALUE="$FRONTEND_DEV_URL"
+  echo "[start] frontend origin default -> $ALLOWED_ORIGINS_VALUE"
+fi
+
+echo "[start] frontend dev server -> $FRONTEND_DEV_URL"
+echo "[start] backend dev server -> $BACKEND_DEV_URL"
+echo "[start] frontend/.env.development -> VITE_API_URL=$VITE_API_URL_VALUE"
+echo "[start] backend CORS -> ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
 
 for port in "$FRONTEND_PORT" "$BACKEND_PORT"; do
   if ! is_number "$port"; then
@@ -81,26 +251,50 @@ for port in "$FRONTEND_PORT" "$BACKEND_PORT"; do
   free_port "$port"
 done
 
+if [[ ! -d "$SSR_DIR" ]]; then
+  echo "ERROR: SSR directory '$SSR_DIR' is missing." >&2
+  exit 1
+fi
+
+if [[ ! -f "$SSR_ENV_FILE" ]]; then
+  echo "ERROR: GPT-Vis SSR configuration '$SSR_ENV_FILE' not found. Copy '$SSR_ENV_TEMPLATE' and set GPT_VIS_SSR_PORT." >&2
+  exit 1
+fi
+
+SSR_PORT="$(read_env_var "$SSR_ENV_FILE" "GPT_VIS_SSR_PORT")"
+
+if [[ -z "$SSR_PORT" ]]; then
+  echo "ERROR: GPT_VIS_SSR_PORT must be defined in '$SSR_ENV_FILE'." >&2
+  exit 1
+fi
+
+if ! is_number "$SSR_PORT"; then
+  echo "ERROR: GPT_VIS_SSR_PORT must be numeric. Got '$SSR_PORT'." >&2
+  exit 1
+fi
+
+free_port "$SSR_PORT"
+
 ensure_mindsdb() {
   local container="mindsdb_container"
 
-  if docker ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
+  if "$CONTAINER_RUNTIME" ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
     echo "[start] Resetting existing MindsDB container '$container'"
-    docker rm -f "$container" >/dev/null 2>&1 || true
+    "$CONTAINER_RUNTIME" rm -f "$container" >/dev/null 2>&1 || true
   else
     echo "[start] No previous MindsDB container detected"
   fi
 
   echo "[start] Launching MindsDB container '$container'"
-  docker run -d --name "$container" \
+  "$CONTAINER_RUNTIME" run -d --name "$container" \
     -e MINDSDB_APIS=http,mysql \
     -p 47334:47334 -p 47335:47335 \
     mindsdb/mindsdb >/dev/null
 
   echo "[start] MindsDB container '$container' status"
-  docker ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
+  "$CONTAINER_RUNTIME" ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
   echo "[start] MindsDB last logs (tail 10)"
-  docker logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
+  "$CONTAINER_RUNTIME" logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
 }
 
 wait_for_mindsdb() {
@@ -147,48 +341,6 @@ else:
 PY
 )
 
-FRONTEND_ENV_FILE="frontend/.env.development"
-API_URL="http://localhost:${BACKEND_PORT}/api/v1"
-ALLOWED_ORIGINS_VALUE="http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}"
-
-ensure_frontend_env() {
-  local file="$1"
-  local value="$2"
-
-  ENV_FILE="$file" API_URL="$value" python3 <<'PY'
-import os
-from pathlib import Path
-
-path = Path(os.environ["ENV_FILE"])
-value = os.environ["API_URL"]
-
-if path.exists():
-    lines = path.read_text().splitlines()
-else:
-    lines = []
-
-found = False
-for idx, line in enumerate(lines):
-    if line.startswith("VITE_API_URL="):
-        lines[idx] = f"VITE_API_URL={value}"
-        found = True
-
-if not found:
-    if lines and lines[-1].strip():
-        lines.append("")
-    lines.append(f"VITE_API_URL={value}")
-
-text = "\n".join(lines)
-if text and not text.endswith("\n"):
-    text += "\n"
-path.write_text(text)
-PY
-}
-
-ensure_frontend_env "$FRONTEND_ENV_FILE" "$API_URL"
-echo "[start] frontend/.env.development -> VITE_API_URL=$API_URL"
-echo "[start] backend CORS -> ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
-
 if [[ ! -d frontend/node_modules ]]; then
   echo "[start] Installing frontend dependencies (npm install)"
   (
@@ -199,22 +351,57 @@ else
   echo "[start] Frontend dependencies already installed"
 fi
 
-echo "[start] Launching backend on port $BACKEND_PORT"
+if [[ ! -f "${SSR_DIR}/package.json" ]]; then
+  echo "ERROR: Missing package.json in '$SSR_DIR'." >&2
+  exit 1
+fi
+
+if [[ ! -d ${SSR_DIR}/node_modules ]]; then
+  echo "[start] Installing GPT-Vis SSR dependencies (npm install)"
+  (
+    cd "$SSR_DIR"
+    NODE_TLS_REJECT_UNAUTHORIZED=0 npm_config_strict_ssl=false npm_config_registry=https://registry.npmjs.org npm install
+  )
+else
+  echo "[start] GPT-Vis SSR dependencies already installed"
+fi
+
+SSR_IMAGE_DIR="$(read_env_var "$SSR_ENV_FILE" "VIS_IMAGE_DIR")"
+if [[ -n "$SSR_IMAGE_DIR" ]]; then
+  echo "[start] GPT-Vis SSR images -> $SSR_IMAGE_DIR"
+else
+  SSR_IMAGE_DIR_DISPLAY="$(cd "$SSR_DIR" && pwd)/charts"
+  echo "[start] GPT-Vis SSR images -> $SSR_IMAGE_DIR_DISPLAY (default)"
+fi
+
+echo "[start] Launching GPT-Vis SSR on port $SSR_PORT"
+(
+  cd "$SSR_DIR"
+  if [[ -n "$SSR_IMAGE_DIR" ]]; then
+    GPT_VIS_SSR_PORT="$SSR_PORT" VIS_IMAGE_DIR="$SSR_IMAGE_DIR" exec npm run start
+  else
+    GPT_VIS_SSR_PORT="$SSR_PORT" exec npm run start
+  fi
+) &
+SSR_PID=$!
+
+echo "[start] Launching backend on ${BACKEND_HOST}:${BACKEND_PORT}"
 (
   cd backend
-  ALLOWED_ORIGINS="$ALLOWED_ORIGINS_VALUE" exec uv run uvicorn insight_backend.main:app --reload --host 0.0.0.0 --port "$BACKEND_PORT"
+  ALLOWED_ORIGINS="$ALLOWED_ORIGINS_VALUE" exec uv run uvicorn insight_backend.main:app --reload --host "$BACKEND_HOST" --port "$BACKEND_PORT"
 ) &
 BACKEND_PID=$!
 
 # Allow backend to initialise before starting frontend
 sleep 1
 
-echo "[start] Launching frontend on port $FRONTEND_PORT"
+echo "[start] Launching frontend on ${FRONTEND_HOST}:${FRONTEND_PORT}"
 (
   cd frontend
-  VITE_API_URL="$API_URL" exec npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT"
+  exec npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT"
 ) &
 FRONTEND_PID=$!
 
 wait "$BACKEND_PID"
 wait "$FRONTEND_PID"
+wait "$SSR_PID"

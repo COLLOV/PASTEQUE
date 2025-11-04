@@ -8,6 +8,8 @@ from typing import Dict, List
 import json
 
 from ..core.config import settings
+import sqlglot
+from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..repositories.data_repository import DataRepository
 
@@ -33,6 +35,21 @@ def _is_select_only(sql: str) -> bool:
     # Allow single trailing semicolon by stripping earlier
     s2 = f" {s} "
     return not any(tok in s2 for tok in forbidden[1:])
+
+
+def _extract_json_blob(text: str) -> str:
+    """Return JSON payload possibly wrapped in a fenced block.
+
+    Accepts raw JSON or triple‑backticked blocks (```json … ``` or ``` … ```).
+    """
+    blob = text or ""
+    if "```" in blob:
+        parts = blob.split("```")
+        if len(parts) >= 2:
+            blob = parts[1]
+            if blob.lower().startswith("json\n"):
+                blob = blob.split("\n", 1)[-1]
+    return blob.strip()
 
 
 _TABLE_REF_PATTERN = re.compile(r"\b(from|join)\s+(?!\s*\()([a-zA-Z_][\w\.]*)", re.IGNORECASE)
@@ -129,26 +146,35 @@ def _collect_cte_names(sql: str) -> set[str]:
 
 
 def _ensure_required_prefix(sql: str) -> None:
-    prefix = f"{settings.nl2sql_db_prefix.lower()}."
+    """Validate that every referenced table uses the configured schema prefix.
+
+    Uses sqlglot to parse the query and extract table nodes, avoiding false positives
+    on constructs like EXTRACT(... FROM col) where 'FROM' is not a table clause.
+    """
+    try:
+        tree = sqlglot.parse_one(sql, dialect="mysql")
+    except Exception as e:  # surface real parse errors
+        raise RuntimeError(f"SQL invalide (parse): {e}")
+
+    required = settings.nl2sql_db_prefix.lower()
     cte_names = _collect_cte_names(sql)
-    for match in _TABLE_REF_PATTERN.finditer(sql):
-        table = match.group(2)
-        # Strip trailing punctuation that may hug the identifier
-        table_clean = table.rstrip(",)")
-        lower_clean = table_clean.lower()
-        if lower_clean in _PREFIX_SKIP_KEYWORDS:
+    bad: list[str] = []
+    for t in tree.find_all(exp.Table):
+        db = t.args.get("db")
+        tbl = t.args.get("this")
+        db_name = (db.this if hasattr(db, "this") else None)
+        tbl_name = (tbl.this if hasattr(tbl, "this") else None)
+        # Skip CTE references
+        if tbl_name and tbl_name.lower() in cte_names:
             continue
-        if lower_clean in cte_names:
-            continue
-        if lower_clean.startswith(prefix):
-            continue
-        # Allow aliases already referencing the prefix (e.g. files.t AS t)
-        if "." in table_clean:
-            if lower_clean.startswith(prefix):
-                continue
+        # Consider only real tables; skip CTEs (sqlglot resolves separately)
+        fq = ".".join([p for p in [db_name, tbl_name] if p])
+        if not db_name or db_name.lower() != required:
+            bad.append(fq or "<inconnu>")
+    if bad:
         raise RuntimeError(
             "Requête SQL invalide: toutes les tables doivent être préfixées par "
-            f"'{settings.nl2sql_db_prefix}.' (trouvé: '{table_clean}')"
+            f"'{settings.nl2sql_db_prefix}.' (trouvé: {', '.join(repr(x) for x in bad)})"
         )
 
 
@@ -182,12 +208,28 @@ class NL2SQLService:
         )
 
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
+        # Input validation (defensive)
+        if not isinstance(question, str) or not question.strip():
+            raise RuntimeError("La question est vide.")
+        if not isinstance(schema, dict) or not schema:
+            raise RuntimeError("Aucun schéma disponible pour générer le SQL.")
         client, model = self._client_and_model()
         tables_desc = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
+        # Cap prompt size to avoid runaway contexts (truncate at line boundaries)
+        if len(tables_blob) > 8000:
+            lines = tables_blob.split("\n")
+            truncated: list[str] = []
+            length = 0
+            for line in lines:
+                if length + len(line) > 8000:
+                    break
+                truncated.append(line)
+                length += len(line) + 1
+            tables_blob = "\n".join(truncated) + "\n…"
         # Hints for date-like columns
         date_hints: Dict[str, List[str]] = {}
         for t, cols in schema.items():
@@ -255,12 +297,37 @@ class NL2SQLService:
         return sql
 
     def plan(self, *, question: str, schema: Dict[str, List[str]], max_steps: int) -> List[Dict[str, str]]:
+        # Input validation
+        if not isinstance(question, str) or not question.strip():
+            raise RuntimeError("La question est vide.")
+        if not isinstance(schema, dict) or not schema:
+            raise RuntimeError("Aucun schéma n'est disponible pour la planification.")
+        # Enforce a sane step range
+        try:
+            max_steps_int = int(max_steps)
+        except (ValueError, TypeError) as e:
+            raise RuntimeError(f"Paramètre max_steps invalide: {e}")
+        hard_cap = max(1, settings.nl2sql_plan_max_steps)
+        if max_steps_int < 1 or max_steps_int > hard_cap:
+            max_steps = hard_cap
+        else:
+            max_steps = max_steps_int
         client, model = self._client_and_model()
         tables_desc = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
             tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
         tables_blob = "\n".join(tables_desc)
+        if len(tables_blob) > 8000:
+            lines = tables_blob.split("\n")
+            truncated: list[str] = []
+            length = 0
+            for line in lines:
+                if length + len(line) > 8000:
+                    break
+                truncated.append(line)
+                length += len(line) + 1
+            tables_blob = "\n".join(truncated) + "\n…"
         # Optional samples
         samples_blob = ""
         if settings.nl2sql_include_samples:
@@ -308,14 +375,8 @@ class NL2SQLService:
             temperature=0,
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        # Extract JSON
-        blob = text
-        if "```" in text:
-            parts = text.split("```")
-            if len(parts) >= 2:
-                blob = parts[1]
-                if blob.lower().startswith("json\n"):
-                    blob = blob.split("\n", 1)[-1]
+        # Extract JSON via helper
+        blob = _extract_json_blob(text)
         try:
             data = json.loads(blob)
         except Exception as e:
@@ -349,6 +410,227 @@ class NL2SQLService:
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    # --- Multi‑agent helpers -------------------------------------------------
+    def explore(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+        max_steps: int,
+        observations: str | None = None,
+    ) -> List[Dict[str, str]]:
+        """Ask the LLM to propose small exploratory SELECT queries.
+
+        The goal is to quickly learn about value ranges and categories related to the question
+        (e.g., DISTINCT values, MIN/MAX, sample rows, small GROUP BY counts).
+        Returns a list of {"purpose", "sql"}.
+        """
+        client, model = self._client_and_model()
+        tables_desc = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        tables_blob = "\n".join(tables_desc)
+
+        system = (
+            "You are a data explorer agent. Propose up to N short SELECT queries that help\n"
+            "understand the data relevant to the question: small DISTINCT lists, MIN/MAX for dates\n"
+            "or numbers, COUNTs by key categories, and a few sample rows (LIMIT ≤ 20).\n"
+            f"Use only the '{settings.nl2sql_db_prefix}.' schema and always add an alias after each table.\n"
+            "All queries must be SELECT‑only, safe to execute, and return quickly.\n"
+            "Return JSON only: {\"queries\":[{\"purpose\":str,\"sql\":str}, ...]}. No prose."
+        )
+        obs_section = (f"\nObservations to consider:\n{observations}\n" if observations else "")
+        user = (
+            f"Available tables and columns:\n{tables_blob}\n\n"
+            f"Max steps: {max_steps}. Question: {question}\n"
+            f"Focus on columns likely involved in the question.\n"
+            + obs_section
+        )
+        resp = client.chat_completions(
+            model=model,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        blob = text
+        if "```" in text:
+            parts = text.split("```")
+            if len(parts) >= 2:
+                blob = parts[1]
+                if blob.lower().startswith("json\n"):
+                    blob = blob.split("\n", 1)[-1]
+        try:
+            data = json.loads(blob)
+        except Exception as e:
+            raise RuntimeError(f"Exploration JSON invalide: {e}")
+        queries = data.get("queries") if isinstance(data, dict) else None
+        if not isinstance(queries, list) or not queries:
+            raise RuntimeError("Aucune requête exploratoire proposée")
+        out: List[Dict[str, str]] = []
+        for q in queries[:max_steps]:
+            purpose = str(q.get("purpose", "")).strip()
+            sql = _extract_sql(str(q.get("sql", "")))
+            if not purpose or not sql:
+                continue
+            sql = _rewrite_date_functions(sql)
+            if not _is_select_only(sql):
+                raise RuntimeError("Une requête exploratoire n'est pas un SELECT")
+            _ensure_required_prefix(sql)
+            out.append({"purpose": purpose, "sql": sql})
+        if not out:
+            raise RuntimeError("Aucune requête exploratoire exploitable")
+        return out
+
+    def generate_with_evidence(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+        evidence: List[Dict[str, object]],
+    ) -> str:
+        """Produce a single final SELECT using prior exploration evidence.
+
+        The model must return only one SELECT that answers the question precisely.
+        """
+        client, model = self._client_and_model()
+        tables_desc = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        system = (
+            "You are an analyst agent. Given a natural language question and the results of prior\n"
+            "exploratory queries, write ONE SQL SELECT that directly answers the question.\n"
+            "Dialect: MindsDB (MySQL-like). Rules: SELECT-only; prefix tables with the allowed schema;\n"
+            "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
+            "Return only the SQL (optionally fenced). No explanation."
+        )
+        user = json.dumps(
+            {
+                "question": question,
+                "tables": tables_desc,
+                "evidence": evidence,
+                "rules": {
+                    "schema_prefix": settings.nl2sql_db_prefix,
+                },
+            },
+            ensure_ascii=False,
+        )
+        resp = client.chat_completions(
+            model=model,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        sql = _extract_sql(text)
+        sql = _rewrite_date_functions(sql)
+        if not _is_select_only(sql):
+            raise RuntimeError("La requête finale générée n'est pas un SELECT")
+        _ensure_required_prefix(sql)
+        return sql
+
+    def propose_axes(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+        evidence: List[Dict[str, object]] | None = None,
+        max_items: int = 3,
+    ) -> List[Dict[str, str]]:
+        """Suggest chart axes and aggregations based on the question and exploration evidence.
+
+        Returns a list of objects with keys: x, y (optional), agg (optional), chart (bar|line|pie|table), reason.
+        """
+        client, model = self._client_and_model()
+        tables_desc = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        payload = {
+            "question": question,
+            "tables": tables_desc,
+            "evidence_preview": (
+                [
+                    {
+                        "purpose": str(e.get("purpose", "")),
+                        "sql": str(e.get("sql", ""))[:200],
+                        "columns": e.get("columns", []),
+                        "row_count": len(e.get("rows", []) if isinstance(e.get("rows"), list) else []),
+                    }
+                    for e in (evidence or [])
+                ]
+            ),
+            "max_items": max_items,
+        }
+        system = (
+            "You are a visualization assistant. Propose up to N concise axis suggestions\n"
+            "for charts that would best communicate the answer to the question, based on the columns\n"
+            "available and any exploratory findings. Prefer simple bar/line charts; fall back to 'table' when unclear.\n"
+            "Return ONLY JSON: {\"axes\":[{\"x\":str,\"y\":str?,\"agg\":str?,\"chart\":str,\"reason\":str}...]}."
+        )
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            temperature=0,
+        )
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        blob = text
+        if "```" in text:
+            parts = text.split("```")
+            if len(parts) >= 2:
+                blob = parts[1]
+                if blob.lower().startswith("json\n"):
+                    blob = blob.split("\n", 1)[-1]
+        try:
+            data = json.loads(blob)
+        except Exception as e:
+            raise RuntimeError(f"Axes JSON invalide: {e}")
+        axes = data.get("axes") if isinstance(data, dict) else None
+        if not isinstance(axes, list) or not axes:
+            raise RuntimeError("Aucune proposition d'axes")
+        out: List[Dict[str, str]] = []
+        for a in axes[: max(1, max_items)]:
+            x = str(a.get("x", "")).strip()
+            y = str(a.get("y", "")).strip() if a.get("y") is not None else ""
+            chart = str(a.get("chart", "")).strip() or "table"
+            reason = str(a.get("reason", "")).strip()
+            agg = str(a.get("agg", "")).strip() if a.get("agg") is not None else ""
+            if not x:
+                continue
+            out.append({"x": x, "y": y, "agg": agg, "chart": chart, "reason": reason})
+        if not out:
+            raise RuntimeError("Aucune proposition d'axes exploitable")
+        return out
+
+    # Writer agent: interpret results with Constat / Action / Question
+    def write(self, *, question: str, evidence: List[Dict[str, object]]) -> str:
+        client, model = self._client_and_model()
+        system = (
+            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis, "
+            "rédige une synthèse brève en prose directe, en 1 à 2 paragraphes courts.\n"
+            "Paragraphe 1: intègre le constat avec des chiffres précis (comptes, pourcentages, tendances). 2–4 phrases.\n"
+            "Paragraphe 2 (si pertinent): formule UNE recommandation concrète (si justifiée) OU une question claire en cas d’incertitude. 1–2 phrases.\n"
+            "Contraintes: pas de SQL, pas de jargon inutile; français professionnel; 3–6 phrases au total; pas d’intitulés ni d’en‑têtes; "
+            "n’emploie jamais explicitement les mots ‘Constat’, ‘Action proposée’ ou ‘Question à trancher’. Pas de listes/puces.\n"
+            "Sépare bien les paragraphes par une ligne vide."
+        )
+        payload = {
+            "question": question,
+            "evidence": evidence,
+        }
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
             temperature=0,
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")

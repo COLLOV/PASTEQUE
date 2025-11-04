@@ -1,4 +1,7 @@
-import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent, forwardRef } from 'react'
+import { useState, useRef, useEffect, useMemo, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { RefObject } from 'react'
+import { useSearchParams, useLocation } from 'react-router-dom'
+import { TICKETS_CONFIG } from '@/config/tickets'
 import { apiFetch, streamSSE } from '@/services/api'
 import { Button, Textarea, Loader } from '@/components/ui'
 import type {
@@ -14,11 +17,10 @@ import type {
   EvidenceSpec,
   EvidenceRowsPayload
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiCircleStack } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark } from 'react-icons/hi2'
 import clsx from 'clsx'
 
-// Evidence defaults
-const DEFAULT_EVIDENCE_LIMIT = 100
+//
 
 function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string, unknown>[] {
   const headings = columns.length > 0 ? columns : ['value']
@@ -31,11 +33,9 @@ function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string,
       return obj
     }
     if (row && typeof row === 'object') {
-      const obj: Record<string, unknown> = {}
-      headings.forEach(col => {
-        obj[col] = (row as Record<string, unknown>)[col]
-      })
-      return obj
+      // Preserve all keys present in object rows to expose every SQL column
+      // (do not restrict to LLM-selected headings).
+      return { ...(row as Record<string, unknown>) }
     }
     return { [headings[0]]: row }
   })
@@ -49,58 +49,108 @@ function createMessageId(): string {
 }
 
 export default function Chat() {
+  const [_searchParams, setSearchParams] = useSearchParams()
+  const { search } = useLocation()
   const [messages, setMessages] = useState<Message[]>([])
+  const [conversationId, setConversationId] = useState<number | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<Array<{ id: number; title: string; updated_at: string }>>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Animation de chargement pendant la génération d'un graphique
+  const [chartGenerating, setChartGenerating] = useState(false)
   const [chartMode, setChartMode] = useState(false)
-  const [sqlMode, setSqlMode] = useState(false)
-  // Evidence panel state (generic, driven by MCP spec)
+  const [sqlMode, setSqlMode] = useState(true)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
-  const [showEvidence, setShowEvidence] = useState(false)
-  // Keep live refs to avoid stale closures in streaming callbacks
-  const evidenceSpecRef = useRef<EvidenceSpec | null>(null)
-  const evidenceDataRef = useRef<EvidenceRowsPayload | null>(null)
-  const evidenceBtnRef = useRef<HTMLButtonElement | null>(null)
+  const [showTicketsSheet, setShowTicketsSheet] = useState(false)
+  // Données utilisées (tables accessibles au LLM)
+  const [showDataPanel, setShowDataPanel] = useState(false)
+  const [dataTables, setDataTables] = useState<string[]>([])
+  const [effectiveTables, setEffectiveTables] = useState<string[]>([])
+  const [excludedTables, setExcludedTables] = useState<Set<string>>(new Set())
+  const [tablesLoading, setTablesLoading] = useState(false)
+  // Saving behavior: opt‑in for updating user defaults to avoid cross‑tab races
+  const [saveAsDefault, setSaveAsDefault] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const ticketPanelRef = useRef<HTMLDivElement>(null)
+  const mobileTicketsRef = useRef<HTMLDivElement>(null)
+  
+  // Helpers to open/close history while keeping URL in sync only on explicit actions
+  const closeHistory = () => {
+    setHistoryOpen(false)
+    const sp = new URLSearchParams(search)
+    if (sp.has('history')) {
+      sp.delete('history')
+      setSearchParams(sp, { replace: true })
+    }
+  }
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => {
-        const doc = document.documentElement
-        window.scrollTo({ top: doc.scrollHeight, behavior: 'smooth' })
-      })
+    // Auto‑scroll the internal messages list container instead of the window
+    const el = listRef.current
+    if (!el) return
+    try {
+      const top = el.scrollHeight
+      if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top, behavior: 'smooth' })
+      } else {
+        el.scrollTop = top
+      }
+    } catch {
+      /* noop */
     }
   }, [messages, loading])
 
-  // Keep latest evidence refs in sync
-  useEffect(() => { evidenceSpecRef.current = evidenceSpec }, [evidenceSpec])
-  useEffect(() => { evidenceDataRef.current = evidenceData }, [evidenceData])
-
-  // Open evidence panel only when both spec and rows are available to avoid race conditions
+  // Sync local state with URL `?history=1` (URL → state only)
   useEffect(() => {
-    const hasSpec = Boolean(evidenceSpec)
-    const hasRows = (evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0) > 0
-    if (!showEvidence && hasSpec && hasRows) {
-      setShowEvidence(true)
+    const sp = new URLSearchParams(search)
+    const wantOpen = sp.has('history') && sp.get('history') !== '0'
+    setHistoryOpen(prev => (prev === wantOpen ? prev : wantOpen))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
+
+  // Trigger a fresh session when URL has `?new=1`, then clean the URL (one‑shot)
+  useEffect(() => {
+    const sp = new URLSearchParams(search)
+    const wantNew = sp.has('new') && sp.get('new') !== '0'
+    if (wantNew) {
+      onNewChat()
+      sp.delete('new')
+      setSearchParams(sp, { replace: true })
     }
-  }, [evidenceSpec, evidenceData, showEvidence])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
+
+  // Fermer la sheet Tickets avec la touche Escape
+  useEffect(() => {
+    if (!showTicketsSheet) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTicketsSheet(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showTicketsSheet])
+
+  async function refreshHistory() {
+    try {
+      const items = await apiFetch<Array<{ id: number; title: string; created_at: string; updated_at: string }>>('/conversations')
+      setHistory(items || [])
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    refreshHistory()
+  }, [])
 
   function onToggleChartModeClick() {
     setChartMode(v => {
       const next = !v
-      if (next) setSqlMode(false) // exclusif: un seul mode à la fois
-      return next
-    })
-    setError('')
-  }
-
-  function onToggleSqlModeClick() {
-    setSqlMode(v => {
-      const next = !v
-      if (next) setChartMode(false) // exclusif: un seul mode à la fois
+      setSqlMode(!next) // SQL actif par défaut hors mode graphique
       return next
     })
     setError('')
@@ -115,10 +165,9 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
-    // Reset evidence state for the new question
+    // Reset uniquement l'état d'affichage du chat et du panneau Tickets
     setEvidenceSpec(null)
     setEvidenceData(null)
-    setShowEvidence(false)
 
     const isChartMode = chartMode
     const sqlByStep = new Map<string, { sql: string; purpose?: string }>()
@@ -131,13 +180,28 @@ export default function Chat() {
       setMessages(prev => [...prev, { role: 'assistant', content: '', ephemeral: true }])
 
       // Force NL→SQL when SQL toggle or Chart mode is active
-      const payload: ChatCompletionRequest = (sqlMode || isChartMode)
-        ? { messages: next, metadata: { nl2sql: true } }
-        : { messages: next }
+      const baseMeta: Record<string, unknown> = {}
+      if (sqlMode || isChartMode) baseMeta.nl2sql = true
+      if (conversationId) baseMeta.conversation_id = conversationId
+      // Transmettre les exclusions de tables si présentes
+      if (excludedTables.size > 0) {
+        baseMeta.exclude_tables = Array.from(excludedTables)
+        if (saveAsDefault) baseMeta.save_as_default = true
+      }
+      const payload: ChatCompletionRequest = { messages: next, metadata: baseMeta }
 
       await streamSSE('/chat/stream', payload, (type, data) => {
         if (type === 'meta') {
           const meta = data as ChatStreamMeta
+          if (typeof meta?.conversation_id === 'number') {
+            setConversationId(meta.conversation_id)
+          }
+          // Synchronise la sélection effective côté serveur (affichage et cohérence UI)
+          if (Array.isArray(meta?.effective_tables)) {
+            const eff = meta.effective_tables.filter(x => typeof x === 'string') as string[]
+            setEffectiveTables(eff)
+            // Ne pas recalculer excludedTables à partir de effective_tables pour éviter flicker
+          }
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
@@ -154,7 +218,7 @@ export default function Chat() {
             }
             return copy
           })
-          // Capture optional evidence spec from meta
+          // Capture la spec pour alimenter les tickets à gauche (si fournie)
           const spec = meta?.evidence_spec as EvidenceSpec | undefined
           if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
             setEvidenceSpec(spec)
@@ -203,7 +267,6 @@ export default function Chat() {
           const normalizedRows = normaliseRows(columns, rows)
 
           if (purpose === 'evidence') {
-            // Evidence dataset (generic)
             const evid: EvidenceRowsPayload = {
               columns,
               rows: normalizedRows,
@@ -264,31 +327,24 @@ export default function Chat() {
             const idx = copy.findIndex(m => m.ephemeral)
             if (idx >= 0) {
               copy[idx] = {
+                id: createMessageId(),
                 role: 'assistant',
                 content: done.content_full,
+                // Attach latest NL→SQL dataset (if any) to allow on-demand charting
+                ...(latestDataset ? { chartDataset: latestDataset } : {}),
                 details: {
                   ...(copy[idx].details || {}),
                   elapsed: done.elapsed_s
                 }
               }
             } else {
-              copy.push({ role: 'assistant', content: done.content_full })
+              copy.push({ id: createMessageId(), role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
             }
             return copy
           })
-          // Keep open state; no overlay — sidebar remains integrated
-          if (import.meta.env.MODE === 'development') {
-            const spec = evidenceSpecRef.current
-            const evid = evidenceDataRef.current
-            const hasEvidence = (evid?.row_count ?? evid?.rows?.length ?? 0) > 0
-            if (hasEvidence && spec) {
-              console.info('[evidence_sidebar] ready', {
-                count: evid?.row_count ?? evid?.rows?.length ?? 0,
-                entity: spec?.entity_label,
-                sourceMode: (sqlMode || isChartMode) ? 'sql' : 'graph'
-              })
-            }
-          }
+          // Fin du streaming: message final fixé
+          // Refresh history list after message persisted
+          refreshHistory()
         } else if (type === 'error') {
           setError(data?.message || 'Erreur streaming')
         }
@@ -329,6 +385,7 @@ export default function Chat() {
         }
 
         try {
+          setChartGenerating(true)
           const res = await apiFetch<ChartGenerationResponse>('/mcp/chart', {
             method: 'POST',
             body: JSON.stringify(chartPayload)
@@ -352,6 +409,7 @@ export default function Chat() {
                 content: "Impossible de générer un graphique."
               }
           setMessages(prev => [...prev, assistantMessage])
+          setChartGenerating(false)
         } catch (chartErr) {
           console.error(chartErr)
           setMessages(prev => [
@@ -365,6 +423,7 @@ export default function Chat() {
           if (chartErr instanceof Error) {
             setError(chartErr.message)
           }
+          setChartGenerating(false)
         }
       }
     } catch (e) {
@@ -373,6 +432,196 @@ export default function Chat() {
     } finally {
       setLoading(false)
       abortRef.current = null
+    }
+  }
+
+  async function loadConversation(id: number) {
+    try {
+      const data = await apiFetch<{
+        id: number
+        title: string
+        messages: Array<{
+          role: 'user' | 'assistant'
+          content: string
+          created_at: string
+          details?: {
+            plan?: any
+            steps?: Array<{ step?: number; purpose?: string; sql?: string }>
+          }
+        }>
+        evidence_spec?: EvidenceSpec
+        evidence_rows?: EvidenceRowsPayload
+        settings?: { exclude_tables?: string[] }
+      }>(`/conversations/${id}`)
+      setConversationId(data.id)
+      setMessages(
+        (data.messages || []).map(m => ({
+          id: createMessageId(),
+          role: m.role,
+          content: m.content,
+          details: m.details,
+          ...(m as any).chart_url ? {
+            chartUrl: (m as any).chart_url,
+            chartTitle: (m as any).chart_title,
+            chartDescription: (m as any).chart_description,
+            chartTool: (m as any).chart_tool,
+            chartSpec: (m as any).chart_spec,
+          } : {}
+        }))
+      )
+      setEvidenceSpec(data?.evidence_spec ?? null)
+      // Defensive normalization: history may contain array-rows; convert to objects
+      const ev = data?.evidence_rows
+      if (ev && Array.isArray(ev.rows)) {
+        const cols = Array.isArray(ev.columns)
+          ? (ev.columns as unknown[]).filter((c): c is string => typeof c === 'string')
+          : []
+        const rowsNorm = normaliseRows(cols, ev.rows as any[])
+        setEvidenceData({
+          columns: cols,
+          rows: rowsNorm,
+          row_count: typeof ev.row_count === 'number' ? ev.row_count : rowsNorm.length,
+          step: typeof ev.step === 'number' ? ev.step : undefined,
+          purpose: ev.purpose
+        })
+      } else {
+        setEvidenceData(ev ?? null)
+      }
+      // Persisted per-conversation exclusions (if any)
+      const ex = Array.isArray(data?.settings?.exclude_tables)
+        ? (data!.settings!.exclude_tables as unknown[]).filter((x): x is string => typeof x === 'string')
+        : []
+      setExcludedTables(new Set(ex))
+      setEffectiveTables([])
+      closeHistory()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Chargement impossible')
+    }
+  }
+
+  // Reset the chat session state. Used by the `?new=1` URL flow (Layout button)
+  function onNewChat() {
+    if (loading && abortRef.current) {
+      abortRef.current.abort()
+    }
+    setConversationId(null)
+    setMessages([])
+    setEvidenceSpec(null)
+    setEvidenceData(null)
+    setError('')
+    setHistoryOpen(false)
+  }
+
+  async function onGenerateChart(messageId: string) {
+    const index = messages.findIndex(m => m.id === messageId)
+    if (index < 0) return
+    const msg = messages[index]
+    // Prevent duplicate clicks while in-flight
+    if (msg.chartSaving) return
+    let dataset = msg.chartDataset
+    // If dataset missing (typical when loaded from history), try to hydrate from backend
+    if (!dataset && conversationId != null) {
+      try {
+        setMessages(prev => {
+          const copy = [...prev]
+          const i = copy.findIndex(m => m.id === messageId)
+          if (i >= 0) copy[i] = { ...copy[i], chartSaving: true }
+          return copy
+        })
+        const res = await apiFetch<{ dataset: ChartDatasetPayload }>(`/conversations/${conversationId}/dataset?message_index=${index}`)
+        if (res?.dataset && res.dataset.sql && (res.dataset.columns?.length ?? 0) > 0 && (res.dataset.rows?.length ?? 0) > 0) {
+          dataset = res.dataset
+          setMessages(prev => {
+            const copy = [...prev]
+            const i = copy.findIndex(m => m.id === messageId)
+            if (i >= 0) copy[i] = { ...copy[i], chartDataset: dataset, chartSaving: false }
+            return copy
+          })
+        } else {
+          setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, chartSaving: false } : m)))
+          setError("Impossible de reconstruire un jeu de données pour ce message.")
+          return
+        }
+      } catch (err) {
+        setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, chartSaving: false } : m)))
+        setError(err instanceof Error ? err.message : 'Hydratation du dataset échouée')
+        return
+      }
+    }
+    if (!dataset || !dataset.sql || (dataset.columns?.length ?? 0) === 0 || (dataset.rows?.length ?? 0) === 0) {
+      setError("Aucune donnée SQL exploitable pour ce message.")
+      return
+    }
+    // Derive prompt from the closest preceding user message
+    let prompt = ''
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        prompt = messages[i].content || ''
+        break
+      }
+    }
+    // Mark generating on the source message
+    setMessages(prev => {
+      const copy = [...prev]
+      const i = copy.findIndex(m => m.id === messageId)
+      if (i >= 0) copy[i] = { ...copy[i], chartSaving: true }
+      return copy
+    })
+    try {
+      const payload: ChartGenerationRequest = { prompt: prompt || 'Générer un graphique', answer: msg.content, dataset }
+      const res = await apiFetch<ChartGenerationResponse>('/mcp/chart', { method: 'POST', body: JSON.stringify(payload) })
+      const chartUrl = typeof res?.chart_url === 'string' ? res.chart_url : ''
+      const assistantMessage: Message = chartUrl
+        ? {
+            id: createMessageId(),
+            role: 'assistant',
+            content: chartUrl,
+            chartUrl,
+            chartTitle: res?.chart_title,
+            chartDescription: res?.chart_description,
+            chartTool: res?.tool_name,
+            chartPrompt: prompt || undefined,
+            chartSpec: res?.chart_spec
+          }
+        : {
+            id: createMessageId(),
+            role: 'assistant',
+            content: 'Impossible de générer un graphique.'
+          }
+      setMessages(prev => {
+        const copy = [...prev]
+        // Clear generating flag on the source message and append the chart message
+        const i = copy.findIndex(m => m.id === messageId)
+        if (i >= 0) copy[i] = { ...copy[i], chartSaving: false }
+        copy.push(assistantMessage)
+        return copy
+      })
+      // Persist as conversation event so chart reappears in history
+      if (chartUrl && conversationId) {
+        try {
+          await apiFetch(`/conversations/${conversationId}/chart`, {
+            method: 'POST',
+            body: JSON.stringify({
+              chart_url: chartUrl,
+              tool_name: res?.tool_name,
+              chart_title: res?.chart_title,
+              chart_description: res?.chart_description,
+              chart_spec: res?.chart_spec,
+            })
+          })
+        } catch {
+          // non-bloquant
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      setMessages(prev => {
+        const copy = [...prev]
+        const i = copy.findIndex(m => m.id === messageId)
+        if (i >= 0) copy[i] = { ...copy[i], chartSaving: false }
+        return copy
+      })
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération du graphique')
     }
   }
 
@@ -451,147 +700,359 @@ export default function Chat() {
     }
   }
 
+  // Accessibility: focus management for Data panel
+  const dataPanelRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!showDataPanel) return
+    // Focus on open + Escape to close
+    dataPanelRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDataPanel(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showDataPanel])
+
+  function onDataPanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'Tab') return
+    const root = dataPanelRef.current
+    if (!root) return
+    const focusables = Array.from(root.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+    ))
+    if (focusables.length === 0) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    const current = document.activeElement as HTMLElement | null
+    if (e.shiftKey) {
+      if (current === first || !root.contains(current)) {
+        last.focus(); e.preventDefault()
+      }
+    } else {
+      if (current === last || !root.contains(current)) {
+        first.focus(); e.preventDefault()
+      }
+    }
+  }
+
+  function includedTablesCount(total: number, excluded: Set<string>, effective: string[]): number {
+    // Prefer server effective tables when available, else derive locally
+    if (effective && effective.length > 0) return Math.max(effective.length, 0)
+    return total > 0 ? Math.max(total - excluded.size, 0) : 0
+  }
+
   return (
-    <div className={clsx('mx-auto flex flex-col animate-fade-in max-w-3xl')}>
-      {/* Bandeau d'entête/inspecteur supprimé pour alléger l'UI — les détails restent disponibles dans les bulles. */}
-
-      {/* Evidence toggle (intégré, discret) */}
-      <div className="sticky top-0 z-10 flex justify-end px-2 pt-2">
-        <EvidenceButton
-          ref={evidenceBtnRef}
-          spec={evidenceSpec}
-          data={evidenceData}
-          onClick={() => setShowEvidence(v => !v)}
-        />
-      </div>
-
-      {messages.length === 0 ? (
-        // État vide: contenu figé au centre de l'écran, sans scroll
-        <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
-          {loading ? (
-            <div className="flex justify-center py-2">
-              <Loader text="Streaming…" />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 animate-fade-in">
-              <img
-                src={`${import.meta.env.BASE_URL}insight.svg`}
-                alt="Logo FoyerInsight"
-                className="h-12 w-12 md:h-16 md:w-16 opacity-80"
-              />
-              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary-900 opacity-80">
-                Discutez avec vos données
-              </h2>
-            </div>
-          )}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
+      {/* Colonne gauche: Ticket exploration */}
+      <aside className="hidden lg:block lg:col-span-5 xl:col-span-5 2xl:col-span-5">
+        <div ref={ticketPanelRef} className="border rounded-lg bg-white shadow-sm p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-auto">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</h2>
+          </div>
+          <TicketPanel spec={evidenceSpec} data={evidenceData} containerRef={ticketPanelRef} />
         </div>
-      ) : (
-        <div ref={listRef} className="p-4 space-y-4 pb-32">
-          <>
+      </aside>
+
+      {/* Colonne droite: Chat */}
+      <section className="lg:col-span-7 xl:col-span-7 2xl:col-span-7">
+        <div className="border rounded-lg bg-white shadow-sm p-0 flex flex-col min-h-[calc(100vh-120px)]">
+          {/* Messages */}
+          <div ref={listRef} className="flex-1 p-4 space-y-4 overflow-auto">
+            {/* Mobile toolbar (Exploration uniquement) */}
+            <div className="sticky top-0 z-10 -mt-4 -mx-4 mb-2 px-4 pt-3 pb-2 bg-white/95 backdrop-blur border-b lg:hidden">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTicketsSheet(true)}
+                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                  >
+                    <HiBookmark className="w-4 h-4" />
+                    Exploration
+                    {(() => {
+                      const c = evidenceData?.row_count ?? evidenceData?.rows?.length ?? 0
+                      return c > 0 ? (
+                        <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{c}</span>
+                      ) : null
+                    })()}
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* Desktop toolbar (sans boutons Historique/Nouveau chat pour éviter doublons avec le header) */}
+            <div className="hidden lg:flex items-center justify-between mb-2">
+              <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowDataPanel(true)
+                    if (dataTables.length === 0 && !tablesLoading) {
+                      setTablesLoading(true)
+                      try {
+                        const items = await apiFetch<Array<{ name: string; path: string }>>('/data/tables')
+                        const names = (items || []).map(it => it?.name).filter((x): x is string => typeof x === 'string')
+                        setDataTables(names)
+                        // TODO: avoid extra fetch by returning last_conversation_settings in /conversations
+                        // Initialiser exclusions en conservant celles déjà cochées
+                        setExcludedTables(prev => new Set(Array.from(prev).filter(v => names.includes(v))))
+                        // Si nouvelle conversation et aucune exclusion encore définie, préremplir avec la dernière conversation
+                        if (!conversationId && excludedTables.size === 0 && history.length > 0) {
+                          try {
+                            const last = await apiFetch<{ settings?: { exclude_tables?: string[] } }>(`/conversations/${history[0].id}`)
+                            const ex = Array.isArray(last?.settings?.exclude_tables)
+                              ? (last!.settings!.exclude_tables as unknown[]).filter((x): x is string => typeof x === 'string')
+                              : []
+                            if (ex.length > 0) {
+                              const filtered = ex.filter(name => names.includes(name))
+                              setExcludedTables(new Set(filtered))
+                            }
+                          } catch (err) {
+                            // best-effort; ignore
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Failed to load tables', err)
+                      } finally {
+                        setTablesLoading(false)
+                      }
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white text-primary-700 border-primary-300 hover:bg-primary-50"
+                  title="Voir et exclure des tables pour cette conversation"
+                >
+                  Données
+                  {(() => {
+                    const total = dataTables.length
+                    const included = includedTablesCount(total, excludedTables, effectiveTables)
+                    return total > 0 ? (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] px-1 bg-primary-600 text-white">{included}</span>
+                    ) : null
+                  })()}
+                </button>
+              </div>
+            </div>
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id ?? index}
                 message={message}
                 onSaveChart={onSaveChart}
+                onGenerateChart={onGenerateChart}
               />
             ))}
-            {loading && (
-              <div className="flex justify-center py-2">
-                <Loader text="Streaming…" />
+            {(chartGenerating || messages.some(m => m.chartSaving)) && (
+              <div className="flex justify-center py-2"><Loader text="Génération du graphique…" /></div>
+            )}
+            {messages.length === 0 && loading && (
+              <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
+            )}
+            {error && (
+              <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
-          </>
+          </div>
+
+          {/* Composer */}
+          <div className="p-3">
+            <div className="relative">
+              <Textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Posez votre question"
+                rows={1}
+                fullWidth
+                className={clsx(
+                  'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
+                  'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
+                  'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
+                  'leading-[48px] placeholder:text-primary-400',
+                  'text-left whitespace-nowrap'
+                )}
+              />
+              {/* Toggle Graph */}
+              <button
+                type="button"
+                onClick={onToggleChartModeClick}
+                aria-pressed={chartMode}
+                title="Activer MCP Chart"
+                className={clsx(
+                  'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
+                  chartMode
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
+                    : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
+                )}
+              >
+                <HiChartBar className="w-5 h-5" />
+              </button>
+              {/* Envoyer/Annuler */}
+              <button
+                type="button"
+                onClick={loading ? onCancel : onSend}
+                disabled={loading ? false : !input.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+                aria-label={loading ? 'Annuler' : 'Envoyer le message'}
+                title={loading ? 'Annuler' : 'Envoyer'}
+              >
+                {loading ? (
+                  <HiXMark className="w-5 h-5" />
+                ) : (
+                  <HiPaperAirplane className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+            {null}
+          </div>
         </div>
-      )}
+      </section>
 
-      {error && (
-        <div className="mx-4 mb-4 bg-red-50 border-2 border-red-200 rounded-lg p-3 animate-fade-in">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      {/* Evidence sidebar fixed (left), non intrusive */}
-      {showEvidence && (
-        <EvidenceSidebar
-          spec={evidenceSpec}
-          data={evidenceData}
-          onClose={() => setShowEvidence(false)}
-        />
-      )}
-
-      {/* Barre de composition fixe en bas de page (container transparent) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-transparent">
-        <div className={clsx('max-w-3xl mx-auto px-4 py-2')}>
-          <div className="relative">
-            <Textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Posez votre question"
-              rows={1}
-              fullWidth
-              className={clsx(
-                'pl-24 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
-                // Neutralise toute variation visuelle au focus
-                'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
-                'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
-                // Centre verticalement le texte saisi comme le placeholder
-                'leading-[48px] placeholder:text-primary-400',
-                'text-left whitespace-nowrap'
-              )}
-            />
-            {/* Toggle NL→SQL (MindsDB) intégré dans la zone de saisie */}
-            <button
-              type="button"
-              onClick={onToggleSqlModeClick}
-              aria-pressed={sqlMode}
-              title="Activer NL→SQL (MindsDB)"
-              className={clsx(
-                'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                sqlMode
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-              )}
-            >
-              <HiCircleStack className="w-5 h-5" />
-            </button>
-            {/* Toggle MCP Chart intégré dans la zone de saisie */}
-            <button
-              type="button"
-              onClick={onToggleChartModeClick}
-              aria-pressed={chartMode}
-              title="Activer MCP Chart"
-              className={clsx(
-                'absolute left-12 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                chartMode
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                  : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-              )}
-            >
-              <HiChartBar className="w-5 h-5" />
-            </button>
-            {/* Bouton contextuel (même taille/emplacement): Envoyer ↔ Annuler */}
-            <button
-              type="button"
-              onClick={loading ? onCancel : onSend}
-              disabled={loading ? false : !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
-              aria-label={loading ? 'Annuler' : 'Envoyer le message'}
-              title={loading ? 'Annuler' : 'Envoyer'}
-            >
-              {loading ? (
-                <HiXMark className="w-5 h-5" />
+      {/* Panel Données utilisées */}
+      {showDataPanel && (
+        <div className="fixed inset-0 z-50" aria-hidden={false}>
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowDataPanel(false)} />
+          <div
+            ref={dataPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="data-panel-title"
+            onKeyDown={onDataPanelKeyDown}
+            tabIndex={-1}
+            className="absolute left-1/2 top-16 -translate-x-1/2 w-[min(92vw,560px)] bg-white rounded-2xl border shadow-lg p-4 outline-none"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 id="data-panel-title" className="text-sm font-semibold text-primary-900">Données utilisées</h2>
+                <div className="text-[11px] text-primary-500">Cochez pour inclure, décochez pour exclure (par conversation)</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDataPanel(false)}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
+                aria-label="Fermer"
+                title="Fermer"
+              >
+                <HiXMark className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="border rounded-lg p-2 max-h-[50vh] overflow-auto">
+              {tablesLoading ? (
+                <div className="text-sm text-primary-500">Chargement…</div>
+              ) : dataTables.length === 0 ? (
+                <div className="text-sm text-primary-500">Aucune table disponible.</div>
               ) : (
-                <HiPaperAirplane className="w-5 h-5" />
+                <ul className="space-y-1">
+                  {dataTables.map(name => {
+                    const key = name.toLowerCase()
+                    const included = !excludedTables.has(name)
+                    const effective = effectiveTables.length > 0 ? effectiveTables.some(t => t.toLowerCase() === key) : undefined
+                    return (
+                      <li key={name} className="flex items-center justify-between gap-2">
+                        <label className={clsx('flex items-center gap-2 text-sm', loading && 'opacity-60 pointer-events-none')}
+                          title={effective === false ? 'Exclue (non utilisée côté serveur)' : effective === true ? 'Incluse (utilisée côté serveur)' : ''}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={included}
+                            disabled={loading}
+                            onChange={(e) => {
+                              setExcludedTables(prev => {
+                                const next = new Set(prev)
+                                if (e.target.checked) {
+                                  next.delete(name)
+                                } else {
+                                  next.add(name)
+                                }
+                                return next
+                              })
+                            }}
+                          />
+                          <span className="text-primary-800">{name}</span>
+                        </label>
+                        {typeof effective === 'boolean' && (
+                          <span className={clsx('text-[11px] rounded-full border px-2 py-[2px]', effective ? 'text-primary-600 border-primary-200' : 'text-primary-400 border-primary-100')}>{effective ? 'actif' : 'exclu'}</span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
               )}
-            </button>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <label className="inline-flex items-center gap-2 text-xs text-primary-800">
+                <input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} />
+                Sauvegarder ces exclusions comme valeur par défaut
+              </label>
+              <div className="text-[11px] text-primary-500">Appliquées au prochain message. Pas de fallback.</div>
+            </div>
+          </div>
         </div>
-          {/* Bouton Annuler séparé supprimé: l'icône de droite devient Annuler pendant le streaming */}
-          <p className="mt-2 text-center text-[10px] md:text-xs text-primary-400 select-none">
-            L'IA peut faire des erreurs, FoyerInsight aussi.
-          </p>
+      )}
+
+      {/* Bottom sheet (mobile) for tickets */}
+      {showTicketsSheet && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowTicketsSheet(false)} />
+          <div ref={mobileTicketsRef} className="absolute left-0 right-0 bottom-0 max-h-[70vh] bg-white rounded-t-2xl border-t shadow-lg p-3 overflow-auto">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-semibold text-primary-900">{evidenceSpec?.entity_label ?? 'Exploration'}</div>
+                {evidenceSpec?.period && (
+                  <div className="text-[11px] text-primary-500">
+                    {typeof evidenceSpec.period === 'string' ? evidenceSpec.period : `${evidenceSpec.period.from ?? ''}${evidenceSpec.period.to ? ` → ${evidenceSpec.period.to}` : ''}`}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTicketsSheet(false)}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
+                aria-label="Fermer"
+                title="Fermer"
+              >
+                <HiXMark className="w-4 h-4" />
+              </button>
+            </div>
+            <TicketPanel spec={evidenceSpec} data={evidenceData} containerRef={mobileTicketsRef} />
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* History modal */}
+      {historyOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={closeHistory} />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg border shadow-lg w-[90vw] max-w-xl max-h-[80vh] overflow-auto">
+            <div className="p-3 border-b flex items-center justify-between">
+              <div className="text-sm font-semibold">Conversations</div>
+              <button className="text-xs underline" onClick={refreshHistory}>Rafraîchir</button>
+            </div>
+            <div className="p-3">
+              {history.length === 0 && (
+                <div className="text-sm text-primary-500">Aucune conversation</div>
+              )}
+              <ul className="divide-y">
+                {history.map(item => (
+                  <li key={item.id} className="py-2 flex items-center justify-between">
+                    <button
+                      className="text-left text-sm text-primary-900 hover:underline"
+                      onClick={() => loadConversation(item.id)}
+                    >
+                      <div className="font-medium truncate max-w-[42ch]">{item.title || `Discussion #${item.id}`}</div>
+                      <div className="text-xs text-primary-500">{new Date(item.updated_at).toLocaleString()}</div>
+                    </button>
+                    <button
+                      className="text-xs border rounded-full px-2 py-1 hover:bg-primary-50"
+                      onClick={() => loadConversation(item.id)}
+                    >Ouvrir</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -599,9 +1060,272 @@ export default function Chat() {
 interface MessageBubbleProps {
   message: Message
   onSaveChart?: (messageId: string) => void
+  onGenerateChart?: (messageId: string) => void
 }
 
-function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
+// -------- Left panel: Tickets from evidence --------
+type TicketPanelProps = {
+  spec: EvidenceSpec | null
+  data: EvidenceRowsPayload | null
+  containerRef?: RefObject<HTMLDivElement>
+}
+
+function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
+  // Preview caps (configurable)
+  const PREVIEW_COL_MAX = TICKETS_CONFIG.PREVIEW_COL_MAX
+  const PREVIEW_CHAR_MAX = TICKETS_CONFIG.PREVIEW_CHAR_MAX
+
+  const count = data?.row_count ?? data?.rows?.length ?? 0
+  const limit = spec?.limit ?? 100
+  const allRows: Record<string, unknown>[] = data?.rows ?? []
+  const rows = allRows.slice(0, limit)
+  const extra = Math.max((count || 0) - rows.length, 0)
+  // Derive columns from the union of keys present in rows to ensure
+  // all SQL-returned fields are visible, regardless of LLM hints.
+  const derivedCols = useMemo(() => {
+    // PR#58: derive from a small, stable sample to keep order predictable
+    const SAMPLE = Math.min(20, rows.length)
+    const sample = rows.slice(0, SAMPLE)
+    const ordered = new Set<string>()
+    for (const r of sample) {
+      for (const k of Object.keys(r || {})) {
+        if (!ordered.has(k)) ordered.add(k)
+      }
+    }
+    return Array.from(ordered)
+  }, [rows])
+  const columns: string[] = (derivedCols.length > 0)
+    ? derivedCols
+    : (data?.columns ?? spec?.columns ?? [])
+  const createdAtKey = spec?.display?.created_at
+  const titleKey = spec?.display?.title
+  const statusKey = spec?.display?.status
+  const pkKey = spec?.pk
+  const linkTpl = spec?.display?.link_template
+
+  if (import.meta?.env?.MODE !== 'production') {
+    try {
+      // Lightweight dev log for diagnostics
+      console.info('[evidence_panel] columns', {
+        from_spec: spec?.columns?.length ?? 0,
+        from_data: data?.columns?.length ?? 0,
+        derived: columns.length,
+      })
+    } catch {}
+  }
+
+  // Local focus state: clicked ticket → full detail view
+  const [selectedPk, setSelectedPk] = useState<string | null>(null)
+  const prevScrollTop = useRef(0)
+
+  function openDetail(pk: unknown) {
+    if (containerRef?.current) {
+      try { prevScrollTop.current = containerRef.current.scrollTop } catch (err) { if (import.meta?.env?.MODE !== 'production') console.warn('TicketPanel: failed reading scrollTop', err) }
+    }
+    setSelectedPk(String(pk))
+  }
+
+  function backToList() {
+    setSelectedPk(null)
+    const el = containerRef?.current
+    if (el) {
+      // Wait next paint to ensure list is rendered
+      requestAnimationFrame(() => { try { el.scrollTop = prevScrollTop.current || 0 } catch (err) { if (import.meta?.env?.MODE !== 'production') console.warn('TicketPanel: failed restoring scrollTop', err) } })
+    }
+  }
+
+  function orderColumns(cols: string[]): string[] {
+    const set = new Set<string>()
+    const push = (k?: string) => { if (k && cols.includes(k) && !set.has(k)) set.add(k) }
+    push(titleKey)
+    push(statusKey)
+    push(createdAtKey)
+    push(pkKey)
+    cols.forEach(c => { if (!set.has(c)) set.add(c) })
+    return Array.from(set)
+  }
+
+  function truncate(val: unknown, max = PREVIEW_CHAR_MAX): string {
+    const s = String(val ?? '')
+    if (s.length <= max) return s
+    return s.slice(0, Math.max(max - 1, 0)) + '…'
+  }
+
+  const sorted = useMemo(() => {
+    if (!createdAtKey) return rows
+    const key = createdAtKey
+    return [...rows].sort((a, b) => {
+      const va = a[key]
+      const vb = b[key]
+      const da = va ? new Date(String(va)) : null
+      const db = vb ? new Date(String(vb)) : null
+      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0
+      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0
+      return tb - ta
+    })
+  }, [rows, createdAtKey])
+
+  function buildLink(tpl: string | undefined, row: Record<string, unknown>) {
+    if (!tpl) return undefined
+    try {
+      // Encode dynamic values to prevent injection into path/query
+      const replaced = tpl.replace(/\{(\w+)\}/g, (_, k) => encodeURIComponent(String(row[k] ?? '')))
+      // Build URL against current origin to validate protocol and normalize
+      const url = new URL(replaced, window.location.origin)
+      const allowed = ['http:', 'https:']
+      if (!allowed.includes(url.protocol)) return undefined
+      // Return relative path when template intended a relative URL
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(replaced)) {
+        return url.pathname + url.search + url.hash
+      }
+      return url.href
+    } catch (err) {
+      if (import.meta?.env?.MODE !== 'production') {
+        // Avertir en dev si le gabarit de lien est invalide
+        console.warn('TicketPanel.buildLink: invalid link template', { tpl, err })
+      }
+      return undefined
+    }
+  }
+
+  // Stable hooks before any conditional return
+  const orderedColumns = useMemo(() => orderColumns(columns), [columns, titleKey, statusKey, createdAtKey, pkKey])
+  const previewColumns = useMemo(() => orderedColumns.slice(0, PREVIEW_COL_MAX), [orderedColumns, PREVIEW_COL_MAX])
+
+  if (!spec || !data || (count ?? 0) === 0) {
+    return (
+      <div className="text-sm text-primary-500">
+        Aucun ticket détecté. Posez une question pour afficher les éléments concernés.
+      </div>
+    )
+  }
+
+  // Detail view when a ticket is selected
+  if (selectedPk != null) {
+    if (!pkKey) {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-primary-900">Détail</div>
+            <button type="button" onClick={backToList} className="text-xs rounded-full border px-2 py-1 hover:bg-primary-50">Tout voir</button>
+          </div>
+          <div className="text-sm text-red-600">Configuration manquante: clé primaire introuvable.</div>
+        </div>
+      )
+    }
+    const row = sorted.find(r => String(r[pkKey]) === selectedPk)
+    const link = row ? buildLink(linkTpl, row) : undefined
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-primary-900">Détail du ticket</div>
+          <button
+            type="button"
+            onClick={backToList}
+            className="text-xs rounded-full border px-2 py-1 hover:bg-primary-50"
+          >
+            Tout voir
+          </button>
+        </div>
+        {!row ? (
+          <div className="text-sm text-primary-500">Élément introuvable.</div>
+        ) : (
+          <div className="border border-primary-100 rounded-md p-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium text-primary-900 truncate">
+                {String((titleKey && row[titleKey]) ?? row[pkKey] ?? selectedPk)}
+              </div>
+              {statusKey && row[statusKey] != null ? (
+                <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(row[statusKey])}</span>
+              ) : null}
+            </div>
+            <div className="mt-1 text-xs text-primary-500">
+              {createdAtKey && row[createdAtKey] ? new Date(String(row[createdAtKey])).toLocaleString() : null}
+            </div>
+            {link && (
+              <div className="mt-1 text-xs">
+                <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all">{link}</a>
+              </div>
+            )}
+            <div className="mt-2 overflow-auto">
+              <table className="min-w-full text-[11px]">
+                <tbody>
+                  {orderedColumns.map((c) => (
+                    <tr key={c} className="border-t border-primary-100">
+                      <td className="pr-2 py-1 text-primary-400 whitespace-nowrap align-top">{c}</td>
+                      <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // List view with preview caps
+  return (
+    <div className="space-y-2">
+      {sorted.map((row, idx) => {
+        const title = titleKey ? row[titleKey] : undefined
+        const status = statusKey ? row[statusKey] : undefined
+        const created = createdAtKey ? row[createdAtKey] : undefined
+        const pk = pkKey ? row[pkKey] : undefined
+        const link = buildLink(linkTpl, row)
+        const uniqueKey = pk != null ? String(pk) : `row-${idx}`
+        return (
+          <div
+            key={uniqueKey}
+            role="button"
+            tabIndex={0}
+            onClick={() => pkKey && pk != null && openDetail(pk)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pkKey && pk != null && openDetail(pk) } }}
+            className="border border-primary-100 rounded-md p-2 hover:bg-primary-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-300"
+            aria-label={`Voir le ticket ${String(title ?? pk ?? `#${idx + 1}`)}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium text-primary-900 truncate">
+                {String(title ?? (pk ?? `#${idx + 1}`))}
+              </div>
+              {status != null ? (
+                <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
+              ) : null}
+            </div>
+            <div className="mt-1 text-xs text-primary-500">
+              {created ? new Date(String(created)).toLocaleString() : null}
+            </div>
+            {link && (
+              <div className="mt-1 text-xs">
+                <a href={link} target="_blank" rel="noopener noreferrer" className="underline text-primary-600 break-all" onClick={e => e.stopPropagation()}>{link}</a>
+              </div>
+            )}
+            {previewColumns && previewColumns.length > 0 && (
+              <div className="mt-2 overflow-auto">
+                <table className="min-w-full text-[11px]">
+                  <tbody>
+                    {previewColumns.map((c) => (
+                      <tr key={c} className="border-t border-primary-100">
+                        <td className="pr-2 py-1 text-primary-400 whitespace-nowrap align-top">{c}</td>
+                        <td className="py-1 text-primary-800 break-all" title={String(row[c] ?? '')}>{truncate(row[c])}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {extra > 0 && (
+        <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
+      )}
+    </div>
+  )
+}
+
+function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleProps) {
   const {
     id,
     role,
@@ -695,16 +1419,49 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
             isUser ? '' : 'text-primary-950'
           )}>
             {content}
+            {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
+            {!isUser && !chartUrl && !message.ephemeral && (
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => message.id && onGenerateChart && onGenerateChart(message.id)}
+                  disabled={
+                    !message.id || Boolean(message.chartSaving) ||
+                    !(
+                      (message.chartDataset && message.chartDataset.sql &&
+                        (message.chartDataset.columns?.length ?? 0) > 0 &&
+                        (message.chartDataset.rows?.length ?? 0) > 0) ||
+                      (message.details && Array.isArray(message.details.steps) && message.details.steps.some(s => typeof s?.sql === 'string' && s.sql))
+                    )
+                  }
+                  title={
+                    message.chartDataset && (message.chartDataset.columns?.length ?? 0) > 0 && (message.chartDataset.rows?.length ?? 0) > 0
+                      ? 'Générer un graphique à partir du jeu de données'
+                      : 'Aucun jeu de données exploitable pour le graphique'
+                  }
+                >
+                  {message.chartSaving ? (
+                    <span className="inline-block h-4 w-4 mr-2 rounded-full border-2 border-primary-300 border-t-primary-900 animate-spin" />
+                  ) : (
+                    <HiChartBar className="w-4 h-4 mr-2" />
+                  )}
+                  {message.chartSaving ? 'Génération…' : 'Graphique'}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => setShowDetails(v => !v)}
+                >
+                  {showDetails ? 'Masquer' : 'Détails'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
-        {!isUser && message.details && (message.details.steps?.length || message.details.plan) ? (
+        {/* Détails n'apparaissent que lorsque le message est finalisé */}
+        {!isUser && !message.ephemeral && message.details && (message.details.steps?.length || message.details.plan) ? (
           <div className="mt-2 text-xs">
-            <button
-              className="underline text-primary-600"
-              onClick={() => setShowDetails(v => !v)}
-            >
-              {showDetails ? 'Masquer' : 'Afficher'} les détails de la requête
-            </button>
             {showDetails && (
               <div className="mt-1 space-y-2 text-primary-700">
                 {/* Métadonnées masquées (request_id/provider/model/elapsed) pour alléger l'affichage */}
@@ -741,177 +1498,4 @@ function MessageBubble({ message, onSaveChart }: MessageBubbleProps) {
   )
 }
 
-// ============ Evidence UI (generic) ============
-type EvidenceButtonProps = {
-  spec: EvidenceSpec | null
-  data: EvidenceRowsPayload | null
-  onClick: () => void
-}
-
-const EvidenceButton = forwardRef<HTMLButtonElement, EvidenceButtonProps>(function EvidenceButton (
-  { spec, data, onClick }, ref
-) {
-  const count = data?.row_count ?? data?.rows?.length ?? 0
-  const label = spec?.entity_label || 'Éléments'
-  const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
-  const shown = Math.min(count, limit)
-  const extra = Math.max(count - limit, 0)
-  const disabled = !spec || count === 0
-  const badge = extra > 0 ? `${shown}+` : `${shown}`
-  return (
-    <button
-      ref={ref}
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={!spec ? 'Aucun evidence_spec reçu' : (count === 0 ? 'Aucun élément de preuve' : `${label}`)}
-      className={clsx(
-        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
-        disabled
-          ? 'bg-white text-primary-300 border-primary-200 cursor-not-allowed'
-          : 'bg-white text-primary-700 border-primary-300 hover:bg-primary-50'
-      )}
-      aria-disabled={disabled}
-    >
-      <span className="font-medium">{label}</span>
-      <span className={clsx(
-        'inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full text-[11px] px-1',
-        disabled ? 'bg-primary-100 text-primary-400' : 'bg-primary-600 text-white'
-      )}>
-        {badge}
-      </span>
-    </button>
-  )
-})
-
-type EvidenceSidebarProps = {
-  spec: EvidenceSpec | null
-  data: EvidenceRowsPayload | null
-  onClose: () => void
-}
-
-function EvidenceSidebar({ spec, data, onClose }: EvidenceSidebarProps) {
-  const count = data?.row_count ?? data?.rows?.length ?? 0
-  const limit = spec?.limit ?? DEFAULT_EVIDENCE_LIMIT
-  const allRows: Record<string, unknown>[] = data?.rows ?? []
-  const rows = allRows.slice(0, limit)
-  const extra = Math.max(count - rows.length, 0)
-  const columns: string[] = spec?.columns && spec.columns.length > 0 ? spec.columns : (data?.columns ?? [])
-  const createdAtKey = spec?.display?.created_at
-  const titleKey = spec?.display?.title
-  const statusKey = spec?.display?.status
-  const pkKey = spec?.pk
-  const linkTpl = spec?.display?.link_template
-
-  const sortedRows = useMemo(() => {
-    if (!createdAtKey) return rows
-    const key = createdAtKey
-    return [...rows].sort((a, b) => {
-      const va = a[key]
-      const vb = b[key]
-      const da = va ? new Date(String(va)) : null
-      const db = vb ? new Date(String(vb)) : null
-      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0
-      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0
-      return tb - ta
-    })
-  }, [rows, createdAtKey])
-
-  // Close on Escape
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [onClose])
-
-  function buildLink(tpl: string, row: Record<string, unknown>) {
-    try {
-      if (typeof tpl !== 'string' || tpl.length === 0) return undefined
-      const out = tpl.replace(/\{(\w+)\}/g, (_, k) => String(row[k] ?? ''))
-      // Basic URL validation: allow http(s) and absolute/relative paths
-      const safe = out.startsWith('http://') || out.startsWith('https://') || out.startsWith('/')
-      return safe ? out : undefined
-    } catch {
-      return undefined
-    }
-  }
-
-  return (
-    <aside
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="evidence-panel-title"
-      className="fixed left-4 md:left-6 top-24 z-40 w-[320px] sm:w-[360px] lg:w-[420px] h-[calc(100vh-140px)] border border-primary-100 bg-white rounded-lg overflow-auto p-3 shadow-md"
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <div id="evidence-panel-title" className="text-sm font-semibold text-primary-900">{spec?.entity_label || 'Éléments'}</div>
-          {spec?.period && (
-            <div className="text-[11px] text-primary-500">{typeof spec.period === 'string' ? spec.period : `${spec.period.from ?? ''}${spec.period.to ? ` → ${spec.period.to}` : ''}`}</div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-primary-200 hover:bg-primary-50"
-          aria-label="Fermer"
-        >
-          <HiXMark className="w-4 h-4" />
-        </button>
-      </div>
-      {(!spec || !data || count === 0) && (
-        <div className="text-sm text-primary-500">Aucun élément de preuve</div>
-      )}
-      {spec && data && count > 0 && (
-        <div className="space-y-2">
-          {sortedRows.map((row, idx) => {
-            const title = titleKey ? row[titleKey] : undefined
-            const status = statusKey ? row[statusKey] : undefined
-            const created = createdAtKey ? row[createdAtKey] : undefined
-            const pk = pkKey ? row[pkKey] : undefined
-            const link = linkTpl ? buildLink(linkTpl, row) : undefined
-            return (
-              <div key={idx} className="border border-primary-100 rounded-md p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-primary-900 truncate">
-                    {String(title ?? (pk ?? `#${idx + 1}`))}
-                  </div>
-                  {status != null ? (
-                    <span className="text-[11px] rounded-full border px-2 py-[2px] text-primary-600 border-primary-200">{String(status)}</span>
-                  ) : null}
-                </div>
-                <div className="mt-1 text-xs text-primary-500">
-                  {created ? new Date(String(created)).toLocaleString() : null}
-                </div>
-                {link && (
-                  <div className="mt-1 text-xs">
-                    <a href={link} target="_blank" rel="noreferrer" className="underline text-primary-600 break-all">{link}</a>
-                  </div>
-                )}
-                {columns && columns.length > 0 && (
-                  <div className="mt-2 overflow-auto">
-                    <table className="min-w-full text-[11px]">
-                      <tbody>
-                        {columns.map((c) => (
-                          <tr key={c} className="border-t border-primary-100">
-                            <td className="pr-2 py-1 text-primary-400 whitespace-nowrap">{c}</td>
-                            <td className="py-1 text-primary-800 break-all">{String(row[c] ?? '')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-          {extra > 0 && (
-            <div className="text-[11px] text-primary-500">+{extra} supplémentaires non affichés</div>
-          )}
-        </div>
-      )}
-    </aside>
-  )
-}
+// Evidence UI supprimée (panneau remplacé par Ticket exploration à gauche)

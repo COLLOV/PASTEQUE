@@ -1,0 +1,50 @@
+version: 1
+table: myfeelback_agences
+title: MyFeelBack - Agences
+description: Retours clients en agence (source MyFeelBack).
+columns:
+  - name: feedback_id
+    type: integer
+    description: Identifiant unique du feedback.
+  - name: client_id
+    type: integer
+    description: Identifiant unique du client.
+    pii: true
+  - name: date_feedback
+    type: date
+    description: Date du feedback (YYYY-MM-DD).
+  - name: agence
+    type: string
+    description: Nom de l'agence visitée.
+  - name: motif_visite
+    type: string
+    description: Raison principale de la visite en agence.
+  - name: avec_rendez_vous
+    type: boolean
+    description: Le client avait-il un rendez-vous planifié ?
+  - name: temps_attente
+    type: integer
+    unit: minutes
+    description: Durée d'attente avant prise en charge (minutes).
+  - name: note_globale
+    type: integer
+    description: Note globale de l'expérience (0–10).
+  - name: note_accueil
+    type: integer
+    description: Qualité de l'accueil (0–10).
+  - name: note_competence_conseiller
+    type: integer
+    description: Compétence du conseiller (0–10).
+  - name: note_proprete_locaux
+    type: integer
+    description: Propreté des locaux (0–10).
+  - name: note_accessibilite
+    type: integer
+    description: Accessibilité des lieux (0–10).
+  - name: reviendrait
+    type: boolean
+    description: Le client déclare-t-il qu'il reviendrait ?
+  - name: commentaire
+    type: string
+    description: Commentaire libre saisi par le client.
+    pii: true

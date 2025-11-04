@@ -51,7 +51,7 @@ npm install
 npm run dev
 ```
 
-Configurer l'API via `.env.development` (voir `.env.development.example`). Le script racine `start.sh` met automatiquement à jour `VITE_API_URL` en fonction du port backend choisi.
+Configurer l'API via `.env.development` (voir `.env.development.example`). Le script racine `start.sh` lit `FRONTEND_DEV_URL` (hôte/port Vite), `VITE_API_URL` (base API) et, si présent, `FRONTEND_URLS`; il ne modifie plus ce fichier.
 
 ## Structure du Projet
 
@@ -105,7 +105,9 @@ src/
 Créez un fichier `.env.development` à la racine du frontend:
 
 ```env
-VITE_API_URL=http://localhost:8000
+FRONTEND_DEV_URL=http://localhost:5173
+FRONTEND_URLS=http://localhost:5173
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
 ### Path Aliases
@@ -143,22 +145,69 @@ import { login } from '@/services/auth'
 
 ### Chat
 
-- Interface de chat moderne
-- Bulles de messages distinctes pour utilisateur/assistant
-- Auto-scroll lors de nouveaux messages
-- Support du Shift+Enter pour nouvelles lignes
-- Gestion des états de chargement et d'erreur
-- Streaming en direct (SSE sur `POST /api/v1/chat/stream`)
-  - Affichage token‑par‑token dans une bulle éphémère
-  - Remplacement automatique par le message final à la fin
-  - Panneau d’inspection repliable (SQL et échantillons; métadonnées techniques masquées)
+- Deux panneaux: « Ticket exploration » à gauche et chat à droite.
+- Bulles de messages distinctes pour utilisateur/assistant.
+- Auto-scroll lors de nouveaux messages.
+- Support du Shift+Enter pour nouvelles lignes.
+- Gestion des états de chargement et d'erreur.
+- Streaming en direct (SSE sur `POST /api/v1/chat/stream`).
+- Nouveau: barre d'actions sous chaque réponse de l'assistant avec deux boutons: « Graphique » et « Détails ».
+  - Taille réduite: `size="xs"` pour une empreinte visuelle minimale.
+  - Apparition différée: les boutons ne s'affichent qu'une fois la réponse finalisée (fin du streaming), jamais pendant l'écriture.
+  - « Graphique » déclenche `/mcp/chart` et s'affiche dans un nouveau message (bouton « Enregistrer dans le dashboard » inclus). Le bouton est automatiquement désactivé si aucun jeu de données NL→SQL exploitable n'est associé au message.
+  - « Détails » affiche/masque les informations de requête (SQL exécuté, échantillons, plan).
+
+#### Layout responsive — Oct. 2025
+
+- Desktop (≥ lg): grille en 12 colonnes avec un panneau gauche élargi (`lg:col-span-5`) et le chat à droite (`lg:col-span-7`).
+- Mobile/Tablette (< lg): priorité au chat — le panneau « Ticket exploration » est masqué automatiquement.
+- Un bouton « Exploration » apparait en haut du chat pour ouvrir un bottom sheet avec les éléments détectés.
+
+### Historique des conversations
+
+- Le bouton « Historique » du header ouvre la modale via `?history=1` sur `/chat` (l'état reste synchronisé avec l'URL).
+- Le bouton « Nouveau chat » du header remplace l’ancien bouton « Chat » et initialise une nouvelle session via `?new=1`.
+- Lors de l’envoi d’un premier message, le backend crée une conversation et renvoie `conversation_id` dans l’événement `meta`; le frontend rattache alors les messages suivants à cette conversation.
+ - Robustesse (29 oct. 2025): lors du chargement d’une conversation depuis l’historique,
+   les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
+   a persisté des lignes sous forme de tableaux (héritage de certaines réponses MindsDB).
+Les cellules du panneau « Tickets » restent ainsi correctement renseignées.
+
+Sous-panel « Tickets » — aperçu et détail (oct. 2025)
+
+- Aperçu limité pour garder le panel lisible:
+  - Nombre maximum de colonnes par ticket en liste.
+  - Nombre maximum de caractères par valeur (ellipsis au-delà).
+- Colonnes affichées: le panel dérive désormais ses colonnes de l'union des clés
+  réellement présentes dans les lignes SQL renvoyées (échantillon). Les suggestions
+  du LLM (`spec.columns`) ne restreignent plus l'affichage. L'aperçu reste limité
+  par `PREVIEW_COL_MAX`, tandis que la vue Détail affiche toutes les colonnes.
+- Clic sur un ticket: bascule en vue détail dans le même panel, avec toutes les colonnes visibles et sans troncature. Un bouton « Tout voir » permet de revenir à la liste.
+- À la fermeture du détail (« Tout voir »), la position de défilement du panel est restaurée au même endroit qu'avant l'ouverture.
+- Paramètres: voir `frontend/src/features/chat/Chat.tsx` → composant `TicketPanel`.
+- `PREVIEW_COL_MAX` — nombre de colonnes max en aperçu (par défaut: 5).
+  - Les colonnes affichées sont dérivées à partir d'un petit échantillon (≤20 premières lignes)
+    pour garantir un ordre stable, puis priorisées (titre, statut, date, pk).
+  - `PREVIEW_CHAR_MAX` — troncature des valeurs en aperçu.
+  - L’ordre des colonnes privilégie `title`, `status`, `created_at`, puis le reste.
+ 
+Affichage des « Détails » depuis l’historique (29 oct. 2025)
+
+- Le backend renvoie, pour chaque message assistant, un champ optionnel `details`
+  reconstruit à partir des `conversation_events` entre le dernier message utilisateur
+  et le message assistant:
+  - `details.steps`: liste des requêtes SQL (`step`, `purpose`, `sql`).
+  - `details.plan`: payload du plan s’il a été émis.
+- Le frontend propage `message.details` lors du chargement d’une conversation;
+  le bouton « Détails » fonctionne donc aussi pour l’historique.
+ - Marges réduites: largeur de page limitée à `max-w-screen-2xl` et espacement entre colonnes passé à `gap-4`.
 
 #### Composer (Mise à jour)
 
-- Zone de saisie fixée en bas de page (barre collée) pour rester toujours visible.
-- Bouton contextuel intégré en bas à droite (même place et taille):
+- Zone de saisie intégrée en bas de la colonne de droite (bord supérieur avec `border-t`).
+- Bouton contextuel intégré à droite:
   - Affiche « Envoyer » (icône avion) à l'arrêt.
-  - Se transforme en « Annuler » (icône croix) pendant le streaming, remplaçant l'ancien bouton Annuler séparé.
+  - Se transforme en « Annuler » (icône croix) pendant le streaming.
 - Entrée simple pour envoyer, `Maj+Entrée` pour aller à la ligne.
   
 Mise à jour d'harmonisation (oct. 2025):
@@ -170,11 +219,20 @@ Mise à jour d'harmonisation (oct. 2025):
 - Input sur une seule ligne: `rows={1}`, `h-12` et `whitespace-nowrap` avec défilement horizontal.
 - Placeholder mis à jour: « Posez votre question », centré tant qu'il est visible.
 - Largeur du chat: `max-w-3xl` (modifiable dans `src/features/chat/Chat.tsx`).
+ 
+Fonctionnement du bouton « Graphique » (oct. 2025):
+
+- Le bouton est visible sur chaque réponse de l'assistant et s'active uniquement si un échantillon NL→SQL (colonnes + lignes) est disponible pour ce tour.
+- Le clic envoie `POST /mcp/chart` avec: `{ prompt: <message utilisateur précédent>, answer: <réponse>, dataset: { sql, columns, rows, row_count } }`.
+- Pendant l'appel, l'UI affiche une animation (spinner) et le libellé « Génération… » sur le bouton. Un indicateur global « Génération du graphique… » apparaît également dans le fil de discussion.
+- Le graphique est affiché dans un nouveau message assistant, avec bouton « Enregistrer dans le dashboard ».
+- S'il n'y a pas de données, le bouton reste désactivé (UX plus claire et cohérente).
 
 Personnalisation rapide:
 
 - Ajuster `pl-14` / `pr-14` et `h-12` dans `src/features/chat/Chat.tsx`.
 - Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
+- Pour changer la largeur des colonnes: adapter les classes Tailwind `lg:col-span-*` dans `src/features/chat/Chat.tsx`.
 
 ### Dashboard
 

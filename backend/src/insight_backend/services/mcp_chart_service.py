@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from typing import Any, AsyncIterator, Dict, Iterable, List, TextIO, Tuple
 
 import logging
+import anyio
+import anyio.lowlevel
 
 from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel
@@ -15,6 +19,12 @@ from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.messages import ModelResponse
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
+
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from anyio.streams.text import TextReceiveStream
+from mcp.client import stdio as mcp_stdio
+from mcp.shared.message import SessionMessage
+import mcp.types as mcp_types
 
 from ..core.config import settings
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
@@ -26,6 +36,143 @@ class ChartGenerationError(RuntimeError):
 
 
 log = logging.getLogger("insight.services.mcp_chart")
+_stdout_log = log.getChild("stdio")
+
+
+def _should_suppress_json_error(raw_line: str) -> bool:
+    text = raw_line.strip()
+    if not text:
+        return True
+    return "jsonrpc" not in text
+
+
+@asynccontextmanager
+async def _filtered_stdio_client(
+    server: mcp_stdio.StdioServerParameters,
+    errlog: TextIO = sys.stderr,
+) -> AsyncIterator[
+    Tuple[
+        MemoryObjectReceiveStream[SessionMessage | Exception],
+        MemoryObjectSendStream[SessionMessage],
+    ]
+]:
+    read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
+    write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
+
+    try:
+        command = mcp_stdio._get_executable_command(server.command)
+        process = await mcp_stdio._create_platform_compatible_process(
+            command=command,
+            args=server.args,
+            env=(
+                {**mcp_stdio.get_default_environment(), **server.env}
+                if server.env is not None
+                else mcp_stdio.get_default_environment()
+            ),
+            errlog=errlog,
+            cwd=server.cwd,
+        )
+    except OSError:
+        await read_stream.aclose()
+        await write_stream.aclose()
+        await read_stream_writer.aclose()
+        await write_stream_reader.aclose()
+        raise
+
+    async def stdout_reader() -> None:
+        assert process.stdout, "Opened process is missing stdout"
+
+        try:
+            async with read_stream_writer:
+                buffer = ""
+                async for chunk in TextReceiveStream(
+                    process.stdout,
+                    encoding=server.encoding,
+                    errors=server.encoding_error_handler,
+                ):
+                    lines = (buffer + chunk).split("\n")
+                    buffer = lines.pop()
+
+                    for line in lines:
+                        try:
+                            message = mcp_types.JSONRPCMessage.model_validate_json(line)
+                        except Exception as exc:  # pragma: no cover - depends on external server
+                            if _should_suppress_json_error(line):
+                                preview = line.strip()
+                                if preview:
+                                    _stdout_log.debug("Ignored MCP stdout noise: %s", preview[:200])
+                                continue
+                            _stdout_log.exception("Failed to parse JSONRPC message from server")
+                            await read_stream_writer.send(exc)
+                            continue
+
+                        session_message = SessionMessage(message)
+                        await read_stream_writer.send(session_message)
+        except anyio.ClosedResourceError:  # pragma: no cover - driven by transport shutdown
+            await anyio.lowlevel.checkpoint()
+
+    async def stdin_writer() -> None:
+        assert process.stdin, "Opened process is missing stdin"
+
+        try:
+            async with write_stream_reader:
+                async for session_message in write_stream_reader:
+                    payload = session_message.message.model_dump_json(by_alias=True, exclude_none=True)
+                    await process.stdin.send(
+                        (payload + "\n").encode(
+                            encoding=server.encoding,
+                            errors=server.encoding_error_handler,
+                        )
+                    )
+        except anyio.ClosedResourceError:  # pragma: no cover - driven by transport shutdown
+            await anyio.lowlevel.checkpoint()
+
+    async with (
+        anyio.create_task_group() as tg,
+        process,
+    ):
+        tg.start_soon(stdout_reader)
+        tg.start_soon(stdin_writer)
+        try:
+            yield read_stream, write_stream
+        finally:
+            if process.stdin:
+                try:
+                    await process.stdin.aclose()
+                except Exception:  # pragma: no cover - depends on subprocess state
+                    pass
+
+            try:
+                with anyio.fail_after(mcp_stdio.PROCESS_TERMINATION_TIMEOUT):
+                    await process.wait()
+            except TimeoutError:
+                await mcp_stdio._terminate_process_tree(process)
+            except ProcessLookupError:  # pragma: no cover - depends on OS scheduling
+                pass
+            await read_stream.aclose()
+            await write_stream.aclose()
+            await read_stream_writer.aclose()
+            await write_stream_reader.aclose()
+
+
+class FilteredMCPServerStdio(MCPServerStdio):
+    @asynccontextmanager
+    async def client_streams(
+        self,
+    ) -> AsyncIterator[
+        Tuple[
+            MemoryObjectReceiveStream[SessionMessage | Exception],
+            MemoryObjectSendStream[SessionMessage],
+        ]
+    ]:
+        server = mcp_stdio.StdioServerParameters(
+            command=self.command,
+            args=list(self.args),
+            env=self.env,
+            cwd=self.cwd,
+        )
+        async with _filtered_stdio_client(server=server) as streams:
+            yield streams
 
 
 class ChartAgentOutput(BaseModel):
@@ -142,7 +289,7 @@ class ChartGenerationService:
         env = os.environ.copy()
         env.update(self._chart_spec.env or {})
 
-        server = MCPServerStdio(
+        server = FilteredMCPServerStdio(
             self._chart_spec.command,
             self._chart_spec.args,
             env=env,

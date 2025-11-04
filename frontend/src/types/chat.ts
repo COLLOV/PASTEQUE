@@ -2,6 +2,9 @@ export interface Message {
   id?: string
   role: 'user' | 'assistant'
   content: string
+  // Optional dataset captured during NL→SQL streaming for this answer
+  // Enables one-click chart generation from the assistant message bubble
+  chartDataset?: ChartDatasetPayload
   chartUrl?: string
   chartTitle?: string
   chartDescription?: string
@@ -28,12 +31,22 @@ export interface Message {
   }
 }
 
+export interface ChatMetadata {
+  // Force NL→SQL pour cette requête
+  nl2sql?: boolean
+  // Identifiant conversation existante (créée automatiquement sinon)
+  conversation_id?: number
+  // Tables à exclure pour cette requête/conversation
+  exclude_tables?: string[]
+  // Demander au serveur d'enregistrer ces exclusions comme valeur par défaut utilisateur
+  save_as_default?: boolean
+  // Extension point
+  [key: string]: unknown
+}
+
 export interface ChatCompletionRequest {
   messages: Message[]
-  metadata?: {
-    nl2sql?: boolean
-    [key: string]: unknown
-  }
+  metadata?: ChatMetadata
 }
 
 export interface ChatCompletionResponse {
@@ -47,6 +60,10 @@ export interface ChatStreamMeta {
   model?: string
   // Optional evidence spec provided by the pipeline (MCP/LLM)
   evidence_spec?: EvidenceSpec
+  // Conversation identifier (server-created on first message)
+  conversation_id?: number
+  // Tables effectivement actives côté serveur pour NL→SQL
+  effective_tables?: string[]
 }
 
 export interface ChatStreamDelta {
