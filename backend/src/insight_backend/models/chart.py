@@ -29,3 +29,4 @@ class Chart(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="charts")
+

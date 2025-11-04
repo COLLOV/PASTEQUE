@@ -32,3 +32,4 @@ class UserTablePermission(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="table_permissions")
+
