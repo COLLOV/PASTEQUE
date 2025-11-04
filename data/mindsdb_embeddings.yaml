@@ -1,11 +1,8 @@
-# Embedding configuration for MindsDB uploads.
-# default_model is optional; falls back to EMBEDDING_MODEL / LLM defaults when omitted.
 default_model: text-embedding-3-small
+# Taille de lot pour l'API embeddings (OpenAI/vLLM)
 batch_size: 16
+
 tables:
-  tickets_jira:
-    source_column: description
-    embedding_column: description_embedding
   myfeelback_agences:
     source_column: commentaire
     embedding_column: commentaire_embedding
@@ -24,3 +21,7 @@ tables:
   myfeelback_souscriptions:
     source_column: commentaire
     embedding_column: commentaire_embedding
+  tickets_jira:
+    source_column: description
+    embedding_column: description_embedding
+
