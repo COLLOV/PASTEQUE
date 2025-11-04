@@ -243,6 +243,18 @@ echo "[start] backend dev server -> $BACKEND_DEV_URL"
 echo "[start] frontend/.env.development -> VITE_API_URL=$VITE_API_URL_VALUE"
 echo "[start] backend CORS -> ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
 
+# Embeddings configuration visibility and validation
+EMBED_CFG_PATH="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_EMBEDDINGS_CONFIG_PATH")"
+if [[ -n "$EMBED_CFG_PATH" ]]; then
+  echo "[start] embeddings config -> $EMBED_CFG_PATH"
+  if [[ ! -f "$EMBED_CFG_PATH" ]]; then
+    echo "ERROR: MINDSDB_EMBEDDINGS_CONFIG_PATH points to a missing file: $EMBED_CFG_PATH" >&2
+    exit 1
+  fi
+else
+  echo "[start] embeddings config -> (disabled)"
+fi
+
 for port in "$FRONTEND_PORT" "$BACKEND_PORT"; do
   if ! is_number "$port"; then
     echo "ERROR: Ports must be numeric. Got '$port'." >&2
