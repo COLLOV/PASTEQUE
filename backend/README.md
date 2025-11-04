@@ -124,6 +124,15 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/chat/completions' \
   -d '{"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
+### Embeddings – modes local/API
+
+Les embeddings sont configurables indépendamment du LLM:
+
+- `EMBEDDING_MODE=api` (défaut): envoie les requêtes vers un backend OpenAI‑compatible (`OPENAI_BASE_URL` + `OPENAI_API_KEY`) en utilisant `EMBEDDING_MODEL` ou la valeur `model` déclarée dans `mindsdb_embeddings.yaml`.
+- `EMBEDDING_MODE=local`: charge un modèle SentenceTransformers (`EMBEDDING_LOCAL_MODEL`, par défaut `sentence-transformers/all-MiniLM-L6-v2`) pour calculer les vecteurs en local, sans dépendre de vLLM.
+
+`MINDSDB_EMBEDDINGS_CONFIG_PATH` décrit toujours les tables/colonnes à vectoriser. Le script `start.sh` applique la configuration choisie avant chaque import vers MindsDB. Les logs `insight.services.mindsdb_embeddings` précisent le mode et le modèle utilisés.
+
 ### Mise en avant RAG
 
 - Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `LLM_MODE`).
