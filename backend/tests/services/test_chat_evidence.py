@@ -1,5 +1,7 @@
 from typing import Any, Dict, List, Tuple
 
+import pytest
+
 from insight_backend.services.chat_service import ChatService
 
 
@@ -124,10 +126,19 @@ def test_emit_evidence_with_derived_sql():
     assert "meta" in kinds and "rows" in kinds
 
 
-def test_format_retrieval_highlight_with_payload():
+def test_format_retrieval_highlight_with_payload(monkeypatch: pytest.MonkeyPatch):
     svc = ChatService(DummyEngine())
+
+    def _fake_insight(self, *, question: str, rows: List[Dict[str, Any]]) -> str:  # type: ignore[override]
+        assert question == "Pourquoi les tickets sont en retard ?"
+        assert rows
+        return "Les tickets urgents montrent des blocages récurrents sur le portail."
+
+    monkeypatch.setattr(ChatService, "_generate_retrieval_insight", _fake_insight)
+
     highlight = svc._format_retrieval_highlight(
-        [
+        question="Pourquoi les tickets sont en retard ?",
+        payload=[
             {
                 "table": "tickets",
                 "score": 0.9234,
@@ -135,17 +146,16 @@ def test_format_retrieval_highlight_with_payload():
                 "source_column": "description",
                 "values": {"description": "Portail inaccessible", "priority": "high"},
             }
-        ]
+        ],
     )
-    assert highlight.startswith("Mise en avant :")
-    assert "tickets" in highlight
-    assert "0.9234" in highlight
-    assert "Portail inaccessible" in highlight
+    assert highlight == (
+        "Mise en avant : Les tickets urgents montrent des blocages récurrents sur le portail."
+    )
 
 
 def test_format_retrieval_highlight_handles_error():
     svc = ChatService(DummyEngine())
-    text = svc._format_retrieval_highlight([], error="timeout")
+    text = svc._format_retrieval_highlight(question="Pourquoi ?", payload=[], error="timeout")
     assert text == "Mise en avant : récupération indisponible (timeout)."
 
 

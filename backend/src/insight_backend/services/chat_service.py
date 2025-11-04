@@ -9,6 +9,7 @@ from typing import Protocol, Callable, Dict, Any, Iterable, List
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings, resolve_project_path
 from ..integrations.mindsdb_client import MindsDBClient
+from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
@@ -124,7 +125,7 @@ class ChatService:
         except Exception as exc:
             message = _preview_text(str(exc), limit=160)
             log.error("Retrieval agent failed: %s", message)
-            return [], self._format_retrieval_highlight([], error=message)
+            return [], self._format_retrieval_highlight(question=question, payload=[], error=message)
 
         if events and payload:
             meta: Dict[str, Any] = {"retrieval": {"rows": payload}}
@@ -135,12 +136,13 @@ class ChatService:
             except Exception:
                 log.warning("Failed to emit retrieval meta", exc_info=True)
 
-        return payload, self._format_retrieval_highlight(payload)
+        return payload, self._format_retrieval_highlight(question=question, payload=payload)
 
     def _format_retrieval_highlight(
         self,
-        payload: List[Dict[str, Any]],
         *,
+        question: str,
+        payload: List[Dict[str, Any]],
         error: str | None = None,
     ) -> str:
         prefix = "Mise en avant : "
@@ -148,37 +150,106 @@ class ChatService:
             return f"{prefix}récupération indisponible ({error})."
         if not payload:
             return f"{prefix}aucun exemple rapproché n'a été trouvé dans les données vectorisées."
+        try:
+            insight = self._generate_retrieval_insight(question=question, rows=payload).strip()
+        except Exception as exc:
+            message = _preview_text(str(exc), limit=160)
+            log.error("Retrieval highlight synthesis failed: %s", message)
+            return f"{prefix}synthèse indisponible ({message})."
+        if not insight:
+            log.error("Retrieval highlight synthesis returned empty content.")
+            return f"{prefix}synthèse indisponible (réponse vide)."
+        return f"{prefix}{insight}"
 
-        parts: List[str] = []
-        for item in payload:
+    def _build_retrieval_llm_client(self) -> tuple[OpenAICompatibleClient, str]:
+        mode = (settings.llm_mode or "").strip().lower()
+        if mode == "local":
+            base_url = settings.vllm_base_url
+            model = settings.z_local_model
+            api_key = None
+        elif mode == "api":
+            base_url = settings.openai_base_url
+            model = settings.llm_model
+            api_key = settings.openai_api_key
+        else:
+            raise RuntimeError("Invalid LLM_MODE; expected 'local' or 'api'")
+        if not base_url or not model:
+            raise RuntimeError("LLM non configuré pour la mise en avant (base_url ou modèle absent).")
+        client = OpenAICompatibleClient(
+            base_url=base_url,
+            api_key=api_key,
+            timeout_s=settings.openai_timeout_s,
+        )
+        return client, str(model)
+
+    def _generate_retrieval_insight(
+        self,
+        *,
+        question: str,
+        rows: List[Dict[str, Any]],
+    ) -> str:
+        question_text = (question or "").strip()
+        if not question_text:
+            raise RuntimeError("Question vide pour la synthèse de mise en avant.")
+        if not rows:
+            raise RuntimeError("Aucune donnée de récupération à synthétiser.")
+
+        lines: List[str] = []
+        for idx, item in enumerate(rows, start=1):
             table = str(item.get("table") or "-")
             score = item.get("score")
             if isinstance(score, (int, float)):
                 score_txt = f"{score:.4f}"
             else:
                 score_txt = str(score or "-")
-            focus = str(item.get("focus") or "").strip()
-            if focus and len(focus) > 180:
-                focus = focus[:177] + "..."
+            focus = str(item.get("focus") or "").strip() or "-"
+            values_txt = "-"
             values = item.get("values")
-            extras: List[str] = []
             if isinstance(values, dict):
+                pairs: List[str] = []
                 for key, value in values.items():
-                    if key == item.get("source_column"):
-                        continue
                     if value in (None, ""):
                         continue
-                    extras.append(f"{key}={value}")
-                    if len(extras) >= 2:
-                        break
-            segment = f"{table} (score {score_txt})"
-            if focus:
-                segment += f" — {focus}"
-            if extras:
-                segment += f" ({'; '.join(extras)})"
-            parts.append(segment)
+                    pairs.append(f"{key}: {value}")
+                if pairs:
+                    values_txt = ", ".join(pairs)
+            lines.append(
+                f"{idx}. table={table}, score={score_txt}, focus={focus}, valeurs={values_txt}"
+            )
 
-        return prefix + "; ".join(parts) + "."
+        rows_blob = "\n".join(lines)
+        system_prompt = (
+            "Given the user question and the retrieved related informations, give the user some insights. "
+            "Answer in French with une ou deux phrases concises."
+        )
+        user_prompt = f"Question:\n{question_text}\n\nInformations récupérées:\n{rows_blob}"
+
+        client, model = self._build_retrieval_llm_client()
+        try:
+            response = client.chat_completions(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=220,
+            )
+        except OpenAIBackendError as exc:
+            raise RuntimeError(f"Synthèse LLM indisponible: {exc}") from exc
+        except Exception as exc:
+            raise RuntimeError(f"Erreur lors de l'appel au LLM pour la mise en avant: {exc}") from exc
+        finally:
+            client.close()
+
+        try:
+            content = response["choices"][0]["message"]["content"]
+        except Exception as exc:
+            raise RuntimeError("Réponse LLM invalide pour la mise en avant.") from exc
+        text = str(content).strip()
+        if not text:
+            raise RuntimeError("Réponse LLM vide pour la mise en avant.")
+        return text
 
     @staticmethod
     def _append_highlight(base: str, highlight: str) -> str:

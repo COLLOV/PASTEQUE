@@ -122,6 +122,12 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/chat/completions' \
   -d '{"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
+### Mise en avant RAG
+
+- Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `LLM_MODE`).
+- Le prompt instructif utilisé est exactement « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
+- En cas d'échec du LLM, l'API signale explicitement l'indisponibilité de la synthèse dans la réponse afin d'éviter toute dégradation silencieuse.
+
 ### Streaming (SSE)
 
 Endpoint de streaming compatible navigateurs (SSE via `text/event-stream`) — utilise la même configuration LLM:
