@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import shutil
 import tempfile
 import hashlib
 from pathlib import Path
@@ -26,6 +27,7 @@ from .mindsdb_embeddings import (
 log = logging.getLogger("insight.services.mindsdb_sync")
 
 STATE_FILENAME = ".mindsdb_sync_state.json"
+CACHE_DIR_NAME = ".mindsdb_cache"
 
 
 def sync_all_tables() -> list[str]:
@@ -67,35 +69,70 @@ def sync_all_tables() -> list[str]:
                     "embedding_column": table_cfg.embedding_column,
                 }
             previous_entry = previous_state.get(table_name) if previous_state else None
-            if (
+            # Skip only when unchanged AND the table already exists remotely. MindsDB container
+            # is recreated at each start in dev, so we must re-upload when absent remotely
+            # even if the local cache matches.
+            cache_is_valid = (
                 previous_entry
                 and previous_entry.get("source_hash") == source_hash
                 and previous_entry.get("embedding") == embedding_signature
-            ):
-                log.info("Skipping %s (cached, unchanged)", table_name)
-                next_state[table_name] = previous_entry
-                continue
+            )
+            if cache_is_valid:
+                if _remote_table_exists(client, table_name):
+                    log.info("Skipping %s (cached, unchanged, present remotely)", table_name)
+                    next_state[table_name] = previous_entry
+                    continue
+                else:
+                    log.info("Re-uploading %s (absent in MindsDB, cache intact)", table_name)
+
             tmp_path: Path | None = None
             try:
                 if table_cfg:
                     if embedding_client is None or embedding_default_model is None:
                         raise RuntimeError("Embedding client not initialised.")
-                    tmp_path = _augment_with_embeddings(
-                        source_path=path,
-                        table_name=table_name,
-                        table_cfg=table_cfg,
-                        client=embedding_client,
-                        default_model=embedding_default_model,
-                        batch_size=config.batch_size,
-                    )
-                    upload_source = tmp_path
-                    log.info(
-                        "Uploading %s with embeddings (%s → %s, model=%s)",
-                        table_name,
-                        table_cfg.source_column,
-                        table_cfg.embedding_column,
-                        embedding_signature["model"] if embedding_signature else None,
-                    )
+
+                    # Check if we have a cached file with embeddings
+                    cached_path = _cached_file_path(repo.tables_dir, table_name, source_hash, path.suffix)
+
+                    if cache_is_valid and cached_path.exists():
+                        # Reuse cached file with embeddings (avoid recomputing)
+                        upload_source = cached_path
+                        log.info(
+                            "Uploading %s with embeddings from cache (model=%s)",
+                            table_name,
+                            embedding_signature["model"] if embedding_signature else None,
+                        )
+                    else:
+                        # Compute embeddings and cache the result
+                        tmp_path = _augment_with_embeddings(
+                            source_path=path,
+                            table_name=table_name,
+                            table_cfg=table_cfg,
+                            client=embedding_client,
+                            default_model=embedding_default_model,
+                            batch_size=config.batch_size,
+                        )
+                        # Save to cache
+                        cache_dir = _cache_dir_path(repo.tables_dir)
+                        cache_dir.mkdir(exist_ok=True)
+                        # Copy tmp file to cache (keep tmp_path for cleanup)
+                        shutil.copy2(tmp_path, cached_path)
+                        log.info(
+                            "Cached embeddings for %s at %s",
+                            table_name,
+                            cached_path.relative_to(repo.tables_dir),
+                        )
+                        # Clean up old cache files
+                        _cleanup_old_cache_files(repo.tables_dir, table_name, source_hash, path.suffix)
+
+                        upload_source = tmp_path
+                        log.info(
+                            "Uploading %s with fresh embeddings (%s → %s, model=%s)",
+                            table_name,
+                            table_cfg.source_column,
+                            table_cfg.embedding_column,
+                            embedding_signature["model"] if embedding_signature else None,
+                        )
                 else:
                     upload_source = path
                     log.info("Uploading %s without embeddings", table_name)
@@ -254,3 +291,52 @@ def _save_state(path: Path, state: dict[str, dict[str, object]]) -> None:
         tmp.replace(path)
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("Failed to persist MindsDB sync state %s: %s", path, exc)
+
+
+def _remote_table_exists(client: MindsDBClient, table_name: str) -> bool:
+    """Best-effort check that ``files.table_name`` exists on MindsDB.
+
+    - Returns True when the table appears queryable.
+    - Returns False on any error (missing table, cold start), prompting a fresh upload.
+    """
+    db_prefix = settings.nl2sql_db_prefix or "files"
+    # Some tests stub the client without a ``sql`` method; consider it present to avoid breaking tests
+    if not hasattr(client, "sql"):
+        return True
+    try:
+        result = client.sql(f"SELECT 1 FROM {db_prefix}.{table_name} LIMIT 1")
+        # Check if the result indicates an error (MindsDB returns {'type': 'error', ...})
+        if isinstance(result, dict) and result.get("type") == "error":
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def _cache_dir_path(tables_dir: Path) -> Path:
+    """Return the path to the embeddings cache directory."""
+    return tables_dir / CACHE_DIR_NAME
+
+
+def _cached_file_path(tables_dir: Path, table_name: str, source_hash: str, suffix: str) -> Path:
+    """Return the path to a cached file with embeddings."""
+    cache_dir = _cache_dir_path(tables_dir)
+    return cache_dir / f"{table_name}_{source_hash}{suffix}"
+
+
+def _cleanup_old_cache_files(tables_dir: Path, table_name: str, current_hash: str, suffix: str) -> None:
+    """Remove old cached embedding files for a table (with different hash)."""
+    cache_dir = _cache_dir_path(tables_dir)
+    if not cache_dir.exists():
+        return
+
+    pattern = f"{table_name}_*{suffix}"
+    current_file = f"{table_name}_{current_hash}{suffix}"
+
+    for cached_file in cache_dir.glob(pattern):
+        if cached_file.name != current_file:
+            try:
+                cached_file.unlink()
+                log.debug("Removed old cache file: %s", cached_file.name)
+            except Exception as exc:
+                log.warning("Failed to remove old cache file %s: %s", cached_file, exc)
