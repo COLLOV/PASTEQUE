@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     vllm_base_url: str | None = Field("http://localhost:8000/v1", alias="VLLM_BASE_URL")
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
     embedding_model: str | None = Field(None, alias="EMBEDDING_MODEL")
+    embedding_mode: str = Field("api", alias="EMBEDDING_MODE")  # "local" | "api"
+    embedding_local_model: str | None = Field(
+        "sentence-transformers/all-MiniLM-L6-v2",
+        alias="EMBEDDING_LOCAL_MODEL",
+    )
 
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
@@ -51,6 +56,14 @@ class Settings(BaseSettings):
         valid = {"rule", "local", "api", "false"}
         if val not in valid:
             raise ValueError(f"ROUTER_MODE must be one of {sorted(valid)}; got: {v!r}")
+        return val
+
+    @field_validator("embedding_mode", mode="before")
+    @classmethod
+    def _validate_embedding_mode(cls, v: str | None) -> str:
+        val = (v or "api").strip().lower()
+        if val not in {"local", "api"}:
+            raise ValueError("EMBEDDING_MODE must be 'local' or 'api'")
         return val
 
     # MCP configuration (declarative)

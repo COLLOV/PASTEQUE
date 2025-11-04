@@ -3,12 +3,20 @@ from __future__ import annotations
 import csv
 import io
 import json
+import sys
+import types
 from pathlib import Path
 
 import pytest
 
 from insight_backend.core.config import settings
 from insight_backend.services.mindsdb_sync import sync_all_tables
+from insight_backend.services.mindsdb_embeddings import (
+    build_embedding_client,
+    default_embedding_model,
+    EmbeddingConfig,
+    EmbeddingTableConfig,
+)
 
 
 class _StubMindsDBClient:
@@ -43,12 +51,58 @@ class _StubEmbeddingClient:
 def _reset_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure state isolation across tests."""
     monkeypatch.setattr(settings, "llm_mode", "api")
+    monkeypatch.setattr(settings, "embedding_mode", "api")
     monkeypatch.setattr(settings, "openai_base_url", "http://embedding.test")
     monkeypatch.setattr(settings, "openai_api_key", "dummy")
     monkeypatch.setattr(settings, "openai_timeout_s", 5)
     monkeypatch.setattr(settings, "mindsdb_base_url", "http://mindsdb.test")
     monkeypatch.setattr(settings, "mindsdb_token", "token")
     monkeypatch.setattr(settings, "embedding_model", None)
+
+
+def test_build_embedding_client_local(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "embedding_mode", "local")
+    monkeypatch.setattr(settings, "embedding_local_model", "hf-test-model")
+    monkeypatch.setattr(settings, "embedding_model", None)
+
+    resolved_default = default_embedding_model("config-embed-model")
+    assert resolved_default == "hf-test-model"
+    config = EmbeddingConfig(
+        tables={
+            "dummy": EmbeddingTableConfig(
+                source_column="text",
+                embedding_column="embedding",
+                model=None,
+            )
+        },
+        default_model=resolved_default,
+        batch_size=2,
+    )
+
+    class _StubSentenceTransformer:
+        def __init__(self, model_name: str):
+            self._model_name = model_name
+
+        def encode(
+            self,
+            inputs: list[str],
+            *,
+            convert_to_numpy: bool = True,
+            show_progress_bar: bool = False,
+        ) -> list[list[float]]:
+            return [[float(idx), float(idx) + 0.5] for idx, _ in enumerate(inputs)]
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=_StubSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+    client, model = build_embedding_client(config)
+    try:
+        vectors = client.embeddings(model=model, inputs=["foo", "bar"])
+    finally:
+        client.close()
+
+    assert model == "hf-test-model"
+    assert vectors == [[0.0, 0.5], [1.0, 1.5]]
 
 
 def test_sync_all_tables_adds_embedding_column(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

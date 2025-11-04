@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Iterable, Protocol
 
 import yaml
 
@@ -13,6 +13,16 @@ from ..integrations.openai_client import OpenAICompatibleClient
 
 
 log = logging.getLogger("insight.services.mindsdb_embeddings")
+
+
+class EmbeddingClient(Protocol):
+    """Minimal contract shared by local/API embedding backends."""
+
+    def embeddings(self, *, model: str, inputs: list[str]) -> list[list[float]]:  # pragma: no cover - interface
+        ...
+
+    def close(self) -> None:  # pragma: no cover - interface
+        ...
 
 
 @dataclass(frozen=True)
@@ -95,36 +105,78 @@ def load_embedding_config(raw_path: str | None) -> EmbeddingConfig | None:
 
 def default_embedding_model(configured: str | None) -> str:
     """Return the embedding model that should be used given current settings."""
-    mode = (settings.llm_mode or "").strip().lower()
+    mode = (settings.embedding_mode or "").strip().lower()
     if mode == "local":
-        candidate = configured or settings.embedding_model or settings.z_local_model
+        candidate = (
+            settings.embedding_local_model
+            or configured
+            or settings.embedding_model
+        )
     elif mode == "api":
         candidate = configured or settings.embedding_model or settings.llm_model
     else:
-        raise RuntimeError("LLM_MODE must be 'local' or 'api' to compute embeddings.")
+        raise RuntimeError("EMBEDDING_MODE must be 'local' or 'api' to compute embeddings.")
     if not candidate:
         raise RuntimeError("No embedding model configured (check EMBEDDING_MODEL or default model).")
     return candidate
 
 
-def build_embedding_client(config: EmbeddingConfig) -> tuple[OpenAICompatibleClient, str]:
-    """Instantiate the OpenAI-compatible client used for embeddings."""
-    mode = (settings.llm_mode or "").strip().lower()
-    if mode == "local":
-        base_url = settings.vllm_base_url
-        api_key = None
-    elif mode == "api":
-        base_url = settings.openai_base_url
-        api_key = settings.openai_api_key
-    else:
-        raise RuntimeError("LLM_MODE must be 'local' or 'api' to compute embeddings.")
-    if not base_url:
-        raise RuntimeError("Embedding backend base URL is missing.")
-    timeout = settings.openai_timeout_s
-    client = OpenAICompatibleClient(base_url=base_url, api_key=api_key, timeout_s=timeout)
+class _SentenceTransformerClient:
+    def __init__(self, model_name: str):
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:  # pragma: no cover - import guard
+            raise RuntimeError(
+                "Le mode d'embedding local nécessite le package 'sentence-transformers'."
+                " Installez-le via 'uv add sentence-transformers'."
+            ) from exc
+
+        self._model_name = model_name
+        log.info("Initialisation du modèle d'embedding local: %s", model_name)
+        self._model = SentenceTransformer(model_name)
+
+    def embeddings(self, *, model: str, inputs: list[str]) -> list[list[float]]:
+        if not inputs:
+            return []
+        vectors = self._model.encode(
+            inputs,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+        )
+        processed: list[list[float]] = []
+        for vec in vectors:
+            if hasattr(vec, "tolist"):
+                raw = vec.tolist()  # type: ignore[assignment]
+            else:
+                raw = vec
+            processed.append([float(item) for item in raw])
+        return processed
+
+    def close(self) -> None:  # pragma: no cover - nothing to clean explicitly
+        return
+
+
+def build_embedding_client(config: EmbeddingConfig) -> tuple[EmbeddingClient, str]:
+    """Instantiate the embedding backend according to configuration."""
+    mode = (settings.embedding_mode or "").strip().lower()
     model = config.default_model
-    log.info("Initialised embedding backend (mode=%s, base_url=%s, model=%s)", mode, base_url, model)
-    return client, model
+
+    if mode == "local":
+        client = _SentenceTransformerClient(model_name=model)
+        log.info("Initialised embedding backend (mode=local, model=%s)", model)
+        return client, model
+
+    if mode == "api":
+        base_url = settings.openai_base_url
+        if not base_url:
+            raise RuntimeError("Embedding backend base URL is missing (OPENAI_BASE_URL).")
+        api_key = settings.openai_api_key
+        timeout = settings.openai_timeout_s
+        client = OpenAICompatibleClient(base_url=base_url, api_key=api_key, timeout_s=timeout)
+        log.info("Initialised embedding backend (mode=api, base_url=%s, model=%s)", base_url, model)
+        return client, model
+
+    raise RuntimeError("EMBEDDING_MODE must be 'local' or 'api' to compute embeddings.")
 
 
 def normalise_embedding(value: object) -> Iterable[float]:
