@@ -44,7 +44,7 @@ class MindsDBClient:
             mime = "application/octet-stream"
         with p.open("rb") as f:
             files = {"file": (p.name, f, mime)}
-        resp = self.client.put(url, headers=self._headers(), data=data, files=files)
+            resp = self.client.put(url, headers=self._headers(), data=data, files=files)
         resp.raise_for_status()
         return resp.json()
 

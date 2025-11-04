@@ -39,8 +39,9 @@ data/models/*
 !data/vector_store/.gitkeep
 !data/models/.gitkeep
 
-# MindsDB sync state (generated)
+# MindsDB sync state and cache (generated)
 data/raw/.mindsdb_sync_state.json
+data/raw/.mindsdb_cache/
 
 # MCP external servers (do not vendor inside repo)
 backend/mcp/**
