@@ -1,0 +1,26 @@
+# Embedding configuration for MindsDB uploads.
+# default_model is optional; falls back to EMBEDDING_MODEL / LLM defaults when omitted.
+default_model: text-embedding-3-small
+batch_size: 16
+tables:
+  tickets_jira:
+    source_column: description
+    embedding_column: description_embedding
+  myfeelback_agences:
+    source_column: commentaire
+    embedding_column: commentaire_embedding
+  myfeelback_app_mobile:
+    source_column: commentaire
+    embedding_column: commentaire_embedding
+  myfeelback_nps:
+    source_column: commentaire
+    embedding_column: commentaire_embedding
+  myfeelback_remboursements:
+    source_column: commentaire
+    embedding_column: commentaire_embedding
+  myfeelback_service_client:
+    source_column: commentaire
+    embedding_column: commentaire_embedding
+  myfeelback_souscriptions:
+    source_column: commentaire
+    embedding_column: commentaire_embedding

@@ -4,6 +4,7 @@ import logging
 
 from pydantic import Field
 from pydantic import field_validator
+from pydantic import ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     # vLLM local
     vllm_base_url: str | None = Field("http://localhost:8000/v1", alias="VLLM_BASE_URL")
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
+    embedding_model: str | None = Field(None, alias="EMBEDDING_MODEL")
 
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
@@ -58,6 +60,11 @@ class Settings(BaseSettings):
     # MindsDB (HTTP API)
     mindsdb_base_url: str = Field("http://127.0.0.1:47334/api", alias="MINDSDB_BASE_URL")
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
+    mindsdb_embeddings_config_path: str | None = Field(None, alias="MINDSDB_EMBEDDINGS_CONFIG_PATH")
+    mindsdb_embedding_batch_size: int = Field(16, alias="MINDSDB_EMBEDDING_BATCH_SIZE")
+    rag_top_n: int = Field(3, alias="RAG_TOP_N")
+    rag_table_row_cap: int = Field(500, alias="RAG_TABLE_ROW_CAP")
+    rag_max_columns: int = Field(6, alias="RAG_MAX_COLUMNS")
 
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
@@ -66,6 +73,20 @@ class Settings(BaseSettings):
     max_excluded_tables: int = Field(1000, alias="MAX_EXCLUDED_TABLES")
     max_table_name_length: int = Field(255, alias="MAX_TABLE_NAME_LENGTH")
     settings_update_min_interval_s: float = Field(2.0, alias="SETTINGS_UPDATE_MIN_INTERVAL_S")
+
+    @field_validator("mindsdb_embedding_batch_size")
+    @classmethod
+    def _validate_embedding_batch(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("MINDSDB_EMBEDDING_BATCH_SIZE must be > 0")
+        return v
+
+    @field_validator("rag_top_n", "rag_table_row_cap", "rag_max_columns")
+    @classmethod
+    def _validate_positive_int(cls, v: int, info: ValidationInfo) -> int:
+        if v <= 0:
+            raise ValueError(f"{info.field_name.upper()} must be > 0")
+        return v
 
     # Database
     database_url: str = Field(
