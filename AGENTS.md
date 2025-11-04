@@ -1,5 +1,7 @@
 # AGENT.MD - Règles générales pour l'assistant codex
 
+Avant d'implémenter quoi que ce soit, fait un plan avant de passer au code. 
+
 1. **No artifacts** - Éviter la création d'artefacts inutiles.
 
 2. **Less code is better than more code** 

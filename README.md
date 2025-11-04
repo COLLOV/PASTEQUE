@@ -59,6 +59,24 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+#### Métadonnées de requête (API)
+
+- `metadata.exclude_tables: string[]` — liste de tables à exclure pour la conversation en cours. Validée côté serveur (normalisation, limite de taille, filtrage sur tables connues/permises).
+- `metadata.conversation_id: number` — pour rattacher le message à une conversation existante (créée automatiquement sinon).
+- `metadata.save_as_default: boolean` — lorsqu’à `true`, enregistre également les exclusions comme valeur par défaut du compte utilisateur. Par défaut `false` (opt‑in) pour éviter les conditions de concurrence entre plusieurs onglets.
+
+#### Métadonnées de streaming (SSE)
+
+- `meta.effective_tables: string[]` — tables effectivement actives (permissions – exclusions appliquées) envoyées au début du stream pour synchroniser l’UI.
+
+### Données utilisées — visibilité + exclusions
+
+- UI dans le chat: bouton « Données » pour voir les tables disponibles et décocher celles à exclure (par conversation). Un bouton/checkbox « Sauvegarder comme valeur par défaut » permet d’enregistrer ces exclusions au niveau du compte (opt‑in). Les exclusions sont appliquées au prochain message.
+- Backend: `GET /api/v1/data/tables` expose les tables autorisées par l’ACL; `POST /chat/stream` accepte `metadata.exclude_tables: string[]` et publie `meta.effective_tables` (tables réellement actives) pendant le streaming.
+- Persistance: les exclusions sont sauvegardées par conversation (colonne JSON `conversations.settings`) et réappliquées automatiquement aux requêtes suivantes de la même conversation.
+- Sécurité: pas de mécanismes de secours. Si toutes les tables sont exclues, la réponse l’indique explicitement et NL→SQL n’est pas tenté (`provider: nl2sql-acl`).
+- Détails et rationales: `plan/chat-data-visibility.md`.
+
 ### Router (à chaque message)
 
 Un routeur léger s’exécute à chaque message utilisateur pour éviter de lancer des requêtes SQL/NL→SQL lorsque le message n’est pas orienté « data ».
@@ -82,6 +100,8 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 - L’API `POST /api/v1/auth/reset-password` (sans jeton) attend `{ username, current_password, new_password, confirm_password }`. En cas de succès elle renvoie `204` ; le frontend relance automatiquement la connexion avec le nouveau secret.
 - `GET /api/v1/auth/users` expose désormais un champ `is_admin` par utilisateur : l’interface s’en sert pour signaler l’administrateur réel et bloque toute modification de ses autorisations dans la matrice.
+- `DELETE /api/v1/auth/users/{username}` (token Bearer requis, admin uniquement) supprime un utilisateur non‑admin ainsi que ses conversations, graphiques et droits associés (cascade). Opération irréversible. Codes d’erreur possibles: `400` (tentative de suppression de l’admin), `404` (utilisateur introuvable), `403` (appelant non‑admin).
+- `POST /api/v1/auth/users/{username}/reset-password` (admin uniquement) génère un mot de passe temporaire et force l’utilisateur à le changer lors de la prochaine connexion (`must_reset_password=true`). Le mot de passe généré est renvoyé dans la réponse et n’est pas journalisé côté serveur.
 - Les tokens d’authentification expirent désormais au bout de 4 heures. Si un token devient invalide, le frontend purge la session et redirige automatiquement vers la page de connexion pour éviter les erreurs silencieuses côté utilisateur.
 - Le panneau admin inclut maintenant une matrice des droits sur les tables CSV/TSV présentes dans `data/raw/`. Chaque case permet d’autoriser ou de retirer l’accès par utilisateur; l’administrateur conserve un accès complet par défaut.
 - Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.
@@ -129,6 +149,22 @@ data/
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.
 - Le script `start.sh` pousse automatiquement `data/raw/*.csv|tsv` dans MindsDB à chaque démarrage : les logs `insight.services.mindsdb_sync` détaillent les fichiers envoyés.
+- Pour enrichir ces tables avec une colonne d'embeddings avant l'upload, définissez `MINDSDB_EMBEDDINGS_CONFIG_PATH` dans `backend/.env`. Ce chemin doit pointer vers un fichier YAML décrivant les colonnes à vectoriser :
+
+```yaml
+default_model: text-embedding-3-small  # optionnel (sinon EMBEDDING_MODEL / LLM_MODEL / Z_LOCAL_MODEL)
+batch_size: 16                         # optionnel (sinon MINDSDB_EMBEDDING_BATCH_SIZE)
+tables:
+  products:
+    source_column: description         # colonne texte à vectoriser
+    embedding_column: description_embedding  # nouvelle colonne contenant le vecteur JSON
+    # model: text-embedding-3-small    # optionnel, surcharge par table
+```
+
+Le script `start.sh` génère alors la colonne d'embedding (JSON de floats) avant de pousser la table vers MindsDB. Les erreurs de configuration (table manquante, colonne absente…) stoppent le démarrage afin d'éviter toute incohérence silencieuse. Le backend réutilise automatiquement le mode LLM local (`LLM_MODE=local` + vLLM) ou API (`LLM_MODE=api` + `OPENAI_BASE_URL`/`OPENAI_API_KEY`). Vous pouvez ajuster la taille de batch via `MINDSDB_EMBEDDING_BATCH_SIZE` et fournir un modèle dédié via `EMBEDDING_MODEL`.
+Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l'avancement du calcul des embeddings lors du démarrage.
+- Les imports sont désormais incrémentaux : `./start.sh` ne renvoie un fichier dans MindsDB que si son contenu ou sa configuration d'embedding a changé. L'état est stocké dans `DATA_TABLES_DIR/.mindsdb_sync_state.json` — supprimez ce fichier si vous devez forcer un rechargement complet.
+- Les fichiers enrichis d'embeddings conservent exactement le nom de table d'origine dans MindsDB (plus de suffixe `_emb`).
 
 ### Visualisations (NL→SQL & MCP Chart)
 
@@ -147,11 +183,15 @@ data/
   - Explorateur (#1→#3): propose et exécute de petites requêtes de découverte (DISTINCT, MIN/MAX, COUNT par catégorie, échantillons LIMIT 20) et suggère des axes de visualisation. Événements SSE: `plan` (purpose: explore), `sql`/`rows` (purpose: explore), `meta.axes_suggestions`.
   - Analyste (answer): fusionne proprement les trouvailles en UNE requête finale (SELECT‑only) qui répond précisément à la question. Événements SSE: `sql`/`rows` (purpose: answer).
   - Rédaction: interprète le résultat final et produit une réponse textuelle concise en français (prose directe, sans intitulés), en 1–2 paragraphes courts. Le premier intègre le constat avec des chiffres; le second (optionnel) conclut par une recommandation concrète si justifiée, sinon par une question claire. Aucun SQL, 3–6 phrases.
+  - Récupérateur: calcule l’embedding de la question, interroge les tables vectorisées déclarées dans `data/mindsdb_embeddings.yaml`, puis transmet au rédacteur les `RAG_TOP_N` lignes les plus proches. La réponse inclut désormais un paragraphe final « Mise en avant : … » qui met en lumière ces exemples (et précise l’absence de correspondances le cas échéant).
   - Itération: si le résultat final est jugé insuffisant (moins de `NL2SQL_SATISFACTION_MIN_ROWS` lignes), une nouvelle ronde d’exploration est lancée, jusqu’à `NL2SQL_EXPLORE_ROUNDS`.
 - Variables d’environnement:
   - `NL2SQL_MULTIAGENT_ENABLED=false` — active le mode par défaut.
   - `NL2SQL_EXPLORE_ROUNDS=1` — nombre de rondes d’exploration max.
   - `NL2SQL_SATISFACTION_MIN_ROWS=1` — seuil minimal de lignes pour considérer la réponse satisfaisante.
+  - `RAG_TOP_N=3` — nombre de lignes similaires injectées dans le contexte du rédacteur (via MindsDB).
+  - `RAG_TABLE_ROW_CAP=500` — limite de lignes chargées par table pour le calcul local de similarité.
+  - `RAG_MAX_COLUMNS=6` — nombre maximal de colonnes retenues par ligne pour le prompt de rédaction.
 - LLM:
   - Mode local: `LLM_MODE=local` + `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
   - Mode API: `LLM_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.

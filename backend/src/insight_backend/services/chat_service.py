@@ -1,15 +1,19 @@
 import logging
 import json
 import re
+
+from sqlglot import parse_one, exp
 from pathlib import Path
-from typing import Protocol, Callable, Dict, Any, Iterable
+from typing import Protocol, Callable, Dict, Any, Iterable, List
 
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings, resolve_project_path
 from ..integrations.mindsdb_client import MindsDBClient
+from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
+from .retrieval_service import RetrievalService
 
 
 log = logging.getLogger("insight.services.chat")
@@ -80,6 +84,7 @@ class ChatService:
 
     def __init__(self, engine: ChatEngine):
         self.engine = engine
+        self._retrieval_service: RetrievalService | None = None
 
     def _llm_diag(self) -> str:
         if settings.llm_mode == "api":
@@ -99,6 +104,162 @@ class ChatService:
             _preview_text(response.reply),
         )
         return response
+
+    def _get_retrieval_service(self) -> RetrievalService:
+        if self._retrieval_service is None:
+            self._retrieval_service = RetrievalService()
+        return self._retrieval_service
+
+    def _retrieve_context(
+        self,
+        *,
+        question: str,
+        events: Callable[[str, Dict[str, Any]], None] | None = None,
+        round_label: int | None = None,
+    ) -> tuple[List[Dict[str, Any]], str]:
+        payload: List[Dict[str, Any]] = []
+        try:
+            service = self._get_retrieval_service()
+            rows = service.retrieve(question=question, top_n=settings.rag_top_n)
+            payload = [row.as_payload() for row in rows]
+        except Exception as exc:
+            message = _preview_text(str(exc), limit=160)
+            log.error("Retrieval agent failed: %s", message)
+            return [], self._format_retrieval_highlight(question=question, payload=[], error=message)
+
+        if events and payload:
+            meta: Dict[str, Any] = {"retrieval": {"rows": payload}}
+            if round_label is not None:
+                meta["retrieval"]["round"] = round_label
+            try:
+                events("meta", meta)
+            except Exception:
+                log.warning("Failed to emit retrieval meta", exc_info=True)
+
+        return payload, self._format_retrieval_highlight(question=question, payload=payload)
+
+    def _format_retrieval_highlight(
+        self,
+        *,
+        question: str,
+        payload: List[Dict[str, Any]],
+        error: str | None = None,
+    ) -> str:
+        prefix = "Mise en avant : "
+        if error:
+            return f"{prefix}récupération indisponible ({error})."
+        if not payload:
+            return f"{prefix}aucun exemple rapproché n'a été trouvé dans les données vectorisées."
+        try:
+            insight = self._generate_retrieval_insight(question=question, rows=payload).strip()
+        except Exception as exc:
+            message = _preview_text(str(exc), limit=160)
+            log.error("Retrieval highlight synthesis failed: %s", message)
+            return f"{prefix}synthèse indisponible ({message})."
+        if not insight:
+            log.error("Retrieval highlight synthesis returned empty content.")
+            return f"{prefix}synthèse indisponible (réponse vide)."
+        return f"{prefix}{insight}"
+
+    def _build_retrieval_llm_client(self) -> tuple[OpenAICompatibleClient, str]:
+        mode = (settings.llm_mode or "").strip().lower()
+        if mode == "local":
+            base_url = settings.vllm_base_url
+            model = settings.z_local_model
+            api_key = None
+        elif mode == "api":
+            base_url = settings.openai_base_url
+            model = settings.llm_model
+            api_key = settings.openai_api_key
+        else:
+            raise RuntimeError("Invalid LLM_MODE; expected 'local' or 'api'")
+        if not base_url or not model:
+            raise RuntimeError("LLM non configuré pour la mise en avant (base_url ou modèle absent).")
+        client = OpenAICompatibleClient(
+            base_url=base_url,
+            api_key=api_key,
+            timeout_s=settings.openai_timeout_s,
+        )
+        return client, str(model)
+
+    def _generate_retrieval_insight(
+        self,
+        *,
+        question: str,
+        rows: List[Dict[str, Any]],
+    ) -> str:
+        question_text = (question or "").strip()
+        if not question_text:
+            raise RuntimeError("Question vide pour la synthèse de mise en avant.")
+        if not rows:
+            raise RuntimeError("Aucune donnée de récupération à synthétiser.")
+
+        lines: List[str] = []
+        for idx, item in enumerate(rows, start=1):
+            table = str(item.get("table") or "-")
+            score = item.get("score")
+            if isinstance(score, (int, float)):
+                score_txt = f"{score:.4f}"
+            else:
+                score_txt = str(score or "-")
+            focus = str(item.get("focus") or "").strip() or "-"
+            values_txt = "-"
+            values = item.get("values")
+            if isinstance(values, dict):
+                pairs: List[str] = []
+                for key, value in values.items():
+                    if value in (None, ""):
+                        continue
+                    pairs.append(f"{key}: {value}")
+                if pairs:
+                    values_txt = ", ".join(pairs)
+            lines.append(
+                f"{idx}. table={table}, score={score_txt}, focus={focus}, valeurs={values_txt}"
+            )
+
+        rows_blob = "\n".join(lines)
+        system_prompt = (
+            "Given the user question and the retrieved related informations, give the user some insights. "
+            "Answer in French with une ou deux phrases concises."
+        )
+        user_prompt = f"Question:\n{question_text}\n\nInformations récupérées:\n{rows_blob}"
+
+        client, model = self._build_retrieval_llm_client()
+        try:
+            response = client.chat_completions(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=220,
+            )
+        except OpenAIBackendError as exc:
+            raise RuntimeError(f"Synthèse LLM indisponible: {exc}") from exc
+        except Exception as exc:
+            raise RuntimeError(f"Erreur lors de l'appel au LLM pour la mise en avant: {exc}") from exc
+        finally:
+            client.close()
+
+        try:
+            content = response["choices"][0]["message"]["content"]
+        except Exception as exc:
+            raise RuntimeError("Réponse LLM invalide pour la mise en avant.") from exc
+        text = str(content).strip()
+        if not text:
+            raise RuntimeError("Réponse LLM vide pour la mise en avant.")
+        return text
+
+    @staticmethod
+    def _append_highlight(base: str, highlight: str) -> str:
+        base_stripped = (base or "").rstrip()
+        highlight_stripped = (highlight or "").strip()
+        if not highlight_stripped:
+            return base_stripped
+        if not base_stripped:
+            return highlight_stripped
+        return f"{base_stripped}\n\n{highlight_stripped}"
 
     def completion(
         self,
@@ -193,7 +354,7 @@ class ChatService:
         # NL→SQL (optional): per-request override via payload.metadata.nl2sql,
         # falling back to env `NL2SQL_ENABLED` when not specified.
         meta = payload.metadata or {}
-        nl2sql_flag = meta.get("nl2sql") if isinstance(meta, dict) else None
+        nl2sql_flag = meta.get("nl2sql")
         nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
 
         if payload.messages and nl2sql_enabled:
@@ -203,19 +364,40 @@ class ChatService:
                 # Build schema from local CSV headers
                 repo = DataRepository(tables_dir=Path(settings.tables_dir))
                 tables = repo.list_tables()
+                # 1) Appliquer les permissions (si non‑admin)
                 allowed_lookup = {name.casefold() for name in allowed_tables} if allowed_tables is not None else None
                 if allowed_lookup is not None:
                     tables = [name for name in tables if name.casefold() in allowed_lookup]
-                if not tables:
+                # 2) Appliquer les exclusions demandées par l'utilisateur (par conversation/requête)
+                exclude_raw = meta.get("exclude_tables")
+                exclude_lookup: set[str] = set()
+                if isinstance(exclude_raw, (list, tuple)):
+                    for item in exclude_raw:
+                        if isinstance(item, str) and item.strip():
+                            exclude_lookup.add(item.strip().casefold())
+                effective_tables = [name for name in tables if name.casefold() not in exclude_lookup]
+                # Synchroniser l'UI (stream): publier les tables effectivement actives
+                if events:
+                    try:
+                        events("meta", {"effective_tables": effective_tables})
+                    except Exception:
+                        log.debug("Failed to emit effective_tables meta", exc_info=True)
+                # Si aucune table, bloquer explicitement le flux NL→SQL (pas de fallback)
+                if not effective_tables:
                     message = (
-                        "Aucune table n'est disponible pour vos requêtes. "
-                        "Contactez un administrateur pour obtenir les accès nécessaires."
+                        "Aucune table active pour vos requêtes après application des exclusions. "
+                        "Réactivez des tables dans le panneau ‘Données utilisées’."
                     )
-                    log.info("NL2SQL aborted: no tables available for user")
+                    log.info(
+                        "NL2SQL aborted: no effective tables (allowed=%s, exclude=%s)",
+                        sorted(list(allowed_lookup or set())),
+                        sorted(list(exclude_lookup)),
+                    )
                     return self._log_completion(
-                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl"}),
-                        context="completion denied (no tables)",
+                        ChatResponse(reply=message, metadata={"provider": "nl2sql-acl", "effective_tables": []}),
+                        context="completion denied (no effective tables)",
                     )
+                tables = effective_tables
                 schema: dict[str, list[str]] = {}
                 for name in tables:
                     cols = [c for c, _ in repo.get_schema(name)]
@@ -253,6 +435,11 @@ class ChatService:
                     except Exception as e:
                         log.error("Failed to serialize data dictionary JSON: %s", e, exc_info=True)
                 nl2sql = NL2SQLService()
+                log.info(
+                    "NL2SQL tables selected: %s (allowed=%s)",
+                    tables,
+                    sorted(list(allowed_lookup or set())) if allowed_lookup is not None else "<admin/all>",
+                )
                 log.info(
                     "NL2SQL question prepared: raw=\"%s\" enriched_preview=\"%s\"",
                     _preview_text(raw_question, limit=200),
@@ -408,29 +595,46 @@ class ChatService:
                             fallback_rows=last_rows,
                         )
                         if len(frows) >= min_rows:
-                            # Writer: synthesize final textual interpretation
+                            ev_for_answer = evidence + [
+                                {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
+                            ]
+                            retrieval_payload, highlight_text = self._retrieve_context(
+                                question=contextual_question,
+                                events=events,
+                                round_label=r,
+                            )
                             try:
-                                ev_for_answer = evidence + [{"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}]
-                                answer = nl2sql.write(question=contextual_question, evidence=ev_for_answer).strip()
+                                answer = nl2sql.write(
+                                    question=contextual_question,
+                                    evidence=ev_for_answer,
+                                    retrieval_context=retrieval_payload,
+                                ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                                reply_text = self._append_highlight(reply_text, highlight_text)
+                                metadata = {
+                                    "provider": "nl2sql-multiagent",
+                                    "rounds_used": r,
+                                    "sql": final_sql,
+                                    "agents": ["explorateur", "analyste", "redaction"],
+                                    "retrieval_rows": retrieval_payload,
+                                }
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=reply_text,
-                                        metadata={
-                                            "provider": "nl2sql-multiagent",
-                                            "rounds_used": r,
-                                            "sql": final_sql,
-                                            "agents": ["explorateur", "analyste", "redaction"],
-                                        },
+                                        metadata=metadata,
                                     ),
                                     context="completion done (nl2sql-multiagent)",
                                 )
                             except Exception as e:
-                                # Do not mask; bubble up explicitly
+                                error_reply = f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}"
+                                error_reply = self._append_highlight(error_reply, highlight_text)
                                 return self._log_completion(
                                     ChatResponse(
-                                        reply=f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}",
-                                        metadata={"provider": "nl2sql-multiagent-synth"},
+                                        reply=error_reply,
+                                        metadata={
+                                            "provider": "nl2sql-multiagent-synth",
+                                            "retrieval_rows": retrieval_payload,
+                                        },
                                     ),
                                     context="completion done (nl2sql-multiagent-synth-error)",
                                 )
@@ -513,9 +717,14 @@ class ChatService:
                         if columns and rows:
                             last_columns = columns
                             last_rows = rows
+                    retrieval_payload, highlight_text = self._retrieve_context(
+                        question=contextual_question,
+                        events=events,
+                    )
                     try:
                         answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                        reply_text = self._append_highlight(reply_text, highlight_text)
                         # Provide an evidence_spec + evidence rows via helper
                         target_sql = (
                             plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
@@ -529,15 +738,27 @@ class ChatService:
                             fallback_rows=last_rows,
                         )
                         return self._log_completion(
-                            ChatResponse(reply=reply_text, metadata={"provider": "nl2sql-plan+mindsdb", "plan": plan}),
+                            ChatResponse(
+                                reply=reply_text,
+                                metadata={
+                                    "provider": "nl2sql-plan+mindsdb",
+                                    "plan": plan,
+                                    "retrieval_rows": retrieval_payload,
+                                },
+                            ),
                             context="completion done (nl2sql-plan)",
                         )
                     except Exception as e:
                         log.error("NL2SQL synthesis failed: %s", e)
+                        error_reply = f"Échec de la synthèse: {e}\n{self._llm_diag()}"
+                        error_reply = self._append_highlight(error_reply, highlight_text)
                         return self._log_completion(
                             ChatResponse(
-                                reply=f"Échec de la synthèse: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql-synth"},
+                                reply=error_reply,
+                                metadata={
+                                    "provider": "nl2sql-synth",
+                                    "retrieval_rows": retrieval_payload,
+                                },
                             ),
                             context="completion done (nl2sql-synth-error)",
                         )
@@ -591,11 +812,23 @@ class ChatService:
                         "columns": columns,
                         "rows": rows,
                     }]
+                    retrieval_payload, highlight_text = self._retrieve_context(
+                        question=contextual_question,
+                        events=events,
+                    )
                     try:
                         answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
                         reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                        reply_text = self._append_highlight(reply_text, highlight_text)
                         return self._log_completion(
-                            ChatResponse(reply=reply_text, metadata={"provider": "nl2sql+mindsdb", "sql": sql}),
+                            ChatResponse(
+                                reply=reply_text,
+                                metadata={
+                                    "provider": "nl2sql+mindsdb",
+                                    "sql": sql,
+                                    "retrieval_rows": retrieval_payload,
+                                },
+                            ),
                             context="completion done (nl2sql)",
                         )
                     except Exception as e:
@@ -614,10 +847,16 @@ class ChatService:
                         else:
                             err = data.get("error_message") if isinstance(data, dict) else None
                             text = f"SQL: {sql}\n" + (err or "(Aucune ligne)")
+                        text = self._append_highlight(text, highlight_text)
                         return self._log_completion(
                             ChatResponse(
                                 reply=text,
-                                metadata={"provider": "nl2sql-synth-fallback", "error": str(e), "sql": sql},
+                                metadata={
+                                    "provider": "nl2sql-synth-fallback",
+                                    "error": str(e),
+                                    "sql": sql,
+                                    "retrieval_rows": retrieval_payload,
+                                },
                             ),
                             context="completion done (nl2sql-fallback)",
                         )
@@ -710,46 +949,68 @@ class ChatService:
         return columns or [], rows or []
 
     def _derive_evidence_sql(self, sql: str, *, limit: int | None = None) -> str | None:
-        """Attempt to derive a detail-level SELECT from an aggregate SQL.
+        """Build a safe ``SELECT * ... LIMIT N`` for the evidence panel.
 
-        This is a best-effort utility and logs on failure without masking errors.
-        Strategy: extract FROM ... [WHERE ...] then build SELECT * with same filters.
+        Rationale (PR#58 recommendations):
+        - Use SQL AST (sqlglot) instead of regex to avoid false matches in
+          string literals and to correctly handle CTEs.
+        - Apply to both aggregate and non-aggregate queries so the panel gets
+          full rows when possible.
+        - Skip set operations (UNION / INTERSECT / EXCEPT) to avoid producing
+          misleading evidence; the regular table payload remains available.
         """
         try:
             if limit is None:
                 limit = settings.evidence_limit_default
-            s = sql.strip()
-            # Quick bail if looks like detail already (select * or explicit columns without COUNT/AVG/etc.)
+            s = (sql or "").strip()
+            if not s:
+                return None
+
+            # If already SELECT * then just ensure LIMIT.
             if re.search(r"\bselect\s+\*", s, re.I):
                 return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
-            if not re.search(r"\bcount\s*\(|\bavg\s*\(|\bmin\s*\(|\bmax\s*\(|\bsum\s*\(", s, re.I):
-                # Non-aggregate: just cap the limit
-                return s if re.search(r"\blimit\b", s, re.I) else f"{s} LIMIT {limit}"
-            # Extract FROM ... tail
-            m_from = re.search(r"\bfrom\b\s+(.*)$", s, re.I | re.S)
-            if not m_from:
+
+            node = parse_one(s, read=None)  # autodetect dialect, tolerant parser
+
+            # Reject DML/DDL early
+            if isinstance(node, (exp.Insert, exp.Update, exp.Delete, exp.Alter, exp.Drop, exp.Create)):
                 return None
-            tail = m_from.group(1)
-            # Cut at ORDER BY / LIMIT / OFFSET
-            tail = re.split(r"\border\s+by\b|\blimit\b|\boffset\b", tail, flags=re.I)[0].strip()
-            # Extract WHERE if present
-            where = None
-            m_where = re.search(r"\bwhere\b\s+(.*)$", tail, re.I | re.S)
-            if m_where:
-                where = re.split(r"\bgroup\s+by\b|\border\s+by\b|\blimit\b|\boffset\b", m_where.group(1), flags=re.I)[0].strip()
-                from_part = tail[: m_where.start()].strip()
+
+            # Handle SELECT (optionally with WITH ... CTEs)
+            select_node: exp.Select | None = None
+            if isinstance(node, exp.Select):
+                select_node = node
+            elif isinstance(node, exp.With) and isinstance(node.this, exp.Select):
+                select_node = node.this
+            # Skip set operations (UNION/INTERSECT/EXCEPT): non-trivial to preserve semantics safely
+            elif isinstance(node, (exp.Union, exp.Intersect, exp.Except)):
+                return None
+
+            if not select_node:
+                return None
+
+            # Clone FROM / WHERE (keep CTEs if any)
+            base_select = exp.select("*")
+            if select_node.args.get("from") is not None:
+                base_select.set("from", select_node.args["from"].copy())
             else:
-                from_part = tail
-            base = f"SELECT * FROM {from_part}"
-            if where:
-                base += f" WHERE {where}"
-            base += f" LIMIT {limit}"
-            # Ensure SELECT-only (no accidental DML)
-            if not re.match(r"^\s*select\b", base, re.I):
+                # No FROM → nothing to select as evidence
                 return None
-            if re.search(r";|\b(insert|update|delete|alter|drop|create)\b", base, re.I):
-                return None
-            return base
+
+            if select_node.args.get("where") is not None:
+                base_select.set("where", select_node.args["where"].copy())
+
+            # Preserve CTEs
+            if select_node.args.get("with") is not None:
+                base_select.set("with", select_node.args["with"].copy())
+
+            # Ensure a LIMIT cap
+            if base_select.args.get("limit") is None:
+                base_select.set("limit", exp.Limit(expression=exp.Literal.number(limit)))
+
+            # Render back to SQL (defaults to standard dialect)
+            derived = base_select.sql()
+            return derived
         except Exception:  # pragma: no cover - defensive
             log.warning("_derive_evidence_sql failed", exc_info=True)
             return None

@@ -60,6 +60,8 @@ Chargement et usage:
   ```
 - L’endpoint `POST /api/v1/auth/login` vérifie les identifiants et retourne un jeton `Bearer` (JWT HS256).
 - L’endpoint `GET /api/v1/auth/users` inclut un champ booléen `is_admin` pour refléter l’état réel de l’utilisateur côté base; le frontend s’appuie dessus pour neutraliser toute modification des droits de l’administrateur.
+- L’endpoint `DELETE /api/v1/auth/users/{username}` (admin requis) supprime un utilisateur non‑admin et cascade ses objets dépendants (conversations, graphiques, ACL). Opération irréversible. Codes d’erreur: `400` (admin protégé), `404` (utilisateur absent), `403` (non‑admin).
+- L’endpoint `POST /api/v1/auth/users/{username}/reset-password` (admin requis) génère un mot de passe temporaire, active `must_reset_password=true` et renvoie le secret temporaire (non journalisé). L’utilisateur devra le changer via `POST /api/v1/auth/reset-password`.
 - La colonne `must_reset_password` est ajoutée automatiquement au démarrage si elle n’existe pas encore. Elle force chaque nouvel utilisateur à passer par `POST /api/v1/auth/reset-password` (payload : `username`, `current_password`, `new_password`, `confirm_password`) avant d’obtenir un jeton. La réponse de login renvoie un code d’erreur `PASSWORD_RESET_REQUIRED` tant que le mot de passe n’a pas été mis à jour.
 
 ### Journalisation
@@ -121,6 +123,13 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/chat/completions' \
   -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
+
+### Mise en avant RAG
+
+- Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `LLM_MODE`).
+- Le prompt instructif utilisé est exactement « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
+- En cas d'échec du LLM, l'API signale explicitement l'indisponibilité de la synthèse dans la réponse afin d'éviter toute dégradation silencieuse.
+- Les extraits issus du RAG ne sont plus tronqués côté backend afin de laisser le LLM exploiter l'intégralité du texte récupéré.
 
 ### Streaming (SSE)
 
@@ -272,8 +281,9 @@ Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL
 
 ### Notes de maintenance
 
-- 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 3 blocs similaires: passage `/sql`, NL→SQL plan, NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
+ - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 3 blocs similaires: passage `/sql`, NL→SQL plan, NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
  - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
+ - 2025-10-31: Evidence panel — dérivation de la requête `SELECT *` désormais basée sur l'AST (sqlglot) au lieu de regex, en conservant `WHERE` et CTE, et en plafonnant avec `LIMIT`. Les opérations en ensemble (UNION/INTERSECT/EXCEPT) sont ignorées par sécurité. Tests: `uv run pytest` → 20 tests OK.
 
 ```
 NL2SQL_INCLUDE_SAMPLES=true
@@ -301,6 +311,9 @@ En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimul
 ## Evidence panel defaults
 
 - `EVIDENCE_LIMIT_DEFAULT` (int, default: 100): limite de lignes envoyées via SSE pour l’aperçu « evidence ». Utilisée à la fois pour la construction du `evidence_spec.limit` et pour la dérivation de SQL détaillé.
+
+Depuis 2025‑10‑31:
+- La dérivation du SQL « evidence » produit systématiquement un `SELECT *` (avec les mêmes `FROM`/`WHERE` et un `LIMIT`) y compris lorsque la requête d’origine n’est pas agrégée. Ainsi, le panel reçoit toujours des lignes complètes et peut afficher toutes les colonnes disponibles (l’aperçu de la liste reste plafonné côté front, la vue Détail montre tout).
 ## Historique des conversations
 
 Le backend persiste désormais les conversations et événements associés:

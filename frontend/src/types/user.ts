@@ -23,3 +23,8 @@ export interface UserPermissionsOverviewResponse {
 export interface UpdateUserPermissionsRequest {
   allowed_tables: string[]
 }
+
+export interface AdminResetPasswordResponse {
+  username: string
+  temporary_password: string
+}
