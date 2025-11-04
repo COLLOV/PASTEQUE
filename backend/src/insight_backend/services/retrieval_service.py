@@ -19,8 +19,6 @@ from .mindsdb_embeddings import (
 
 log = logging.getLogger("insight.services.retrieval")
 
-_SNIPPET_LIMIT = 240
-
 
 @dataclass(slots=True)
 class SimilarRow:
@@ -167,7 +165,7 @@ class RetrievalService:
                     table=table,
                     score=score,
                     values=sanitized,
-                    focus=_truncate(focus, limit=_SNIPPET_LIMIT),
+                    focus=focus,
                     source_column=table_cfg.source_column,
                 )
             )
@@ -259,14 +257,6 @@ def _cosine_similarity(vec_a: Sequence[float], vec_b: Sequence[float]) -> float:
     if norm_a == 0 or norm_b == 0:
         return float("-inf")
     return dot / (norm_a * norm_b)
-
-
-def _truncate(text: str, *, limit: int) -> str:
-    if len(text) <= limit:
-        return text
-    return text[: max(limit - 1, 0)] + "…"
-
-
 def _stringify(value: Any) -> str:
     if value is None:
         return ""
