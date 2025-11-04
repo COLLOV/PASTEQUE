@@ -66,14 +66,20 @@ def sync_all_tables() -> list[str]:
                     "embedding_column": table_cfg.embedding_column,
                 }
             previous_entry = previous_state.get(table_name) if previous_state else None
+            # Skip only when unchanged AND the table already exists remotely. MindsDB container
+            # is recreated at each start in dev, so we must re-upload when absent remotely
+            # even if the local cache matches.
             if (
                 previous_entry
                 and previous_entry.get("source_hash") == source_hash
                 and previous_entry.get("embedding") == embedding_signature
             ):
-                log.info("Skipping %s (cached, unchanged)", table_name)
-                next_state[table_name] = previous_entry
-                continue
+                if _remote_table_exists(client, table_name):
+                    log.info("Skipping %s (cached, unchanged, present remotely)", table_name)
+                    next_state[table_name] = previous_entry
+                    continue
+                else:
+                    log.info("Re-uploading %s (absent in MindsDB, cache intact)", table_name)
             tmp_path: Path | None = None
             try:
                 if table_cfg:
@@ -253,3 +259,20 @@ def _save_state(path: Path, state: dict[str, dict[str, object]]) -> None:
         tmp.replace(path)
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("Failed to persist MindsDB sync state %s: %s", path, exc)
+
+
+def _remote_table_exists(client: MindsDBClient, table_name: str) -> bool:
+    """Best-effort check that ``files.table_name`` exists on MindsDB.
+
+    - Returns True when the table appears queryable.
+    - Returns False on any error (missing table, cold start), prompting a fresh upload.
+    """
+    db_prefix = settings.nl2sql_db_prefix or "files"
+    # Some tests stub the client without a ``sql`` method; consider it present to avoid breaking tests
+    if not hasattr(client, "sql"):
+        return True
+    try:
+        client.sql(f"SELECT 1 FROM {db_prefix}.{table_name} LIMIT 1")
+        return True
+    except Exception:
+        return False
