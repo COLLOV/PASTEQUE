@@ -82,6 +82,33 @@ class UserPermissionsOverviewResponse(BaseModel):
     users: list[UserWithPermissionsResponse]
 
 
+class UsageTotals(BaseModel):
+    users: int
+    conversations: int
+    messages: int
+    charts: int
+    conversations_last_7_days: int
+    messages_last_7_days: int
+    charts_last_7_days: int
+    active_users_last_7_days: int
+
+
+class UserUsageStats(BaseModel):
+    username: str
+    is_active: bool
+    created_at: datetime
+    last_activity_at: datetime | None = None
+    conversations: int
+    messages: int
+    charts: int
+
+
+class AdminUsageStatsResponse(BaseModel):
+    generated_at: datetime
+    totals: UsageTotals
+    per_user: list[UserUsageStats] = Field(default_factory=list)
+
+
 class AdminResetPasswordResponse(BaseModel):
     username: str
     temporary_password: str

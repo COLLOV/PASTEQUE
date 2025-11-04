@@ -18,6 +18,7 @@ from ....schemas.auth import (
     ResetPasswordRequest,
     UserWithPermissionsResponse,
     AdminResetPasswordResponse,
+    AdminUsageStatsResponse,
 )
 from ....services.auth_service import AuthService
 from ....services.data_service import DataService
@@ -63,6 +64,18 @@ async def list_users_with_permissions(
         )
 
     return UserPermissionsOverviewResponse(tables=tables, users=responses)
+
+
+@router.get("/admin/stats", response_model=AdminUsageStatsResponse)
+async def get_admin_usage_stats(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> AdminUsageStatsResponse:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    repository = UserRepository(session)
+    stats = repository.gather_usage_stats()
+    return AdminUsageStatsResponse.model_validate(stats)
 
 
 @router.post("/auth/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
