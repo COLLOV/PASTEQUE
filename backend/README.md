@@ -101,7 +101,6 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
 
 - Mode local (vLLM):
   - `LLM_MODE=local`
-  - (Optionnel) `EMBEDDING_MODE=local` pour forcer les embeddings sur vLLM.
   - `VLLM_BASE_URL=http://localhost:8000/v1`
   - `Z_LOCAL_MODEL=GLM-4.5-Air`
   - Lancer vLLM (exemple):
@@ -112,13 +111,10 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
 
 - Mode API (provider Z):
   - `LLM_MODE=api`
-  - (Optionnel) `EMBEDDING_MODE=api` pour déléguer les embeddings au provider.
   - `OPENAI_BASE_URL=<base OpenAI-compatible>`
   - `OPENAI_API_KEY=<clé>`
   - `LLM_MODEL=GLM-4.5-Air`
   - Voir quick start: https://docs.z.ai/guides/overview/quick-start
-
-Sans `EMBEDDING_MODE`, le backend réutilise automatiquement la valeur de `LLM_MODE` pour les embeddings.
 
 Appel:
 
@@ -130,7 +126,7 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/chat/completions' \
 
 ### Mise en avant RAG
 
-- Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `EMBEDDING_MODE`, qui retombe sur `LLM_MODE` par défaut).
+- Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `LLM_MODE`).
 - Le prompt instructif utilisé est exactement « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
 - En cas d'échec du LLM, l'API signale explicitement l'indisponibilité de la synthèse dans la réponse afin d'éviter toute dégradation silencieuse.
 - Les extraits issus du RAG ne sont plus tronqués côté backend afin de laisser le LLM exploiter l'intégralité du texte récupéré.

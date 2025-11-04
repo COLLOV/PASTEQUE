@@ -55,7 +55,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 
 - Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
 - Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL et échantillons (métadonnées techniques masquées pour alléger l’UI).
-- Backend: deux modes LLM (`LLM_MODE=local|api`) et un mode embedding indépendant (`EMBEDDING_MODE=local|api`, défaut = `LLM_MODE`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
+- Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
@@ -161,7 +161,7 @@ tables:
     # model: text-embedding-3-small    # optionnel, surcharge par table
 ```
 
-Le script `start.sh` génère alors la colonne d'embedding (JSON de floats) avant de pousser la table vers MindsDB. Les erreurs de configuration (table manquante, colonne absente…) stoppent le démarrage afin d'éviter toute incohérence silencieuse. Le backend sélectionne le backend embeddings via `EMBEDDING_MODE` (replie sur `LLM_MODE` si non défini) pour basculer entre vLLM en local (`local`) ou le provider API (`api`). Vous pouvez ajuster la taille de batch via `MINDSDB_EMBEDDING_BATCH_SIZE` et fournir un modèle dédié via `EMBEDDING_MODEL`.
+Le script `start.sh` génère alors la colonne d'embedding (JSON de floats) avant de pousser la table vers MindsDB. Les erreurs de configuration (table manquante, colonne absente…) stoppent le démarrage afin d'éviter toute incohérence silencieuse. Le backend réutilise automatiquement le mode LLM local (`LLM_MODE=local` + vLLM) ou API (`LLM_MODE=api` + `OPENAI_BASE_URL`/`OPENAI_API_KEY`). Vous pouvez ajuster la taille de batch via `MINDSDB_EMBEDDING_BATCH_SIZE` et fournir un modèle dédié via `EMBEDDING_MODEL`.
 Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l'avancement du calcul des embeddings lors du démarrage.
 - Les imports sont désormais incrémentaux : `./start.sh` ne renvoie un fichier dans MindsDB que si son contenu ou sa configuration d'embedding a changé. L'état est stocké dans `DATA_TABLES_DIR/.mindsdb_sync_state.json` — supprimez ce fichier si vous devez forcer un rechargement complet.
 - Les fichiers enrichis d'embeddings conservent exactement le nom de table d'origine dans MindsDB (plus de suffixe `_emb`).
@@ -195,10 +195,6 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 - LLM:
   - Mode local: `LLM_MODE=local` + `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
   - Mode API: `LLM_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
-- Embeddings:
-  - Mode local: `EMBEDDING_MODE=local` (sinon `LLM_MODE`) + `VLLM_BASE_URL` + `Z_LOCAL_MODEL` / `EMBEDDING_MODEL`.
-  - Mode API: `EMBEDDING_MODE=api` (sinon `LLM_MODE`) + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `EMBEDDING_MODEL` ou `LLM_MODEL`.
-  - Par défaut, `EMBEDDING_MODE` reprend la valeur de `LLM_MODE` pour conserver la compatibilité.
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
 - Le backend filtre les lignes stdout non JSON renvoyées par le serveur MCP `chart` pour éviter les erreurs `Invalid JSON` dues aux logs d'initialisation.
 
