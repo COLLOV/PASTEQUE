@@ -34,9 +34,17 @@ class MindsDBClient:
         target = table_name or p.stem
         url = f"{self.base_url}/files/{target}"
         data = {"original_file_name": p.name}
+        # Use specific MIME types to help MindsDB parse the file
+        suffix = p.suffix.lower()
+        if suffix == ".csv":
+            mime = "text/csv"
+        elif suffix == ".tsv":
+            mime = "text/tab-separated-values"
+        else:
+            mime = "application/octet-stream"
         with p.open("rb") as f:
-            files = {"file": (p.name, f, "application/octet-stream")}
-            resp = self.client.put(url, headers=self._headers(), data=data, files=files)
+            files = {"file": (p.name, f, mime)}
+        resp = self.client.put(url, headers=self._headers(), data=data, files=files)
         resp.raise_for_status()
         return resp.json()
 

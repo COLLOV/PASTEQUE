@@ -353,6 +353,44 @@ else:
 PY
 )
 
+echo "[start] Verifying MindsDB tables (row counts)"
+(
+  cd backend
+  uv run python - <<'PY'
+from insight_backend.core.config import settings
+from insight_backend.repositories.data_repository import DataRepository
+from insight_backend.integrations.mindsdb_client import MindsDBClient
+from pathlib import Path
+
+repo = DataRepository(tables_dir=Path(settings.tables_dir))
+tables = [p.stem for p in repo._iter_table_files()]
+client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
+prefix = settings.nl2sql_db_prefix or "files"
+errors = 0
+for t in tables:
+    try:
+        data = client.sql(f"SELECT COUNT(*) AS n FROM {prefix}.{t}")
+        cols = data.get("column_names") or data.get("columns") or []
+        rows = data.get("data") or data.get("rows") or []
+        count = 0
+        if rows:
+            # rows may be list of lists or list of dicts
+            if isinstance(rows[0], dict):
+                # try keys 'n' or first column
+                count = int(rows[0].get("n") or next(iter(rows[0].values())))
+            else:
+                # assume first column is count
+                count = int(rows[0][0])
+        print(f"[start] files.{t}: {count} row(s)")
+    except Exception as exc:
+        errors += 1
+        print(f"[start] ERROR verifying files.{t}: {exc}")
+client.close()
+if errors:
+    print(f"[start] WARNING: {errors} table(s) failed verification.")
+PY
+)
+
 if [[ ! -d frontend/node_modules ]]; then
   echo "[start] Installing frontend dependencies (npm install)"
   (
