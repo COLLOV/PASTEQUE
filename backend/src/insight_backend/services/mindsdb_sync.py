@@ -12,11 +12,12 @@ from tqdm import tqdm
 
 from ..core.config import settings
 from ..integrations.mindsdb_client import MindsDBClient
-from ..integrations.openai_client import OpenAIBackendError, OpenAICompatibleClient
+from ..integrations.openai_client import OpenAIBackendError
 from ..repositories.data_repository import DataRepository
 from .mindsdb_embeddings import (
     EmbeddingConfig,
     EmbeddingTableConfig,
+    EmbeddingClient,
     build_embedding_client,
     load_embedding_config,
 )
@@ -39,7 +40,7 @@ def sync_all_tables() -> list[str]:
     previous_state = _load_state(state_path)
     next_state: dict[str, dict[str, object]] = {}
 
-    embedding_client: OpenAICompatibleClient | None = None
+    embedding_client: EmbeddingClient | None = None
     embedding_default_model: str | None = None
     if config and config.tables:
         available = {p.stem for p in files}
@@ -123,7 +124,7 @@ def _augment_with_embeddings(
     source_path: Path,
     table_name: str,
     table_cfg: EmbeddingTableConfig,
-    client: OpenAICompatibleClient,
+    client: EmbeddingClient,
     default_model: str,
     batch_size: int,
 ) -> Path:
