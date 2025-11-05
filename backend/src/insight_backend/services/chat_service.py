@@ -472,8 +472,9 @@ class ChatService:
                     min_floor = (min(floor_candidates) if floor_candidates else 0)
 
                     if rem_expl is None and rem_anal is None:
-                        # No caps → default to max(1, min_floor)
-                        rounds = max(1, int(min_floor))
+                        # No caps → if floors provided, use their minimum (allow 0 to fully disable).
+                        # If no floors are provided at all, default to 1 round for backward compatibility.
+                        rounds = int(min_floor) if floor_candidates else 1
                     else:
                         candidates = [c for c in (rem_expl, rem_anal) if c is not None]
                         allowed = max(0, min(candidates)) if candidates else 1
