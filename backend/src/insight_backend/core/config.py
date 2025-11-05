@@ -124,7 +124,6 @@ class Settings(BaseSettings):
     # Removed nl2sql plan mode (redundant with multi-agent)
 
     # NL→SQL multi‑agent (always enabled)
-    nl2sql_explore_rounds: int = Field(1, alias="NL2SQL_EXPLORE_ROUNDS")
     nl2sql_satisfaction_min_rows: int = Field(1, alias="NL2SQL_SATISFACTION_MIN_ROWS")
 
     @property

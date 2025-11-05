@@ -14,6 +14,7 @@ from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 from .retrieval_service import RetrievalService
+from ..core.agent_limits import get_limit, get_count
 
 
 log = logging.getLogger("insight.services.chat")
@@ -448,7 +449,21 @@ class ChatService:
                     evidence: list[dict[str, object]] = []
                     last_columns: list[Any] = []
                     last_rows: list[Any] = []
-                    rounds = max(1, settings.nl2sql_explore_rounds)
+                    # Derive exploration rounds from per-agent budgets (explorateur/analyste)
+                    def _remaining(agent: str) -> int | None:
+                        cap = get_limit(agent)
+                        if cap is None:
+                            return None
+                        return max(0, cap - get_count(agent))
+
+                    rem_expl = _remaining("explorateur")
+                    rem_anal = _remaining("analyste")
+                    if rem_expl is None and rem_anal is None:
+                        rounds = 1
+                    else:
+                        candidates = [c for c in (rem_expl, rem_anal) if c is not None]
+                        rounds = max(0, min(candidates)) if candidates else 1
+                    log.info("Multi‑agent rounds derived from budgets: %s (explorateur=%s, analyste=%s)", rounds, rem_expl, rem_anal)
                     min_rows = max(0, settings.nl2sql_satisfaction_min_rows)
                     if events:
                         try:
