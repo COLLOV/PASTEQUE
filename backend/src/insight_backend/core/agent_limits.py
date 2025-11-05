@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
+import threading
 from typing import Dict
 
 from .config import settings
@@ -16,6 +17,7 @@ class AgentBudgetExceeded(RuntimeError):
 
 _limits_var: ContextVar[Dict[str, int] | None] = ContextVar("agent_limits", default=None)
 _counts_var: ContextVar[Dict[str, int] | None] = ContextVar("agent_counts", default=None)
+_counts_lock = threading.Lock()
 
 
 def reset_from_settings() -> None:
@@ -53,12 +55,18 @@ def check_and_increment(agent: str) -> None:
     cap = limits.get(agent)
     if cap is None:
         return  # agent not capped
-    counts = _counts_var.get()
-    if counts is None:
-        counts = {}
-        _counts_var.set(counts)
-    new_val = int(counts.get(agent, 0)) + 1
-    if new_val > cap:
-        log.warning("Agent %s exceeded request cap (%d/%d)", agent, new_val, cap)
-        raise AgentBudgetExceeded(f"Limite de requêtes atteinte pour l'agent '{agent}' ({cap})")
-    counts[agent] = new_val
+    with _counts_lock:
+        counts = _counts_var.get()
+        if counts is None:
+            counts = {}
+        current = int(counts.get(agent, 0))
+        new_val = current + 1
+        if new_val > cap:
+            log.warning("Agent %s exceeded request cap (%d/%d)", agent, new_val, cap)
+            # Do not persist the overflow attempt; keep the stored counter <= cap
+            _counts_var.set(counts)
+            raise AgentBudgetExceeded(f"Limite de requêtes atteinte pour l'agent '{agent}' ({cap})")
+        # Persist updated counter atomically within the lock
+        new_counts = dict(counts)
+        new_counts[agent] = new_val
+        _counts_var.set(new_counts)
