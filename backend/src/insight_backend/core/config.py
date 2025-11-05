@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
     mindsdb_embeddings_config_path: str | None = Field(None, alias="MINDSDB_EMBEDDINGS_CONFIG_PATH")
     mindsdb_embedding_batch_size: int = Field(16, alias="MINDSDB_EMBEDDING_BATCH_SIZE")
+    mindsdb_timeout_s: float = Field(120.0, alias="MINDSDB_TIMEOUT_S")
     rag_top_n: int = Field(3, alias="RAG_TOP_N")
     rag_table_row_cap: int = Field(500, alias="RAG_TABLE_ROW_CAP")
     rag_max_columns: int = Field(6, alias="RAG_MAX_COLUMNS")
