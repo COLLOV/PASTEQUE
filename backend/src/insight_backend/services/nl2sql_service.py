@@ -289,6 +289,48 @@ class NL2SQLService:
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
+    def write(
+        self,
+        *,
+        question: str,
+        evidence: List[Dict[str, object]],
+        retrieval_context: List[Dict[str, object]] | None = None,
+    ) -> str:
+        """Synthesis agent: fuses SQL evidence with optional retrieval rows.
+
+        - Prefers SQL-derived numbers when conflicts arise
+        - Uses retrieval rows as contextual examples only
+        - Produces a concise French answer, no SQL in the output
+        """
+        client, model = self._client_and_model()
+        payload = {
+            "question": question,
+            "evidence": evidence,
+            "retrieval": retrieval_context or [],
+            "guidelines": [
+                "Base the answer primarily on SQL evidence (columns/rows).",
+                "Use retrieval rows to add color/examples; do not invent facts.",
+                "If there is insufficient data, state it clearly.",
+                "Answer in French, 2–4 concise sentences, include key figures.",
+            ],
+        }
+        system = (
+            "You are a synthesis agent. Combine the SQL evidence and any retrieved related rows\n"
+            "to answer the user's question precisely in French. Prefer the SQL-derived numbers\n"
+            "when data conflicts. Do not output SQL or code."
+        )
+        # Enforce per-agent cap (redaction)
+        check_and_increment("redaction")
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            temperature=0,
+        )
+        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
     # --- Multi‑agent helpers -------------------------------------------------
     def explore(
         self,
