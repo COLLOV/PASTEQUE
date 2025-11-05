@@ -108,6 +108,13 @@ class Settings(BaseSettings):
             raise ValueError(f"{info.field_name.upper()} must be > 0")
         return v
 
+    @field_validator("nl2sql_explore_max_steps")
+    @classmethod
+    def _validate_explore_steps(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("NL2SQL_EXPLORE_MAX_STEPS must be > 0")
+        return v
+
     # Database
     database_url: str = Field(
         "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",
@@ -128,6 +135,7 @@ class Settings(BaseSettings):
 
     # NL→SQL multi‑agent (always enabled)
     nl2sql_satisfaction_min_rows: int = Field(1, alias="NL2SQL_SATISFACTION_MIN_ROWS")
+    nl2sql_explore_max_steps: int = Field(3, alias="NL2SQL_EXPLORE_MAX_STEPS")
 
     @property
     def allowed_origins(self) -> List[str]:

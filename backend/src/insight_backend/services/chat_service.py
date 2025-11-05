@@ -19,8 +19,7 @@ from ..core.agent_limits import get_limit, get_count, AgentBudgetExceeded
 
 log = logging.getLogger("insight.services.chat")
 
-# Maximum exploration steps per round for NL→SQL explorer
-NL2SQL_EXPLORE_MAX_STEPS = 3
+# Maximum exploration steps per round for NL→SQL explorer (configurable)
 
 
 def _preview_text(text: str, *, limit: int = 160) -> str:
@@ -534,7 +533,7 @@ class ChatService:
                             plan = nl2sql.explore(
                                 question=contextual_question_with_dico,
                                 schema=schema,
-                                max_steps=NL2SQL_EXPLORE_MAX_STEPS,
+                                max_steps=max(1, int(settings.nl2sql_explore_max_steps)),
                                 observations=observations,
                             )
                             log.info("NL2SQL explore round %d: %d queries", r, len(plan))
