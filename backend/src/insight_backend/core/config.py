@@ -100,13 +100,6 @@ class Settings(BaseSettings):
             raise ValueError("MINDSDB_EMBEDDING_BATCH_SIZE must be > 0")
         return v
 
-    @field_validator("mindsdb_timeout_s")
-    @classmethod
-    def _validate_mindsdb_timeout(cls, v: float) -> float:
-        if v <= 0:
-            raise ValueError("MINDSDB_TIMEOUT_S must be > 0")
-        return v
-
     @field_validator("rag_top_n", "rag_table_row_cap", "rag_max_columns")
     @classmethod
     def _validate_positive_int(cls, v: int, info: ValidationInfo) -> int:

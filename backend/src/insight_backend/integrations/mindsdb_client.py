@@ -26,8 +26,6 @@ class MindsDBClient:
         self.base_url = base_url.rstrip("/")
         self.token = token
         resolved_timeout = timeout_s if timeout_s is not None else settings.mindsdb_timeout_s
-        if resolved_timeout <= 0:
-            raise ValueError("MindsDB timeout must be greater than 0 seconds.")
         self.client = httpx.Client(timeout=httpx.Timeout(resolved_timeout))
 
     def _headers(self) -> Dict[str, str]:
