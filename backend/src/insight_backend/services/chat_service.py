@@ -19,6 +19,9 @@ from ..core.agent_limits import get_limit, get_count, AgentBudgetExceeded
 
 log = logging.getLogger("insight.services.chat")
 
+# Maximum exploration steps per round for NL→SQL explorer
+NL2SQL_EXPLORE_MAX_STEPS = 3
+
 
 def _preview_text(text: str, *, limit: int = 160) -> str:
     """Return a single-line preview capped at ``limit`` characters."""
@@ -477,6 +480,20 @@ class ChatService:
                             )
                         except Exception:  # pragma: no cover
                             pass
+                    if rounds <= 0:
+                        # No exploration rounds allowed by current budgets (e.g., cap set to 0)
+                        message = (
+                            "Exploration désactivée: aucun tour autorisé avec les plafonds d'agents actuels. "
+                            "Ajustez AGENT_MAX_REQUESTS pour 'explorateur'/'analyste' ou relancez la requête."
+                        )
+                        return self._log_completion(
+                            ChatResponse(
+                                reply=f"{message}\n{self._llm_diag()}",
+                                metadata={"provider": "nl2sql-multiagent-empty", "rounds_used": 0},
+                            ),
+                            context="completion done (nl2sql-multiagent-no-round)",
+                        )
+
                     for r in range(1, rounds + 1):
                         try:
                             observations = None
@@ -489,7 +506,7 @@ class ChatService:
                             plan = nl2sql.explore(
                                 question=contextual_question_with_dico,
                                 schema=schema,
-                                max_steps=3,
+                                max_steps=NL2SQL_EXPLORE_MAX_STEPS,
                                 observations=observations,
                             )
                             log.info("NL2SQL explore round %d: %d queries", r, len(plan))

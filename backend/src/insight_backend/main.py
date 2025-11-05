@@ -46,6 +46,10 @@ def create_app() -> FastAPI:
     def _startup() -> None:
         # Harden: block unsafe defaults outside development
         assert_secure_configuration()
+        # Always log/validate agent caps visibility on startup
+        settings.validate_agent_limits_startup()
+        # Warn about deprecated env vars for cleanup
+        settings.warn_deprecated_env()
         init_database()
         with session_scope() as session:
             created = AuthService(UserRepository(session)).ensure_admin_user(

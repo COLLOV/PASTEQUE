@@ -7,6 +7,7 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 
 class Settings(BaseSettings):
@@ -160,6 +161,48 @@ class Settings(BaseSettings):
                 if n >= 0:
                     out[str(k)] = n
         return out
+
+    def validate_agent_limits_startup(self) -> None:
+        """Validate AGENT_MAX_REQUESTS on startup and emit clear logs.
+
+        - In non-development environments, invalid JSON raises at startup.
+        - Always log an INFO line summarizing the effective caps (or absence).
+        """
+        log = logging.getLogger("insight.core.config")
+        env = (self.env or "").strip().lower()
+        raw = self.agent_max_requests_json
+        caps = self.agent_max_requests
+        if raw and not caps:
+            # Ambiguous: it can be invalid JSON or a mapping with no usable positive values
+            # Disambiguate by attempting a strict parse here
+            try:
+                _ = json.loads(raw)
+            except Exception:
+                if env not in {"dev", "development", "local"}:
+                    raise RuntimeError("Invalid AGENT_MAX_REQUESTS JSON in production environment")
+                # In dev, we already warned in agent_max_requests; continue
+        if caps:
+            log.info("Agent caps active: %s", caps)
+        else:
+            log.info("No agent caps configured (AGENT_MAX_REQUESTS unset or empty)")
+
+    def warn_deprecated_env(self) -> None:
+        """Emit warnings for deprecated environment variables now ignored.
+
+        This helps operators clean up configs after the NL→SQL simplification.
+        """
+        deprecated = [
+            "NL2SQL_ENABLED",
+            "NL2SQL_INCLUDE_SAMPLES",
+            "NL2SQL_SAMPLES_PATH",
+            "NL2SQL_PLAN_MODE",
+        ]
+        present = [k for k in deprecated if os.getenv(k) is not None]
+        if present:
+            logging.getLogger("insight.core.config").warning(
+                "Deprecated env vars detected and ignored: %s",
+                present,
+            )
 
 
 @lru_cache
