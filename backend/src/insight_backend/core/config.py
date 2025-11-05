@@ -162,7 +162,8 @@ class Settings(BaseSettings):
                     n = int(v)
                 except Exception:
                     continue
-                if n > 0:
+                # Accept 0 to explicitly disable an agent
+                if n >= 0:
                     out[str(k)] = n
         return out
 

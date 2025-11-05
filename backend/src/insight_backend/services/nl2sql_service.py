@@ -529,6 +529,8 @@ class NL2SQLService:
             },
             ensure_ascii=False,
         )
+        # Enforce per-agent cap (analyste)
+        check_and_increment("analyste")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
