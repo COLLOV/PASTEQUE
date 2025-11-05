@@ -59,7 +59,7 @@ class RetrievalService:
         embedding_client, embedding_model = build_embedding_client(config)
         try:
             # Enforce per-agent cap (embedding)
-            check_and_increment("embedding")
+            # No LLM agent caps; SQL budgets are enforced at execution sites
             vectors = embedding_client.embeddings(model=embedding_model, inputs=[question])
         except OpenAIBackendError as exc:
             raise RuntimeError(f"Échec du calcul d'embedding pour la question: {exc}") from exc

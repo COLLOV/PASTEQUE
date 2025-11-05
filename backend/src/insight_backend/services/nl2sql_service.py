@@ -256,8 +256,7 @@ class NL2SQLService:
             f"Question: {question}\n"
             f"Produce a single SQL query using only {settings.nl2sql_db_prefix}.* tables."
         )
-        # Enforce per-agent cap (nl2sql)
-        check_and_increment("nl2sql")
+        # SQL-level budgets are enforced at execution sites; no LLM caps
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -280,8 +279,7 @@ class NL2SQLService:
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
         user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
-        # Enforce per-agent cap (analyste)
-        check_and_increment("analyste")
+        # SQL-level budgets are enforced at execution sites; no LLM caps
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -326,8 +324,7 @@ class NL2SQLService:
             f"Focus on columns likely involved in the question.\n"
             + obs_section
         )
-        # Enforce per-agent cap (explorateur)
-        check_and_increment("explorateur")
+        # SQL-level budgets are enforced at execution sites; no LLM caps
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -397,8 +394,7 @@ class NL2SQLService:
             },
             ensure_ascii=False,
         )
-        # Enforce per-agent cap (analyste)
-        check_and_increment("analyste")
+        # SQL-level budgets are enforced at execution sites; no LLM caps
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -451,8 +447,7 @@ class NL2SQLService:
             "available and any exploratory findings. Prefer simple bar/line charts; fall back to 'table' when unclear.\n"
             "Return ONLY JSON: {\"axes\":[{\"x\":str,\"y\":str?,\"agg\":str?,\"chart\":str,\"reason\":str}...]}."
         )
-        # Enforce per-agent cap (axes)
-        check_and_increment("axes")
+        # SQL-level budgets are enforced at execution sites; no LLM caps
         resp = client.chat_completions(
             model=model,
             messages=[
@@ -517,8 +512,7 @@ class NL2SQLService:
         }
         if retrieval_context is not None:
             payload["retrieval_context"] = retrieval_context
-        # Enforce per-agent cap (redaction)
-        check_and_increment("redaction")
+        # SQL-level budgets are enforced at execution sites; no LLM caps
         resp = client.chat_completions(
             model=model,
             messages=[

@@ -14,7 +14,7 @@ from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 from .retrieval_service import RetrievalService
-from ..core.agent_limits import get_limit, get_count, AgentBudgetExceeded
+from ..core.agent_limits import get_limit, get_count, check_and_increment, AgentBudgetExceeded
 
 
 log = logging.getLogger("insight.services.chat")
@@ -461,38 +461,32 @@ class ChatService:
                             return None
                         return max(0, cap - get_count(agent))
 
-                    rem_expl = _remaining("explorateur")
-                    rem_anal = _remaining("analyste")
-                    # Optional floors (when no caps): use AGENT_MIN_REQUESTS
-                    floors = settings.agent_min_requests
-                    floor_expl = floors.get("explorateur") if isinstance(floors, dict) else None
-                    floor_anal = floors.get("analyste") if isinstance(floors, dict) else None
-                    floor_candidates = [c for c in (floor_expl, floor_anal) if isinstance(c, int) and c >= 0]
-                    min_floor = (min(floor_candidates) if floor_candidates else 0)
-
-                    if rem_expl is None and rem_anal is None:
-                        # No caps → if floors provided, use their minimum (allow 0 to fully disable).
-                        # If no floors are provided at all, default to 1 round for backward compatibility.
-                        rounds = int(min_floor) if floor_candidates else 1
-                        allowed = None
+                    # SQL budgets (preferred): cap and floor on number of exploration/final SQL executions
+                    steps_per_round = max(1, int(settings.nl2sql_explore_max_steps))
+                    max_sql = get_limit("explore_sql")
+                    min_sql = (settings.agent_min_requests or {}).get("explore_sql", 0)
+                    # Compute a reasonable number of rounds from SQL caps/floors
+                    # - If a cap exists, ensure enough rounds to potentially consume it
+                    # - Else if a floor exists, ensure enough rounds to reach the floor
+                    # - Else default to 1 round
+                    import math as _math
+                    if isinstance(max_sql, int):
+                        target = max(0, int(max_sql))
+                        rounds = max(0, int(_math.ceil(target / steps_per_round)))
+                    elif isinstance(min_sql, int) and min_sql > 0:
+                        rounds = int(_math.ceil(min_sql / steps_per_round))
                     else:
-                        candidates = [c for c in (rem_expl, rem_anal) if c is not None]
-                        allowed = max(0, min(candidates)) if candidates else 1
-                        # When caps exist, they bound rounds; floor is not allowed to exceed caps
-                        rounds = allowed
-
-                    # Enforce a minimum number of rounds before early stop, bounded by caps
-                    min_rounds = 0
-                    if floor_candidates:
-                        desired_floor = int(min_floor)
-                        min_rounds = desired_floor if allowed is None else min(desired_floor, int(allowed))
+                        rounds = 1
+                    # Track a minimum number of exploration SQLs before early stop (bounded by cap if any)
+                    min_explore_sql = max(0, int(min_sql))
+                    if isinstance(max_sql, int):
+                        min_explore_sql = min(min_explore_sql, max(0, int(max_sql)))
                     log.info(
-                        "Multi‑agent rounds: %s (min_rounds=%s, explorateur=%s, analyste=%s, floors=%s)",
+                        "Multi‑agent plan: rounds=%s, steps/round=%s, sql_caps={cap=%s,floor=%s}",
                         rounds,
-                        min_rounds,
-                        rem_expl,
-                        rem_anal,
-                        {"explorateur": floor_expl, "analyste": floor_anal},
+                        steps_per_round,
+                        max_sql,
+                        min_sql,
                     )
                     min_rows = max(0, settings.nl2sql_satisfaction_min_rows)
                     if events:
@@ -564,6 +558,12 @@ class ChatService:
                                     events("sql", {"sql": sql, "purpose": "explore", "round": r, "step": idx})
                                 except Exception:
                                     log.warning("Failed to emit sql event (explore)", exc_info=True)
+                            # Enforce SQL-level budget for exploration (graceful stop when cap reached)
+                            try:
+                                check_and_increment("explore_sql")
+                            except AgentBudgetExceeded:
+                                log.info("Explore SQL budget exhausted; stopping exploration (r=%d, step=%d)", r, idx)
+                                break
                             data = client.sql(sql)
                             columns, rows = self._normalize_result(data)
                             if events:
@@ -631,6 +631,21 @@ class ChatService:
                                 events("sql", {"sql": final_sql, "purpose": "answer", "round": r})
                             except Exception:
                                 log.warning("Failed to emit sql event (final)", exc_info=True)
+                        # Enforce SQL-level budget for the final answer (graceful stop if exhausted)
+                        try:
+                            check_and_increment("answer_sql")
+                        except AgentBudgetExceeded:
+                            message = (
+                                "Exécution du SQL final désactivée: budget de requêtes atteint. "
+                                "Ajustez les clés 'answer_sql' dans AGENT_MAX_REQUESTS/AGENT_MIN_REQUESTS."
+                            )
+                            return self._log_completion(
+                                ChatResponse(
+                                    reply=f"{message}\n{self._llm_diag()}",
+                                    metadata={"provider": "nl2sql-answer-disabled", "rounds_used": r},
+                                ),
+                                context="completion done (nl2sql-answer-disabled)",
+                            )
                         result = client.sql(final_sql)
                         fcols, frows = self._normalize_result(result)
                         if events:
@@ -656,7 +671,9 @@ class ChatService:
                             fallback_columns=last_columns,
                             fallback_rows=last_rows,
                         )
-                        if len(frows) >= min_rows and r >= (min_rounds if 'min_rounds' in locals() else 0):
+                        # Early stop only after reaching the minimum explore SQL floor (if any)
+                        executed_explore = get_count("explore_sql")
+                        if len(frows) >= min_rows and executed_explore >= min_explore_sql:
                             ev_for_answer = evidence + [
                                 {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
                             ]

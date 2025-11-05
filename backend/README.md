@@ -13,29 +13,27 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
-### Limites par agent (AGENT_MAX_REQUESTS) et plancher optionnel (AGENT_MIN_REQUESTS)
+### Budgets SQL (exploration / réponse)
 
-- Configurez dans `.env` un JSON mappant chaque agent à son nombre maximal de requêtes par appel API.
-- Clé: `AGENT_MAX_REQUESTS`. Exemple:
+- Configurez dans `.env` un JSON pour plafonner et/ou fixer un plancher sur le nombre de requêtes SQL exécutées par requête API.
+- Clés reconnues (dans `AGENT_MAX_REQUESTS` / `AGENT_MIN_REQUESTS`):
+  - `explore_sql`: nombre de requêtes SQL d’exploration (petites requêtes) à exécuter au total.
+  - `answer_sql`: nombre de requêtes SQL « finales » à exécuter (généralement 1).
+
+Exemples:
 
 ```
-AGENT_MAX_REQUESTS={"explorateur":2, "analyste":1, "redaction":1, "router":1}
+# Plafonner l'exploration à 3 requêtes SQL
+AGENT_MAX_REQUESTS={"explore_sql":3}
+
+# Forcer au moins 5 requêtes d'exploration (si aucun plafond plus bas n'est défini)
+AGENT_MIN_REQUESTS={"explore_sql":5}
 ```
 
-Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `mcp_chart`.
+- `NL2SQL_EXPLORE_MAX_STEPS` contrôle le nombre maximum de requêtes proposées par tour; le budget SQL est appliqué avant chaque exécution pour ne pas le dépasser. L’arrêt anticipé n’a lieu qu’après avoir atteint le plancher éventuel (`AGENT_MIN_REQUESTS.explore_sql`).
+- Les anciens budgets liés aux appels LLM des agents (explorateur, analyste, etc.) ne sont plus appliqués.
 
-- Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
-- Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
-
-- Optionnel: `AGENT_MIN_REQUESTS` permet d’indiquer un plancher par agent (JSON `{agent: min}`) utilisé pour déterminer
-  le nombre de rondes en mode multi‑agent UNIQUEMENT lorsque aucun plafond (`AGENT_MAX_REQUESTS`) n’est défini pour
-  les agents concernés. Si les deux agents `explorateur` et `analyste` sont présents dans ce plancher, la valeur
-  retenue pour le nombre de rondes est le minimum des deux. Exemple: `{"explorateur":2, "analyste":2}` force 2 rondes
-  quand aucun plafond n’est configuré. Dès qu’un plafond s’applique, celui‑ci borne le nombre de rondes effectives.
-
-Note (PR #72): les dépassements de quota par agent sont désormais correctement propagés jusqu’aux routes afin de produire un statut HTTP 429, y compris pour le chemin multi‑agent NL→SQL et la génération de graphiques via MCP.
-
-Au démarrage, l’API journalise le mapping effectif des plafonds (ou l’absence de plafonds). En production, une valeur JSON invalide pour `AGENT_MAX_REQUESTS` provoque une erreur de démarrage. Les variables dépréciées `NL2SQL_ENABLED`, `NL2SQL_INCLUDE_SAMPLES`, `NL2SQL_SAMPLES_PATH`, `NL2SQL_PLAN_MODE` sont ignorées et signalées dans les logs.
+Au démarrage, l’API journalise les budgets SQL actifs (plafonds et planchers). En production, un JSON invalide provoque une erreur de démarrage.
 
 ### Dictionnaire de données (YAML)
 

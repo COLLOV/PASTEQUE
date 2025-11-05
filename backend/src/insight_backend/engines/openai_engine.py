@@ -24,7 +24,7 @@ class OpenAIChatEngine:
     def run(self, payload: ChatRequest) -> ChatResponse:  # type: ignore[valid-type]
         messages = [m.model_dump() for m in payload.messages]
         # Enforce per-agent cap (chat)
-        check_and_increment("chat")
+        # No LLM agent caps; SQL budgets are enforced at execution sites
         data: dict[str, Any] = self.client.chat_completions(model=self.model, messages=messages)
         # OpenAI-compatible: choices[0].message.content
         try:

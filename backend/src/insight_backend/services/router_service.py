@@ -138,7 +138,7 @@ class RouterService:
             {"role": "user", "content": text},
         ]
         # Enforce per-agent cap (router)
-        check_and_increment("router")
+        # No LLM agent caps; SQL budgets are enforced at execution sites
         client = OpenAICompatibleClient(base_url=base_url, api_key=api_key, timeout_s=settings.openai_timeout_s)
         data = client.chat_completions(model=model, messages=messages, temperature=0)
         raw = ""
