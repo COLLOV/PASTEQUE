@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import List
 import logging
+import json
 
 from pydantic import Field
 from pydantic import field_validator
@@ -48,6 +49,9 @@ class Settings(BaseSettings):
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
     router_model: str | None = Field(None, alias="ROUTER_MODEL")
+
+    # Agent request caps (JSON mapping: {agent_name: max_requests})
+    agent_max_requests_json: str | None = Field(None, alias="AGENT_MAX_REQUESTS")
 
     @field_validator("router_mode", mode="before")
     @classmethod
@@ -133,6 +137,34 @@ class Settings(BaseSettings):
         if self.allowed_origins_raw:
             return [item.strip() for item in self.allowed_origins_raw.split(",") if item.strip()]
         return ["http://localhost:5173"]
+
+    @property
+    def agent_max_requests(self) -> dict[str, int]:
+        """Parse AGENT_MAX_REQUESTS env (JSON) into a {agent: cap} dict.
+
+        Invalid or missing values yield an empty mapping. Non-positive caps
+        are ignored. Keys are normalized as str.
+        """
+        raw = self.agent_max_requests_json
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+        except Exception:
+            logging.getLogger("insight.core.config").warning(
+                "Invalid AGENT_MAX_REQUESTS JSON; ignoring."
+            )
+            return {}
+        out: dict[str, int] = {}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                try:
+                    n = int(v)
+                except Exception:
+                    continue
+                if n > 0:
+                    out[str(k)] = n
+        return out
 
 
 @lru_cache

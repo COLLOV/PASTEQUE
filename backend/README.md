@@ -13,6 +13,20 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
+### Limites par agent (AGENT_MAX_REQUESTS)
+
+- Configurez dans `.env` un JSON mappant chaque agent à son nombre maximal de requêtes par appel API.
+- Clé: `AGENT_MAX_REQUESTS`. Exemple:
+
+```
+AGENT_MAX_REQUESTS={"explorateur":2, "analyste":1, "redaction":1, "router":1}
+```
+
+Agents disponibles: `router`, `chat`, `nl2sql`, `nl2sql_plan`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `mcp_chart`.
+
+- Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
+- Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
+
 ### Dictionnaire de données (YAML)
 
 But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.

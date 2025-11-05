@@ -27,6 +27,7 @@ from mcp.shared.message import SessionMessage
 import mcp.types as mcp_types
 
 from ..core.config import settings
+from ..core.agent_limits import check_and_increment
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
 from ..schemas.mcp_chart import ChartDataset
 
@@ -325,6 +326,8 @@ class ChartGenerationService:
 
         try:
             async with agent:
+                # Enforce per-agent cap (mcp_chart)
+                check_and_increment("mcp_chart")
                 result = await agent.run(prompt, deps=deps)
         except UnexpectedModelBehavior as exc:
             log.exception("Réponse LLM incompatible pour la génération de graphiques")

@@ -13,6 +13,7 @@ from starlette.responses import StreamingResponse
 
 from ....schemas.chat import ChatRequest, ChatResponse
 from ....core.config import settings
+from ....core.agent_limits import reset_from_settings, AgentBudgetExceeded
 from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
@@ -126,6 +127,9 @@ def chat_completion(  # type: ignore[valid-type]
     - En mode local (`LLM_MODE=local`): utilise `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
     - En mode API (`LLM_MODE=api`): utilise `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
     """
+    # Initialize per-request agent budgets from settings
+    reset_from_settings()
+
     if settings.llm_mode not in {"local", "api"}:
         raise HTTPException(status_code=500, detail="Invalid LLM_MODE; expected 'local' or 'api'")
 
@@ -224,6 +228,9 @@ def chat_completion(  # type: ignore[valid-type]
             # No need to re-apply exclusions here: they were persisted in the same transaction as the user message
             # Return as-is (no conversation id field in schema), clients can fetch via separate API
             return resp
+        except AgentBudgetExceeded as exc:
+            # Convert to 429 Too Many Requests for clarity
+            raise HTTPException(status_code=429, detail=str(exc))
         except OpenAIBackendError as exc:
             raise HTTPException(status_code=502, detail=str(exc))
 
@@ -258,6 +265,9 @@ def chat_stream(  # type: ignore[valid-type]
 
     Emits events: meta → delta* → done, or error on failure.
     """
+    # Initialize per-request agent budgets from settings
+    reset_from_settings()
+
     if settings.llm_mode not in {"local", "api"}:
         raise HTTPException(status_code=500, detail="Invalid LLM_MODE; expected 'local' or 'api'")
 
@@ -334,6 +344,9 @@ def chat_stream(  # type: ignore[valid-type]
             if last and last.role == "user":
                 try:
                     decision = _router_decision_or_none(last.content)
+                except AgentBudgetExceeded as exc:
+                    yield _sse("error", {"code": "agent_budget_exceeded", "message": str(exc)})
+                    return
                 except OpenAIBackendError as exc:
                     log.error("Router backend error: %s", exc)
                     yield _sse("error", {"code": "router_backend_error", "message": str(exc)})

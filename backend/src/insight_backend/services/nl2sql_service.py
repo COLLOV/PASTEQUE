@@ -11,6 +11,7 @@ from ..core.config import settings
 import sqlglot
 from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
+from ..core.agent_limits import check_and_increment
 from ..repositories.data_repository import DataRepository
 
 
@@ -283,6 +284,8 @@ class NL2SQLService:
             f"Question: {question}\n"
             f"Produce a single SQL query using only {settings.nl2sql_db_prefix}.* tables."
         )
+        # Enforce per-agent cap (nl2sql)
+        check_and_increment("nl2sql")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -369,6 +372,8 @@ class NL2SQLService:
             + (f"Samples:\n{samples_blob}\n\n" if samples_blob else "")
             + f"Max steps: {max_steps}. Question: {question}"
         )
+        # Enforce per-agent cap (nl2sql_plan)
+        check_and_increment("nl2sql_plan")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -407,6 +412,8 @@ class NL2SQLService:
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
         user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        # Enforce per-agent cap (analyste)
+        check_and_increment("analyste")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -451,6 +458,8 @@ class NL2SQLService:
             f"Focus on columns likely involved in the question.\n"
             + obs_section
         )
+        # Enforce per-agent cap (explorateur)
+        check_and_increment("explorateur")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -572,6 +581,8 @@ class NL2SQLService:
             "available and any exploratory findings. Prefer simple bar/line charts; fall back to 'table' when unclear.\n"
             "Return ONLY JSON: {\"axes\":[{\"x\":str,\"y\":str?,\"agg\":str?,\"chart\":str,\"reason\":str}...]}."
         )
+        # Enforce per-agent cap (axes)
+        check_and_increment("axes")
         resp = client.chat_completions(
             model=model,
             messages=[
@@ -636,6 +647,8 @@ class NL2SQLService:
         }
         if retrieval_context is not None:
             payload["retrieval_context"] = retrieval_context
+        # Enforce per-agent cap (redaction)
+        check_and_increment("redaction")
         resp = client.chat_completions(
             model=model,
             messages=[
