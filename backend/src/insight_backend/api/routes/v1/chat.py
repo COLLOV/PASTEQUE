@@ -398,14 +398,16 @@ def chat_stream(  # type: ignore[valid-type]
                 def emit(evt: str, data: dict) -> None:
                     # Push to SSE queue only; persist on the consumer thread to avoid cross-thread session use
                     q.put((evt, data))
-                    # Animator: emit human-friendly status alongside raw events (mode=true only)
+                    # Animator (LLM): run asynchronously to avoid blocking the worker
                     if animator is not None:
-                        try:
-                            msg = animator.translate(evt, data)
-                        except Exception:
-                            msg = None
-                        if msg:
-                            q.put(("anim", {"message": msg}))
+                        def _anim() -> None:
+                            try:
+                                msg = animator.translate(evt, data)
+                            except Exception:
+                                msg = None
+                            if msg:
+                                q.put(("anim", {"message": msg}))
+                        threading.Thread(target=_anim, daemon=True).start()
 
                 result_holder: dict[str, object] = {}
 
@@ -488,12 +490,14 @@ def chat_stream(  # type: ignore[valid-type]
                     # Queue only; persistence happens on consumer side in this request thread
                     q.put((evt, data))
                     if animator is not None:
-                        try:
-                            msg = animator.translate(evt, data)
-                        except Exception:
-                            msg = None
-                        if msg:
-                            q.put(("anim", {"message": msg}))
+                        def _anim() -> None:
+                            try:
+                                msg = animator.translate(evt, data)
+                            except Exception:
+                                msg = None
+                            if msg:
+                                q.put(("anim", {"message": msg}))
+                        threading.Thread(target=_anim, daemon=True).start()
 
                 result_holder: dict[str, object] = {}
 
