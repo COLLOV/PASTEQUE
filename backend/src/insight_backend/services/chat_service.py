@@ -14,7 +14,7 @@ from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 from .retrieval_service import RetrievalService
-from ..core.agent_limits import get_limit, get_count
+from ..core.agent_limits import get_limit, get_count, AgentBudgetExceeded
 
 
 log = logging.getLogger("insight.services.chat")
@@ -498,6 +498,9 @@ class ChatService:
                                     events("plan", {"round": r, "steps": plan, "purpose": "explore"})
                                 except Exception:  # pragma: no cover
                                     pass
+                        except AgentBudgetExceeded:
+                            # Bubble up so API can convert to 429
+                            raise
                         except Exception as e:
                             log.error("NL2SQL explore failed (round %d): %s", r, e)
                             return self._log_completion(
@@ -553,6 +556,9 @@ class ChatService:
                                     events("meta", {"axes_suggestions": axes, "round": r})
                                 except Exception:
                                     log.warning("Failed to emit axes suggestions", exc_info=True)
+                        except AgentBudgetExceeded:
+                            # Bubble up so API can convert to 429
+                            raise
                         except Exception as e:
                             log.warning("Proposition d'axes indisponible: %s", e)
 
@@ -563,6 +569,9 @@ class ChatService:
                                 schema=schema,
                                 evidence=evidence,
                             )
+                        except AgentBudgetExceeded:
+                            # Bubble up so API can convert to 429
+                            raise
                         except Exception as e:
                             log.error("NL2SQL analyst failed to generate SQL: %s", e)
                             return self._log_completion(
@@ -634,6 +643,9 @@ class ChatService:
                                     ),
                                     context="completion done (nl2sql-multiagent)",
                                 )
+                            except AgentBudgetExceeded:
+                                # Bubble up so API can convert to 429
+                                raise
                             except Exception as e:
                                 error_reply = f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}"
                                 error_reply = self._append_highlight(error_reply, highlight_text)

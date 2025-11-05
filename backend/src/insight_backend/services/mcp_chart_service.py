@@ -27,7 +27,7 @@ from mcp.shared.message import SessionMessage
 import mcp.types as mcp_types
 
 from ..core.config import settings
-from ..core.agent_limits import check_and_increment
+from ..core.agent_limits import check_and_increment, AgentBudgetExceeded
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
 from ..schemas.mcp_chart import ChartDataset
 
@@ -332,6 +332,9 @@ class ChartGenerationService:
         except UnexpectedModelBehavior as exc:
             log.exception("Réponse LLM incompatible pour la génération de graphiques")
             raise ChartGenerationError(f"Réponse LLM incompatible: {exc}") from exc
+        except AgentBudgetExceeded:
+            # Bubble up so the API layer can return 429
+            raise
         except Exception as exc:  # pragma: no cover - dépend des intégrations externes
             log.exception("Échec lors de la génération de graphique via MCP")
             raise ChartGenerationError(str(exc)) from exc

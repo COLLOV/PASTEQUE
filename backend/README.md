@@ -27,6 +27,8 @@ Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `reda
 - Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
 - Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
 
+Note (PR #72): les dépassements de quota par agent sont désormais correctement propagés jusqu’aux routes afin de produire un statut HTTP 429, y compris pour le chemin multi‑agent NL→SQL et la génération de graphiques via MCP.
+
 ### Dictionnaire de données (YAML)
 
 But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
