@@ -65,7 +65,8 @@ class AnimatorAgent:
                 n_int = None
             purpose = (str(p.get("purpose")) if p.get("purpose") is not None else "").lower()
             if purpose == "evidence":
-                return f"Évidence: {n_int if n_int is not None else '?'} ligne(s)"
-            return f"Résultats: {n_int if n_int is not None else '?'} ligne(s)"
+                # Avoid technical "Evidence" wording; use a friendlier line.
+                return f"Fiches récupérées: {n_int if n_int is not None else '?'}"
+            return f"Données chargées: {n_int if n_int is not None else '?'} lignes"
 
         return None
