@@ -195,6 +195,16 @@ Notes de prod:
 - Si vous terminez derrière Nginx/Cloudflare, désactivez le buffering pour ce chemin.
 - Un seul flux actif par requête; le client doit annuler via `AbortController` si nécessaire.
 
+### Animation UI (ANIMATION)
+
+Pilote le niveau d'animation côté front à partir des évènements SSE:
+
+- `ANIMATION=sql` (défaut): conserve les évènements `plan`/`sql`/`rows` tels quels (affichage du SQL intérimaire, échantillons, etc.).
+- `ANIMATION=false`: supprime les évènements `plan` et `sql` côté SSE (et ne les persiste pas). Les métadonnées utiles (`meta`, `effective_tables`, `evidence`) restent émises pour garder les panneaux synchronisés.
+- `ANIMATION=true`: ajoute un agent léger « animator » qui observe les évènements et émet des messages courts `anim` destinés à expliquer la progression (ex: « Tables actives: N », « Comptage par catégorie », « Résultats: 20 lignes »). Ces évènements `anim` ne sont pas persistés en base.
+
+Validation: la variable doit valoir `sql`, `true` ou `false`.
+
 ### Router à chaque message
 
 Objectif: éviter de déclencher des requêtes SQL/NL→SQL lorsque un message utilisateur n’est pas orienté « data ».
