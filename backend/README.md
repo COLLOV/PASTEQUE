@@ -311,9 +311,11 @@ Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL
 Notes PR #72 (comportements):
 - Si les plafonds d’agents `explorateur`/`analyste` ne permettent aucun tour d’exploration, le backend renvoie une réponse explicite sans lancer d’exploration.
 - Le nombre maximum d’étapes par tour d’exploration est borné par une constante interne (`NL2SQL_EXPLORE_MAX_STEPS`, valeur par défaut: 3).
-- Le nombre total de rondes est soit borné par `AGENT_MAX_REQUESTS` (caps), soit, en l’absence de caps, fixé au plancher
+- Le nombre total de rondes est borné par `AGENT_MAX_REQUESTS` (caps). En l’absence de caps, il est fixé au plancher
   `floor = min(AGENT_MIN_REQUESTS.explorateur, AGENT_MIN_REQUESTS.analyste)` quand ces valeurs sont présentes (0 est accepté et
   désactive l’exploration si les deux sont à 0). S’il n’y a ni caps ni floors, on effectue 1 ronde par défaut.
+  En outre, `AGENT_MIN_REQUESTS` impose un nombre minimal de rondes avant arrêt anticipé (satisfaction), borné par les caps:
+  l’assistant ne s’arrête pas plus tôt que `min_rounds = min(floor, caps)`. 
 
 ### Notes de maintenance
 

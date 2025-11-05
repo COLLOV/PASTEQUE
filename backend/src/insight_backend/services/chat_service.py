@@ -475,14 +475,22 @@ class ChatService:
                         # No caps → if floors provided, use their minimum (allow 0 to fully disable).
                         # If no floors are provided at all, default to 1 round for backward compatibility.
                         rounds = int(min_floor) if floor_candidates else 1
+                        allowed = None
                     else:
                         candidates = [c for c in (rem_expl, rem_anal) if c is not None]
                         allowed = max(0, min(candidates)) if candidates else 1
-                        # When caps exist, they bound rounds; floor is informational only
+                        # When caps exist, they bound rounds; floor is not allowed to exceed caps
                         rounds = allowed
+
+                    # Enforce a minimum number of rounds before early stop, bounded by caps
+                    min_rounds = 0
+                    if floor_candidates:
+                        desired_floor = int(min_floor)
+                        min_rounds = desired_floor if allowed is None else min(desired_floor, int(allowed))
                     log.info(
-                        "Multi‑agent rounds: %s (explorateur=%s, analyste=%s, floors=%s)",
+                        "Multi‑agent rounds: %s (min_rounds=%s, explorateur=%s, analyste=%s, floors=%s)",
                         rounds,
+                        min_rounds,
                         rem_expl,
                         rem_anal,
                         {"explorateur": floor_expl, "analyste": floor_anal},
@@ -649,7 +657,7 @@ class ChatService:
                             fallback_columns=last_columns,
                             fallback_rows=last_rows,
                         )
-                        if len(frows) >= min_rows:
+                        if len(frows) >= min_rows and r >= (min_rounds if 'min_rounds' in locals() else 0):
                             ev_for_answer = evidence + [
                                 {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
                             ]
