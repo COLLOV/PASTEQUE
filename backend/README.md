@@ -13,7 +13,7 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
-### Limites par agent (AGENT_MAX_REQUESTS)
+### Limites par agent (AGENT_MAX_REQUESTS) et plancher optionnel (AGENT_MIN_REQUESTS)
 
 - Configurez dans `.env` un JSON mappant chaque agent à son nombre maximal de requêtes par appel API.
 - Clé: `AGENT_MAX_REQUESTS`. Exemple:
@@ -26,6 +26,12 @@ Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `reda
 
 - Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
 - Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
+
+- Optionnel: `AGENT_MIN_REQUESTS` permet d’indiquer un plancher par agent (JSON `{agent: min}`) utilisé pour déterminer
+  le nombre de rondes en mode multi‑agent UNIQUEMENT lorsque aucun plafond (`AGENT_MAX_REQUESTS`) n’est défini pour
+  les agents concernés. Si les deux agents `explorateur` et `analyste` sont présents dans ce plancher, la valeur
+  retenue pour le nombre de rondes est le minimum des deux. Exemple: `{"explorateur":2, "analyste":2}` force 2 rondes
+  quand aucun plafond n’est configuré. Dès qu’un plafond s’applique, celui‑ci borne le nombre de rondes effectives.
 
 Note (PR #72): les dépassements de quota par agent sont désormais correctement propagés jusqu’aux routes afin de produire un statut HTTP 429, y compris pour le chemin multi‑agent NL→SQL et la génération de graphiques via MCP.
 
@@ -305,6 +311,8 @@ Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL
 Notes PR #72 (comportements):
 - Si les plafonds d’agents `explorateur`/`analyste` ne permettent aucun tour d’exploration, le backend renvoie une réponse explicite sans lancer d’exploration.
 - Le nombre maximum d’étapes par tour d’exploration est borné par une constante interne (`NL2SQL_EXPLORE_MAX_STEPS`, valeur par défaut: 3).
+- Le nombre total de rondes est soit borné par `AGENT_MAX_REQUESTS` (caps), soit, en l’absence de caps, fixé à `max(1, floor)`
+  où `floor` provient de `AGENT_MIN_REQUESTS` (si présent). 
 
 ### Notes de maintenance
 

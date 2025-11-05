@@ -53,6 +53,8 @@ class Settings(BaseSettings):
 
     # Agent request caps (JSON mapping: {agent_name: max_requests})
     agent_max_requests_json: str | None = Field(None, alias="AGENT_MAX_REQUESTS")
+    # Agent request floors (JSON mapping: {agent_name: min_requests})
+    agent_min_requests_json: str | None = Field(None, alias="AGENT_MIN_REQUESTS")
 
     @field_validator("router_mode", mode="before")
     @classmethod
@@ -162,29 +164,62 @@ class Settings(BaseSettings):
                     out[str(k)] = n
         return out
 
-    def validate_agent_limits_startup(self) -> None:
-        """Validate AGENT_MAX_REQUESTS on startup and emit clear logs.
+    @property
+    def agent_min_requests(self) -> dict[str, int]:
+        """Parse AGENT_MIN_REQUESTS env (JSON) into a {agent: floor} dict.
 
-        - In non-development environments, invalid JSON raises at startup.
-        - Always log an INFO line summarizing the effective caps (or absence).
+        Invalid or missing values yield an empty mapping. Negative floors
+        are ignored. Keys are normalized as str. Zero is accepted (no floor).
+        """
+        raw = self.agent_min_requests_json
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+        except Exception:
+            logging.getLogger("insight.core.config").warning(
+                "Invalid AGENT_MIN_REQUESTS JSON; ignoring."
+            )
+            return {}
+        out: dict[str, int] = {}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                try:
+                    n = int(v)
+                except Exception:
+                    continue
+                if n >= 0:
+                    out[str(k)] = n
+        return out
+
+    def validate_agent_limits_startup(self) -> None:
+        """Validate agent request limits on startup and emit clear logs.
+
+        - In non-development environments, invalid JSON for MAX caps raises at startup.
+        - Always log INFO lines summarizing the effective caps/floors (or absence).
         """
         log = logging.getLogger("insight.core.config")
         env = (self.env or "").strip().lower()
-        raw = self.agent_max_requests_json
+        raw_max = self.agent_max_requests_json
         caps = self.agent_max_requests
-        if raw and not caps:
+        if raw_max and not caps:
             # Ambiguous: it can be invalid JSON or a mapping with no usable positive values
             # Disambiguate by attempting a strict parse here
             try:
-                _ = json.loads(raw)
+                _ = json.loads(raw_max)
             except Exception:
                 if env not in {"dev", "development", "local"}:
                     raise RuntimeError("Invalid AGENT_MAX_REQUESTS JSON in production environment")
                 # In dev, we already warned in agent_max_requests; continue
+        floors = self.agent_min_requests
         if caps:
             log.info("Agent caps active: %s", caps)
         else:
             log.info("No agent caps configured (AGENT_MAX_REQUESTS unset or empty)")
+        if floors:
+            log.info("Agent floors active: %s", floors)
+        else:
+            log.info("No agent floors configured (AGENT_MIN_REQUESTS unset or empty)")
 
     def warn_deprecated_env(self) -> None:
         """Emit warnings for deprecated environment variables now ignored.

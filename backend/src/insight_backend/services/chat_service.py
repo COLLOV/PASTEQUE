@@ -464,12 +464,28 @@ class ChatService:
 
                     rem_expl = _remaining("explorateur")
                     rem_anal = _remaining("analyste")
+                    # Optional floors (when no caps): use AGENT_MIN_REQUESTS
+                    floors = settings.agent_min_requests
+                    floor_expl = floors.get("explorateur") if isinstance(floors, dict) else None
+                    floor_anal = floors.get("analyste") if isinstance(floors, dict) else None
+                    floor_candidates = [c for c in (floor_expl, floor_anal) if isinstance(c, int) and c >= 0]
+                    min_floor = (min(floor_candidates) if floor_candidates else 0)
+
                     if rem_expl is None and rem_anal is None:
-                        rounds = 1
+                        # No caps → default to max(1, min_floor)
+                        rounds = max(1, int(min_floor))
                     else:
                         candidates = [c for c in (rem_expl, rem_anal) if c is not None]
-                        rounds = max(0, min(candidates)) if candidates else 1
-                    log.info("Multi‑agent rounds derived from budgets: %s (explorateur=%s, analyste=%s)", rounds, rem_expl, rem_anal)
+                        allowed = max(0, min(candidates)) if candidates else 1
+                        # When caps exist, they bound rounds; floor is informational only
+                        rounds = allowed
+                    log.info(
+                        "Multi‑agent rounds: %s (explorateur=%s, analyste=%s, floors=%s)",
+                        rounds,
+                        rem_expl,
+                        rem_anal,
+                        {"explorateur": floor_expl, "analyste": floor_anal},
+                    )
                     min_rows = max(0, settings.nl2sql_satisfaction_min_rows)
                     if events:
                         try:
