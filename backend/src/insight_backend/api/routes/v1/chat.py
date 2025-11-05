@@ -341,6 +341,26 @@ def chat_stream(  # type: ignore[valid-type]
         seq = 0
         anim_mode = (settings.animation_mode or "sql").strip().lower()
         animator = AnimatorAgent() if anim_mode == "true" else None
+        # Throttle animator to avoid hammering the LLM and starving other agents
+        import time as _time
+        last_anim_ts = 0.0
+        anim_min_interval = 0.4  # seconds
+
+        def _should_animate(evt: str, data: dict | object) -> bool:
+            if animator is None:
+                return False
+            k = (evt or "").strip().lower()
+            if k == "meta":
+                if isinstance(data, dict) and ("effective_tables" in data or "evidence_spec" in data):
+                    return True
+                return False
+            if k == "plan":
+                return True
+            if k == "sql":
+                return True
+            if k == "rows":
+                return isinstance(data, dict) and data.get("purpose") == "evidence"
+            return False
         try:
             # Router gate on every user message before any SQL activity
             last = payload.messages[-1] if payload.messages else None
@@ -399,13 +419,18 @@ def chat_stream(  # type: ignore[valid-type]
                     # Push to SSE queue only; persist on the consumer thread to avoid cross-thread session use
                     q.put((evt, data))
                     # Animator (LLM): run asynchronously to avoid blocking the worker
-                    if animator is not None:
+                    if _should_animate(evt, data):
                         def _anim() -> None:
                             try:
+                                nonlocal last_anim_ts
+                                now = _time.time()
+                                if (now - last_anim_ts) < anim_min_interval:
+                                    return
                                 msg = animator.translate(evt, data)
                             except Exception:
                                 msg = None
                             if msg:
+                                last_anim_ts = _time.time()
                                 q.put(("anim", {"message": msg}))
                         threading.Thread(target=_anim, daemon=True).start()
 
@@ -489,13 +514,18 @@ def chat_stream(  # type: ignore[valid-type]
                 def emit(evt: str, data: dict) -> None:
                     # Queue only; persistence happens on consumer side in this request thread
                     q.put((evt, data))
-                    if animator is not None:
+                    if _should_animate(evt, data):
                         def _anim() -> None:
                             try:
+                                nonlocal last_anim_ts
+                                now = _time.time()
+                                if (now - last_anim_ts) < anim_min_interval:
+                                    return
                                 msg = animator.translate(evt, data)
                             except Exception:
                                 msg = None
                             if msg:
+                                last_anim_ts = _time.time()
                                 q.put(("anim", {"message": msg}))
                         threading.Thread(target=_anim, daemon=True).start()
 
