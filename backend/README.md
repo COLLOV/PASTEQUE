@@ -29,6 +29,8 @@ Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `reda
 
 Note (PR #72): les dépassements de quota par agent sont désormais correctement propagés jusqu’aux routes afin de produire un statut HTTP 429, y compris pour le chemin multi‑agent NL→SQL et la génération de graphiques via MCP.
 
+Au démarrage, l’API journalise le mapping effectif des plafonds (ou l’absence de plafonds). En production, une valeur JSON invalide pour `AGENT_MAX_REQUESTS` provoque une erreur de démarrage. Les variables dépréciées `NL2SQL_ENABLED`, `NL2SQL_INCLUDE_SAMPLES`, `NL2SQL_SAMPLES_PATH`, `NL2SQL_PLAN_MODE` sont ignorées et signalées dans les logs.
+
 ### Dictionnaire de données (YAML)
 
 But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
@@ -299,6 +301,10 @@ NL2SQL_DB_PREFIX=files
 Le backend génère une requête `SELECT` ciblant uniquement `files.*`, exécute la requête via MindsDB et affiche dans le chat la requête exécutée suivie du résultat synthétisé. Aucune réponse “fallback” n’est renvoyée si la génération échoue: l’erreur est affichée explicitement. La requête SQL n’est plus modifiée pour ajouter un `LIMIT` automatique et les aperçus transmis au frontend conservent l’intégralité des lignes renvoyées par MindsDB.
 
 Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL et les requêtes SQL envoyées à MindsDB, tandis que `insight.services.mindsdb_sync` détaille les fichiers synchronisés.
+
+Notes PR #72 (comportements):
+- Si les plafonds d’agents `explorateur`/`analyste` ne permettent aucun tour d’exploration, le backend renvoie une réponse explicite sans lancer d’exploration.
+- Le nombre maximum d’étapes par tour d’exploration est borné par une constante interne (`NL2SQL_EXPLORE_MAX_STEPS`, valeur par défaut: 3).
 
 ### Notes de maintenance
 
