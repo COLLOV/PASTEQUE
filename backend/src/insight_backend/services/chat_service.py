@@ -126,6 +126,9 @@ class ChatService:
             service = self._get_retrieval_service()
             rows = service.retrieve(question=question, top_n=settings.rag_top_n)
             payload = [row.as_payload() for row in rows]
+        except AgentBudgetExceeded:
+            # Bubble up so API can convert to 429
+            raise
         except Exception as exc:
             message = _preview_text(str(exc), limit=160)
             log.error("Retrieval agent failed: %s", message)
