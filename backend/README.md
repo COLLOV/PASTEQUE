@@ -252,7 +252,10 @@ Config côté backend (`backend/.env`):
 ```
 MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 # MINDSDB_TOKEN=   # optionnel si auth activée côté MindsDB
+# MINDSDB_TIMEOUT_S=120  # délai lecture/écriture HTTP en secondes
 ```
+
+Le délai par défaut est de 120 s, suffisant pour publier des CSV volumineux; ajustez `MINDSDB_TIMEOUT_S` si vos imports dépassent cette fenêtre.
 
 1) Synchroniser les fichiers locaux `data/raw` vers la DB `files` de MindsDB:
 

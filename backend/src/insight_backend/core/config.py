@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
     mindsdb_embeddings_config_path: str | None = Field(None, alias="MINDSDB_EMBEDDINGS_CONFIG_PATH")
     mindsdb_embedding_batch_size: int = Field(16, alias="MINDSDB_EMBEDDING_BATCH_SIZE")
+    mindsdb_timeout_s: float = Field(120.0, alias="MINDSDB_TIMEOUT_S")
     rag_top_n: int = Field(3, alias="RAG_TOP_N")
     rag_table_row_cap: int = Field(500, alias="RAG_TABLE_ROW_CAP")
     rag_max_columns: int = Field(6, alias="RAG_MAX_COLUMNS")
@@ -97,6 +98,13 @@ class Settings(BaseSettings):
     def _validate_embedding_batch(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("MINDSDB_EMBEDDING_BATCH_SIZE must be > 0")
+        return v
+
+    @field_validator("mindsdb_timeout_s")
+    @classmethod
+    def _validate_mindsdb_timeout(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("MINDSDB_TIMEOUT_S must be > 0")
         return v
 
     @field_validator("rag_top_n", "rag_table_row_cap", "rag_max_columns")
