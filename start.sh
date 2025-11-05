@@ -290,21 +290,21 @@ free_port "$SSR_PORT"
 ensure_mindsdb() {
   local container="mindsdb_container"
 
-  if "$CONTAINER_RUNTIME" ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
-    echo "[start] Resetting existing MindsDB container '$container'"
-    "$CONTAINER_RUNTIME" rm -f "$container" >/dev/null 2>&1 || true
+  if "$CONTAINER_RUNTIME" ps --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
+    echo "[start] MindsDB container '$container' already running"
+  elif "$CONTAINER_RUNTIME" ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
+    echo "[start] Starting existing MindsDB container '$container'"
+    "$CONTAINER_RUNTIME" start "$container" >/dev/null
   else
-    echo "[start] No previous MindsDB container detected"
+    echo "[start] Launching new MindsDB container '$container'"
+    "$CONTAINER_RUNTIME" run -d --name "$container" \
+      -e MINDSDB_APIS=http,mysql \
+      -p 47334:47334 -p 47335:47335 \
+      mindsdb/mindsdb >/dev/null
   fi
 
-  echo "[start] Launching MindsDB container '$container'"
-  "$CONTAINER_RUNTIME" run -d --name "$container" \
-    -e MINDSDB_APIS=http,mysql \
-    -p 47334:47334 -p 47335:47335 \
-    mindsdb/mindsdb >/dev/null
-
   echo "[start] MindsDB container '$container' status"
-  "$CONTAINER_RUNTIME" ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
+  "$CONTAINER_RUNTIME" ps -a --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
   echo "[start] MindsDB last logs (tail 10)"
   "$CONTAINER_RUNTIME" logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
 }
