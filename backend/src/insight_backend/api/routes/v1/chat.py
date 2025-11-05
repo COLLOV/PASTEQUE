@@ -425,16 +425,27 @@ def chat_stream(  # type: ignore[valid-type]
                         break
                     # Persist events on the request thread (session is not thread-safe)
                     try:
-                        # Skip persistence for animator messages and when animation is disabled
-                        if kind != "anim" and anim_mode != "false":
-                            if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
-                                with transactional(session):
-                                    repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                        # Skip persistence for animator messages.
+                        # Persist only when animation_mode == 'sql'. In 'true'|'false' we avoid persisting plan/sql events.
+                        if kind != "anim":
+                            if anim_mode == "sql":
+                                # Persist all except non-evidence 'rows' to reduce noise
+                                if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                                    with transactional(session):
+                                        repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                            else:
+                                # In 'true' or 'false': only persist evidence-related rows/meta for history panels
+                                if kind in {"meta", "rows"}:
+                                    if kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
+                                        pass
+                                    else:
+                                        with transactional(session):
+                                            repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
                     except SQLAlchemyError:
                         log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
 
                     # Filter outbound SSE depending on animation mode
-                    if anim_mode == "false" and kind in {"sql", "plan"}:
+                    if anim_mode in {"false", "true"} and kind in {"sql", "plan"}:
                         continue
                     yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | 'anim' | etc.
                 resp = result_holder.get("resp")
@@ -501,13 +512,21 @@ def chat_stream(  # type: ignore[valid-type]
                     if kind == "__final__":
                         break
                     try:
-                        if kind != "anim" and anim_mode != "false":
-                            if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
-                                with transactional(session):
-                                    repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                        if kind != "anim":
+                            if anim_mode == "sql":
+                                if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                                    with transactional(session):
+                                        repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                            else:
+                                if kind in {"meta", "rows"}:
+                                    if kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence"):
+                                        pass
+                                    else:
+                                        with transactional(session):
+                                            repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
                     except SQLAlchemyError:
                         log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
-                    if anim_mode == "false" and kind in {"sql", "plan"}:
+                    if anim_mode in {"false", "true"} and kind in {"sql", "plan"}:
                         continue
                     yield _sse(kind, data)  # 'plan' | 'sql' | 'rows' | 'anim'
                 resp = result_holder.get("resp")
