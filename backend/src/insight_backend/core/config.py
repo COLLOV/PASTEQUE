@@ -120,9 +120,7 @@ class Settings(BaseSettings):
 
     # NL→SQL generation (always enabled; env switch removed)
     nl2sql_db_prefix: str = Field("files", alias="NL2SQL_DB_PREFIX")
-    nl2sql_include_samples: bool = Field(False, alias="NL2SQL_INCLUDE_SAMPLES")
-    nl2sql_rows_per_table: int = Field(3, alias="NL2SQL_ROWS_PER_TABLE")
-    nl2sql_value_truncate: int = Field(60, alias="NL2SQL_VALUE_TRUNCATE")
+    # Sample injection removed; explorer agent handles data probing
     # Removed nl2sql plan mode (redundant with multi-agent)
 
     # NL→SQL multi‑agent (always enabled)

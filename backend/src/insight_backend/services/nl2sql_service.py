@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-import csv
 from pathlib import Path
 from typing import Dict, List
 import json
@@ -238,32 +237,6 @@ class NL2SQLService:
             if dcols:
                 date_hints[t] = dcols
 
-        # Optional samples from CSV
-        samples_blob = ""
-        if settings.nl2sql_include_samples:
-            repo = DataRepository(tables_dir=Path(settings.tables_dir))
-            rows_per = max(1, settings.nl2sql_rows_per_table)
-            trunc = max(10, settings.nl2sql_value_truncate)
-            parts: List[str] = []
-            for t in schema.keys():
-                p = repo._resolve_table_path(t)
-                if not p:
-                    continue
-                try:
-                    delim = "," if p.suffix.lower() == ".csv" else "\t"
-                    with p.open("r", encoding="utf-8", newline="") as f:
-                        reader = csv.DictReader(f, delimiter=delim)
-                        rows = []
-                        for i, row in enumerate(reader):
-                            if i >= rows_per:
-                                break
-                            rows.append({k: (str(v)[:trunc] if v is not None else None) for k, v in row.items()})
-                        if rows:
-                            parts.append(f"Table {settings.nl2sql_db_prefix}.{t} sample rows (max {rows_per}):\n{rows}")
-                except Exception:
-                    continue
-            samples_blob = "\n\n".join(parts)
-
         system = (
             "You are a strict SQL generator. Dialect: MindsDB SQL (MySQL-like).\n"
             f"Use only the tables listed below under the '{settings.nl2sql_db_prefix}.' schema.\n"
@@ -278,9 +251,8 @@ class NL2SQLService:
         if date_hints:
             hint_lines = [f"- {settings.nl2sql_db_prefix}.{t}: {', '.join(cols)}" for t, cols in date_hints.items()]
             hints = "\nDate-like columns (cast before date ops):\n" + "\n".join(hint_lines)
-        samples_section = f"\n\nSamples:\n{samples_blob}" if samples_blob else ""
         user = (
-            f"Available tables and columns:\n{tables_blob}{hints}{samples_section}\n\n"
+            f"Available tables and columns:\n{tables_blob}{hints}\n\n"
             f"Question: {question}\n"
             f"Produce a single SQL query using only {settings.nl2sql_db_prefix}.* tables."
         )
