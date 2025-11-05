@@ -253,6 +253,7 @@ class ChartGenerationService:
     """Generates charts dynamically through the MCP chart server."""
 
     _DEFAULT_MAX_ROWS = 400
+    _MAX_SERIALIZED_PAYLOAD_BYTES = 60_000
 
     def __init__(self) -> None:
         self._chart_spec = self._resolve_chart_spec()
@@ -276,7 +277,21 @@ class ChartGenerationService:
             raise ChartGenerationError("Le résultat SQL est vide; impossible de générer un graphique.")
 
         normalized_rows = self._normalize_rows(dataset.columns, dataset.rows)
-        limited_rows = normalized_rows[: self._DEFAULT_MAX_ROWS]
+        limited_rows, truncated_by_count, truncated_by_bytes, payload_bytes = self._constrain_rows_for_llm(
+            normalized_rows
+        )
+
+        if truncated_by_bytes or truncated_by_count:
+            source_rows = len(normalized_rows)
+            log.info(
+                "Réduction du résultat SQL avant appel LLM (lignes=%d/%d, payload≈%.1f Ko, limite_lignes=%d, limite_payload≈%.1f Ko, troncature_payload=%s)",
+                len(limited_rows),
+                source_rows,
+                payload_bytes / 1024,
+                self._DEFAULT_MAX_ROWS,
+                self._MAX_SERIALIZED_PAYLOAD_BYTES / 1024,
+                truncated_by_bytes,
+            )
         normalized_dataset = ChartDataset(
             sql=dataset.sql,
             columns=dataset.columns,
@@ -321,7 +336,7 @@ class ChartGenerationService:
         deps = ChartAgentDeps(
             dataset=normalized_dataset,
             answer=answer,
-            max_rows=self._DEFAULT_MAX_ROWS,
+            max_rows=len(limited_rows),
         )
 
         try:
@@ -385,6 +400,57 @@ class ChartGenerationService:
 
         provider = OpenAIProvider(base_url=base_url, api_key=api_key)
         return provider, model_name
+
+    @classmethod
+    def _constrain_rows_for_llm(
+        cls,
+        rows: List[Dict[str, Any]],
+    ) -> tuple[List[Dict[str, Any]], bool, bool, int]:
+        """Cap row count and payload size to keep LLM requests within context."""
+
+        if not rows:
+            raise ChartGenerationError("Le résultat SQL est vide; impossible de préparer les données pour le LLM.")
+
+        max_rows = cls._DEFAULT_MAX_ROWS
+        # Reserve a safety margin for metadata (columns, SQL, etc.).
+        max_bytes = max(cls._MAX_SERIALIZED_PAYLOAD_BYTES - 4096, 1024)
+
+        limited: List[Dict[str, Any]] = []
+        total_bytes = 0
+        truncated_by_count = False
+        truncated_by_bytes = False
+
+        for row in rows:
+            if len(limited) >= max_rows:
+                truncated_by_count = True
+                break
+
+            serialized = json.dumps(row, ensure_ascii=False, separators=(",", ":"))
+            row_bytes = len(serialized.encode("utf-8"))
+
+            if not limited and row_bytes > max_bytes:
+                limit_kb = cls._MAX_SERIALIZED_PAYLOAD_BYTES // 1024
+                raise ChartGenerationError(
+                    "Une ligne du résultat SQL dépasse la limite de taille autorisée pour le LLM (~%d Ko). "
+                    "Affinez la requête pour réduire la taille des valeurs textuelles ou agrégez davantage." % limit_kb
+                )
+
+            overhead = 1 if limited else 0  # account for commas in JSON arrays
+            if total_bytes + overhead + row_bytes > max_bytes:
+                truncated_by_bytes = True
+                break
+
+            total_bytes += overhead + row_bytes
+            limited.append(row)
+
+        if not limited:
+            limit_kb = cls._MAX_SERIALIZED_PAYLOAD_BYTES // 1024
+            raise ChartGenerationError(
+                "Impossible de préparer le résultat SQL pour le LLM : données trop volumineuses (limite ~%d Ko)."
+                % limit_kb
+            )
+
+        return limited, truncated_by_count, truncated_by_bytes, total_bytes
 
     @staticmethod
     def _normalize_rows(columns: List[str], rows: Iterable[Any]) -> List[Dict[str, Any]]:
