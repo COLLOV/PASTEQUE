@@ -124,6 +124,24 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/chat/completions' \
   -d '{"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
+### Embeddings – modes local/API
+
+Les embeddings sont configurables indépendamment du LLM:
+
+- `EMBEDDING_MODE=api` (défaut): envoie les requêtes vers un backend OpenAI‑compatible (`OPENAI_BASE_URL` + `OPENAI_API_KEY`) en utilisant `EMBEDDING_MODEL` ou la valeur `model` déclarée dans `mindsdb_embeddings.yaml`.
+- `EMBEDDING_MODE=local`: charge un modèle SentenceTransformers (`EMBEDDING_LOCAL_MODEL`, par défaut `sentence-transformers/all-MiniLM-L6-v2`) pour calculer les vecteurs en local, sans dépendre de vLLM.
+
+En mode local, `EMBEDDING_LOCAL_MODEL` prime sur la clé `default_model` du YAML (et sur toute valeur `model` absente), afin de pouvoir surcharger rapidement le modèle depuis l'environnement.
+
+`MINDSDB_EMBEDDINGS_CONFIG_PATH` décrit toujours les tables/colonnes à vectoriser. Le script `start.sh` applique la configuration choisie avant chaque import vers MindsDB. Les logs `insight.services.mindsdb_embeddings` précisent le mode et le modèle utilisés.
+
+### Mise en avant RAG
+
+- Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `LLM_MODE`).
+- Le prompt instructif utilisé est exactement « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
+- En cas d'échec du LLM, l'API signale explicitement l'indisponibilité de la synthèse dans la réponse afin d'éviter toute dégradation silencieuse.
+- Les extraits issus du RAG ne sont plus tronqués côté backend afin de laisser le LLM exploiter l'intégralité du texte récupéré.
+
 ### Streaming (SSE)
 
 Endpoint de streaming compatible navigateurs (SSE via `text/event-stream`) — utilise la même configuration LLM:
@@ -198,6 +216,7 @@ curl -sS -X POST 'http://127.0.0.1:8000/api/v1/mcp/chart' \
 - Le backend instancie un agent `pydantic-ai` qui combine les CSV locaux (`data/raw/`) avec les outils du serveur MCP `chart` (`generate_*_chart`).
 - Des outils internes (`load_dataset`, `aggregate_counts`) exposent les données au modèle avant l’appel MCP; aucun graphique n’est pré-calculé.
 - La réponse JSON contient l’URL du graphique (`chart_url`), le nom d’outil MCP utilisé et la spec JSON envoyée au serveur. Un `502` est renvoyé si la génération échoue côté MCP.
+- L’agent doit désormais appeler `get_sql_result` avant toute tentative de rendu et le backend ne conserve que l’URL effectivement renvoyée par le serveur MCP, éliminant les URLs fictives.
 - La configuration du serveur reste déclarative (`plan/Z/mcp.config.json`, `MCP_CONFIG_PATH`, `MCP_SERVERS_JSON`) et supporte les variables `VIS_REQUEST_SERVER`, `SERVICE_ID`, etc.
 
 ### MindsDB – connexion simple (HTTP)

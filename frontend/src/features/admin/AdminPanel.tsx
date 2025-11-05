@@ -9,6 +9,7 @@ import type {
   UserPermissionsOverviewResponse,
   UserWithPermissionsResponse,
   AdminResetPasswordResponse,
+  AdminUsageStatsResponse,
 } from '@/types/user'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
 
@@ -23,6 +24,16 @@ function formatDate(value: string): string {
   return date.toLocaleString()
 }
 
+function formatNumber(value: number | null | undefined): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '0'
+  return value.toLocaleString('fr-FR')
+}
+
+function formatActivity(value: string | null): string {
+  if (!value) return 'Jamais'
+  return formatDate(value)
+}
+
 export default function AdminPanel() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -31,6 +42,9 @@ export default function AdminPanel() {
   const [overview, setOverview] = useState<UserPermissionsOverviewResponse | null>(null)
   const [permissionsLoading, setPermissionsLoading] = useState(true)
   const [permissionsError, setPermissionsError] = useState('')
+  const [stats, setStats] = useState<AdminUsageStatsResponse | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [statsError, setStatsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
@@ -50,9 +64,25 @@ export default function AdminPanel() {
     }
   }, [])
 
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true)
+    setStatsError('')
+    try {
+      const response = await apiFetch<AdminUsageStatsResponse>('/admin/stats')
+      setStats(response ?? null)
+    } catch (err) {
+      setStatsError(
+        err instanceof Error ? err.message : 'Chargement des statistiques impossible.'
+      )
+    } finally {
+      setStatsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    loadPermissions()
-  }, [loadPermissions])
+    void loadPermissions()
+    void loadStats()
+  }, [loadPermissions, loadStats])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -74,7 +104,7 @@ export default function AdminPanel() {
       })
       setUsername('')
       setPassword('')
-      await loadPermissions()
+      await Promise.all([loadPermissions(), loadStats()])
     } catch (err) {
       setStatus({
         type: 'error',
@@ -171,8 +201,9 @@ export default function AdminPanel() {
         }
       })
       setStatus({ type: 'success', message: `Utilisateur ${targetUsername} supprimé.` })
+      await Promise.all([loadPermissions(), loadStats()])
     } catch (err) {
-      await loadPermissions() // rollback UI if deletion failed
+      await Promise.all([loadPermissions(), loadStats()]) // rollback UI if deletion failed
       setStatus({ type: 'error', message: err instanceof Error ? err.message : 'Suppression impossible.' })
     } finally {
       setUpdatingUsers(prev => {
@@ -223,6 +254,41 @@ export default function AdminPanel() {
 
   const tables = overview?.tables ?? []
   const users = overview?.users ?? []
+  const totals = stats?.totals ?? null
+  const perUserStats = stats?.per_user ?? []
+  const statsUpdatedAt = stats?.generated_at ?? ''
+  const metricCards = !totals
+    ? []
+    : [
+        {
+          key: 'users',
+          label: 'Utilisateurs',
+          total: totals.users,
+          detailLabel: 'Actifs 7j',
+          detailValue: totals.active_users_last_7_days,
+        },
+        {
+          key: 'conversations',
+          label: 'Conversations',
+          total: totals.conversations,
+          detailLabel: '7 derniers jours',
+          detailValue: totals.conversations_last_7_days,
+        },
+        {
+          key: 'messages',
+          label: 'Messages',
+          total: totals.messages,
+          detailLabel: '7 derniers jours',
+          detailValue: totals.messages_last_7_days,
+        },
+        {
+          key: 'charts',
+          label: 'Graphiques',
+          total: totals.charts,
+          detailLabel: '7 derniers jours',
+          detailValue: totals.charts_last_7_days,
+        },
+      ]
 
   return (
     <div className="max-w-5xl mx-auto animate-fade-in space-y-6">
@@ -256,6 +322,140 @@ export default function AdminPanel() {
           </p>
         </div>
       )}
+
+      <Card variant="elevated">
+        <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-primary-950">
+              Statistiques d’utilisation
+            </h3>
+            <p className="text-sm text-primary-600">
+              Suivez l’activité globale de la plateforme et des utilisateurs.
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { void loadStats() }}
+            disabled={statsLoading}
+          >
+            {statsLoading ? 'Actualisation…' : 'Actualiser'}
+          </Button>
+        </div>
+
+        {statsLoading ? (
+          <div className="py-12 flex justify-center">
+            <Loader text="Chargement des statistiques…" />
+          </div>
+        ) : statsError ? (
+          <div className="py-6 text-sm text-red-600">
+            {statsError}
+          </div>
+        ) : !stats || !totals ? (
+          <div className="py-6 text-sm text-primary-600">
+            Aucune donnée de statistiques disponible.
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-primary-500 mb-4">
+              Dernière mise à jour&nbsp;: {formatDate(statsUpdatedAt)}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {metricCards.map(metric => (
+                <div
+                  key={metric.key}
+                  className="border border-primary-100 rounded-lg p-4 bg-white shadow-sm"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">
+                    {metric.label}
+                  </p>
+                  <p className="text-2xl font-bold text-primary-950 mt-2">
+                    {formatNumber(metric.total)}
+                  </p>
+                  <p className="text-xs text-primary-500 mt-1">
+                    {metric.detailLabel} : {formatNumber(metric.detailValue)}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold text-primary-800 mb-3">
+                Statistiques par utilisateur
+              </h4>
+              {perUserStats.length === 0 ? (
+                <div className="text-sm text-primary-600">
+                  Aucune activité enregistrée pour le moment.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-primary-100 rounded-lg overflow-hidden">
+                    <thead className="bg-primary-50">
+                      <tr>
+                        <th className="text-left text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100">
+                          Utilisateur
+                        </th>
+                        <th className="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100">
+                          Conversations
+                        </th>
+                        <th className="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100">
+                          Messages
+                        </th>
+                        <th className="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100">
+                          Graphiques
+                        </th>
+                        <th className="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100">
+                          Dernière activité
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {perUserStats.map(userStats => (
+                        <tr
+                          key={userStats.username}
+                          className="odd:bg-white even:bg-primary-25"
+                        >
+                          <td className="align-top px-4 py-3 border-b border-primary-100">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium text-primary-900">
+                                {userStats.username}
+                              </span>
+                              <span className="text-xs text-primary-500">
+                                Créé le {formatDate(userStats.created_at)}
+                              </span>
+                              {userStats.username === adminUsername && (
+                                <span className="text-xs font-semibold text-primary-600">
+                                  Administrateur
+                                </span>
+                              )}
+                              {!userStats.is_active && (
+                                <span className="text-xs font-semibold text-red-500">
+                                  Compte inactif
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-center px-4 py-3 border-b border-primary-100">
+                            {formatNumber(userStats.conversations)}
+                          </td>
+                          <td className="text-center px-4 py-3 border-b border-primary-100">
+                            {formatNumber(userStats.messages)}
+                          </td>
+                          <td className="text-center px-4 py-3 border-b border-primary-100">
+                            {formatNumber(userStats.charts)}
+                          </td>
+                          <td className="text-center px-4 py-3 border-b border-primary-100">
+                            {formatActivity(userStats.last_activity_at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </Card>
 
       <Card variant="elevated">
         <h3 className="text-lg font-semibold text-primary-950 mb-4">

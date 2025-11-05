@@ -58,6 +58,56 @@ class OpenAICompatibleClient:
             raise OpenAIBackendError("Erreur lors de l'appel au backend LLM.") from exc
         return resp.json()
 
+    def embeddings(self, *, model: str, inputs: List[str], **params: Any) -> List[List[float]]:
+        url = f"{self.base_url}/embeddings"
+        headers: Dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        payload: Dict[str, Any] = {"model": model, "input": inputs}
+        payload.update(params)
+        log.debug("POST %s model=%s (embeddings, batch=%d)", url, model, len(inputs))
+        try:
+            resp = self.client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+        except httpx.ConnectError as exc:
+            log.error("Embedding backend unreachable at %s: %s", url, exc)
+            raise OpenAIBackendError(
+                f"Impossible de joindre le backend d'embeddings ({self.base_url})."
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text
+            log.error(
+                "Embedding backend returned %s for %s: %s", exc.response.status_code, url, body
+            )
+            raise OpenAIBackendError(
+                f"Le backend d'embeddings a retourné un statut {exc.response.status_code}."
+            ) from exc
+        except httpx.HTTPError as exc:
+            log.error("Embedding backend request failed for %s: %s", url, exc)
+            raise OpenAIBackendError("Erreur lors de l'appel au backend d'embeddings.") from exc
+        data = resp.json()
+        try:
+            items = data["data"]
+        except Exception as exc:  # pragma: no cover - defensive
+            log.error("Embedding response missing 'data': %s", exc)
+            raise OpenAIBackendError("Réponse embedding invalide (pas de champ 'data').") from exc
+
+        vectors: List[List[float]] = []
+        for idx, item in enumerate(items):
+            vec = item.get("embedding") if isinstance(item, dict) else None
+            if not isinstance(vec, list):
+                log.error("Embedding #%d invalide: %r", idx, item)
+                raise OpenAIBackendError("Réponse embedding invalide (vecteur manquant).")
+            try:
+                vectors.append([float(x) for x in vec])
+            except (TypeError, ValueError) as exc:  # pragma: no cover - defensive
+                log.error("Embedding #%d non castable en float: %s", idx, exc)
+                raise OpenAIBackendError("Réponse embedding invalide (valeur non numérique).") from exc
+        return vectors
+
+    def close(self) -> None:
+        self.client.close()
+
     def stream_chat_completions(
         self, *, model: str, messages: List[Dict[str, str]], **params: Any
     ) -> Iterator[Dict[str, Any]]:
