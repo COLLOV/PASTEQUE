@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     api_prefix: str = Field("/api", alias="API_PREFIX")
     log_level: str = Field("INFO", alias="LOG_LEVEL")
     allowed_origins_raw: str | None = Field(None, alias="ALLOWED_ORIGINS")
+    # UI animation mode: 'sql' keeps current SQL/plan events, 'true' adds an animator agent,
+    # 'false' suppresses SQL/plan streaming (keeps essential meta/evidence only)
+    animation_mode: str = Field("sql", alias="ANIMATION")  # "sql" | "true" | "false"
 
     data_root: str = Field("../data", alias="DATA_ROOT")
     vector_store_path: str = Field("../data/vector_store", alias="VECTOR_STORE_PATH")
@@ -67,6 +70,15 @@ class Settings(BaseSettings):
         valid = {"rule", "local", "api", "false"}
         if val not in valid:
             raise ValueError(f"ROUTER_MODE must be one of {sorted(valid)}; got: {v!r}")
+        return val
+
+    @field_validator("animation_mode", mode="before")
+    @classmethod
+    def _validate_animation_mode(cls, v: str | None) -> str:
+        val = (v or "sql").strip().lower()
+        valid = {"sql", "true", "false"}
+        if val not in valid:
+            raise ValueError(f"ANIMATION must be one of {sorted(valid)}; got: {v!r}")
         return val
 
     @field_validator("embedding_mode", mode="before")
