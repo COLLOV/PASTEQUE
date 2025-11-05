@@ -118,16 +118,14 @@ class Settings(BaseSettings):
     admin_username: str = Field("admin", alias="ADMIN_USERNAME")
     admin_password: str = Field("admin", alias="ADMIN_PASSWORD")
 
-    # NL→SQL generation (optional)
-    nl2sql_enabled: bool = Field(False, alias="NL2SQL_ENABLED")
+    # NL→SQL generation (always enabled; env switch removed)
     nl2sql_db_prefix: str = Field("files", alias="NL2SQL_DB_PREFIX")
     nl2sql_include_samples: bool = Field(False, alias="NL2SQL_INCLUDE_SAMPLES")
     nl2sql_rows_per_table: int = Field(3, alias="NL2SQL_ROWS_PER_TABLE")
     nl2sql_value_truncate: int = Field(60, alias="NL2SQL_VALUE_TRUNCATE")
     # Removed nl2sql plan mode (redundant with multi-agent)
 
-    # NL→SQL multi‑agent (Explorer + Analyst)
-    nl2sql_multiagent_enabled: bool = Field(False, alias="NL2SQL_MULTIAGENT_ENABLED")
+    # NL→SQL multi‑agent (always enabled)
     nl2sql_explore_rounds: int = Field(1, alias="NL2SQL_EXPLORE_ROUNDS")
     nl2sql_satisfaction_min_rows: int = Field(1, alias="NL2SQL_SATISFACTION_MIN_ROWS")
 

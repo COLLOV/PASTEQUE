@@ -351,13 +351,9 @@ class ChatService:
                     context="completion done (mindsdb-sql)",
                 )
 
-        # NL→SQL (optional): per-request override via payload.metadata.nl2sql,
-        # falling back to env `NL2SQL_ENABLED` when not specified.
+        # NL→SQL is always enabled; proceed when there is a user message.
         meta = payload.metadata or {}
-        nl2sql_flag = meta.get("nl2sql")
-        nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
-
-        if payload.messages and nl2sql_enabled:
+        if payload.messages:
             last = payload.messages[-1]
             if last.role == "user":
                 raw_question, contextual_question = self._prepare_nl2sql_question(payload.messages)
@@ -447,10 +443,8 @@ class ChatService:
                 )
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
                 
-                # Multi‑agent mode (Explorer + Analyst)
-                multiagent_flag = (payload.metadata or {}).get("multiagent") if isinstance(payload.metadata, dict) else None
-                multiagent_enabled = bool(multiagent_flag) if (multiagent_flag is not None) else settings.nl2sql_multiagent_enabled
-                if multiagent_enabled:
+                # Multi‑agent mode is always enabled
+                if True:
                     evidence: list[dict[str, object]] = []
                     last_columns: list[Any] = []
                     last_rows: list[Any] = []
@@ -651,104 +645,7 @@ class ChatService:
                         context="completion done (nl2sql-multiagent-empty)",
                     )
 
-                else:
-                    # Single-shot NL→SQL with natural-language synthesis
-                    try:
-                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
-                        sql = nl2sql.generate(question=contextual_question_with_dico, schema=schema)
-                        log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
-                        if events:
-                            try:
-                                events("sql", {"sql": sql})
-                            except Exception:
-                                log.warning("Failed to emit sql event (single-shot)", exc_info=True)
-                    except Exception as e:
-                        log.error("NL2SQL generation failed: %s", e)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=f"Échec de la génération SQL: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql"},
-                            ),
-                            context="completion done (nl2sql-error)",
-                        )
-                    data = client.sql(sql)
-                    # Normalize to columns/rows and synthesize final answer
-                    columns, rows = self._normalize_result(data)
-                    if events:
-                        try:
-                            events(
-                                "rows",
-                                {
-                                    "columns": columns,
-                                    "rows": rows,
-                                    "row_count": len(rows),
-                                },
-                            )
-                        except Exception:
-                            log.warning("Failed to emit rows event", exc_info=True)
-                    # Emit evidence contract + dataset for the front panel (consolidated)
-                    self._emit_evidence(
-                        events=events,
-                        client=client,
-                        label_hint=raw_question,
-                        base_sql=sql,
-                        fallback_columns=columns,
-                        fallback_rows=rows,
-                    )
-                    evidence = [{
-                        "purpose": "answer",
-                        "sql": sql,
-                        "columns": columns,
-                        "rows": rows,
-                    }]
-                    retrieval_payload, highlight_text = self._retrieve_context(
-                        question=contextual_question,
-                        events=events,
-                    )
-                    try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
-                        reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        reply_text = self._append_highlight(reply_text, highlight_text)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=reply_text,
-                                metadata={
-                                    "provider": "nl2sql+mindsdb",
-                                    "sql": sql,
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql)",
-                        )
-                    except Exception as e:
-                        # fallback to simple textual rendering (no hidden failures)
-                        log.error("NL2SQL synthesis fallback after error: %s", e)
-                        if rows and columns:
-                            header = " | ".join(str(c) for c in columns)
-                            lines = [f"SQL: {sql}", header, "-" * len(header)]
-                            for r in rows[:50]:
-                                if isinstance(r, dict):
-                                    line = " | ".join(str(r.get(c)) for c in columns)
-                                else:
-                                    line = " | ".join(str(v) for v in r)
-                                lines.append(line)
-                            text = "\n".join(lines)
-                        else:
-                            err = data.get("error_message") if isinstance(data, dict) else None
-                            text = f"SQL: {sql}\n" + (err or "(Aucune ligne)")
-                        text = self._append_highlight(text, highlight_text)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=text,
-                                metadata={
-                                    "provider": "nl2sql-synth-fallback",
-                                    "error": str(e),
-                                    "sql": sql,
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql-fallback)",
-                        )
+        # If no user message was found, fall back to the engine.
         response = self.engine.run(payload)
         return self._log_completion(response, context="completion done (engine)")
 

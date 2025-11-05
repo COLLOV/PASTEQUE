@@ -281,17 +281,14 @@ Note: cette commande n’implémente pas de NL→SQL; pour un flux LLM complet a
 
 ### NL→SQL (questions en langage naturel)
 
-Vous pouvez activer un mode où le LLM génère le SQL automatiquement et l’exécute sur MindsDB:
+Le mode NL→SQL est désormais toujours actif en multi‑agent (Explorateur + Analyste + Rédaction). Configurez uniquement le préfixe de schéma et les options associées:
 
 1) Prérequis: un LLM opérationnel (vLLM local ou API) et MindsDB accessible.
 2) Dans `backend/.env`:
 
 ```
-NL2SQL_ENABLED=true
 NL2SQL_DB_PREFIX=files
 ```
-
-> Depuis la version actuelle, `NL2SQL_MAX_ROWS` n’est plus supportée: supprimez la variable de vos `.env` existants pour éviter une erreur d’initialisation.
 
 3) Redémarrez le backend. Posez une question libre dans le chat, par ex.:
 
