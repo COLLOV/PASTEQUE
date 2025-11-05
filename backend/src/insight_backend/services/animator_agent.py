@@ -28,7 +28,7 @@ class AnimatorAgent:
                 if isinstance(st, list):
                     steps = st
             n = len(steps)
-            return f"Plan d'exploration: {n} étape(s)" if n else "Préparation du plan d'exploration"
+            return f"Plan: {n} étape(s)"
 
         if k == "meta":
             # Effective tables selection
@@ -43,17 +43,17 @@ class AnimatorAgent:
         if k == "sql":
             sql = "" if not isinstance(p, dict) else str(p.get("sql") or "")
             purpose = ("" if not isinstance(p, dict) else str(p.get("purpose") or "")).lower()
-            label_prefix = "Exploration" if purpose == "explore" else ("Réponse finale" if purpose == "answer" else "Exécution SQL")
+            label_prefix = "Exploration" if purpose == "explore" else ("Réponse finale" if purpose == "answer" else "Exécution")
             s = sql.strip()
             if not s:
-                return f"{label_prefix}: préparation de la requête"
+                return f"{label_prefix}: préparation"
             if self._re_distinct.search(s):
-                return f"{label_prefix}: valeurs distinctes"
+                return f"{label_prefix}: valeurs distinctes (pas de clones)"
             if self._re_minmax.search(s) or self._re_extract.search(s):
-                return f"{label_prefix}: bornes et périodes"
+                return f"{label_prefix}: bornes/périodes (calendrier en poche)"
             if self._re_count.search(s) and self._re_group.search(s):
-                return f"{label_prefix}: comptage par catégorie"
-            return f"{label_prefix}: échantillonnage de lignes"
+                return f"{label_prefix}: comptage par catégorie (ça compte)"
+            return f"{label_prefix}: échantillonnage (juste un aperçu)"
 
         if k == "rows":
             if not isinstance(p, dict):
@@ -69,4 +69,3 @@ class AnimatorAgent:
             return f"Résultats: {n_int if n_int is not None else '?'} ligne(s)"
 
         return None
-
