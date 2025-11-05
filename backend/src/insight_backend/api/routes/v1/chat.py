@@ -18,6 +18,7 @@ from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....services.chat_service import ChatService
+from ....services.animator_agent import AnimatorAgent
 from ....services.router_service import RouterService, RouterDecision
 from ....engines.openai_engine import OpenAIChatEngine
 from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
@@ -338,6 +339,8 @@ def chat_stream(  # type: ignore[valid-type]
 
     def generate() -> Iterator[bytes]:
         seq = 0
+        anim_mode = (settings.animation_mode or "sql").strip().lower()
+        animator = AnimatorAgent() if anim_mode == "true" else None
         try:
             # Router gate on every user message before any SQL activity
             last = payload.messages[-1] if payload.messages else None
@@ -395,6 +398,14 @@ def chat_stream(  # type: ignore[valid-type]
                 def emit(evt: str, data: dict) -> None:
                     # Push to SSE queue only; persist on the consumer thread to avoid cross-thread session use
                     q.put((evt, data))
+                    # Animator: emit human-friendly status alongside raw events (mode=true only)
+                    if animator is not None:
+                        try:
+                            msg = animator.translate(evt, data)
+                        except Exception:
+                            msg = None
+                        if msg:
+                            q.put(("anim", {"message": msg}))
 
                 result_holder: dict[str, object] = {}
 
@@ -414,12 +425,18 @@ def chat_stream(  # type: ignore[valid-type]
                         break
                     # Persist events on the request thread (session is not thread-safe)
                     try:
-                        if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
-                            with transactional(session):
-                                repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                        # Skip persistence for animator messages and when animation is disabled
+                        if kind != "anim" and anim_mode != "false":
+                            if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                                with transactional(session):
+                                    repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
                     except SQLAlchemyError:
                         log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
-                    yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | etc.
+
+                    # Filter outbound SSE depending on animation mode
+                    if anim_mode == "false" and kind in {"sql", "plan"}:
+                        continue
+                    yield _sse(kind, data)  # 'sql' | 'rows' | 'plan' | 'anim' | etc.
                 resp = result_holder.get("resp")
                 if isinstance(resp, ChatResponse):
                     text = resp.reply or ""
@@ -459,6 +476,13 @@ def chat_stream(  # type: ignore[valid-type]
                 def emit(evt: str, data: dict) -> None:
                     # Queue only; persistence happens on consumer side in this request thread
                     q.put((evt, data))
+                    if animator is not None:
+                        try:
+                            msg = animator.translate(evt, data)
+                        except Exception:
+                            msg = None
+                        if msg:
+                            q.put(("anim", {"message": msg}))
 
                 result_holder: dict[str, object] = {}
 
@@ -477,12 +501,15 @@ def chat_stream(  # type: ignore[valid-type]
                     if kind == "__final__":
                         break
                     try:
-                        if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
-                            with transactional(session):
-                                repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                        if kind != "anim" and anim_mode != "false":
+                            if not (kind == "rows" and not (isinstance(data, dict) and data.get("purpose") == "evidence")):
+                                with transactional(session):
+                                    repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
                     except SQLAlchemyError:
                         log.warning("Failed to persist event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
-                    yield _sse(kind, data)  # 'plan' | 'sql' | 'rows'
+                    if anim_mode == "false" and kind in {"sql", "plan"}:
+                        continue
+                    yield _sse(kind, data)  # 'plan' | 'sql' | 'rows' | 'anim'
                 resp = result_holder.get("resp")
                 if isinstance(resp, ChatResponse):
                     text = resp.reply or ""
