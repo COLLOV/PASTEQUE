@@ -9,11 +9,11 @@ from typing import Protocol, Callable, Dict, Any, Iterable, List
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings, resolve_project_path
 from ..integrations.mindsdb_client import MindsDBClient
-from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 from .retrieval_service import RetrievalService
+from .retrieval_agent import RetrievalAgent
 from ..core.agent_limits import get_limit, get_count, AgentBudgetExceeded
 
 
@@ -88,7 +88,7 @@ class ChatService:
 
     def __init__(self, engine: ChatEngine):
         self.engine = engine
-        self._retrieval_service: RetrievalService | None = None
+        self._retrieval_agent: RetrievalAgent | None = None
 
     def _llm_diag(self) -> str:
         if settings.llm_mode == "api":
@@ -109,10 +109,10 @@ class ChatService:
         )
         return response
 
-    def _get_retrieval_service(self) -> RetrievalService:
-        if self._retrieval_service is None:
-            self._retrieval_service = RetrievalService()
-        return self._retrieval_service
+    def _get_retrieval_agent(self) -> RetrievalAgent:
+        if self._retrieval_agent is None:
+            self._retrieval_agent = RetrievalAgent()
+        return self._retrieval_agent
 
     def _retrieve_context(
         self,
@@ -121,29 +121,22 @@ class ChatService:
         events: Callable[[str, Dict[str, Any]], None] | None = None,
         round_label: int | None = None,
     ) -> tuple[List[Dict[str, Any]], str]:
-        payload: List[Dict[str, Any]] = []
         try:
-            service = self._get_retrieval_service()
-            rows = service.retrieve(question=question, top_n=settings.rag_top_n)
-            payload = [row.as_payload() for row in rows]
+            agent = self._get_retrieval_agent()
+            payload, highlight = agent.run(
+                question=question,
+                top_n=settings.rag_top_n,
+                events=events,
+                round_label=round_label,
+            )
+            return payload, highlight
         except AgentBudgetExceeded:
             # Bubble up so API can convert to 429
             raise
         except Exception as exc:
             message = _preview_text(str(exc), limit=160)
             log.error("Retrieval agent failed: %s", message)
-            return [], self._format_retrieval_highlight(question=question, payload=[], error=message)
-
-        if events and payload:
-            meta: Dict[str, Any] = {"retrieval": {"rows": payload}}
-            if round_label is not None:
-                meta["retrieval"]["round"] = round_label
-            try:
-                events("meta", meta)
-            except Exception:
-                log.warning("Failed to emit retrieval meta", exc_info=True)
-
-        return payload, self._format_retrieval_highlight(question=question, payload=payload)
+            return [], f"Mise en avant : synthèse indisponible ({message})."
 
     def _format_retrieval_highlight(
         self,
@@ -152,6 +145,7 @@ class ChatService:
         payload: List[Dict[str, Any]],
         error: str | None = None,
     ) -> str:
+        """Compat wrapper kept for tests; delegates to RetrievalAgent where possible."""
         prefix = "Mise en avant : "
         if error:
             return f"{prefix}récupération indisponible ({error})."
@@ -168,95 +162,18 @@ class ChatService:
             return f"{prefix}synthèse indisponible (réponse vide)."
         return f"{prefix}{insight}"
 
-    def _build_retrieval_llm_client(self) -> tuple[OpenAICompatibleClient, str]:
-        mode = (settings.llm_mode or "").strip().lower()
-        if mode == "local":
-            base_url = settings.vllm_base_url
-            model = settings.z_local_model
-            api_key = None
-        elif mode == "api":
-            base_url = settings.openai_base_url
-            model = settings.llm_model
-            api_key = settings.openai_api_key
-        else:
-            raise RuntimeError("Invalid LLM_MODE; expected 'local' or 'api'")
-        if not base_url or not model:
-            raise RuntimeError("LLM non configuré pour la mise en avant (base_url ou modèle absent).")
-        client = OpenAICompatibleClient(
-            base_url=base_url,
-            api_key=api_key,
-            timeout_s=settings.openai_timeout_s,
-        )
-        return client, str(model)
-
     def _generate_retrieval_insight(
         self,
         *,
         question: str,
         rows: List[Dict[str, Any]],
     ) -> str:
-        question_text = (question or "").strip()
-        if not question_text:
-            raise RuntimeError("Question vide pour la synthèse de mise en avant.")
-        if not rows:
-            raise RuntimeError("Aucune donnée de récupération à synthétiser.")
+        """Compat seam for tests; uses RetrievalAgent summarization with caps and tuning."""
+        agent = self._get_retrieval_agent()
+        # Reuse the agent's summarization on provided rows without re-emitting events
+        return agent._summarize(question=question, rows=rows)  # type: ignore[attr-defined]
 
-        lines: List[str] = []
-        for idx, item in enumerate(rows, start=1):
-            table = str(item.get("table") or "-")
-            score = item.get("score")
-            if isinstance(score, (int, float)):
-                score_txt = f"{score:.4f}"
-            else:
-                score_txt = str(score or "-")
-            focus = str(item.get("focus") or "").strip() or "-"
-            values_txt = "-"
-            values = item.get("values")
-            if isinstance(values, dict):
-                pairs: List[str] = []
-                for key, value in values.items():
-                    if value in (None, ""):
-                        continue
-                    pairs.append(f"{key}: {value}")
-                if pairs:
-                    values_txt = ", ".join(pairs)
-            lines.append(
-                f"{idx}. table={table}, score={score_txt}, focus={focus}, valeurs={values_txt}"
-            )
-
-        rows_blob = "\n".join(lines)
-        system_prompt = (
-            "Given the user question and the retrieved related informations, give the user some insights. "
-            "Answer in French with une ou deux phrases concises."
-        )
-        user_prompt = f"Question:\n{question_text}\n\nInformations récupérées:\n{rows_blob}"
-
-        client, model = self._build_retrieval_llm_client()
-        try:
-            response = client.chat_completions(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.2,
-                max_tokens=220,
-            )
-        except OpenAIBackendError as exc:
-            raise RuntimeError(f"Synthèse LLM indisponible: {exc}") from exc
-        except Exception as exc:
-            raise RuntimeError(f"Erreur lors de l'appel au LLM pour la mise en avant: {exc}") from exc
-        finally:
-            client.close()
-
-        try:
-            content = response["choices"][0]["message"]["content"]
-        except Exception as exc:
-            raise RuntimeError("Réponse LLM invalide pour la mise en avant.") from exc
-        text = str(content).strip()
-        if not text:
-            raise RuntimeError("Réponse LLM vide pour la mise en avant.")
-        return text
+    
 
     @staticmethod
     def _append_highlight(base: str, highlight: str) -> str:
@@ -636,8 +553,32 @@ class ChatService:
                             ev_for_answer = evidence + [
                                 {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
                             ]
+                            # Optionally ask the analyst to draft a SQL-only answer and inject
+                            # it into the retrieval question to guide investigation.
+                            analyst_preview: str | None = None
+                            if settings.retrieval_inject_analyst:
+                                try:
+                                    limit = get_limit("analyste")
+                                    count = get_count("analyste")
+                                    # We already consumed one 'analyste' for generate_with_evidence. Only call
+                                    # synthesize if it won't exceed the cap (when a cap is configured).
+                                    if limit is None or (count + 1) <= limit:
+                                        analyst_preview = nl2sql.synthesize(
+                                            question=contextual_question,
+                                            evidence=ev_for_answer,
+                                        ).strip() or None
+                                    else:
+                                        log.info("Skip analyst preview for retrieval due to cap (%d/%d)", count, limit)
+                                except Exception as e:
+                                    log.warning("Analyst preview unavailable for retrieval injection: %s", e)
+
+                            retrieval_question = contextual_question
+                            if analyst_preview:
+                                retrieval_question = (
+                                    f"{contextual_question}\n\nRéponse analyste (SQL): {analyst_preview}"
+                                )
                             retrieval_payload, highlight_text = self._retrieve_context(
-                                question=contextual_question,
+                                question=retrieval_question,
                                 events=events,
                                 round_label=r,
                             )
@@ -648,12 +589,11 @@ class ChatService:
                                     retrieval_context=retrieval_payload,
                                 ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                                reply_text = self._append_highlight(reply_text, highlight_text)
                                 metadata = {
                                     "provider": "nl2sql-multiagent",
                                     "rounds_used": r,
                                     "sql": final_sql,
-                                    "agents": ["explorateur", "analyste", "redaction"],
+                                    "agents": ["explorateur", "analyste", "retrieval", "redaction"],
                                     "retrieval_rows": retrieval_payload,
                                 }
                                 return self._log_completion(
@@ -668,7 +608,6 @@ class ChatService:
                                 raise
                             except Exception as e:
                                 error_reply = f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}"
-                                error_reply = self._append_highlight(error_reply, highlight_text)
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=error_reply,

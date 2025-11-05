@@ -289,6 +289,48 @@ class NL2SQLService:
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
+    def write(
+        self,
+        *,
+        question: str,
+        evidence: List[Dict[str, object]],
+        retrieval_context: List[Dict[str, object]] | None = None,
+    ) -> str:
+        """Synthesis agent: fuses SQL evidence with optional retrieval rows.
+
+        - Prefers SQL-derived numbers when conflicts arise
+        - Uses retrieval rows as contextual examples only
+        - Produces a concise French answer, no SQL in the output
+        """
+        client, model = self._client_and_model()
+        payload = {
+            "question": question,
+            "evidence": evidence,
+            "retrieval": retrieval_context or [],
+            "guidelines": [
+                "Base the answer primarily on SQL evidence (columns/rows).",
+                "Use retrieval rows to add color/examples; do not invent facts.",
+                "If there is insufficient data, state it clearly.",
+                "Answer in French, 2–4 concise sentences, include key figures.",
+            ],
+        }
+        system = (
+            "You are a synthesis agent. Combine the SQL evidence and any retrieved related rows\n"
+            "to answer the user's question precisely in French. Prefer the SQL-derived numbers\n"
+            "when data conflicts. Do not output SQL or code."
+        )
+        # Enforce per-agent cap (redaction)
+        check_and_increment("redaction")
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            temperature=0,
+        )
+        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
     # --- Multi‑agent helpers -------------------------------------------------
     def explore(
         self,
@@ -500,16 +542,19 @@ class NL2SQLService:
     ) -> str:
         client, model = self._client_and_model()
         system = (
-            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis, "
-            "rédige une synthèse brève en prose directe, en 1 à 2 paragraphes courts.\n"
-            "Paragraphe 1: intègre le constat avec des chiffres précis (comptes, pourcentages, tendances). 2–4 phrases.\n"
-            "Paragraphe 2 (si pertinent): formule UNE recommandation concrète (si justifiée) OU une question claire en cas d’incertitude. 1–2 phrases.\n"
-            "Un bloc optionnel 'retrieval_context' fournit des lignes très proches de la question (provenance table + valeurs). "
-            "Après ces paragraphes, ajoute un court paragraphe additionnel (1 à 2 phrases) commençant par « Mise en avant : » qui souligne les éléments les plus pertinents issus de ce bloc. "
-            "Si aucune donnée pertinente n’est disponible, indique-le explicitement sans inventer.\n"
-            "Contraintes: pas de SQL, pas de jargon inutile; français professionnel; 3–6 phrases au total; pas d’intitulés ni d’en‑têtes; "
-            "n’emploie jamais explicitement les mots ‘Constat’, ‘Action proposée’ ou ‘Question à trancher’. Pas de listes/puces.\n"
-            "Sépare bien les paragraphes par une ligne vide."
+            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis (evidence), "
+            "réponds directement à la question de l'utilisateur de manière naturelle et fluide.\n\n"
+            "Règles:\n"
+            "- Adapte librement la structure de ta réponse selon la question et les données disponibles\n"
+            "- Intègre les chiffres précis (comptes, pourcentages, tendances) de l'evidence SQL\n"
+            "- Si un bloc 'retrieval_context' est fourni, enrichis ta réponse avec ces exemples concrets de manière naturelle\n"
+            "- Si l'evidence SQL est vide ou non pertinente, ignore-la et base-toi uniquement sur retrieval_context si disponible\n"
+            "- Si retrieval_context est vide ou non pertinent, ignore-le et base-toi uniquement sur l'evidence SQL\n"
+            "- Si les deux sources sont insuffisantes, indique clairement que tu n'as pas trouvé de données pertinentes\n"
+            "- N'utilise JAMAIS de formulations prédéfinies comme « Mise en avant : », « Constat : », « Action proposée : »\n"
+            "- Pas de titres, pas de listes à puces, pas de sections numérotées\n"
+            "- Français professionnel, direct et concis (2-5 phrases selon le contexte)\n"
+            "- Pas de SQL ni de jargon technique dans la réponse finale"
         )
         payload = {
             "question": question,
