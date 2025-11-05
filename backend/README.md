@@ -22,7 +22,7 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 AGENT_MAX_REQUESTS={"explorateur":2, "analyste":1, "redaction":1, "router":1}
 ```
 
-Agents disponibles: `router`, `chat`, `nl2sql`, `nl2sql_plan`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `mcp_chart`.
+Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `mcp_chart`.
 
 - Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
 - Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
@@ -305,7 +305,7 @@ Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL
 
 ### Notes de maintenance
 
- - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 3 blocs similaires: passage `/sql`, NL→SQL plan, NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
+ - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 2 blocs similaires: passage `/sql` et NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
  - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
  - 2025-10-31: Evidence panel — dérivation de la requête `SELECT *` désormais basée sur l'AST (sqlglot) au lieu de regex, en conservant `WHERE` et CTE, et en plafonnant avec `LIMIT`. Les opérations en ensemble (UNION/INTERSECT/EXCEPT) sont ignorées par sécurité. Tests: `uv run pytest` → 20 tests OK.
 
@@ -317,19 +317,7 @@ NL2SQL_VALUE_TRUNCATE=60  # tronque les cellules longues
 
 Cela ajoute 3 lignes exemples par table dans le prompt (issues de `data/raw`). Les colonnes de type date sont indiquées et le générateur est guidé pour caster en DATE et utiliser EXTRACT(YEAR|MONTH ...).
 
-Multi‑requêtes + synthèse (optionnel):
-
-```
-NL2SQL_PLAN_ENABLED=true
-NL2SQL_PLAN_MAX_STEPS=3
-```
-
-Fonctionnement:
-- Étape 1 (plan): le LLM propose jusqu’à 3 requêtes SQL (SELECT‑only).
-- Étape 2 (exécution): le backend exécute chaque SQL sur MindsDB et collecte les résultats (tronqués au besoin).
-- Étape 3 (synthèse): le LLM rédige une réponse finale en français à partir des résultats et le chat liste chaque requête exécutée avant la réponse finale.
-
-En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimulation, un message d’erreur explicite est renvoyé.
+ 
 # Backend
 
 ## Evidence panel defaults

@@ -124,8 +124,7 @@ class Settings(BaseSettings):
     nl2sql_include_samples: bool = Field(False, alias="NL2SQL_INCLUDE_SAMPLES")
     nl2sql_rows_per_table: int = Field(3, alias="NL2SQL_ROWS_PER_TABLE")
     nl2sql_value_truncate: int = Field(60, alias="NL2SQL_VALUE_TRUNCATE")
-    nl2sql_plan_enabled: bool = Field(False, alias="NL2SQL_PLAN_ENABLED")
-    nl2sql_plan_max_steps: int = Field(3, alias="NL2SQL_PLAN_MAX_STEPS")
+    # Removed nl2sql plan mode (redundant with multi-agent)
 
     # NL→SQL multi‑agent (Explorer + Analyst)
     nl2sql_multiagent_enabled: bool = Field(False, alias="NL2SQL_MULTIAGENT_ENABLED")

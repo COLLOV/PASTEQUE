@@ -480,7 +480,7 @@ class ChatService:
                             plan = nl2sql.explore(
                                 question=contextual_question_with_dico,
                                 schema=schema,
-                                max_steps=settings.nl2sql_plan_max_steps,
+                                max_steps=3,
                                 observations=observations,
                             )
                             log.info("NL2SQL explore round %d: %d queries", r, len(plan))
@@ -651,117 +651,6 @@ class ChatService:
                         context="completion done (nl2sql-multiagent-empty)",
                     )
 
-                # Multi-step planning if enabled
-                if settings.nl2sql_plan_enabled:
-                    try:
-                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
-                        plan = nl2sql.plan(
-                            question=contextual_question_with_dico,
-                            schema=schema,
-                            max_steps=settings.nl2sql_plan_max_steps,
-                        )
-                        log.info("NL2SQL plan (%d steps)", len(plan))
-                        if events:
-                            try:
-                                events("plan", {"steps": plan})
-                            except Exception:  # pragma: no cover
-                                pass
-                    except Exception as e:
-                        log.error("NL2SQL plan failed: %s", e)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=f"Échec du plan NL→SQL: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql-plan"},
-                            ),
-                            context="completion done (nl2sql-plan-error)",
-                        )
-                    evidence: list[dict[str, object]] = []
-                    last_columns: list[Any] = []
-                    last_rows: list[Any] = []
-                    for idx, item in enumerate(plan, start=1):
-                        sql = item["sql"]
-                        purpose = item.get("purpose", "")
-                        log.info(
-                            "MindsDB SQL (plan) [%s]: %s",
-                            purpose or "step",
-                            _preview_text(str(sql), limit=200),
-                        )
-                        if events:
-                            try:
-                                events("sql", {"sql": sql, "purpose": purpose, "step": idx})
-                            except Exception:
-                                log.warning("Failed to emit sql event (plan step)", exc_info=True)
-                        data = client.sql(sql)
-                        # Normalize using a single canonical helper
-                        columns, rows = self._normalize_result(data)
-                        if events:
-                            try:
-                                events(
-                                    "rows",
-                                    {
-                                        "step": idx,
-                                        "columns": columns,
-                                        "rows": rows,
-                                        "row_count": len(rows),
-                                    },
-                                )
-                            except Exception:
-                                log.warning("Failed to emit rows event (plan step)", exc_info=True)
-                        evidence.append({
-                            "purpose": purpose,
-                            "sql": sql,
-                            "columns": columns,
-                            "rows": rows,
-                        })
-                        # retain last non-empty dataset as evidence surface
-                        if columns and rows:
-                            last_columns = columns
-                            last_rows = rows
-                    retrieval_payload, highlight_text = self._retrieve_context(
-                        question=contextual_question,
-                        events=events,
-                    )
-                    try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
-                        reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        reply_text = self._append_highlight(reply_text, highlight_text)
-                        # Provide an evidence_spec + evidence rows via helper
-                        target_sql = (
-                            plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
-                        )
-                        self._emit_evidence(
-                            events=events,
-                            client=client,
-                            label_hint=raw_question,
-                            base_sql=target_sql if isinstance(target_sql, str) else None,
-                            fallback_columns=last_columns,
-                            fallback_rows=last_rows,
-                        )
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=reply_text,
-                                metadata={
-                                    "provider": "nl2sql-plan+mindsdb",
-                                    "plan": plan,
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql-plan)",
-                        )
-                    except Exception as e:
-                        log.error("NL2SQL synthesis failed: %s", e)
-                        error_reply = f"Échec de la synthèse: {e}\n{self._llm_diag()}"
-                        error_reply = self._append_highlight(error_reply, highlight_text)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=error_reply,
-                                metadata={
-                                    "provider": "nl2sql-synth",
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql-synth-error)",
-                        )
                 else:
                     # Single-shot NL→SQL with natural-language synthesis
                     try:
