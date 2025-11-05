@@ -46,7 +46,7 @@ SSR GPT-Vis (depuis `vis-ssr/`):
 1. Installer deps: `npm install`
 2. Copier `.env.ssr.example` en `.env` et ajuster `GPT_VIS_SSR_PORT` / `VIS_IMAGE_DIR` / `GPT_VIS_SSR_PUBLIC_URL`
 3. Lancer: `npm run start` (endpoint `POST /generate` + statiques `/charts/*`, PNG rendu via `@antv/gpt-vis-ssr`)
-4. Ajuster l'URL du plan/Z/mcp.config.json (variable VIS_REQUEST_SERVER) en fonction du `GPT_VIS_SSR_PORT` port choisi. Si le domaine public diffère de `localhost`, renseigner `GPT_VIS_SSR_PUBLIC_URL` (URL absolue, http(s)) pour que les liens de rendu retournés par l'API SSR soient corrects.
+4. Ajuster l'URL du plan/Z/mcp.config.json (variable `VIS_REQUEST_SERVER`) en fonction du port `GPT_VIS_SSR_PORT` choisi. Par défaut, le SSR écoute sur `6363` (voir `vis-ssr/.env.ssr.example`) et le fichier `plan/Z/mcp.config.json` référence `http://localhost:6363/`. Si le domaine public diffère de `localhost`, renseigner `GPT_VIS_SSR_PUBLIC_URL` (URL absolue, http(s)) pour que les liens de rendu retournés par l'API SSR soient corrects.
 
 Configurer le frontend via `frontend/.env.development` (`FRONTEND_DEV_URL`, `VITE_API_URL`, `FRONTEND_URLS` si plusieurs origines sont nécessaires).
 Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
