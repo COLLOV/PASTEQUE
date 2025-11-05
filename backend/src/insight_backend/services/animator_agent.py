@@ -5,6 +5,7 @@ import json
 
 from ..core.config import settings
 from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
+from ..core.agent_limits import check_and_increment
 
 
 class AnimatorAgent:
@@ -85,6 +86,8 @@ class AnimatorAgent:
         )
         user = json.dumps({"hint": facts}, ensure_ascii=False)
         try:
+            # Enforce per-request cap if configured for 'animator'
+            check_and_increment("animator")
             resp = client.chat_completions(
                 model=model,
                 messages=[
