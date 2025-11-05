@@ -5,7 +5,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Dict, Iterable, List, Set, TextIO, Tuple
+from typing import Any, AsyncIterator, Dict, Iterable, List, TextIO, Tuple
 
 import logging
 import anyio
@@ -14,20 +14,17 @@ import anyio.lowlevel
 from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
-from pydantic_ai import messages as agent_messages
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.messages import ModelResponse
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.agent import AgentRunResult
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from anyio.streams.text import TextReceiveStream
 from mcp.client import stdio as mcp_stdio
 from mcp.shared.message import SessionMessage
 import mcp.types as mcp_types
-from urllib.parse import urlparse
 
 from ..core.config import settings
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
@@ -340,13 +337,11 @@ class ChartGenerationService:
         if not output.chart_url:
             raise ChartGenerationError("L'agent n'a pas fourni d'URL de graphique.")
 
-        chart_url = self._validate_agent_run(result)
-
         total_rows = normalized_dataset.row_count if normalized_dataset.row_count is not None else len(normalized_dataset.rows)
 
         return ChartResult(
             prompt=prompt,
-            chart_url=chart_url,
+            chart_url=output.chart_url,
             tool_name=output.tool_name,
             chart_title=output.chart_title,
             chart_description=output.chart_description,
@@ -423,104 +418,16 @@ class ChartGenerationService:
             " Tu dois créer un graphique basé UNIQUEMENT sur ces données."
             f" {prefix_hint}\n"
             "Processus obligatoire :\n"
-            "1. Appeler immédiatement l'outil `get_sql_result` pour récupérer les colonnes et lignes disponibles.\n"
+            "1. Récupérer le résultat SQL avec l'outil `get_sql_result` (colonnes et lignes disponibles).\n"
             "2. Déterminer un graphique cohérent avec la question utilisateur et les colonnes disponibles"
             f" (colonnes principales: {summary_cols} — {total_rows} lignes en tout).\n"
-            "3. Appeler ensuite l'outil MCP adéquat en lui transmettant les données structurées (type de graphique,"
+            "3. Appeler l'outil MCP adéquat en lui transmettant les données structurées (type de graphique,"
             " axes, mesures, filtres éventuels).\n"
             "4. Retourner un ChartAgentOutput strictement valide avec :\n"
             "   - chart_url : URL livrée par le MCP\n"
             "   - tool_name : nom exact de l'outil MCP utilisé\n"
             "   - chart_title / chart_description : résumé concis et fidèle\n"
             "   - chart_spec : payload JSON envoyé au MCP (type, data, options).\n"
-            "Règles impératives :\n"
-            "- Utilise uniquement ce que `get_sql_result` fournit; aucune colonne supplémentaire n'est autorisée.\n"
-            "- Tu ne dois JAMAIS inventer d'URL ou de contenu; le `chart_url` final doit correspondre exactement à celui renvoyé par l'outil MCP."
+            "N'invente ni colonnes ni données supplémentaires; utilise uniquement ce que `get_sql_result` fournit."
             + answer_hint
         )
-
-    def _validate_agent_run(self, run_result: AgentRunResult[ChartAgentOutput]) -> str:
-        tool_returns, tool_calls = self._collect_tool_activity(run_result)
-
-        if "get_sql_result" not in tool_calls:
-            raise ChartGenerationError(
-                "Le modèle n'a pas récupéré le dataset via get_sql_result avant de générer le graphique."
-            )
-
-        output = run_result.output
-        tool_name = output.tool_name
-        if not tool_name:
-            raise ChartGenerationError("L'agent n'a pas indiqué l'outil MCP utilisé.")
-
-        if tool_name not in tool_returns:
-            raise ChartGenerationError(
-                "L'outil MCP annoncé n'a pas été exécuté ou n'a retourné aucun résultat."
-            )
-
-        return_part = tool_returns[tool_name][-1]
-        content = return_part.content
-
-        if isinstance(content, dict) and content.get("success") is False:
-            raise ChartGenerationError("Le serveur MCP a signalé un échec lors de la génération du graphique.")
-
-        urls = self._extract_candidate_urls(content)
-        if not urls:
-            raise ChartGenerationError("La réponse du serveur MCP ne contient aucune URL exploitable.")
-
-        canonical_url = urls[0]
-        parsed = urlparse(canonical_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ChartGenerationError("Le serveur MCP a renvoyé une URL invalide.")
-
-        if output.chart_url and output.chart_url not in urls:
-            log.warning(
-                "URL de graphique discordante entre la réponse LLM et le MCP (LLM=%s, MCP=%s)",
-                output.chart_url,
-                canonical_url,
-            )
-
-        return canonical_url
-
-    @staticmethod
-    def _collect_tool_activity(
-        run_result: AgentRunResult[ChartAgentOutput],
-    ) -> Tuple[Dict[str, List[agent_messages.ToolReturnPart]], Set[str]]:
-        tool_returns: Dict[str, List[agent_messages.ToolReturnPart]] = {}
-        tool_calls: Set[str] = set()
-
-        for message in run_result.all_messages():
-            if isinstance(message, agent_messages.ModelResponse):
-                for part in message.tool_calls:
-                    tool_calls.add(part.tool_name)
-            elif isinstance(message, agent_messages.ModelRequest):
-                for part in message.parts:
-                    if isinstance(part, agent_messages.ToolReturnPart):
-                        tool_returns.setdefault(part.tool_name, []).append(part)
-
-        return tool_returns, tool_calls
-
-    @classmethod
-    def _extract_candidate_urls(cls, content: Any) -> List[str]:
-        urls: List[str] = []
-
-        if isinstance(content, str):
-            stripped = content.strip()
-            if stripped:
-                urls.append(stripped)
-            return urls
-
-        if isinstance(content, dict):
-            for key in ("url", "chart_url", "chartUrl", "result", "resultObj"):
-                value = content.get(key)
-                if isinstance(value, str) and value.strip():
-                    urls.append(value.strip())
-            for nested in content.values():
-                if isinstance(nested, (dict, list)):
-                    urls.extend(cls._extract_candidate_urls(nested))
-            return urls
-
-        if isinstance(content, list):
-            for item in content:
-                urls.extend(cls._extract_candidate_urls(item))
-
-        return urls
