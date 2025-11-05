@@ -201,9 +201,12 @@ Pilote le niveau d'animation côté front à partir des évènements SSE:
 
 - `ANIMATION=sql` (défaut): conserve les évènements `plan`/`sql`/`rows` tels quels (affichage du SQL intérimaire, échantillons, etc.).
 - `ANIMATION=false`: supprime les évènements `plan` et `sql` côté SSE (et ne les persiste pas). Les métadonnées utiles (`meta`, `effective_tables`, `evidence`) restent émises pour garder les panneaux synchronisés.
-- `ANIMATION=true`: active un agent LLM « animator » qui observe les évènements et émet des messages courts `anim` pour expliquer la progression (ex: « Tables actives: N », « Comptage par catégorie », « Résultats: 20 lignes »). Comme `false`, ce mode masque aussi `plan`/`sql` côté SSE et évite leur persistance; seuls les `meta` utiles et l'évidence sont conservés. Aucun choix heuristique n'est durci; si le LLM échoue, aucun `anim` n’est émis.
+- `ANIMATION=true`: active un agent LLM « animator » qui observe les évènements et émet des messages courts `anim` pour expliquer la progression (ex: « Tables actives: N », « Comptage par catégorie », « Résultats: 20 lignes »). Dans ce mode, les évènements `plan`/`sql` sont de nouveau émis ET persistés afin d’alimenter le panneau « Détails » et l’historique; le message « anim » reste concis et n’impacte pas les données.
 
 Validation: la variable doit valoir `sql`, `true` ou `false`.
+
+Notes UI:
+- En `ANIMATION=true`, le front n’affiche pas le SQL « inline » si un message `anim` est présent; le SQL reste accessible via le bouton « Détails » (et dans l’historique).
 
 ### Router à chaque message
 

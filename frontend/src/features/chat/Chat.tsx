@@ -250,11 +250,9 @@ export default function Chat() {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
             const target = idx >= 0 ? idx : copy.length - 1
-            const interimText = sqlText
             copy[target] = {
               ...copy[target],
-              content: interimText,
-              interimSql: interimText,
+              // Ne pas afficher le SQL inline; stocker uniquement pour "Détail"
               details: {
                 ...(copy[target].details || {}),
                 steps: [ ...((copy[target].details?.steps) || []), step ]
@@ -310,14 +308,16 @@ export default function Chat() {
           }
         } else if (type === 'delta') {
           const delta = data as ChatStreamDelta
+          // Dès qu'on commence la réponse, on remplace le contenu éventuel d'Animator
+          setAnimStatus('')
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
             const target = idx >= 0 ? idx : copy.length - 1
-            const wasInterim = Boolean(copy[target].interimSql)
+            const shouldReplace = Boolean((copy[target] as any).interimSql) || Boolean(animStatus)
             copy[target] = {
               ...copy[target],
-              content: wasInterim ? (delta.content || '') : ((copy[target].content || '') + (delta.content || '')),
+              content: shouldReplace ? (delta.content || '') : ((copy[target].content || '') + (delta.content || '')),
               interimSql: undefined,
               ephemeral: true,
             }
@@ -853,9 +853,7 @@ export default function Chat() {
                 </button>
               </div>
             </div>
-            {loading && animStatus && (
-              <div className="text-xs text-primary-600 px-2 py-1">{animStatus}</div>
-            )}
+            
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id ?? index}
