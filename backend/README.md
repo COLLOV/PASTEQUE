@@ -22,7 +22,7 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 AGENT_MAX_REQUESTS={"explorateur":2, "analyste":1, "redaction":1, "router":1}
 ```
 
-Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `mcp_chart`.
+Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `retrieval`, `mcp_chart`.
 
 - Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
 - Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
@@ -155,8 +155,17 @@ En mode local, `EMBEDDING_LOCAL_MODEL` prime sur la clé `default_model` du YAML
 
 ### Mise en avant RAG
 
-- Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `LLM_MODE`).
-- Le prompt instructif utilisé est exactement « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
+- Les mises en avant sont produites par un agent dédié `retrieval` qui orchestre:
+  - la récupération de lignes proches via `RetrievalService` (embeddings MindsDB)
+  - la synthèse via LLM (local via vLLM ou API externe selon `LLM_MODE`).
+- Quotas: l'appel au LLM pour la synthèse consomme le budget `retrieval` (et le calcul d'embedding consomme `embedding`). Configurez via `AGENT_MAX_REQUESTS`.
+- Tuning de la synthèse:
+  - `RETRIEVAL_TEMPERATURE` (float, défaut 0.2)
+  - `RETRIEVAL_MAX_TOKENS` (int, défaut 220)
+  - `RETRIEVAL_MODEL` (optionnel; surcharge le modèle par défaut selon le mode local/API)
+- Injection contexte analyste → retrieval:
+  - `RETRIEVAL_INJECT_ANALYST` (bool, défaut: true). Quand activé et si l'analyste a produit une réponse, celle-ci est injectée à la question du retrieval pour orienter la sélection de lignes et la mise en avant.
+- Le prompt instructif reste « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
 - En cas d'échec du LLM, l'API signale explicitement l'indisponibilité de la synthèse dans la réponse afin d'éviter toute dégradation silencieuse.
 - Les extraits issus du RAG ne sont plus tronqués côté backend afin de laisser le LLM exploiter l'intégralité du texte récupéré.
 
@@ -252,7 +261,10 @@ Config côté backend (`backend/.env`):
 ```
 MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 # MINDSDB_TOKEN=   # optionnel si auth activée côté MindsDB
+# MINDSDB_TIMEOUT_S=120  # délai lecture/écriture HTTP en secondes
 ```
+
+Le délai par défaut est de 120 s, suffisant pour publier des CSV volumineux; ajustez `MINDSDB_TIMEOUT_S` si vos imports dépassent cette fenêtre.
 
 1) Synchroniser les fichiers locaux `data/raw` vers la DB `files` de MindsDB:
 

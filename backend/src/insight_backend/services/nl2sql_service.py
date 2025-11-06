@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import re
 from pathlib import Path
 from typing import Dict, List
@@ -12,6 +13,9 @@ from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..core.agent_limits import check_and_increment
 from ..repositories.data_repository import DataRepository
+
+
+log = logging.getLogger("insight.services.nl2sql")
 
 
 def _extract_sql(text: str) -> str:
@@ -185,6 +189,28 @@ class NL2SQLService:
     Strict rules: SELECT-only and target DB prefix (e.g., files.).
     """
 
+    def _limit_evidence_rows(self, items: List[Dict[str, object]] | None) -> List[Dict[str, object]]:
+        cap = settings.evidence_limit_default
+        if not items:
+            return []
+        if cap <= 0:
+            return items
+        trimmed = False
+        limited: List[Dict[str, object]] = []
+        for entry in items:
+            if isinstance(entry, dict):
+                rows = entry.get("rows")
+                if isinstance(rows, list) and len(rows) > cap:
+                    new_entry = dict(entry)
+                    new_entry["rows"] = rows[:cap]
+                    limited.append(new_entry)
+                    trimmed = True
+                    continue
+            limited.append(entry)
+        if trimmed:
+            log.info("Truncated evidence rows for LLM prompt (limit=%d)", cap)
+        return limited
+
     def _client_and_model(self) -> tuple[OpenAICompatibleClient, str]:
         if settings.llm_mode == "local":
             base_url = settings.vllm_base_url
@@ -279,12 +305,58 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        payload = {
+            "question": question,
+            "evidence": self._limit_evidence_rows(evidence),
+        }
+        user = json.dumps(payload, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    def write(
+        self,
+        *,
+        question: str,
+        evidence: List[Dict[str, object]],
+        retrieval_context: List[Dict[str, object]] | None = None,
+    ) -> str:
+        """Synthesis agent: fuses SQL evidence with optional retrieval rows.
+
+        - Prefers SQL-derived numbers when conflicts arise
+        - Uses retrieval rows as contextual examples only
+        - Produces a concise French answer, no SQL in the output
+        """
+        client, model = self._client_and_model()
+        payload = {
+            "question": question,
+            "evidence": self._limit_evidence_rows(evidence),
+            "retrieval": retrieval_context or [],
+            "guidelines": [
+                "Base the answer primarily on SQL evidence (columns/rows).",
+                "Use retrieval rows to add color/examples; do not invent facts.",
+                "If there is insufficient data, state it clearly.",
+                "Answer in French, 2–4 concise sentences, include key figures.",
+            ],
+        }
+        system = (
+            "You are a synthesis agent. Combine the SQL evidence and any retrieved related rows\n"
+            "to answer the user's question precisely in French. Prefer the SQL-derived numbers\n"
+            "when data conflicts. Do not output SQL or code."
+        )
+        # Enforce per-agent cap (redaction)
+        check_and_increment("redaction")
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
             temperature=0,
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -390,7 +462,7 @@ class NL2SQLService:
             {
                 "question": question,
                 "tables": tables_desc,
-                "evidence": evidence,
+                "evidence": self._limit_evidence_rows(evidence),
                 "rules": {
                     "schema_prefix": settings.nl2sql_db_prefix,
                 },
@@ -500,16 +572,19 @@ class NL2SQLService:
     ) -> str:
         client, model = self._client_and_model()
         system = (
-            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis, "
-            "rédige une synthèse brève en prose directe, en 1 à 2 paragraphes courts.\n"
-            "Paragraphe 1: intègre le constat avec des chiffres précis (comptes, pourcentages, tendances). 2–4 phrases.\n"
-            "Paragraphe 2 (si pertinent): formule UNE recommandation concrète (si justifiée) OU une question claire en cas d’incertitude. 1–2 phrases.\n"
-            "Un bloc optionnel 'retrieval_context' fournit des lignes très proches de la question (provenance table + valeurs). "
-            "Après ces paragraphes, ajoute un court paragraphe additionnel (1 à 2 phrases) commençant par « Mise en avant : » qui souligne les éléments les plus pertinents issus de ce bloc. "
-            "Si aucune donnée pertinente n’est disponible, indique-le explicitement sans inventer.\n"
-            "Contraintes: pas de SQL, pas de jargon inutile; français professionnel; 3–6 phrases au total; pas d’intitulés ni d’en‑têtes; "
-            "n’emploie jamais explicitement les mots ‘Constat’, ‘Action proposée’ ou ‘Question à trancher’. Pas de listes/puces.\n"
-            "Sépare bien les paragraphes par une ligne vide."
+            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis (evidence), "
+            "réponds directement à la question de l'utilisateur de manière naturelle et fluide.\n\n"
+            "Règles:\n"
+            "- Adapte librement la structure de ta réponse selon la question et les données disponibles\n"
+            "- Intègre les chiffres précis (comptes, pourcentages, tendances) de l'evidence SQL\n"
+            "- Si un bloc 'retrieval_context' est fourni, enrichis ta réponse avec ces exemples concrets de manière naturelle\n"
+            "- Si l'evidence SQL est vide ou non pertinente, ignore-la et base-toi uniquement sur retrieval_context si disponible\n"
+            "- Si retrieval_context est vide ou non pertinent, ignore-le et base-toi uniquement sur l'evidence SQL\n"
+            "- Si les deux sources sont insuffisantes, indique clairement que tu n'as pas trouvé de données pertinentes\n"
+            "- N'utilise JAMAIS de formulations prédéfinies comme « Mise en avant : », « Constat : », « Action proposée : »\n"
+            "- Pas de titres, pas de listes à puces, pas de sections numérotées\n"
+            "- Français professionnel, direct et concis (2-5 phrases selon le contexte)\n"
+            "- Pas de SQL ni de jargon technique dans la réponse finale"
         )
         payload = {
             "question": question,

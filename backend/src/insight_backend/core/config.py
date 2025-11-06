@@ -47,6 +47,12 @@ class Settings(BaseSettings):
         alias="EMBEDDING_LOCAL_MODEL",
     )
 
+    # Retrieval agent tuning
+    retrieval_model: str | None = Field(None, alias="RETRIEVAL_MODEL")
+    retrieval_temperature: float = Field(0.2, alias="RETRIEVAL_TEMPERATURE")
+    retrieval_max_tokens: int = Field(220, alias="RETRIEVAL_MAX_TOKENS")
+    retrieval_inject_analyst: bool = Field(True, alias="RETRIEVAL_INJECT_ANALYST")
+
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
     router_model: str | None = Field(None, alias="ROUTER_MODEL")
@@ -80,6 +86,7 @@ class Settings(BaseSettings):
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
     mindsdb_embeddings_config_path: str | None = Field(None, alias="MINDSDB_EMBEDDINGS_CONFIG_PATH")
     mindsdb_embedding_batch_size: int = Field(16, alias="MINDSDB_EMBEDDING_BATCH_SIZE")
+    mindsdb_timeout_s: float = Field(120.0, alias="MINDSDB_TIMEOUT_S")
     rag_top_n: int = Field(3, alias="RAG_TOP_N")
     rag_table_row_cap: int = Field(500, alias="RAG_TABLE_ROW_CAP")
     rag_max_columns: int = Field(6, alias="RAG_MAX_COLUMNS")
@@ -105,6 +112,21 @@ class Settings(BaseSettings):
         if v <= 0:
             raise ValueError(f"{info.field_name.upper()} must be > 0")
         return v
+
+    @field_validator("retrieval_temperature")
+    @classmethod
+    def _validate_retrieval_temperature(cls, v: float) -> float:
+        # Keep permissive range; typical OpenAI range is [0,2]
+        if v < 0:
+            raise ValueError("RETRIEVAL_TEMPERATURE must be >= 0")
+        return float(v)
+
+    @field_validator("retrieval_max_tokens")
+    @classmethod
+    def _validate_retrieval_max_tokens(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("RETRIEVAL_MAX_TOKENS must be > 0")
+        return int(v)
 
     # Database
     database_url: str = Field(
