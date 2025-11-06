@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from ..core.config import settings
+from ..core.agent_limits import check_and_increment
 from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from .nl2sql_service import _extract_json_blob  # reuse robust JSON extractor
 
@@ -136,6 +137,8 @@ class RouterService:
             {"role": "system", "content": prompt},
             {"role": "user", "content": text},
         ]
+        # Enforce per-agent cap (router)
+        check_and_increment("router")
         client = OpenAICompatibleClient(base_url=base_url, api_key=api_key, timeout_s=settings.openai_timeout_s)
         data = client.chat_completions(model=model, messages=messages, temperature=0)
         raw = ""

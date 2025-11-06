@@ -1,11 +1,13 @@
 from functools import lru_cache
 from typing import List
 import logging
+import json
 
 from pydantic import Field
 from pydantic import field_validator
 from pydantic import ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 
 class Settings(BaseSettings):
@@ -45,9 +47,18 @@ class Settings(BaseSettings):
         alias="EMBEDDING_LOCAL_MODEL",
     )
 
+    # Retrieval agent tuning
+    retrieval_model: str | None = Field(None, alias="RETRIEVAL_MODEL")
+    retrieval_temperature: float = Field(0.2, alias="RETRIEVAL_TEMPERATURE")
+    retrieval_max_tokens: int = Field(220, alias="RETRIEVAL_MAX_TOKENS")
+    retrieval_inject_analyst: bool = Field(True, alias="RETRIEVAL_INJECT_ANALYST")
+
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
     router_model: str | None = Field(None, alias="ROUTER_MODEL")
+
+    # Agent request caps (JSON mapping: {agent_name: max_requests})
+    agent_max_requests_json: str | None = Field(None, alias="AGENT_MAX_REQUESTS")
 
     @field_validator("router_mode", mode="before")
     @classmethod
@@ -75,6 +86,7 @@ class Settings(BaseSettings):
     mindsdb_token: str | None = Field(None, alias="MINDSDB_TOKEN")
     mindsdb_embeddings_config_path: str | None = Field(None, alias="MINDSDB_EMBEDDINGS_CONFIG_PATH")
     mindsdb_embedding_batch_size: int = Field(16, alias="MINDSDB_EMBEDDING_BATCH_SIZE")
+    mindsdb_timeout_s: float = Field(120.0, alias="MINDSDB_TIMEOUT_S")
     rag_top_n: int = Field(3, alias="RAG_TOP_N")
     rag_table_row_cap: int = Field(500, alias="RAG_TABLE_ROW_CAP")
     rag_max_columns: int = Field(6, alias="RAG_MAX_COLUMNS")
@@ -101,6 +113,21 @@ class Settings(BaseSettings):
             raise ValueError(f"{info.field_name.upper()} must be > 0")
         return v
 
+    @field_validator("retrieval_temperature")
+    @classmethod
+    def _validate_retrieval_temperature(cls, v: float) -> float:
+        # Keep permissive range; typical OpenAI range is [0,2]
+        if v < 0:
+            raise ValueError("RETRIEVAL_TEMPERATURE must be >= 0")
+        return float(v)
+
+    @field_validator("retrieval_max_tokens")
+    @classmethod
+    def _validate_retrieval_max_tokens(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("RETRIEVAL_MAX_TOKENS must be > 0")
+        return int(v)
+
     # Database
     database_url: str = Field(
         "postgresql+psycopg://postgres:postgres@localhost:5432/pasteque",
@@ -114,18 +141,12 @@ class Settings(BaseSettings):
     admin_username: str = Field("admin", alias="ADMIN_USERNAME")
     admin_password: str = Field("admin", alias="ADMIN_PASSWORD")
 
-    # NL→SQL generation (optional)
-    nl2sql_enabled: bool = Field(False, alias="NL2SQL_ENABLED")
+    # NL→SQL generation (always enabled; env switch removed)
     nl2sql_db_prefix: str = Field("files", alias="NL2SQL_DB_PREFIX")
-    nl2sql_include_samples: bool = Field(False, alias="NL2SQL_INCLUDE_SAMPLES")
-    nl2sql_rows_per_table: int = Field(3, alias="NL2SQL_ROWS_PER_TABLE")
-    nl2sql_value_truncate: int = Field(60, alias="NL2SQL_VALUE_TRUNCATE")
-    nl2sql_plan_enabled: bool = Field(False, alias="NL2SQL_PLAN_ENABLED")
-    nl2sql_plan_max_steps: int = Field(3, alias="NL2SQL_PLAN_MAX_STEPS")
+    # Sample injection removed; explorer agent handles data probing
+    # Removed nl2sql plan mode (redundant with multi-agent)
 
-    # NL→SQL multi‑agent (Explorer + Analyst)
-    nl2sql_multiagent_enabled: bool = Field(False, alias="NL2SQL_MULTIAGENT_ENABLED")
-    nl2sql_explore_rounds: int = Field(1, alias="NL2SQL_EXPLORE_ROUNDS")
+    # NL→SQL multi‑agent (always enabled)
     nl2sql_satisfaction_min_rows: int = Field(1, alias="NL2SQL_SATISFACTION_MIN_ROWS")
 
     @property
@@ -133,6 +154,77 @@ class Settings(BaseSettings):
         if self.allowed_origins_raw:
             return [item.strip() for item in self.allowed_origins_raw.split(",") if item.strip()]
         return ["http://localhost:5173"]
+
+    @property
+    def agent_max_requests(self) -> dict[str, int]:
+        """Parse AGENT_MAX_REQUESTS env (JSON) into a {agent: cap} dict.
+
+        Invalid or missing values yield an empty mapping. Non-positive caps
+        are ignored. Keys are normalized as str.
+        """
+        raw = self.agent_max_requests_json
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+        except Exception:
+            logging.getLogger("insight.core.config").warning(
+                "Invalid AGENT_MAX_REQUESTS JSON; ignoring."
+            )
+            return {}
+        out: dict[str, int] = {}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                try:
+                    n = int(v)
+                except Exception:
+                    continue
+                # Accept 0 to explicitly disable an agent
+                if n >= 0:
+                    out[str(k)] = n
+        return out
+
+    def validate_agent_limits_startup(self) -> None:
+        """Validate AGENT_MAX_REQUESTS on startup and emit clear logs.
+
+        - In non-development environments, invalid JSON raises at startup.
+        - Always log an INFO line summarizing the effective caps (or absence).
+        """
+        log = logging.getLogger("insight.core.config")
+        env = (self.env or "").strip().lower()
+        raw = self.agent_max_requests_json
+        caps = self.agent_max_requests
+        if raw and not caps:
+            # Ambiguous: it can be invalid JSON or a mapping with no usable positive values
+            # Disambiguate by attempting a strict parse here
+            try:
+                _ = json.loads(raw)
+            except Exception:
+                if env not in {"dev", "development", "local"}:
+                    raise RuntimeError("Invalid AGENT_MAX_REQUESTS JSON in production environment")
+                # In dev, we already warned in agent_max_requests; continue
+        if caps:
+            log.info("Agent caps active: %s", caps)
+        else:
+            log.info("No agent caps configured (AGENT_MAX_REQUESTS unset or empty)")
+
+    def warn_deprecated_env(self) -> None:
+        """Emit warnings for deprecated environment variables now ignored.
+
+        This helps operators clean up configs after the NL→SQL simplification.
+        """
+        deprecated = [
+            "NL2SQL_ENABLED",
+            "NL2SQL_INCLUDE_SAMPLES",
+            "NL2SQL_SAMPLES_PATH",
+            "NL2SQL_PLAN_MODE",
+        ]
+        present = [k for k in deprecated if os.getenv(k) is not None]
+        if present:
+            logging.getLogger("insight.core.config").warning(
+                "Deprecated env vars detected and ignored: %s",
+                present,
+            )
 
 
 @lru_cache

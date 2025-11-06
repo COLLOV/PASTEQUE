@@ -5,6 +5,8 @@ from typing import Any, Dict, Optional
 
 import httpx
 
+from ..core.config import settings
+
 
 class MindsDBClient:
     """Minimal HTTP client for MindsDB OSS.
@@ -14,10 +16,17 @@ class MindsDBClient:
     - Executing SQL queries via REST API.
     """
 
-    def __init__(self, *, base_url: str, token: Optional[str] = None, timeout_s: float = 30.0):
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        token: Optional[str] = None,
+        timeout_s: float | None = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.token = token
-        self.client = httpx.Client(timeout=timeout_s)
+        resolved_timeout = timeout_s if timeout_s is not None else settings.mindsdb_timeout_s
+        self.client = httpx.Client(timeout=httpx.Timeout(resolved_timeout))
 
     def _headers(self) -> Dict[str, str]:
         headers = {"Accept": "application/json"}

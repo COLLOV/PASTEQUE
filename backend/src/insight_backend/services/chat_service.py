@@ -9,14 +9,18 @@ from typing import Protocol, Callable, Dict, Any, Iterable, List
 from ..schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ..core.config import settings, resolve_project_path
 from ..integrations.mindsdb_client import MindsDBClient
-from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from ..repositories.data_repository import DataRepository
 from ..repositories.dictionary_repository import DataDictionaryRepository
 from .nl2sql_service import NL2SQLService
 from .retrieval_service import RetrievalService
+from .retrieval_agent import RetrievalAgent
+from ..core.agent_limits import get_limit, get_count, AgentBudgetExceeded
 
 
 log = logging.getLogger("insight.services.chat")
+
+# Maximum exploration steps per round for NL→SQL explorer
+NL2SQL_EXPLORE_MAX_STEPS = 3
 
 
 def _preview_text(text: str, *, limit: int = 160) -> str:
@@ -84,7 +88,7 @@ class ChatService:
 
     def __init__(self, engine: ChatEngine):
         self.engine = engine
-        self._retrieval_service: RetrievalService | None = None
+        self._retrieval_agent: RetrievalAgent | None = None
 
     def _llm_diag(self) -> str:
         if settings.llm_mode == "api":
@@ -105,10 +109,10 @@ class ChatService:
         )
         return response
 
-    def _get_retrieval_service(self) -> RetrievalService:
-        if self._retrieval_service is None:
-            self._retrieval_service = RetrievalService()
-        return self._retrieval_service
+    def _get_retrieval_agent(self) -> RetrievalAgent:
+        if self._retrieval_agent is None:
+            self._retrieval_agent = RetrievalAgent()
+        return self._retrieval_agent
 
     def _retrieve_context(
         self,
@@ -117,26 +121,22 @@ class ChatService:
         events: Callable[[str, Dict[str, Any]], None] | None = None,
         round_label: int | None = None,
     ) -> tuple[List[Dict[str, Any]], str]:
-        payload: List[Dict[str, Any]] = []
         try:
-            service = self._get_retrieval_service()
-            rows = service.retrieve(question=question, top_n=settings.rag_top_n)
-            payload = [row.as_payload() for row in rows]
+            agent = self._get_retrieval_agent()
+            payload, highlight = agent.run(
+                question=question,
+                top_n=settings.rag_top_n,
+                events=events,
+                round_label=round_label,
+            )
+            return payload, highlight
+        except AgentBudgetExceeded:
+            # Bubble up so API can convert to 429
+            raise
         except Exception as exc:
             message = _preview_text(str(exc), limit=160)
             log.error("Retrieval agent failed: %s", message)
-            return [], self._format_retrieval_highlight(question=question, payload=[], error=message)
-
-        if events and payload:
-            meta: Dict[str, Any] = {"retrieval": {"rows": payload}}
-            if round_label is not None:
-                meta["retrieval"]["round"] = round_label
-            try:
-                events("meta", meta)
-            except Exception:
-                log.warning("Failed to emit retrieval meta", exc_info=True)
-
-        return payload, self._format_retrieval_highlight(question=question, payload=payload)
+            return [], f"Mise en avant : synthèse indisponible ({message})."
 
     def _format_retrieval_highlight(
         self,
@@ -145,6 +145,7 @@ class ChatService:
         payload: List[Dict[str, Any]],
         error: str | None = None,
     ) -> str:
+        """Compat wrapper kept for tests; delegates to RetrievalAgent where possible."""
         prefix = "Mise en avant : "
         if error:
             return f"{prefix}récupération indisponible ({error})."
@@ -161,95 +162,18 @@ class ChatService:
             return f"{prefix}synthèse indisponible (réponse vide)."
         return f"{prefix}{insight}"
 
-    def _build_retrieval_llm_client(self) -> tuple[OpenAICompatibleClient, str]:
-        mode = (settings.llm_mode or "").strip().lower()
-        if mode == "local":
-            base_url = settings.vllm_base_url
-            model = settings.z_local_model
-            api_key = None
-        elif mode == "api":
-            base_url = settings.openai_base_url
-            model = settings.llm_model
-            api_key = settings.openai_api_key
-        else:
-            raise RuntimeError("Invalid LLM_MODE; expected 'local' or 'api'")
-        if not base_url or not model:
-            raise RuntimeError("LLM non configuré pour la mise en avant (base_url ou modèle absent).")
-        client = OpenAICompatibleClient(
-            base_url=base_url,
-            api_key=api_key,
-            timeout_s=settings.openai_timeout_s,
-        )
-        return client, str(model)
-
     def _generate_retrieval_insight(
         self,
         *,
         question: str,
         rows: List[Dict[str, Any]],
     ) -> str:
-        question_text = (question or "").strip()
-        if not question_text:
-            raise RuntimeError("Question vide pour la synthèse de mise en avant.")
-        if not rows:
-            raise RuntimeError("Aucune donnée de récupération à synthétiser.")
+        """Compat seam for tests; uses RetrievalAgent summarization with caps and tuning."""
+        agent = self._get_retrieval_agent()
+        # Reuse the agent's summarization on provided rows without re-emitting events
+        return agent._summarize(question=question, rows=rows)  # type: ignore[attr-defined]
 
-        lines: List[str] = []
-        for idx, item in enumerate(rows, start=1):
-            table = str(item.get("table") or "-")
-            score = item.get("score")
-            if isinstance(score, (int, float)):
-                score_txt = f"{score:.4f}"
-            else:
-                score_txt = str(score or "-")
-            focus = str(item.get("focus") or "").strip() or "-"
-            values_txt = "-"
-            values = item.get("values")
-            if isinstance(values, dict):
-                pairs: List[str] = []
-                for key, value in values.items():
-                    if value in (None, ""):
-                        continue
-                    pairs.append(f"{key}: {value}")
-                if pairs:
-                    values_txt = ", ".join(pairs)
-            lines.append(
-                f"{idx}. table={table}, score={score_txt}, focus={focus}, valeurs={values_txt}"
-            )
-
-        rows_blob = "\n".join(lines)
-        system_prompt = (
-            "Given the user question and the retrieved related informations, give the user some insights. "
-            "Answer in French with une ou deux phrases concises."
-        )
-        user_prompt = f"Question:\n{question_text}\n\nInformations récupérées:\n{rows_blob}"
-
-        client, model = self._build_retrieval_llm_client()
-        try:
-            response = client.chat_completions(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.2,
-                max_tokens=220,
-            )
-        except OpenAIBackendError as exc:
-            raise RuntimeError(f"Synthèse LLM indisponible: {exc}") from exc
-        except Exception as exc:
-            raise RuntimeError(f"Erreur lors de l'appel au LLM pour la mise en avant: {exc}") from exc
-        finally:
-            client.close()
-
-        try:
-            content = response["choices"][0]["message"]["content"]
-        except Exception as exc:
-            raise RuntimeError("Réponse LLM invalide pour la mise en avant.") from exc
-        text = str(content).strip()
-        if not text:
-            raise RuntimeError("Réponse LLM vide pour la mise en avant.")
-        return text
+    
 
     @staticmethod
     def _append_highlight(base: str, highlight: str) -> str:
@@ -351,13 +275,9 @@ class ChatService:
                     context="completion done (mindsdb-sql)",
                 )
 
-        # NL→SQL (optional): per-request override via payload.metadata.nl2sql,
-        # falling back to env `NL2SQL_ENABLED` when not specified.
+        # NL→SQL is always enabled; proceed when there is a user message.
         meta = payload.metadata or {}
-        nl2sql_flag = meta.get("nl2sql")
-        nl2sql_enabled = bool(nl2sql_flag) if (nl2sql_flag is not None) else settings.nl2sql_enabled
-
-        if payload.messages and nl2sql_enabled:
+        if payload.messages:
             last = payload.messages[-1]
             if last.role == "user":
                 raw_question, contextual_question = self._prepare_nl2sql_question(payload.messages)
@@ -447,14 +367,26 @@ class ChatService:
                 )
                 client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
                 
-                # Multi‑agent mode (Explorer + Analyst)
-                multiagent_flag = (payload.metadata or {}).get("multiagent") if isinstance(payload.metadata, dict) else None
-                multiagent_enabled = bool(multiagent_flag) if (multiagent_flag is not None) else settings.nl2sql_multiagent_enabled
-                if multiagent_enabled:
+                # Multi‑agent mode is always enabled
+                if True:
                     evidence: list[dict[str, object]] = []
                     last_columns: list[Any] = []
                     last_rows: list[Any] = []
-                    rounds = max(1, settings.nl2sql_explore_rounds)
+                    # Derive exploration rounds from per-agent budgets (explorateur/analyste)
+                    def _remaining(agent: str) -> int | None:
+                        cap = get_limit(agent)
+                        if cap is None:
+                            return None
+                        return max(0, cap - get_count(agent))
+
+                    rem_expl = _remaining("explorateur")
+                    rem_anal = _remaining("analyste")
+                    if rem_expl is None and rem_anal is None:
+                        rounds = 1
+                    else:
+                        candidates = [c for c in (rem_expl, rem_anal) if c is not None]
+                        rounds = max(0, min(candidates)) if candidates else 1
+                    log.info("Multi‑agent rounds derived from budgets: %s (explorateur=%s, analyste=%s)", rounds, rem_expl, rem_anal)
                     min_rows = max(0, settings.nl2sql_satisfaction_min_rows)
                     if events:
                         try:
@@ -468,6 +400,20 @@ class ChatService:
                             )
                         except Exception:  # pragma: no cover
                             pass
+                    if rounds <= 0:
+                        # No exploration rounds allowed by current budgets (e.g., cap set to 0)
+                        message = (
+                            "Exploration désactivée: aucun tour autorisé avec les plafonds d'agents actuels. "
+                            "Ajustez AGENT_MAX_REQUESTS pour 'explorateur'/'analyste' ou relancez la requête."
+                        )
+                        return self._log_completion(
+                            ChatResponse(
+                                reply=f"{message}\n{self._llm_diag()}",
+                                metadata={"provider": "nl2sql-multiagent-empty", "rounds_used": 0},
+                            ),
+                            context="completion done (nl2sql-multiagent-no-round)",
+                        )
+
                     for r in range(1, rounds + 1):
                         try:
                             observations = None
@@ -480,7 +426,7 @@ class ChatService:
                             plan = nl2sql.explore(
                                 question=contextual_question_with_dico,
                                 schema=schema,
-                                max_steps=settings.nl2sql_plan_max_steps,
+                                max_steps=NL2SQL_EXPLORE_MAX_STEPS,
                                 observations=observations,
                             )
                             log.info("NL2SQL explore round %d: %d queries", r, len(plan))
@@ -489,6 +435,9 @@ class ChatService:
                                     events("plan", {"round": r, "steps": plan, "purpose": "explore"})
                                 except Exception:  # pragma: no cover
                                     pass
+                        except AgentBudgetExceeded:
+                            # Bubble up so API can convert to 429
+                            raise
                         except Exception as e:
                             log.error("NL2SQL explore failed (round %d): %s", r, e)
                             return self._log_completion(
@@ -544,6 +493,9 @@ class ChatService:
                                     events("meta", {"axes_suggestions": axes, "round": r})
                                 except Exception:
                                     log.warning("Failed to emit axes suggestions", exc_info=True)
+                        except AgentBudgetExceeded:
+                            # Bubble up so API can convert to 429
+                            raise
                         except Exception as e:
                             log.warning("Proposition d'axes indisponible: %s", e)
 
@@ -554,6 +506,9 @@ class ChatService:
                                 schema=schema,
                                 evidence=evidence,
                             )
+                        except AgentBudgetExceeded:
+                            # Bubble up so API can convert to 429
+                            raise
                         except Exception as e:
                             log.error("NL2SQL analyst failed to generate SQL: %s", e)
                             return self._log_completion(
@@ -598,8 +553,32 @@ class ChatService:
                             ev_for_answer = evidence + [
                                 {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
                             ]
+                            # Optionally ask the analyst to draft a SQL-only answer and inject
+                            # it into the retrieval question to guide investigation.
+                            analyst_preview: str | None = None
+                            if settings.retrieval_inject_analyst:
+                                try:
+                                    limit = get_limit("analyste")
+                                    count = get_count("analyste")
+                                    # We already consumed one 'analyste' for generate_with_evidence. Only call
+                                    # synthesize if it won't exceed the cap (when a cap is configured).
+                                    if limit is None or (count + 1) <= limit:
+                                        analyst_preview = nl2sql.synthesize(
+                                            question=contextual_question,
+                                            evidence=ev_for_answer,
+                                        ).strip() or None
+                                    else:
+                                        log.info("Skip analyst preview for retrieval due to cap (%d/%d)", count, limit)
+                                except Exception as e:
+                                    log.warning("Analyst preview unavailable for retrieval injection: %s", e)
+
+                            retrieval_question = contextual_question
+                            if analyst_preview:
+                                retrieval_question = (
+                                    f"{contextual_question}\n\nRéponse analyste (SQL): {analyst_preview}"
+                                )
                             retrieval_payload, highlight_text = self._retrieve_context(
-                                question=contextual_question,
+                                question=retrieval_question,
                                 events=events,
                                 round_label=r,
                             )
@@ -610,12 +589,11 @@ class ChatService:
                                     retrieval_context=retrieval_payload,
                                 ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                                reply_text = self._append_highlight(reply_text, highlight_text)
                                 metadata = {
                                     "provider": "nl2sql-multiagent",
                                     "rounds_used": r,
                                     "sql": final_sql,
-                                    "agents": ["explorateur", "analyste", "redaction"],
+                                    "agents": ["explorateur", "analyste", "retrieval", "redaction"],
                                     "retrieval_rows": retrieval_payload,
                                 }
                                 return self._log_completion(
@@ -625,9 +603,11 @@ class ChatService:
                                     ),
                                     context="completion done (nl2sql-multiagent)",
                                 )
+                            except AgentBudgetExceeded:
+                                # Bubble up so API can convert to 429
+                                raise
                             except Exception as e:
                                 error_reply = f"Échec de la synthèse finale (rédaction): {e}\n{self._llm_diag()}"
-                                error_reply = self._append_highlight(error_reply, highlight_text)
                                 return self._log_completion(
                                     ChatResponse(
                                         reply=error_reply,
@@ -651,215 +631,7 @@ class ChatService:
                         context="completion done (nl2sql-multiagent-empty)",
                     )
 
-                # Multi-step planning if enabled
-                if settings.nl2sql_plan_enabled:
-                    try:
-                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
-                        plan = nl2sql.plan(
-                            question=contextual_question_with_dico,
-                            schema=schema,
-                            max_steps=settings.nl2sql_plan_max_steps,
-                        )
-                        log.info("NL2SQL plan (%d steps)", len(plan))
-                        if events:
-                            try:
-                                events("plan", {"steps": plan})
-                            except Exception:  # pragma: no cover
-                                pass
-                    except Exception as e:
-                        log.error("NL2SQL plan failed: %s", e)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=f"Échec du plan NL→SQL: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql-plan"},
-                            ),
-                            context="completion done (nl2sql-plan-error)",
-                        )
-                    evidence: list[dict[str, object]] = []
-                    last_columns: list[Any] = []
-                    last_rows: list[Any] = []
-                    for idx, item in enumerate(plan, start=1):
-                        sql = item["sql"]
-                        purpose = item.get("purpose", "")
-                        log.info(
-                            "MindsDB SQL (plan) [%s]: %s",
-                            purpose or "step",
-                            _preview_text(str(sql), limit=200),
-                        )
-                        if events:
-                            try:
-                                events("sql", {"sql": sql, "purpose": purpose, "step": idx})
-                            except Exception:
-                                log.warning("Failed to emit sql event (plan step)", exc_info=True)
-                        data = client.sql(sql)
-                        # Normalize using a single canonical helper
-                        columns, rows = self._normalize_result(data)
-                        if events:
-                            try:
-                                events(
-                                    "rows",
-                                    {
-                                        "step": idx,
-                                        "columns": columns,
-                                        "rows": rows,
-                                        "row_count": len(rows),
-                                    },
-                                )
-                            except Exception:
-                                log.warning("Failed to emit rows event (plan step)", exc_info=True)
-                        evidence.append({
-                            "purpose": purpose,
-                            "sql": sql,
-                            "columns": columns,
-                            "rows": rows,
-                        })
-                        # retain last non-empty dataset as evidence surface
-                        if columns and rows:
-                            last_columns = columns
-                            last_rows = rows
-                    retrieval_payload, highlight_text = self._retrieve_context(
-                        question=contextual_question,
-                        events=events,
-                    )
-                    try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
-                        reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        reply_text = self._append_highlight(reply_text, highlight_text)
-                        # Provide an evidence_spec + evidence rows via helper
-                        target_sql = (
-                            plan[-1]["sql"] if plan and isinstance(plan[-1], dict) and plan[-1].get("sql") else None
-                        )
-                        self._emit_evidence(
-                            events=events,
-                            client=client,
-                            label_hint=raw_question,
-                            base_sql=target_sql if isinstance(target_sql, str) else None,
-                            fallback_columns=last_columns,
-                            fallback_rows=last_rows,
-                        )
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=reply_text,
-                                metadata={
-                                    "provider": "nl2sql-plan+mindsdb",
-                                    "plan": plan,
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql-plan)",
-                        )
-                    except Exception as e:
-                        log.error("NL2SQL synthesis failed: %s", e)
-                        error_reply = f"Échec de la synthèse: {e}\n{self._llm_diag()}"
-                        error_reply = self._append_highlight(error_reply, highlight_text)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=error_reply,
-                                metadata={
-                                    "provider": "nl2sql-synth",
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql-synth-error)",
-                        )
-                else:
-                    # Single-shot NL→SQL with natural-language synthesis
-                    try:
-                        # Aligner avec la PR #59: injecter le dictionnaire à chaque tour
-                        sql = nl2sql.generate(question=contextual_question_with_dico, schema=schema)
-                        log.info("MindsDB SQL (single-shot): %s", _preview_text(str(sql), limit=200))
-                        if events:
-                            try:
-                                events("sql", {"sql": sql})
-                            except Exception:
-                                log.warning("Failed to emit sql event (single-shot)", exc_info=True)
-                    except Exception as e:
-                        log.error("NL2SQL generation failed: %s", e)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=f"Échec de la génération SQL: {e}\n{self._llm_diag()}",
-                                metadata={"provider": "nl2sql"},
-                            ),
-                            context="completion done (nl2sql-error)",
-                        )
-                    data = client.sql(sql)
-                    # Normalize to columns/rows and synthesize final answer
-                    columns, rows = self._normalize_result(data)
-                    if events:
-                        try:
-                            events(
-                                "rows",
-                                {
-                                    "columns": columns,
-                                    "rows": rows,
-                                    "row_count": len(rows),
-                                },
-                            )
-                        except Exception:
-                            log.warning("Failed to emit rows event", exc_info=True)
-                    # Emit evidence contract + dataset for the front panel (consolidated)
-                    self._emit_evidence(
-                        events=events,
-                        client=client,
-                        label_hint=raw_question,
-                        base_sql=sql,
-                        fallback_columns=columns,
-                        fallback_rows=rows,
-                    )
-                    evidence = [{
-                        "purpose": "answer",
-                        "sql": sql,
-                        "columns": columns,
-                        "rows": rows,
-                    }]
-                    retrieval_payload, highlight_text = self._retrieve_context(
-                        question=contextual_question,
-                        events=events,
-                    )
-                    try:
-                        answer = nl2sql.synthesize(question=contextual_question, evidence=evidence).strip()
-                        reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                        reply_text = self._append_highlight(reply_text, highlight_text)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=reply_text,
-                                metadata={
-                                    "provider": "nl2sql+mindsdb",
-                                    "sql": sql,
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql)",
-                        )
-                    except Exception as e:
-                        # fallback to simple textual rendering (no hidden failures)
-                        log.error("NL2SQL synthesis fallback after error: %s", e)
-                        if rows and columns:
-                            header = " | ".join(str(c) for c in columns)
-                            lines = [f"SQL: {sql}", header, "-" * len(header)]
-                            for r in rows[:50]:
-                                if isinstance(r, dict):
-                                    line = " | ".join(str(r.get(c)) for c in columns)
-                                else:
-                                    line = " | ".join(str(v) for v in r)
-                                lines.append(line)
-                            text = "\n".join(lines)
-                        else:
-                            err = data.get("error_message") if isinstance(data, dict) else None
-                            text = f"SQL: {sql}\n" + (err or "(Aucune ligne)")
-                        text = self._append_highlight(text, highlight_text)
-                        return self._log_completion(
-                            ChatResponse(
-                                reply=text,
-                                metadata={
-                                    "provider": "nl2sql-synth-fallback",
-                                    "error": str(e),
-                                    "sql": sql,
-                                    "retrieval_rows": retrieval_payload,
-                                },
-                            ),
-                            context="completion done (nl2sql-fallback)",
-                        )
+        # If no user message was found, fall back to the engine.
         response = self.engine.run(payload)
         return self._log_completion(response, context="completion done (engine)")
 

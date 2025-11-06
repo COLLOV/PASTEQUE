@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterator
 import logging
 
 from ..schemas.chat import ChatRequest, ChatResponse
+from ..core.agent_limits import check_and_increment
 from ..integrations.openai_client import OpenAICompatibleClient
 
 
@@ -22,6 +23,8 @@ class OpenAIChatEngine:
 
     def run(self, payload: ChatRequest) -> ChatResponse:  # type: ignore[valid-type]
         messages = [m.model_dump() for m in payload.messages]
+        # Enforce per-agent cap (chat)
+        check_and_increment("chat")
         data: dict[str, Any] = self.client.chat_completions(model=self.model, messages=messages)
         # OpenAI-compatible: choices[0].message.content
         try:

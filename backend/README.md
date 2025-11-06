@@ -13,6 +13,24 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 
 Variables d’environnement via `.env` (voir `.env.example`). Le script racine `start.sh` positionne automatiquement `ALLOWED_ORIGINS` pour faire correspondre le port du frontend lancé via ce script.
 
+### Limites par agent (AGENT_MAX_REQUESTS)
+
+- Configurez dans `.env` un JSON mappant chaque agent à son nombre maximal de requêtes par appel API.
+- Clé: `AGENT_MAX_REQUESTS`. Exemple:
+
+```
+AGENT_MAX_REQUESTS={"explorateur":2, "analyste":1, "redaction":1, "router":1}
+```
+
+Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `retrieval`, `mcp_chart`.
+
+- Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
+- Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
+
+Note (PR #72): les dépassements de quota par agent sont désormais correctement propagés jusqu’aux routes afin de produire un statut HTTP 429, y compris pour le chemin multi‑agent NL→SQL et la génération de graphiques via MCP.
+
+Au démarrage, l’API journalise le mapping effectif des plafonds (ou l’absence de plafonds). En production, une valeur JSON invalide pour `AGENT_MAX_REQUESTS` provoque une erreur de démarrage. Les variables dépréciées `NL2SQL_ENABLED`, `NL2SQL_INCLUDE_SAMPLES`, `NL2SQL_SAMPLES_PATH`, `NL2SQL_PLAN_MODE` sont ignorées et signalées dans les logs.
+
 ### Dictionnaire de données (YAML)
 
 But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
@@ -137,8 +155,17 @@ En mode local, `EMBEDDING_LOCAL_MODEL` prime sur la clé `default_model` du YAML
 
 ### Mise en avant RAG
 
-- Les mises en avant renvoyées après une récupération vectorielle sont désormais rédigées par le moteur LLM configuré (local via vLLM ou API externe selon `LLM_MODE`).
-- Le prompt instructif utilisé est exactement « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
+- Les mises en avant sont produites par un agent dédié `retrieval` qui orchestre:
+  - la récupération de lignes proches via `RetrievalService` (embeddings MindsDB)
+  - la synthèse via LLM (local via vLLM ou API externe selon `LLM_MODE`).
+- Quotas: l'appel au LLM pour la synthèse consomme le budget `retrieval` (et le calcul d'embedding consomme `embedding`). Configurez via `AGENT_MAX_REQUESTS`.
+- Tuning de la synthèse:
+  - `RETRIEVAL_TEMPERATURE` (float, défaut 0.2)
+  - `RETRIEVAL_MAX_TOKENS` (int, défaut 220)
+  - `RETRIEVAL_MODEL` (optionnel; surcharge le modèle par défaut selon le mode local/API)
+- Injection contexte analyste → retrieval:
+  - `RETRIEVAL_INJECT_ANALYST` (bool, défaut: true). Quand activé et si l'analyste a produit une réponse, celle-ci est injectée à la question du retrieval pour orienter la sélection de lignes et la mise en avant.
+- Le prompt instructif reste « given the user question and the retrieved related informations, give the user some insights », la question et les lignes rapprochées étant injectées sous forme structurée.
 - En cas d'échec du LLM, l'API signale explicitement l'indisponibilité de la synthèse dans la réponse afin d'éviter toute dégradation silencieuse.
 - Les extraits issus du RAG ne sont plus tronqués côté backend afin de laisser le LLM exploiter l'intégralité du texte récupéré.
 
@@ -234,7 +261,10 @@ Config côté backend (`backend/.env`):
 ```
 MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 # MINDSDB_TOKEN=   # optionnel si auth activée côté MindsDB
+# MINDSDB_TIMEOUT_S=120  # délai lecture/écriture HTTP en secondes
 ```
+
+Le délai par défaut est de 120 s, suffisant pour publier des CSV volumineux; ajustez `MINDSDB_TIMEOUT_S` si vos imports dépassent cette fenêtre.
 
 1) Synchroniser les fichiers locaux `data/raw` vers la DB `files` de MindsDB:
 
@@ -267,17 +297,14 @@ Note: cette commande n’implémente pas de NL→SQL; pour un flux LLM complet a
 
 ### NL→SQL (questions en langage naturel)
 
-Vous pouvez activer un mode où le LLM génère le SQL automatiquement et l’exécute sur MindsDB:
+Le mode NL→SQL est désormais toujours actif en multi‑agent (Explorateur + Analyste + Rédaction). Configurez uniquement le préfixe de schéma et les options associées:
 
 1) Prérequis: un LLM opérationnel (vLLM local ou API) et MindsDB accessible.
 2) Dans `backend/.env`:
 
 ```
-NL2SQL_ENABLED=true
 NL2SQL_DB_PREFIX=files
 ```
-
-> Depuis la version actuelle, `NL2SQL_MAX_ROWS` n’est plus supportée: supprimez la variable de vos `.env` existants pour éviter une erreur d’initialisation.
 
 3) Redémarrez le backend. Posez une question libre dans le chat, par ex.:
 
@@ -287,35 +314,19 @@ Le backend génère une requête `SELECT` ciblant uniquement `files.*`, exécute
 
 Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL et les requêtes SQL envoyées à MindsDB, tandis que `insight.services.mindsdb_sync` détaille les fichiers synchronisés.
 
-Échantillons pour aider la génération (optionnel):
+Notes PR #72 (comportements):
+- Si les plafonds d’agents `explorateur`/`analyste` ne permettent aucun tour d’exploration, le backend renvoie une réponse explicite sans lancer d’exploration.
+- Le nombre maximum d’étapes par tour d’exploration est borné par une constante interne (`NL2SQL_EXPLORE_MAX_STEPS`, valeur par défaut: 3).
 
 ### Notes de maintenance
 
- - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 3 blocs similaires: passage `/sql`, NL→SQL plan, NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
+ - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 2 blocs similaires: passage `/sql` et NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
  - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
  - 2025-10-31: Evidence panel — dérivation de la requête `SELECT *` désormais basée sur l'AST (sqlglot) au lieu de regex, en conservant `WHERE` et CTE, et en plafonnant avec `LIMIT`. Les opérations en ensemble (UNION/INTERSECT/EXCEPT) sont ignorées par sécurité. Tests: `uv run pytest` → 20 tests OK.
 
-```
-NL2SQL_INCLUDE_SAMPLES=true
-NL2SQL_ROWS_PER_TABLE=3   # 3–5 conseillé
-NL2SQL_VALUE_TRUNCATE=60  # tronque les cellules longues
-```
+ 
 
-Cela ajoute 3 lignes exemples par table dans le prompt (issues de `data/raw`). Les colonnes de type date sont indiquées et le générateur est guidé pour caster en DATE et utiliser EXTRACT(YEAR|MONTH ...).
-
-Multi‑requêtes + synthèse (optionnel):
-
-```
-NL2SQL_PLAN_ENABLED=true
-NL2SQL_PLAN_MAX_STEPS=3
-```
-
-Fonctionnement:
-- Étape 1 (plan): le LLM propose jusqu’à 3 requêtes SQL (SELECT‑only).
-- Étape 2 (exécution): le backend exécute chaque SQL sur MindsDB et collecte les résultats (tronqués au besoin).
-- Étape 3 (synthèse): le LLM rédige une réponse finale en français à partir des résultats et le chat liste chaque requête exécutée avant la réponse finale.
-
-En cas d’erreur (plan invalide, SQL non‑SELECT, parse JSON): aucune dissimulation, un message d’erreur explicite est renvoyé.
+ 
 # Backend
 
 ## Evidence panel defaults

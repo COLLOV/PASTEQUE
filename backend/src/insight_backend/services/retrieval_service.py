@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable, List, Sequence
 
 from ..core.config import settings
+from ..core.agent_limits import check_and_increment
 from ..integrations.mindsdb_client import MindsDBClient
 from ..integrations.openai_client import OpenAIBackendError
 from .mindsdb_embeddings import (
@@ -57,6 +58,8 @@ class RetrievalService:
         config = self._ensure_config()
         embedding_client, embedding_model = build_embedding_client(config)
         try:
+            # Enforce per-agent cap (embedding)
+            check_and_increment("embedding")
             vectors = embedding_client.embeddings(model=embedding_model, inputs=[question])
         except OpenAIBackendError as exc:
             raise RuntimeError(f"Échec du calcul d'embedding pour la question: {exc}") from exc

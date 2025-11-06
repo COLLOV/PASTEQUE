@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-import csv
 from pathlib import Path
 from typing import Dict, List
 import json
@@ -11,6 +10,7 @@ from ..core.config import settings
 import sqlglot
 from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
+from ..core.agent_limits import check_and_increment
 from ..repositories.data_repository import DataRepository
 
 
@@ -237,32 +237,6 @@ class NL2SQLService:
             if dcols:
                 date_hints[t] = dcols
 
-        # Optional samples from CSV
-        samples_blob = ""
-        if settings.nl2sql_include_samples:
-            repo = DataRepository(tables_dir=Path(settings.tables_dir))
-            rows_per = max(1, settings.nl2sql_rows_per_table)
-            trunc = max(10, settings.nl2sql_value_truncate)
-            parts: List[str] = []
-            for t in schema.keys():
-                p = repo._resolve_table_path(t)
-                if not p:
-                    continue
-                try:
-                    delim = "," if p.suffix.lower() == ".csv" else "\t"
-                    with p.open("r", encoding="utf-8", newline="") as f:
-                        reader = csv.DictReader(f, delimiter=delim)
-                        rows = []
-                        for i, row in enumerate(reader):
-                            if i >= rows_per:
-                                break
-                            rows.append({k: (str(v)[:trunc] if v is not None else None) for k, v in row.items()})
-                        if rows:
-                            parts.append(f"Table {settings.nl2sql_db_prefix}.{t} sample rows (max {rows_per}):\n{rows}")
-                except Exception:
-                    continue
-            samples_blob = "\n\n".join(parts)
-
         system = (
             "You are a strict SQL generator. Dialect: MindsDB SQL (MySQL-like).\n"
             f"Use only the tables listed below under the '{settings.nl2sql_db_prefix}.' schema.\n"
@@ -277,12 +251,13 @@ class NL2SQLService:
         if date_hints:
             hint_lines = [f"- {settings.nl2sql_db_prefix}.{t}: {', '.join(cols)}" for t, cols in date_hints.items()]
             hints = "\nDate-like columns (cast before date ops):\n" + "\n".join(hint_lines)
-        samples_section = f"\n\nSamples:\n{samples_blob}" if samples_blob else ""
         user = (
-            f"Available tables and columns:\n{tables_blob}{hints}{samples_section}\n\n"
+            f"Available tables and columns:\n{tables_blob}{hints}\n\n"
             f"Question: {question}\n"
             f"Produce a single SQL query using only {settings.nl2sql_db_prefix}.* tables."
         )
+        # Enforce per-agent cap (nl2sql)
+        check_and_increment("nl2sql")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -296,108 +271,6 @@ class NL2SQLService:
         _ensure_required_prefix(sql)
         return sql
 
-    def plan(self, *, question: str, schema: Dict[str, List[str]], max_steps: int) -> List[Dict[str, str]]:
-        # Input validation
-        if not isinstance(question, str) or not question.strip():
-            raise RuntimeError("La question est vide.")
-        if not isinstance(schema, dict) or not schema:
-            raise RuntimeError("Aucun schéma n'est disponible pour la planification.")
-        # Enforce a sane step range
-        try:
-            max_steps_int = int(max_steps)
-        except (ValueError, TypeError) as e:
-            raise RuntimeError(f"Paramètre max_steps invalide: {e}")
-        hard_cap = max(1, settings.nl2sql_plan_max_steps)
-        if max_steps_int < 1 or max_steps_int > hard_cap:
-            max_steps = hard_cap
-        else:
-            max_steps = max_steps_int
-        client, model = self._client_and_model()
-        tables_desc = []
-        for t, cols in schema.items():
-            col_list = ", ".join(cols)
-            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
-        tables_blob = "\n".join(tables_desc)
-        if len(tables_blob) > 8000:
-            lines = tables_blob.split("\n")
-            truncated: list[str] = []
-            length = 0
-            for line in lines:
-                if length + len(line) > 8000:
-                    break
-                truncated.append(line)
-                length += len(line) + 1
-            tables_blob = "\n".join(truncated) + "\n…"
-        # Optional samples
-        samples_blob = ""
-        if settings.nl2sql_include_samples:
-            repo = DataRepository(tables_dir=Path(settings.tables_dir))
-            rows_per = max(1, settings.nl2sql_rows_per_table)
-            trunc = max(10, settings.nl2sql_value_truncate)
-            parts: List[str] = []
-            for t in schema.keys():
-                p = repo._resolve_table_path(t)
-                if not p:
-                    continue
-                try:
-                    delim = "," if p.suffix.lower() == ".csv" else "\t"
-                    with p.open("r", encoding="utf-8", newline="") as f:
-                        reader = csv.DictReader(f, delimiter=delim)
-                        rows = []
-                        for i, row in enumerate(reader):
-                            if i >= rows_per:
-                                break
-                            rows.append({k: (str(v)[:trunc] if v is not None else None) for k, v in row.items()})
-                        if rows:
-                            parts.append(f"Table {settings.nl2sql_db_prefix}.{t} sample rows (max {rows_per}):\n{rows}")
-                except Exception:
-                    continue
-            samples_blob = "\n\n".join(parts)
-
-        system = (
-            "You are a query planner for analytics. \n"
-            "Goal: break the question into up to N SQL queries (SELECT-only) that run on MindsDB (MySQL-like).\n"
-            f"Use only tables under '{settings.nl2sql_db_prefix}.' schema.\n"
-            "Date columns are TEXT 'YYYY-MM-DD'; CAST(NULLIF(col,'None') AS DATE) and EXTRACT(YEAR|MONTH ...) must be used.\n"
-            f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
-            "After introducing an alias, reuse it everywhere (SELECT, WHERE, subqueries) instead of the raw table name.\n"
-            "Never invent table or column names: use them exactly as provided (if a table is 'tickets_jira', do NOT rename it).\n"
-            "Return JSON only with the shape: {\"queries\":[{\"purpose\":str,\"sql\":str}, ...]} — no prose."
-        )
-        user = (
-            f"Available tables and columns:\n{tables_blob}\n\n"
-            + (f"Samples:\n{samples_blob}\n\n" if samples_blob else "")
-            + f"Max steps: {max_steps}. Question: {question}"
-        )
-        resp = client.chat_completions(
-            model=model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            temperature=0,
-        )
-        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        # Extract JSON via helper
-        blob = _extract_json_blob(text)
-        try:
-            data = json.loads(blob)
-        except Exception as e:
-            raise RuntimeError(f"Plan JSON invalid: {e}")
-        queries = data.get("queries") if isinstance(data, dict) else None
-        if not isinstance(queries, list) or not queries:
-            raise RuntimeError("Plan vide ou invalide")
-        out: List[Dict[str, str]] = []
-        for q in queries[:max_steps]:
-            purpose = str(q.get("purpose", "")).strip()
-            sql = _extract_sql(str(q.get("sql", "")))
-            if not purpose or not sql:
-                continue
-            sql = _rewrite_date_functions(sql)
-            if not _is_select_only(sql):
-                raise RuntimeError("Une requête du plan n'est pas un SELECT")
-            _ensure_required_prefix(sql)
-            out.append({"purpose": purpose, "sql": sql})
-        if not out:
-            raise RuntimeError("Aucune requête exploitable dans le plan")
-        return out
 
     def synthesize(self, *, question: str, evidence: List[Dict[str, object]]) -> str:
         client, model = self._client_and_model()
@@ -407,9 +280,53 @@ class NL2SQLService:
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
         user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        # Enforce per-agent cap (analyste)
+        check_and_increment("analyste")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            temperature=0,
+        )
+        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    def write(
+        self,
+        *,
+        question: str,
+        evidence: List[Dict[str, object]],
+        retrieval_context: List[Dict[str, object]] | None = None,
+    ) -> str:
+        """Synthesis agent: fuses SQL evidence with optional retrieval rows.
+
+        - Prefers SQL-derived numbers when conflicts arise
+        - Uses retrieval rows as contextual examples only
+        - Produces a concise French answer, no SQL in the output
+        """
+        client, model = self._client_and_model()
+        payload = {
+            "question": question,
+            "evidence": evidence,
+            "retrieval": retrieval_context or [],
+            "guidelines": [
+                "Base the answer primarily on SQL evidence (columns/rows).",
+                "Use retrieval rows to add color/examples; do not invent facts.",
+                "If there is insufficient data, state it clearly.",
+                "Answer in French, 2–4 concise sentences, include key figures.",
+            ],
+        }
+        system = (
+            "You are a synthesis agent. Combine the SQL evidence and any retrieved related rows\n"
+            "to answer the user's question precisely in French. Prefer the SQL-derived numbers\n"
+            "when data conflicts. Do not output SQL or code."
+        )
+        # Enforce per-agent cap (redaction)
+        check_and_increment("redaction")
+        resp = client.chat_completions(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
             temperature=0,
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -451,6 +368,8 @@ class NL2SQLService:
             f"Focus on columns likely involved in the question.\n"
             + obs_section
         )
+        # Enforce per-agent cap (explorateur)
+        check_and_increment("explorateur")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -520,6 +439,8 @@ class NL2SQLService:
             },
             ensure_ascii=False,
         )
+        # Enforce per-agent cap (analyste)
+        check_and_increment("analyste")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -572,6 +493,8 @@ class NL2SQLService:
             "available and any exploratory findings. Prefer simple bar/line charts; fall back to 'table' when unclear.\n"
             "Return ONLY JSON: {\"axes\":[{\"x\":str,\"y\":str?,\"agg\":str?,\"chart\":str,\"reason\":str}...]}."
         )
+        # Enforce per-agent cap (axes)
+        check_and_increment("axes")
         resp = client.chat_completions(
             model=model,
             messages=[
@@ -619,16 +542,19 @@ class NL2SQLService:
     ) -> str:
         client, model = self._client_and_model()
         system = (
-            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis, "
-            "rédige une synthèse brève en prose directe, en 1 à 2 paragraphes courts.\n"
-            "Paragraphe 1: intègre le constat avec des chiffres précis (comptes, pourcentages, tendances). 2–4 phrases.\n"
-            "Paragraphe 2 (si pertinent): formule UNE recommandation concrète (si justifiée) OU une question claire en cas d’incertitude. 1–2 phrases.\n"
-            "Un bloc optionnel 'retrieval_context' fournit des lignes très proches de la question (provenance table + valeurs). "
-            "Après ces paragraphes, ajoute un court paragraphe additionnel (1 à 2 phrases) commençant par « Mise en avant : » qui souligne les éléments les plus pertinents issus de ce bloc. "
-            "Si aucune donnée pertinente n’est disponible, indique-le explicitement sans inventer.\n"
-            "Contraintes: pas de SQL, pas de jargon inutile; français professionnel; 3–6 phrases au total; pas d’intitulés ni d’en‑têtes; "
-            "n’emploie jamais explicitement les mots ‘Constat’, ‘Action proposée’ ou ‘Question à trancher’. Pas de listes/puces.\n"
-            "Sépare bien les paragraphes par une ligne vide."
+            "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis (evidence), "
+            "réponds directement à la question de l'utilisateur de manière naturelle et fluide.\n\n"
+            "Règles:\n"
+            "- Adapte librement la structure de ta réponse selon la question et les données disponibles\n"
+            "- Intègre les chiffres précis (comptes, pourcentages, tendances) de l'evidence SQL\n"
+            "- Si un bloc 'retrieval_context' est fourni, enrichis ta réponse avec ces exemples concrets de manière naturelle\n"
+            "- Si l'evidence SQL est vide ou non pertinente, ignore-la et base-toi uniquement sur retrieval_context si disponible\n"
+            "- Si retrieval_context est vide ou non pertinent, ignore-le et base-toi uniquement sur l'evidence SQL\n"
+            "- Si les deux sources sont insuffisantes, indique clairement que tu n'as pas trouvé de données pertinentes\n"
+            "- N'utilise JAMAIS de formulations prédéfinies comme « Mise en avant : », « Constat : », « Action proposée : »\n"
+            "- Pas de titres, pas de listes à puces, pas de sections numérotées\n"
+            "- Français professionnel, direct et concis (2-5 phrases selon le contexte)\n"
+            "- Pas de SQL ni de jargon technique dans la réponse finale"
         )
         payload = {
             "question": question,
@@ -636,6 +562,8 @@ class NL2SQLService:
         }
         if retrieval_context is not None:
             payload["retrieval_context"] = retrieval_context
+        # Enforce per-agent cap (redaction)
+        check_and_increment("redaction")
         resp = client.chat_completions(
             model=model,
             messages=[
