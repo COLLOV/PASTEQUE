@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 import json
 
 from ..core.config import settings
@@ -12,6 +13,9 @@ from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..core.agent_limits import check_and_increment
 from ..repositories.data_repository import DataRepository
+
+
+log = logging.getLogger("insight.services.nl2sql")
 
 
 def _extract_sql(text: str) -> str:
@@ -178,6 +182,121 @@ def _ensure_required_prefix(sql: str) -> None:
         )
 
 
+_EVIDENCE_ITEM_LIMIT = 6
+_EVIDENCE_ROW_LIMIT = 40
+_EVIDENCE_CELL_CHAR_LIMIT = 160
+_EVIDENCE_SQL_CHAR_LIMIT = 4000
+_EVIDENCE_COLUMN_LIMIT = 20
+_EVIDENCE_COLUMN_CHAR_LIMIT = 80
+_RETRIEVAL_ITEM_LIMIT = 5
+_RETRIEVAL_VALUE_CHAR_LIMIT = 160
+
+
+def _truncate_text(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "..."
+
+
+def _truncate_value(value: Any, limit: int) -> Any:
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    if isinstance(value, str):
+        return _truncate_text(value, limit)
+    try:
+        rendered = json.dumps(value, ensure_ascii=False)
+    except Exception:
+        rendered = str(value)
+    if len(rendered) <= limit:
+        return rendered
+    return rendered[:limit].rstrip() + "..."
+
+
+def _trim_row(row: Any, *, cell_limit: int) -> Any:
+    if isinstance(row, dict):
+        return {k: _truncate_value(v, cell_limit) for k, v in row.items()}
+    if isinstance(row, (list, tuple)):
+        return [_truncate_value(v, cell_limit) for v in row]
+    return _truncate_value(row, cell_limit)
+
+
+def _trim_rows(rows: Any, *, row_limit: int, cell_limit: int) -> tuple[list[Any], int, bool]:
+    if not isinstance(rows, list):
+        return [], 0, False
+    trimmed: list[Any] = []
+    for row in rows[:row_limit]:
+        trimmed.append(_trim_row(row, cell_limit=cell_limit))
+    total = len(rows)
+    return trimmed, total, total > len(trimmed)
+
+
+def _prepare_evidence_payload(evidence: List[Dict[str, object]] | None) -> List[Dict[str, object]]:
+    if not isinstance(evidence, list) or not evidence:
+        return []
+    items = evidence[-_EVIDENCE_ITEM_LIMIT :] if _EVIDENCE_ITEM_LIMIT else list(evidence)
+    if len(evidence) > len(items):
+        log.debug("Trimming evidence items for LLM payload: %d -> %d", len(evidence), len(items))
+    prepared: List[Dict[str, object]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        entry: Dict[str, object] = {}
+        trimmed_rows, total_rows, rows_truncated = _trim_rows(
+            item.get("rows"),
+            row_limit=_EVIDENCE_ROW_LIMIT,
+            cell_limit=_EVIDENCE_CELL_CHAR_LIMIT,
+        )
+        if isinstance(item.get("rows"), list):
+            entry["rows"] = trimmed_rows
+            entry["row_count"] = total_rows
+            if rows_truncated:
+                entry["rows_truncated"] = True
+
+        columns = item.get("columns")
+        if isinstance(columns, list):
+            trimmed_cols = [
+                _truncate_text(str(col), _EVIDENCE_COLUMN_CHAR_LIMIT)
+                for col in columns[:_EVIDENCE_COLUMN_LIMIT]
+            ]
+            entry["columns"] = trimmed_cols
+            entry["column_count"] = len(columns)
+            if len(columns) > len(trimmed_cols):
+                entry["columns_truncated"] = True
+        elif columns is not None:
+            entry["columns"] = columns
+
+        if "sql" in item:
+            entry["sql"] = _truncate_text(str(item["sql"]), _EVIDENCE_SQL_CHAR_LIMIT)
+
+        for key, value in item.items():
+            if key in {"rows", "columns", "sql"} or key in entry:
+                continue
+            entry[key] = value
+
+        prepared.append(entry)
+    return prepared
+
+
+def _prepare_retrieval_context(context: List[Dict[str, object]] | None) -> List[Dict[str, object]]:
+    if not isinstance(context, list) or not context:
+        return []
+    items = context[:_RETRIEVAL_ITEM_LIMIT]
+    if len(context) > len(items):
+        log.debug("Trimming retrieval context items: %d -> %d", len(context), len(items))
+    prepared: List[Dict[str, object]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        entry: Dict[str, object] = {}
+        for key, value in item.items():
+            if key == "values" and isinstance(value, dict):
+                entry["values"] = {k: _truncate_value(v, _RETRIEVAL_VALUE_CHAR_LIMIT) for k, v in value.items()}
+            else:
+                entry[key] = _truncate_value(value, _RETRIEVAL_VALUE_CHAR_LIMIT)
+        prepared.append(entry)
+    return prepared
+
+
 @dataclass
 class NL2SQLService:
     """Generate SQL from NL using the configured OpenAI-compatible LLM.
@@ -279,7 +398,10 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        user = json.dumps(
+            {"question": question, "evidence": _prepare_evidence_payload(evidence)},
+            ensure_ascii=False,
+        )
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         resp = client.chat_completions(
@@ -390,7 +512,7 @@ class NL2SQLService:
             {
                 "question": question,
                 "tables": tables_desc,
-                "evidence": evidence,
+                "evidence": _prepare_evidence_payload(evidence),
                 "rules": {
                     "schema_prefix": settings.nl2sql_db_prefix,
                 },
@@ -513,10 +635,12 @@ class NL2SQLService:
         )
         payload = {
             "question": question,
-            "evidence": evidence,
+            "evidence": _prepare_evidence_payload(evidence),
         }
-        if retrieval_context is not None:
-            payload["retrieval_context"] = retrieval_context
+        if retrieval_context:
+            prepared_context = _prepare_retrieval_context(retrieval_context)
+            if prepared_context:
+                payload["retrieval_context"] = prepared_context
         # Enforce per-agent cap (redaction)
         check_and_increment("redaction")
         resp = client.chat_completions(
