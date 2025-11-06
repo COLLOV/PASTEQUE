@@ -178,32 +178,6 @@ def _ensure_required_prefix(sql: str) -> None:
         )
 
 
-def _compact_evidence(
-    evidence: List[Dict[str, object]] | None,
-    *,
-    max_items: int = 5,
-    max_rows: int = 40,
-) -> List[Dict[str, object]]:
-    if not isinstance(evidence, list) or not evidence:
-        return []
-    # Keep the most recent entries to stay relevant.
-    trimmed: List[Dict[str, object]] = []
-    for item in evidence[-max_items:]:
-        if not isinstance(item, dict):
-            continue
-        entry: Dict[str, object] = {}
-        for key, value in item.items():
-            if key == "rows" and isinstance(value, list):
-                entry["rows"] = value[:max_rows]
-                entry["row_count"] = len(value)
-            else:
-                entry[key] = value
-        trimmed.append(entry)
-    if len(trimmed) < len(evidence):
-        log.debug("Evidence compacted: %s -> %s items", len(evidence), len(trimmed))
-    return trimmed
-
-
 @dataclass
 class NL2SQLService:
     """Generate SQL from NL using the configured OpenAI-compatible LLM.
@@ -305,10 +279,7 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps(
-            {"question": question, "evidence": _compact_evidence(evidence)},
-            ensure_ascii=False,
-        )
+        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         resp = client.chat_completions(
@@ -419,7 +390,7 @@ class NL2SQLService:
             {
                 "question": question,
                 "tables": tables_desc,
-                "evidence": _compact_evidence(evidence),
+                "evidence": evidence,
                 "rules": {
                     "schema_prefix": settings.nl2sql_db_prefix,
                 },
@@ -542,7 +513,7 @@ class NL2SQLService:
         )
         payload = {
             "question": question,
-            "evidence": _compact_evidence(evidence),
+            "evidence": evidence,
         }
         if retrieval_context is not None:
             payload["retrieval_context"] = retrieval_context
