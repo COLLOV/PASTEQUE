@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import re
 from pathlib import Path
 from typing import Dict, List
@@ -12,6 +13,9 @@ from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..core.agent_limits import check_and_increment
 from ..repositories.data_repository import DataRepository
+
+
+log = logging.getLogger("insight.services.nl2sql")
 
 
 def _extract_sql(text: str) -> str:
@@ -185,6 +189,107 @@ class NL2SQLService:
     Strict rules: SELECT-only and target DB prefix (e.g., files.).
     """
 
+    _EVIDENCE_ROW_CAP = 40
+    _RETRIEVAL_ROW_CAP = 20
+    _CELL_CHAR_CAP = 160
+    _EVIDENCE_CHAR_BUDGET = 15000
+    _RETRIEVAL_CHAR_BUDGET = 6000
+
+    def _compact_cell(self, value: object) -> tuple[object, bool]:
+        """Return value truncated to the allowed character budget."""
+        if value is None:
+            return None, False
+        text = str(value)
+        if len(text) <= self._CELL_CHAR_CAP:
+            # Preserve original scalars when possible for clarity.
+            if isinstance(value, (int, float, bool)):
+                return value, False
+            if isinstance(value, str):
+                return value, False
+            return text, False
+        truncated = text[: max(self._CELL_CHAR_CAP - 3, 1)] + "..."
+        return truncated, True
+
+    def _compact_row(self, row: object) -> tuple[object, bool]:
+        """Compact a single row (list/dict/scalar) for LLM payload safety."""
+        trimmed = False
+        if isinstance(row, dict):
+            compact_row: dict[str, object] = {}
+            for key, value in row.items():
+                new_value, was_trimmed = self._compact_cell(value)
+                trimmed = trimmed or was_trimmed
+                compact_row[str(key)] = new_value
+            return compact_row, trimmed
+        if isinstance(row, list):
+            compact_list: list[object] = []
+            for value in row:
+                new_value, was_trimmed = self._compact_cell(value)
+                trimmed = trimmed or was_trimmed
+                compact_list.append(new_value)
+            return compact_list, trimmed
+        return self._compact_cell(row)
+
+    def _compact_payload(
+        self,
+        items: List[Dict[str, object]] | None,
+        *,
+        max_rows: int,
+        max_char_budget: int,
+        label: str,
+    ) -> List[Dict[str, object]]:
+        """Limit evidence/retrieval payload size before sending it to the LLM."""
+        if not items:
+            return []
+
+        trimmed = False
+        total_chars = 0
+        compact: List[Dict[str, object]] = []
+
+        for entry in items:
+            if not isinstance(entry, dict):
+                trimmed = True
+                continue
+
+            compact_entry: Dict[str, object] = {}
+            for key, value in entry.items():
+                if key == "rows" and isinstance(value, list):
+                    limited_rows = []
+                    for row in value[:max_rows]:
+                        compact_row, row_trimmed = self._compact_row(row)
+                        limited_rows.append(compact_row)
+                        trimmed = trimmed or row_trimmed
+                    if len(value) > len(limited_rows):
+                        trimmed = True
+                    compact_entry["rows"] = limited_rows
+                else:
+                    compact_entry[key] = value
+
+            chunk = json.dumps(compact_entry, ensure_ascii=False)
+            if "rows" in compact_entry and isinstance(compact_entry["rows"], list):
+                rows_list = compact_entry["rows"]
+                while rows_list and len(chunk) + total_chars > max_char_budget:
+                    rows_list.pop()
+                    trimmed = True
+                    chunk = json.dumps(compact_entry, ensure_ascii=False)
+
+            if total_chars + len(chunk) > max_char_budget:
+                trimmed = True
+                break
+
+            compact.append(compact_entry)
+            total_chars += len(chunk)
+
+        if trimmed:
+            log.info(
+                "Compacted %s payload for LLM (rows≤%d, char budget=%d, final≈%d, items=%d)",
+                label,
+                max_rows,
+                max_char_budget,
+                total_chars,
+                len(compact),
+            )
+        return compact
+
     def _client_and_model(self) -> tuple[OpenAICompatibleClient, str]:
         if settings.llm_mode == "local":
             base_url = settings.vllm_base_url
@@ -279,7 +384,13 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        compact_evidence = self._compact_payload(
+            evidence,
+            max_rows=self._EVIDENCE_ROW_CAP,
+            max_char_budget=self._EVIDENCE_CHAR_BUDGET,
+            label="analyst-evidence",
+        )
+        user = json.dumps({"question": question, "evidence": compact_evidence}, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         resp = client.chat_completions(
@@ -303,10 +414,22 @@ class NL2SQLService:
         - Produces a concise French answer, no SQL in the output
         """
         client, model = self._client_and_model()
+        compact_evidence = self._compact_payload(
+            evidence,
+            max_rows=self._EVIDENCE_ROW_CAP,
+            max_char_budget=self._EVIDENCE_CHAR_BUDGET,
+            label="redaction-evidence",
+        )
+        compact_retrieval = self._compact_payload(
+            retrieval_context,
+            max_rows=self._RETRIEVAL_ROW_CAP,
+            max_char_budget=self._RETRIEVAL_CHAR_BUDGET,
+            label="redaction-retrieval",
+        )
         payload = {
             "question": question,
-            "evidence": evidence,
-            "retrieval": retrieval_context or [],
+            "evidence": compact_evidence,
+            "retrieval": compact_retrieval,
             "guidelines": [
                 "Base the answer primarily on SQL evidence (columns/rows).",
                 "Use retrieval rows to add color/examples; do not invent facts.",
@@ -428,11 +551,17 @@ class NL2SQLService:
             "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
             "Return only the SQL (optionally fenced). No explanation."
         )
+        compact_evidence = self._compact_payload(
+            evidence,
+            max_rows=self._EVIDENCE_ROW_CAP,
+            max_char_budget=self._EVIDENCE_CHAR_BUDGET,
+            label="analyst-sql-evidence",
+        )
         user = json.dumps(
             {
                 "question": question,
                 "tables": tables_desc,
-                "evidence": evidence,
+                "evidence": compact_evidence,
                 "rules": {
                     "schema_prefix": settings.nl2sql_db_prefix,
                 },
