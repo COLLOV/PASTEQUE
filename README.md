@@ -191,7 +191,6 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
   - Rédaction: interprète le résultat final et produit une réponse textuelle concise en français (prose directe, sans intitulés), en 1–2 paragraphes courts. Le premier intègre le constat avec des chiffres; le second (optionnel) conclut par une recommandation concrète si justifiée, sinon par une question claire. Aucun SQL, 3–6 phrases.
   - Récupérateur: calcule l’embedding de la question, interroge les tables vectorisées déclarées dans `data/mindsdb_embeddings.yaml`, puis transmet au rédacteur les `RAG_TOP_N` lignes les plus proches. La réponse inclut désormais un paragraphe final « Mise en avant : … » qui met en lumière ces exemples (et précise l’absence de correspondances le cas échéant).
   - Itération: si le résultat final est jugé insuffisant (moins de `NL2SQL_SATISFACTION_MIN_ROWS` lignes), une nouvelle ronde d’exploration est lancée, jusqu’à `NL2SQL_EXPLORE_ROUNDS`.
-  - Pour préserver la stabilité du backend LLM, les preuves SQL et les lignes RAG envoyées aux agents Analyste/Rédaction sont compactées (<=40 lignes par bloc, cellules tronquées ~160 caractères, budget global ~15k caractères). Les dépassements sont loggés côté backend pour faciliter l'observation.
 - Variables d’environnement:
   - `NL2SQL_MULTIAGENT_ENABLED=false` — active le mode par défaut.
   - `NL2SQL_EXPLORE_ROUNDS=1` — nombre de rondes d’exploration max.
