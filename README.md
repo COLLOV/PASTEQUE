@@ -198,6 +198,7 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
   - `RAG_TOP_N=3` — nombre de lignes similaires injectées dans le contexte du rédacteur (via MindsDB).
   - `RAG_TABLE_ROW_CAP=500` — limite de lignes chargées par table pour le calcul local de similarité.
   - `RAG_MAX_COLUMNS=6` — nombre maximal de colonnes retenues par ligne pour le prompt de rédaction.
+  - Les preuves envoyées aux agents Analyste/Rédacteur sont compactées (5 blocs maxi, 40 lignes par bloc) pour éviter que le backend LLM ne calcule des `max_tokens` négatifs lorsque les résultats sont volumineux.
 - LLM:
   - Mode local: `LLM_MODE=local` + `VLLM_BASE_URL` + `Z_LOCAL_MODEL`.
   - Mode API: `LLM_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
