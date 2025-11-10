@@ -149,7 +149,6 @@ data/
 - Supprimez `NL2SQL_MAX_ROWS` de vos fichiers `.env` existants: la variable est obsolète et n’est plus supportée.
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.
-- La sortie maximale des complétions LLM est plafonnée par `LLM_MAX_TOKENS` (1024 par défaut) pour garantir un cadre déterministe.
 - Le script `start.sh` pousse automatiquement `*.csv|*.tsv` du répertoire `DATA_TABLES_DIR` (par défaut `data/`) dans MindsDB à chaque démarrage : les logs `insight.services.mindsdb_sync` détaillent les fichiers envoyés.
 - Pour enrichir ces tables avec une colonne d'embeddings avant l'upload, définissez `MINDSDB_EMBEDDINGS_CONFIG_PATH` dans `backend/.env`. Ce chemin doit pointer vers un fichier YAML décrivant les colonnes à vectoriser :
 

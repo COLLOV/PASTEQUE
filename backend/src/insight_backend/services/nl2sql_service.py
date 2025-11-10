@@ -262,7 +262,6 @@ class NL2SQLService:
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
-            max_tokens=settings.llm_max_tokens,
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
@@ -287,7 +286,6 @@ class NL2SQLService:
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
-            max_tokens=settings.llm_max_tokens,
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
@@ -330,7 +328,6 @@ class NL2SQLService:
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
             temperature=0,
-            max_tokens=settings.llm_max_tokens,
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
@@ -377,7 +374,6 @@ class NL2SQLService:
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
-            max_tokens=settings.llm_max_tokens,
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         blob = text
@@ -449,7 +445,6 @@ class NL2SQLService:
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
-            max_tokens=settings.llm_max_tokens,
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
@@ -507,7 +502,6 @@ class NL2SQLService:
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
             temperature=0,
-            max_tokens=settings.llm_max_tokens,
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         blob = text
@@ -577,6 +571,5 @@ class NL2SQLService:
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
             temperature=0,
-            max_tokens=settings.llm_max_tokens,
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
