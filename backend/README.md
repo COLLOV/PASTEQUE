@@ -314,6 +314,10 @@ Le backend génère une requête `SELECT` ciblant uniquement `files.*`, exécute
 
 Un log côté backend (`insight.services.chat`) retrace chaque question NL→SQL et les requêtes SQL envoyées à MindsDB, tandis que `insight.services.mindsdb_sync` détaille les fichiers synchronisés.
 
+Depuis 2025‑11‑10:
+- La liste des tables/colonnes injectée dans les prompts NL→SQL est désormais plafonnée à ~8000 caractères pour tous les agents (`generate`, `generate_with_evidence`, `explore`, `propose_axes`). Ce plafonnement préserve les frontières de ligne et évite les erreurs 400 de backends OpenAI‑compatibles liées à un calcul de `max_tokens` négatif lorsque le prompt dépasse la fenêtre de contexte.
+- L’agent de génération de graphiques (MCP) force un `max_tokens` explicite via `pydantic-ai` (valeur: `RETRIEVAL_MAX_TOKENS`) afin d’éviter les erreurs `max_tokens must be at least 1` sur certains serveurs OpenAI‑compatibles.
+
 Notes PR #72 (comportements):
 - Si les plafonds d’agents `explorateur`/`analyste` ne permettent aucun tour d’exploration, le backend renvoie une réponse explicite sans lancer d’exploration.
 - Le nombre maximum d’étapes par tour d’exploration est borné par une constante interne (`NL2SQL_EXPLORE_MAX_STEPS`, valeur par défaut: 3).
@@ -323,6 +327,7 @@ Notes PR #72 (comportements):
  - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 2 blocs similaires: passage `/sql` et NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
  - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
  - 2025-10-31: Evidence panel — dérivation de la requête `SELECT *` désormais basée sur l'AST (sqlglot) au lieu de regex, en conservant `WHERE` et CTE, et en plafonnant avec `LIMIT`. Les opérations en ensemble (UNION/INTERSECT/EXCEPT) sont ignorées par sécurité. Tests: `uv run pytest` → 20 tests OK.
+ - 2025-11-10: NL→SQL — plafonnement générique de la liste des tables/colonnes à ~8000 caractères pour tous les agents NL→SQL afin d’éviter des prompts surdimensionnés. MCP Chart — ajout d’un `max_tokens` explicite pour les appels `pydantic-ai`.
 
  
 
