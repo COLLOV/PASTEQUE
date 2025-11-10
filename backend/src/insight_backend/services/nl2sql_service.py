@@ -11,6 +11,7 @@ import sqlglot
 from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..core.agent_limits import check_and_increment
+import logging
 from ..repositories.data_repository import DataRepository
 
 
@@ -69,6 +70,108 @@ def _rewrite_date_functions(sql: str) -> str:
     out = re.sub(r"(?is)\byear\s*\(\s*([^\)]+?)\s*\)", rep_year, sql)
     out = re.sub(r"(?is)\bmonth\s*\(\s*([^\)]+?)\s*\)", rep_month, out)
     return out
+
+
+def _sanitize_nullif_calls(sql: str) -> str:
+    """Ensure all NULLIF() calls have exactly two arguments.
+
+    Some backends only support NULLIF(expr1, expr2). When the LLM accidentally
+    generates more than two arguments (e.g., "NULLIF(col, 'None', 'None')"),
+    sqlglot parsing fails. This sanitizer rewrites any such occurrences to keep
+    only the first two arguments while preserving inner expressions and quotes.
+
+    The implementation scans for balanced parentheses and splits arguments at
+    top-level commas (ignoring nested constructs and quoted strings).
+    """
+    s = sql
+    out_parts: list[str] = []
+    i = 0
+    lower = s.lower()
+
+    while True:
+        j = lower.find("nullif(", i)
+        if j < 0:
+            out_parts.append(s[i:])
+            break
+        # Copy text up to the call
+        out_parts.append(s[i:j])
+        # Find matching closing parenthesis for this NULLIF(
+        k = j + len("nullif(")
+        depth = 1
+        in_single = False
+        in_double = False
+        esc = False
+        end = k
+        while end < len(s) and depth > 0:
+            ch = s[end]
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif not in_double and ch == "'":
+                in_single = not in_single
+            elif not in_single and ch == '"':
+                in_double = not in_double
+            elif not in_single and not in_double:
+                if ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+            end += 1
+        # If not properly closed, give up and copy the rest
+        if depth != 0:
+            out_parts.append(s[j:])
+            break
+        args_str = s[k:end - 1]
+        # Split args at top-level commas
+        args: list[str] = []
+        buf: list[str] = []
+        depth2 = 0
+        in_s = False
+        in_d = False
+        esc2 = False
+        for ch in args_str:
+            if esc2:
+                buf.append(ch)
+                esc2 = False
+                continue
+            if ch == "\\":
+                buf.append(ch)
+                esc2 = True
+                continue
+            if not in_d and ch == "'":
+                in_s = not in_s
+                buf.append(ch)
+                continue
+            if not in_s and ch == '"':
+                in_d = not in_d
+                buf.append(ch)
+                continue
+            if not in_s and not in_d:
+                if ch == "(":
+                    depth2 += 1
+                elif ch == ")":
+                    if depth2 > 0:
+                        depth2 -= 1
+                elif ch == "," and depth2 == 0:
+                    args.append("".join(buf).strip())
+                    buf = []
+                    continue
+            buf.append(ch)
+        if buf:
+            args.append("".join(buf).strip())
+
+        if len(args) > 2:
+            # Keep only the first two arguments; log once per occurrence
+            logging.getLogger("insight.services.nl2sql").info(
+                "Sanitized NULLIF with %d args → 2 args", len(args)
+            )
+            args = args[:2]
+
+        out_parts.append("NULLIF(" + ", ".join(args) + ")")
+        i = end
+
+    return "".join(out_parts)
 
 
 def _collect_cte_names(sql: str) -> set[str]:
@@ -265,7 +368,9 @@ class NL2SQLService:
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
+        sql = _sanitize_nullif_calls(sql)
         sql = _rewrite_date_functions(sql)
+        sql = _sanitize_nullif_calls(sql)
         if not _is_select_only(sql):
             raise RuntimeError("Generated SQL is invalid or not SELECT-only")
         _ensure_required_prefix(sql)
@@ -394,9 +499,11 @@ class NL2SQLService:
         for q in queries[:max_steps]:
             purpose = str(q.get("purpose", "")).strip()
             sql = _extract_sql(str(q.get("sql", "")))
+            sql = _sanitize_nullif_calls(sql)
             if not purpose or not sql:
                 continue
             sql = _rewrite_date_functions(sql)
+            sql = _sanitize_nullif_calls(sql)
             if not _is_select_only(sql):
                 raise RuntimeError("Une requête exploratoire n'est pas un SELECT")
             _ensure_required_prefix(sql)
@@ -448,7 +555,9 @@ class NL2SQLService:
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
+        sql = _sanitize_nullif_calls(sql)
         sql = _rewrite_date_functions(sql)
+        sql = _sanitize_nullif_calls(sql)
         if not _is_select_only(sql):
             raise RuntimeError("La requête finale générée n'est pas un SELECT")
         _ensure_required_prefix(sql)
