@@ -28,6 +28,7 @@ export interface Message {
     plan?: any
     steps?: Array<{ step?: number; purpose?: string; sql?: string }>
     samples?: Array<{ step?: number; columns?: string[]; row_count?: number }>
+    retrieval?: RetrievalDetails
   }
 }
 
@@ -55,7 +56,7 @@ export interface ChatCompletionResponse {
 
 // Streaming event shapes
 export interface ChatStreamMeta {
-  request_id: string
+  request_id?: string
   provider?: string
   model?: string
   // Optional evidence spec provided by the pipeline (MCP/LLM)
@@ -64,6 +65,7 @@ export interface ChatStreamMeta {
   conversation_id?: number
   // Tables effectivement actives côté serveur pour NL→SQL
   effective_tables?: string[]
+  retrieval?: RetrievalDetails
 }
 
 export interface ChatStreamDelta {
@@ -140,4 +142,17 @@ export interface EvidenceRowsPayload {
   row_count?: number
   step?: number
   purpose?: string // expected: 'evidence'
+}
+
+export interface RetrievalRow {
+  table?: string
+  score?: number
+  focus?: string
+  source_column?: string
+  values?: Record<string, unknown>
+}
+
+export interface RetrievalDetails {
+  rows: RetrievalRow[]
+  round?: number
 }
