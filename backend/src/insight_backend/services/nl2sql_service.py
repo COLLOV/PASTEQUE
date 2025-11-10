@@ -11,7 +11,6 @@ import sqlglot
 from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..core.agent_limits import check_and_increment
-import logging
 from ..repositories.data_repository import DataRepository
 
 
@@ -61,117 +60,24 @@ def _rewrite_date_functions(sql: str) -> str:
     """Rewrite YEAR(col) / MONTH(col) into DuckDB-safe EXTRACT with CAST to DATE."""
     def rep_year(m: re.Match[str]) -> str:
         expr = m.group(1).strip()
-        return f"EXTRACT(YEAR FROM CAST(NULLIF({expr}, 'None') AS DATE))"
+        # Avoid NULLIF; use explicit CASE to handle 'None' or empty strings
+        return (
+            "EXTRACT(YEAR FROM CAST("
+            f"CASE WHEN {expr} IS NULL OR {expr} IN ('None','') THEN NULL ELSE {expr} END"
+            " AS DATE))"
+        )
 
     def rep_month(m: re.Match[str]) -> str:
         expr = m.group(1).strip()
-        return f"EXTRACT(MONTH FROM CAST(NULLIF({expr}, 'None') AS DATE))"
+        return (
+            "EXTRACT(MONTH FROM CAST("
+            f"CASE WHEN {expr} IS NULL OR {expr} IN ('None','') THEN NULL ELSE {expr} END"
+            " AS DATE))"
+        )
 
     out = re.sub(r"(?is)\byear\s*\(\s*([^\)]+?)\s*\)", rep_year, sql)
     out = re.sub(r"(?is)\bmonth\s*\(\s*([^\)]+?)\s*\)", rep_month, out)
     return out
-
-
-def _sanitize_nullif_calls(sql: str) -> str:
-    """Ensure all NULLIF() calls have exactly two arguments.
-
-    Some backends only support NULLIF(expr1, expr2). When the LLM accidentally
-    generates more than two arguments (e.g., "NULLIF(col, 'None', 'None')"),
-    sqlglot parsing fails. This sanitizer rewrites any such occurrences to keep
-    only the first two arguments while preserving inner expressions and quotes.
-
-    The implementation scans for balanced parentheses and splits arguments at
-    top-level commas (ignoring nested constructs and quoted strings).
-    """
-    s = sql
-    out_parts: list[str] = []
-    i = 0
-    lower = s.lower()
-
-    while True:
-        j = lower.find("nullif(", i)
-        if j < 0:
-            out_parts.append(s[i:])
-            break
-        # Copy text up to the call
-        out_parts.append(s[i:j])
-        # Find matching closing parenthesis for this NULLIF(
-        k = j + len("nullif(")
-        depth = 1
-        in_single = False
-        in_double = False
-        esc = False
-        end = k
-        while end < len(s) and depth > 0:
-            ch = s[end]
-            if esc:
-                esc = False
-            elif ch == "\\":
-                esc = True
-            elif not in_double and ch == "'":
-                in_single = not in_single
-            elif not in_single and ch == '"':
-                in_double = not in_double
-            elif not in_single and not in_double:
-                if ch == "(":
-                    depth += 1
-                elif ch == ")":
-                    depth -= 1
-            end += 1
-        # If not properly closed, give up and copy the rest
-        if depth != 0:
-            out_parts.append(s[j:])
-            break
-        args_str = s[k:end - 1]
-        # Split args at top-level commas
-        args: list[str] = []
-        buf: list[str] = []
-        depth2 = 0
-        in_s = False
-        in_d = False
-        esc2 = False
-        for ch in args_str:
-            if esc2:
-                buf.append(ch)
-                esc2 = False
-                continue
-            if ch == "\\":
-                buf.append(ch)
-                esc2 = True
-                continue
-            if not in_d and ch == "'":
-                in_s = not in_s
-                buf.append(ch)
-                continue
-            if not in_s and ch == '"':
-                in_d = not in_d
-                buf.append(ch)
-                continue
-            if not in_s and not in_d:
-                if ch == "(":
-                    depth2 += 1
-                elif ch == ")":
-                    if depth2 > 0:
-                        depth2 -= 1
-                elif ch == "," and depth2 == 0:
-                    args.append("".join(buf).strip())
-                    buf = []
-                    continue
-            buf.append(ch)
-        if buf:
-            args.append("".join(buf).strip())
-
-        if len(args) > 2:
-            # Keep only the first two arguments; log once per occurrence
-            logging.getLogger("insight.services.nl2sql").info(
-                "Sanitized NULLIF with %d args → 2 args", len(args)
-            )
-            args = args[:2]
-
-        out_parts.append("NULLIF(" + ", ".join(args) + ")")
-        i = end
-
-    return "".join(out_parts)
 
 
 def _collect_cte_names(sql: str) -> set[str]:
@@ -345,7 +251,8 @@ class NL2SQLService:
             f"Use only the tables listed below under the '{settings.nl2sql_db_prefix}.' schema.\n"
             "Return exactly ONE SELECT query. No comments. No explanations.\n"
             "Rules: SELECT-only; never modify data. Date-like columns are TEXT in 'YYYY-MM-DD'.\n"
-            "Always CAST(NULLIF(date_col,'None') AS DATE) before date filters and use EXTRACT(YEAR|MONTH FROM ...).\n"
+            "For date parts, use EXTRACT(YEAR|MONTH FROM CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)).\n"
+            "Never use NULLIF with more than 2 arguments. Prefer the CASE…END form above over NULLIF.\n"
             f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
             "After introducing an alias, reuse it everywhere (SELECT, WHERE, subqueries) instead of the raw table name.\n"
             "Never invent table or column names: use them exactly as provided (e.g. if only 'tickets_jira' exists, do NOT use 'tickets')."
@@ -368,9 +275,7 @@ class NL2SQLService:
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
-        sql = _sanitize_nullif_calls(sql)
         sql = _rewrite_date_functions(sql)
-        sql = _sanitize_nullif_calls(sql)
         if not _is_select_only(sql):
             raise RuntimeError("Generated SQL is invalid or not SELECT-only")
         _ensure_required_prefix(sql)
@@ -464,6 +369,8 @@ class NL2SQLService:
             "or numbers, COUNTs by key categories, and a few sample rows (LIMIT ≤ 20).\n"
             f"Use only the '{settings.nl2sql_db_prefix}.' schema and always add an alias after each table.\n"
             "All queries must be SELECT‑only, safe to execute, and return quickly.\n"
+            "For date parts, use EXTRACT(YEAR|MONTH FROM CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)).\n"
+            "Never use NULLIF with more than 2 arguments; prefer the CASE…END form above.\n"
             "Return JSON only: {\"queries\":[{\"purpose\":str,\"sql\":str}, ...]}. No prose."
         )
         obs_section = (f"\nObservations to consider:\n{observations}\n" if observations else "")
@@ -499,11 +406,9 @@ class NL2SQLService:
         for q in queries[:max_steps]:
             purpose = str(q.get("purpose", "")).strip()
             sql = _extract_sql(str(q.get("sql", "")))
-            sql = _sanitize_nullif_calls(sql)
             if not purpose or not sql:
                 continue
             sql = _rewrite_date_functions(sql)
-            sql = _sanitize_nullif_calls(sql)
             if not _is_select_only(sql):
                 raise RuntimeError("Une requête exploratoire n'est pas un SELECT")
             _ensure_required_prefix(sql)
@@ -532,7 +437,8 @@ class NL2SQLService:
             "You are an analyst agent. Given a natural language question and the results of prior\n"
             "exploratory queries, write ONE SQL SELECT that directly answers the question.\n"
             "Dialect: MindsDB (MySQL-like). Rules: SELECT-only; prefix tables with the allowed schema;\n"
-            "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
+            "For date parts, use EXTRACT(YEAR|MONTH FROM CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)).\n"
+            "Never use NULLIF with more than 2 arguments; prefer the CASE…END form above.\n"
             "Return only the SQL (optionally fenced). No explanation."
         )
         user = json.dumps(
@@ -555,9 +461,7 @@ class NL2SQLService:
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
-        sql = _sanitize_nullif_calls(sql)
         sql = _rewrite_date_functions(sql)
-        sql = _sanitize_nullif_calls(sql)
         if not _is_select_only(sql):
             raise RuntimeError("La requête finale générée n'est pas un SELECT")
         _ensure_required_prefix(sql)
