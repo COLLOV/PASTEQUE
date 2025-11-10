@@ -5,6 +5,7 @@ import logging
 
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..core.agent_limits import check_and_increment
+from ..core.config import settings
 from ..integrations.openai_client import OpenAICompatibleClient
 
 
@@ -25,7 +26,11 @@ class OpenAIChatEngine:
         messages = [m.model_dump() for m in payload.messages]
         # Enforce per-agent cap (chat)
         check_and_increment("chat")
-        data: dict[str, Any] = self.client.chat_completions(model=self.model, messages=messages)
+        data: dict[str, Any] = self.client.chat_completions(
+            model=self.model,
+            messages=messages,
+            max_tokens=settings.llm_max_tokens,
+        )
         # OpenAI-compatible: choices[0].message.content
         try:
             reply = data["choices"][0]["message"]["content"]
@@ -42,7 +47,11 @@ class OpenAIChatEngine:
         - optional meta/done assembled by the caller
         """
         messages = [m.model_dump() for m in payload.messages]
-        for chunk in self.client.stream_chat_completions(model=self.model, messages=messages):
+        for chunk in self.client.stream_chat_completions(
+            model=self.model,
+            messages=messages,
+            max_tokens=settings.llm_max_tokens,
+        ):
             try:
                 c = chunk["choices"][0]
                 delta = c.get("delta") or {}

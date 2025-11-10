@@ -134,6 +134,8 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
   - `LLM_MODEL=GLM-4.5-Air`
   - Voir quick start: https://docs.z.ai/guides/overview/quick-start
 
+Quel que soit le mode, `LLM_MAX_TOKENS=1024` (défaut) limite la sortie de chaque complétion pour garder un budget prévisible.
+
 Appel:
 
 ```bash
