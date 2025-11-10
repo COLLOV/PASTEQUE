@@ -233,6 +233,32 @@ class NL2SQLService:
             str(model),
         )
 
+    def _build_tables_blob(self, schema: Dict[str, List[str]], *, max_chars: int = 8000) -> str:
+        """Return a table description blob limited to ``max_chars`` characters.
+
+        Preserves line boundaries so we don't truncate in the middle of a table/column name.
+        """
+        lines: List[str] = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            lines.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        blob = "\n".join(lines)
+        if len(blob) <= max_chars:
+            return blob
+        trimmed: list[str] = []
+        length = 0
+        for line in lines:
+            if length + len(line) > max_chars:
+                break
+            trimmed.append(line)
+            length += len(line) + 1
+        log.info(
+            "Tables blob truncated for NL2SQL prompt (limit=%d, kept_lines=%d)",
+            max_chars,
+            len(trimmed),
+        )
+        return "\n".join(trimmed) + "\n…"
+
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
         # Input validation (defensive)
         if not isinstance(question, str) or not question.strip():
@@ -240,22 +266,7 @@ class NL2SQLService:
         if not isinstance(schema, dict) or not schema:
             raise RuntimeError("Aucun schéma disponible pour générer le SQL.")
         client, model = self._client_and_model()
-        tables_desc = []
-        for t, cols in schema.items():
-            col_list = ", ".join(cols)
-            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
-        tables_blob = "\n".join(tables_desc)
-        # Cap prompt size to avoid runaway contexts (truncate at line boundaries)
-        if len(tables_blob) > 8000:
-            lines = tables_blob.split("\n")
-            truncated: list[str] = []
-            length = 0
-            for line in lines:
-                if length + len(line) > 8000:
-                    break
-                truncated.append(line)
-                length += len(line) + 1
-            tables_blob = "\n".join(truncated) + "\n…"
+        tables_blob = self._build_tables_blob(schema)
         # Hints for date-like columns
         date_hints: Dict[str, List[str]] = {}
         for t, cols in schema.items():
@@ -377,11 +388,7 @@ class NL2SQLService:
         Returns a list of {"purpose", "sql"}.
         """
         client, model = self._client_and_model()
-        tables_desc = []
-        for t, cols in schema.items():
-            col_list = ", ".join(cols)
-            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
-        tables_blob = "\n".join(tables_desc)
+        tables_blob = self._build_tables_blob(schema)
 
         system = (
             "You are a data explorer agent. Propose up to N short SELECT queries that help\n"
@@ -447,10 +454,7 @@ class NL2SQLService:
         The model must return only one SELECT that answers the question precisely.
         """
         client, model = self._client_and_model()
-        tables_desc = []
-        for t, cols in schema.items():
-            col_list = ", ".join(cols)
-            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        tables_blob = self._build_tables_blob(schema)
         system = (
             "You are an analyst agent. Given a natural language question and the results of prior\n"
             "exploratory queries, write ONE SQL SELECT that directly answers the question.\n"
@@ -461,7 +465,7 @@ class NL2SQLService:
         user = json.dumps(
             {
                 "question": question,
-                "tables": tables_desc,
+                "tables": tables_blob.split("\n"),
                 "evidence": self._limit_evidence_rows(evidence),
                 "rules": {
                     "schema_prefix": settings.nl2sql_db_prefix,
@@ -497,13 +501,10 @@ class NL2SQLService:
         Returns a list of objects with keys: x, y (optional), agg (optional), chart (bar|line|pie|table), reason.
         """
         client, model = self._client_and_model()
-        tables_desc = []
-        for t, cols in schema.items():
-            col_list = ", ".join(cols)
-            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        tables_blob = self._build_tables_blob(schema)
         payload = {
             "question": question,
-            "tables": tables_desc,
+            "tables": tables_blob.split("\n"),
             "evidence_preview": (
                 [
                     {
