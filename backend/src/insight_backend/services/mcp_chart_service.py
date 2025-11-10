@@ -328,7 +328,13 @@ class ChartGenerationService:
             async with agent:
                 # Enforce per-agent cap (mcp_chart)
                 check_and_increment("mcp_chart")
-                result = await agent.run(prompt, deps=deps)
+                # Force an explicit generation cap to avoid backend-specific
+                # negative max_tokens computations when prompts are large.
+                result = await agent.run(
+                    prompt,
+                    deps=deps,
+                    model_settings={"max_tokens": int(settings.retrieval_max_tokens)},
+                )
         except UnexpectedModelBehavior as exc:
             log.exception("Réponse LLM incompatible pour la génération de graphiques")
             raise ChartGenerationError(f"Réponse LLM incompatible: {exc}") from exc
