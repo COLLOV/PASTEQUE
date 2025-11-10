@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import logging
 import re
 from pathlib import Path
 from typing import Dict, List
@@ -13,9 +12,6 @@ from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..core.agent_limits import check_and_increment
 from ..repositories.data_repository import DataRepository
-
-
-log = logging.getLogger("insight.services.nl2sql")
 
 
 def _extract_sql(text: str) -> str:
@@ -189,28 +185,6 @@ class NL2SQLService:
     Strict rules: SELECT-only and target DB prefix (e.g., files.).
     """
 
-    def _limit_evidence_rows(self, items: List[Dict[str, object]] | None) -> List[Dict[str, object]]:
-        cap = settings.evidence_limit_default
-        if not items:
-            return []
-        if cap <= 0:
-            return items
-        trimmed = False
-        limited: List[Dict[str, object]] = []
-        for entry in items:
-            if isinstance(entry, dict):
-                rows = entry.get("rows")
-                if isinstance(rows, list) and len(rows) > cap:
-                    new_entry = dict(entry)
-                    new_entry["rows"] = rows[:cap]
-                    limited.append(new_entry)
-                    trimmed = True
-                    continue
-            limited.append(entry)
-        if trimmed:
-            log.info("Truncated evidence rows for LLM prompt (limit=%d)", cap)
-        return limited
-
     def _client_and_model(self) -> tuple[OpenAICompatibleClient, str]:
         if settings.llm_mode == "local":
             base_url = settings.vllm_base_url
@@ -305,11 +279,7 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        payload = {
-            "question": question,
-            "evidence": self._limit_evidence_rows(evidence),
-        }
-        user = json.dumps(payload, ensure_ascii=False)
+        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         resp = client.chat_completions(
@@ -335,7 +305,7 @@ class NL2SQLService:
         client, model = self._client_and_model()
         payload = {
             "question": question,
-            "evidence": self._limit_evidence_rows(evidence),
+            "evidence": evidence,
             "retrieval": retrieval_context or [],
             "guidelines": [
                 "Base the answer primarily on SQL evidence (columns/rows).",
@@ -462,7 +432,7 @@ class NL2SQLService:
             {
                 "question": question,
                 "tables": tables_desc,
-                "evidence": self._limit_evidence_rows(evidence),
+                "evidence": evidence,
                 "rules": {
                     "schema_prefix": settings.nl2sql_db_prefix,
                 },
