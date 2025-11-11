@@ -34,7 +34,21 @@ class OpenAICompatibleClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         payload: Dict[str, Any] = {"model": model, "messages": messages}
         payload.update(params)
-        log.debug("POST %s model=%s", url, model)
+        # Defensive clamp: ensure max_tokens is a positive int when provided
+        mt = payload.get("max_tokens")
+        if mt is not None:
+            try:
+                payload["max_tokens"] = max(1, int(mt))
+            except Exception:
+                # Remove invalid value to let backend default rather than crash
+                payload.pop("max_tokens", None)
+        log.debug(
+            "POST %s model=%s keys=%s max_tokens=%s",
+            url,
+            model,
+            sorted(list(payload.keys())),
+            payload.get("max_tokens"),
+        )
         try:
             resp = self.client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
