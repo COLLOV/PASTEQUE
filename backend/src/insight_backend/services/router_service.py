@@ -140,7 +140,12 @@ class RouterService:
         # Enforce per-agent cap (router)
         check_and_increment("router")
         client = OpenAICompatibleClient(base_url=base_url, api_key=api_key, timeout_s=settings.openai_timeout_s)
-        data = client.chat_completions(model=model, messages=messages, temperature=0)
+        data = client.chat_completions(
+            model=model,
+            messages=messages,
+            temperature=0,
+            max_tokens=settings.llm_max_tokens,
+        )
         raw = ""
         try:
             raw = data["choices"][0]["message"]["content"]

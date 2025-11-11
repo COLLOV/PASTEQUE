@@ -134,6 +134,8 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
   - `LLM_MODEL=GLM-4.5-Air`
   - Voir quick start: https://docs.z.ai/guides/overview/quick-start
 
+Quel que soit le mode, `LLM_MAX_TOKENS` (défaut 1024) borne explicitement les réponses des appels `chat_completions` (explorateur, analyste, rédaction, router, chat). Cela évite les erreurs `max_tokens` négatives lorsque les prompts deviennent volumineux.
+
 Appel:
 
 ```bash

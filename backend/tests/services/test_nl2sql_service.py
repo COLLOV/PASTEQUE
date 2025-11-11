@@ -8,7 +8,14 @@ class _StubLLMClient:
     def __init__(self) -> None:
         self.last_messages = None
 
-    def chat_completions(self, *, model: str, messages: list[dict[str, str]], temperature: int = 0) -> dict[str, object]:
+    def chat_completions(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, str]],
+        temperature: int = 0,
+        **params: object,
+    ) -> dict[str, object]:
         self.last_messages = messages
         return {"choices": [{"message": {"content": "stub response"}}]}
 
