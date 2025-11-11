@@ -189,6 +189,7 @@ class ChartAgentDeps:
     dataset: ChartDataset
     answer: str | None = None
     max_rows: int = 400
+    max_columns: int = 12
 
     def trimmed_rows(self, limit: int | None = None) -> List[Dict[str, Any]]:
         cap = self.max_rows if limit is None else min(limit, self.max_rows)
@@ -197,9 +198,23 @@ class ChartAgentDeps:
     def payload(self, limit: int | None = None) -> Dict[str, Any]:
         rows = self.trimmed_rows(limit)
         total = self.dataset.row_count if self.dataset.row_count is not None else len(self.dataset.rows)
+        col_cap = max(1, self.max_columns)
+        cols = list(self.dataset.columns or [])
+        used_cols = cols[:col_cap] if cols else []
+        if used_cols and cols and len(used_cols) < len(cols):
+            # Reduce row payloads to selected columns to keep token usage bounded
+            trimmed: list[dict[str, Any] | list[Any] | Any] = []
+            for r in rows:
+                if isinstance(r, dict):
+                    trimmed.append({k: r.get(k) for k in used_cols})
+                elif isinstance(r, (list, tuple)):
+                    trimmed.append(list(r)[: len(used_cols)])
+                else:
+                    trimmed.append(r)
+            rows = trimmed
         return {
             "sql": self.dataset.sql,
-            "columns": self.dataset.columns,
+            "columns": used_cols or self.dataset.columns,
             "rows": rows,
             "row_count": total,
             "step": self.dataset.step,
@@ -252,7 +267,7 @@ class LenientOpenAIChatModel(OpenAIChatModel):
 class ChartGenerationService:
     """Generates charts dynamically through the MCP chart server."""
 
-    _DEFAULT_MAX_ROWS = 400
+    _DEFAULT_MAX_ROWS = 150
 
     def __init__(self) -> None:
         self._chart_spec = self._resolve_chart_spec()
@@ -322,6 +337,7 @@ class ChartGenerationService:
             dataset=normalized_dataset,
             answer=answer,
             max_rows=self._DEFAULT_MAX_ROWS,
+            max_columns=settings.rag_max_columns,
         )
 
         try:

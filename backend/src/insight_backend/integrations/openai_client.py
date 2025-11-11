@@ -135,7 +135,20 @@ class OpenAICompatibleClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         payload: Dict[str, Any] = {"model": model, "messages": messages, "stream": True}
         payload.update(params)
-        log.debug("STREAM %s model=%s", url, model)
+        # Defensive clamp mirroring chat_completions: ensure max_tokens is a positive int when provided
+        mt = payload.get("max_tokens")
+        if mt is not None:
+            try:
+                payload["max_tokens"] = max(1, int(mt))
+            except Exception:
+                payload.pop("max_tokens", None)
+        log.debug(
+            "STREAM %s model=%s keys=%s max_tokens=%s",
+            url,
+            model,
+            sorted(list(payload.keys())),
+            payload.get("max_tokens"),
+        )
         try:
             with self.client.stream("POST", url, headers=headers, json=payload) as resp:
                 resp.raise_for_status()

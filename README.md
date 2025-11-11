@@ -59,6 +59,22 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+#### Volumétrie importante (grandes tables) en mode local
+
+- Symptôme possible côté vLLM (local): erreur 400 « max_tokens must be at least 1, got -XXXX » lorsque le prompt (schéma + evidence) est très volumineux.
+- Mesures côté backend pour limiter la taille des prompts:
+  - Limitation stricte des `max_tokens` y compris en streaming.
+  - Troncature des « evidence » : au plus `EVIDENCE_LIMIT_DEFAULT` lignes et au plus `RAG_MAX_COLUMNS` colonnes (les valeurs sont configurables via `.env`).
+  - Troncature du dictionnaire de données injecté à `DATA_DICTIONARY_MAX_CHARS`.
+- Recommandations si vous rencontrez l’erreur sur des gros jeux de données:
+  - Ajustez ces variables dans `backend/.env`:
+    - `RETRIEVAL_MAX_TOKENS=200`
+    - `EVIDENCE_LIMIT_DEFAULT=50`
+    - `RAG_MAX_COLUMNS=6`
+    - `DATA_DICTIONARY_MAX_CHARS=4000`
+  - Passez temporairement `LOG_LEVEL=DEBUG` pour vérifier les logs « Truncated evidence rows/columns » et « Tables blob truncated ».
+  - Vérifiez que `VLLM_BASE_URL` pointe bien vers l’endpoint OpenAI‑compatible local (par défaut `http://localhost:8000/v1`).
+
 #### Métadonnées de requête (API)
 
 - `metadata.exclude_tables: string[]` — liste de tables à exclure pour la conversation en cours. Validée côté serveur (normalisation, limite de taille, filtrage sur tables connues/permises).

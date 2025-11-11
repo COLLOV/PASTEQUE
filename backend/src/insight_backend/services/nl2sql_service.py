@@ -237,29 +237,63 @@ class NL2SQLService:
         return "\n".join(trimmed) + "\n…"
 
     def _limit_evidence_rows(self, items: List[Dict[str, object]] | None) -> List[Dict[str, object]]:
-        """Limit the number of rows per evidence entry to the configured cap.
+        """Limit the volume of evidence included in prompts.
 
-        Keeps the rest of the structure intact; logs when truncation occurs.
+        - Caps rows per entry to EVIDENCE_LIMIT_DEFAULT
+        - Caps visible columns per entry to RAG_MAX_COLUMNS and trims row payloads accordingly
         """
-        cap = settings.evidence_limit_default
+        row_cap = max(0, settings.evidence_limit_default)
+        col_cap = max(1, settings.rag_max_columns)
         if not items:
             return []
-        if cap <= 0:
-            return items
-        trimmed = False
+
+        trimmed_rows = False
+        trimmed_cols = False
         limited: List[Dict[str, object]] = []
+
         for entry in items:
-            if isinstance(entry, dict):
-                rows = entry.get("rows")
-                if isinstance(rows, list) and len(rows) > cap:
-                    new_entry = dict(entry)
-                    new_entry["rows"] = rows[:cap]
-                    limited.append(new_entry)
-                    trimmed = True
-                    continue
-            limited.append(entry)
-        if trimmed:
-            log.info("Truncated evidence rows for LLM prompt (limit=%d)", cap)
+            if not isinstance(entry, dict):
+                limited.append(entry)
+                continue
+
+            cols = entry.get("columns")
+            rows = entry.get("rows")
+
+            sel_cols: List[str] | None = None
+            if isinstance(cols, list) and cols:
+                sel_cols = [str(c) for c in cols][:col_cap]
+                if len(cols) > len(sel_cols):
+                    trimmed_cols = True
+
+            # Trim rows count first
+            new_rows = rows
+            if isinstance(rows, list) and row_cap > 0 and len(rows) > row_cap:
+                new_rows = rows[:row_cap]
+                trimmed_rows = True
+
+            # Then trim row payloads to selected columns when available
+            if sel_cols is not None and isinstance(new_rows, list):
+                trimmed_list: List[object] = []
+                for r in new_rows:
+                    if isinstance(r, dict):
+                        trimmed_list.append({k: r.get(k) for k in sel_cols})
+                    elif isinstance(r, (list, tuple)):
+                        trimmed_list.append(list(r)[: len(sel_cols)])
+                    else:
+                        trimmed_list.append(r)
+                new_rows = trimmed_list
+
+            new_entry = dict(entry)
+            if sel_cols is not None:
+                new_entry["columns"] = sel_cols
+            if isinstance(new_rows, list):
+                new_entry["rows"] = new_rows
+            limited.append(new_entry)
+
+        if trimmed_rows:
+            log.info("Truncated evidence rows for LLM prompt (limit=%d)", row_cap)
+        if trimmed_cols:
+            log.info("Truncated evidence columns for LLM prompt (limit=%d)", col_cap)
         return limited
 
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
@@ -526,7 +560,8 @@ class NL2SQLService:
             "You are a visualization assistant. Propose up to N concise axis suggestions\n"
             "for charts that would best communicate the answer to the question, based on the columns\n"
             "available and any exploratory findings. Prefer simple bar/line charts; fall back to 'table' when unclear.\n"
-            "Return ONLY JSON: {\"axes\":[{\"x\":str,\"y\":str?,\"agg\":str?,\"chart\":str,\"reason\":str}...]}."
+            "Output strict, valid JSON only (no code fences, no comments, no trailing commas).\n"
+            "Return EXACTLY: {\"axes\":[{\"x\":string,\"y\":string?,\"agg\":string?,\"chart\":string,\"reason\":string}...]}."
         )
         # Enforce per-agent cap (axes)
         check_and_increment("axes")
@@ -540,16 +575,13 @@ class NL2SQLService:
             max_tokens=int(settings.retrieval_max_tokens),
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        blob = text
-        if "```" in text:
-            parts = text.split("```")
-            if len(parts) >= 2:
-                blob = parts[1]
-                if blob.lower().startswith("json\n"):
-                    blob = blob.split("\n", 1)[-1]
+        blob = _extract_json_blob(text)
         try:
             data = json.loads(blob)
         except Exception as e:
+            # Provide a concise preview to aid debugging without flooding logs
+            preview = (blob or "").strip().replace("\n", " ")[:200]
+            log.warning("Axes JSON parse failed: %s | preview=\"%s\"", e, preview)
             raise RuntimeError(f"Axes JSON invalide: {e}")
         axes = data.get("axes") if isinstance(data, dict) else None
         if not isinstance(axes, list) or not axes:
