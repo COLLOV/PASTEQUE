@@ -34,7 +34,7 @@ Backend (depuis `backend/`):
 1. Installer `uv` si nécessaire: voir https://docs.astral.sh/uv
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
-4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (`BACKEND_DEV_URL` pour l’hôte/port d’écoute du backend, PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, `CONTAINER_RUNTIME` = `docker` ou `podman` pour le lancement de MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence. Activez `DETAILED_AGENT_LOGS=true` uniquement si vous souhaitez des traces détaillées (agent, requête, résultat) dans les logs backend pour diagnostiquer les appels multi‑agents.
+4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (`BACKEND_DEV_URL` pour l’hôte/port d’écoute du backend, PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, `CONTAINER_RUNTIME` = `docker` ou `podman` pour le lancement de MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence. Activez `DETAILED_AGENT_LOGS=true` uniquement si vous souhaitez des traces détaillées (agent, requête, résultat) dans les logs backend pour diagnostiquer les appels multi‑agents. Le niveau global suit maintenant `LOG_LEVEL` (défini dans `backend/.env`) dès le lancement de `./start.sh`.
 
 Frontend (depuis `frontend/`):
 

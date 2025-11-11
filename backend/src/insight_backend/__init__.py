@@ -1,5 +1,5 @@
-"""insight_backend package: API, services, schemas.
+"""insight_backend package: API, services, schemas."""
 
-Ce package ne contient que le squelette du serveur.
-"""
+from .core.logging import configure_logging
 
+configure_logging()

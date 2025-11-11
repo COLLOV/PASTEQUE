@@ -1,18 +1,22 @@
 import logging
-import os
+from typing import Optional, Tuple
 
 
-def configure_logging(level: str = "INFO") -> None:
+def _resolve_level(level: Optional[str]) -> Tuple[str, int]:
+    if not level:
+        from .config import settings  # Lazy import to avoid circular deps at module load time
+
+        level = settings.log_level
+    normalized = (level or "INFO").upper()
+    return normalized, getattr(logging, normalized, logging.INFO)
+
+
+def configure_logging(level: Optional[str] = None) -> None:
     if logging.getLogger().handlers:
-        return  # already configured
+        return
+    normalized, resolved_level = _resolve_level(level)
     logging.basicConfig(
-        level=getattr(logging, level.upper(), logging.INFO),
+        level=resolved_level,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
-    # Example minimal log to confirm boot
-    logging.getLogger("insight").info("Logging configured: level=%s", level)
-
-
-if os.getenv("ENV", "development") == "development":
-    configure_logging()
-
+    logging.getLogger("insight").info("Logging configured: level=%s", normalized)
