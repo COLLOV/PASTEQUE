@@ -94,6 +94,8 @@ class Settings(BaseSettings):
 
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
+    agent_output_max_rows: int = Field(200, alias="AGENT_OUTPUT_MAX_ROWS")
+    agent_output_max_columns: int = Field(20, alias="AGENT_OUTPUT_MAX_COLUMNS")
 
     # Exclusions / validation caps
     max_excluded_tables: int = Field(1000, alias="MAX_EXCLUDED_TABLES")
@@ -134,6 +136,13 @@ class Settings(BaseSettings):
     def _validate_llm_max_tokens(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("LLM_MAX_TOKENS must be > 0")
+        return int(v)
+
+    @field_validator("agent_output_max_rows", "agent_output_max_columns")
+    @classmethod
+    def _validate_agent_output_caps(cls, v: int, info: ValidationInfo) -> int:
+        if v <= 0:
+            raise ValueError(f"{info.field_name.upper()} must be > 0")
         return int(v)
 
     # Database

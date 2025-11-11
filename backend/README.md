@@ -109,6 +109,7 @@ Corrigez ces variables dans `backend/.env` (ou vos secrets d’exécution) avant
   - Aucune opération DML/DDL (INSERT/UPDATE/DELETE/ALTER/DROP/CREATE),
   - Toutes les tables doivent respecter le préfixe configuré par `NL2SQL_DB_PREFIX` (par défaut: `files`),
   - Ajout automatique d’un `LIMIT` si absent (valeur: `EVIDENCE_LIMIT_DEFAULT`, 100 par défaut).
+- Les agents NL→SQL (exploration, analyste, rédaction) n’exposent jamais plus de `AGENT_OUTPUT_MAX_ROWS` lignes (défaut 200) ni plus de `AGENT_OUTPUT_MAX_COLUMNS` colonnes (défaut 20) dans les événements SSE `rows` / `meta`. Les colonnes excédentaires sont tronquées avant envoi pour éviter des payloads volumineux.
 - Les titres de conversations sont assainis côté API (suppression caractères de contrôle, crochets d’angle, normalisation d’espace, longueur ≤ 120).
 - Les écritures (création de conversation, messages, événements) sont encapsulées dans des transactions SQLAlchemy pour éviter les incohérences en cas d’erreur.
 - Des index composites sont créés automatiquement pour accélérer l’accès à l’historique: `(conversation_id, created_at)` sur `conversation_messages` et `conversation_events`.
