@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterator
 import logging
 
 from ..schemas.chat import ChatRequest, ChatResponse
-from ..core.agent_limits import check_and_increment
+from ..core.agent_limits import check_and_increment, log_agent_event
 from ..integrations.openai_client import OpenAICompatibleClient
 
 
@@ -32,6 +32,7 @@ class OpenAIChatEngine:
         except Exception as e:  # pragma: no cover - defensive; we want a clear error
             log.error("Invalid response from OpenAI-compatible backend: %s", e)
             raise
+        log_agent_event("chat", request={"messages": messages}, response=reply)
         return ChatResponse(reply=reply, metadata={"provider": "openai-compatible"})
 
     def stream(self, payload: ChatRequest) -> Iterator[Dict[str, Any]]:  # type: ignore[valid-type]

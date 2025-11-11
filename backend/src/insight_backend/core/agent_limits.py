@@ -3,12 +3,14 @@ from __future__ import annotations
 import logging
 from contextvars import ContextVar
 import threading
-from typing import Dict
+from typing import Any, Dict
+import json
 
 from .config import settings
 
 
 log = logging.getLogger("insight.core.agent_limits")
+_agent_log = logging.getLogger("insight.core.agent_logs")
 
 
 class AgentBudgetExceeded(RuntimeError):
@@ -70,3 +72,31 @@ def check_and_increment(agent: str) -> None:
         new_counts = dict(counts)
         new_counts[agent] = new_val
         _counts_var.set(new_counts)
+
+
+def _preview_payload(value: Any, *, limit: int = 400) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, str):
+        compact = " ".join(value.split())
+        text = compact or "-"
+    else:
+        try:
+            text = json.dumps(value, ensure_ascii=False)
+        except Exception:
+            text = str(value)
+    if len(text) > limit:
+        return text[: limit - 3] + "..."
+    return text
+
+
+def log_agent_event(agent: str, *, request: Any, response: Any | None = None) -> None:
+    """Emit enriched logs for agent interactions when enabled via settings."""
+    if not settings.detailed_agent_logs:
+        return
+    try:
+        req_txt = _preview_payload(request)
+        res_txt = _preview_payload(response)
+        _agent_log.info("agent=%s request=%s response=%s", agent, req_txt, res_txt)
+    except Exception:  # pragma: no cover - defensive logging
+        _agent_log.debug("agent=%s detailed logging failed", agent, exc_info=True)

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     env: str = Field("development", alias="ENV")
     api_prefix: str = Field("/api", alias="API_PREFIX")
     log_level: str = Field("INFO", alias="LOG_LEVEL")
+    detailed_agent_logs: bool = Field(False, alias="DETAILED_AGENT_LOGS")
     allowed_origins_raw: str | None = Field(None, alias="ALLOWED_ORIGINS")
 
     data_root: str = Field("../data", alias="DATA_ROOT")

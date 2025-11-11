@@ -27,7 +27,7 @@ from mcp.shared.message import SessionMessage
 import mcp.types as mcp_types
 
 from ..core.config import settings
-from ..core.agent_limits import check_and_increment, AgentBudgetExceeded
+from ..core.agent_limits import check_and_increment, AgentBudgetExceeded, log_agent_event
 from ..integrations.mcp_manager import MCPManager, MCPServerSpec
 from ..schemas.mcp_chart import ChartDataset
 
@@ -329,6 +329,18 @@ class ChartGenerationService:
                 # Enforce per-agent cap (mcp_chart)
                 check_and_increment("mcp_chart")
                 result = await agent.run(prompt, deps=deps)
+                log_agent_event(
+                    "mcp_chart",
+                    request={
+                        "prompt": prompt,
+                        "columns": len(normalized_dataset.columns),
+                        "rows": len(normalized_dataset.rows),
+                    },
+                    response={
+                        "chart_url": result.output.chart_url if result and result.output else None,
+                        "tool": result.output.tool_name if result and result.output else None,
+                    },
+                )
         except UnexpectedModelBehavior as exc:
             log.exception("Réponse LLM incompatible pour la génération de graphiques")
             raise ChartGenerationError(f"Réponse LLM incompatible: {exc}") from exc

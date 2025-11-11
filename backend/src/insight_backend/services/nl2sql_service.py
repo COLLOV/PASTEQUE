@@ -10,7 +10,7 @@ from ..core.config import settings
 import sqlglot
 from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
-from ..core.agent_limits import check_and_increment
+from ..core.agent_limits import check_and_increment, log_agent_event
 from ..repositories.data_repository import DataRepository
 
 
@@ -269,6 +269,11 @@ class NL2SQLService:
         if not _is_select_only(sql):
             raise RuntimeError("Generated SQL is invalid or not SELECT-only")
         _ensure_required_prefix(sql)
+        log_agent_event(
+            "nl2sql",
+            request={"question": question, "tables": sorted(schema.keys())},
+            response=sql,
+        )
         return sql
 
 
@@ -287,7 +292,13 @@ class NL2SQLService:
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
         )
-        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        log_agent_event(
+            "analyste",
+            request={"question": question, "evidence_count": len(evidence)},
+            response=content,
+        )
+        return content
 
     def write(
         self,
@@ -329,7 +340,17 @@ class NL2SQLService:
             ],
             temperature=0,
         )
-        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        log_agent_event(
+            "redaction",
+            request={
+                "question": question,
+                "evidence_count": len(evidence),
+                "retrieval_examples": len(retrieval_context or []),
+            },
+            response=content,
+        )
+        return content
 
     # --- Multi‑agent helpers -------------------------------------------------
     def explore(
@@ -403,6 +424,11 @@ class NL2SQLService:
             out.append({"purpose": purpose, "sql": sql})
         if not out:
             raise RuntimeError("Aucune requête exploratoire exploitable")
+        log_agent_event(
+            "explorateur",
+            request={"question": question, "max_steps": max_steps},
+            response=out,
+        )
         return out
 
     def generate_with_evidence(
@@ -452,6 +478,11 @@ class NL2SQLService:
         if not _is_select_only(sql):
             raise RuntimeError("La requête finale générée n'est pas un SELECT")
         _ensure_required_prefix(sql)
+        log_agent_event(
+            "analyste",
+            request={"question": question, "evidence_items": len(evidence)},
+            response=sql,
+        )
         return sql
 
     def propose_axes(
@@ -530,6 +561,11 @@ class NL2SQLService:
             out.append({"x": x, "y": y, "agg": agg, "chart": chart, "reason": reason})
         if not out:
             raise RuntimeError("Aucune proposition d'axes exploitable")
+        log_agent_event(
+            "axes",
+            request={"question": question, "max_items": max_items},
+            response=out,
+        )
         return out
 
     # Writer agent: interpret results with Constat / Action / Question
@@ -572,4 +608,14 @@ class NL2SQLService:
             ],
             temperature=0,
         )
-        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        log_agent_event(
+            "redaction",
+            request={
+                "question": question,
+                "evidence_count": len(evidence),
+                "retrieval_examples": len(retrieval_context or []),
+            },
+            response=content,
+        )
+        return content

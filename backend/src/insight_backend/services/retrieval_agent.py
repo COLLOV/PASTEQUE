@@ -4,7 +4,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..core.config import settings
-from ..core.agent_limits import check_and_increment
+from ..core.agent_limits import check_and_increment, log_agent_event
 from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from .retrieval_service import RetrievalService
 
@@ -139,5 +139,9 @@ class RetrievalAgent:
         text = str(content).strip()
         if not text:
             raise RuntimeError("Réponse LLM vide pour la mise en avant.")
+        log_agent_event(
+            "retrieval",
+            request={"question": q, "row_count": len(rows)},
+            response=text,
+        )
         return text
-

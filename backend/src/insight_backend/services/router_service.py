@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from ..core.config import settings
-from ..core.agent_limits import check_and_increment
+from ..core.agent_limits import check_and_increment, log_agent_event
 from ..integrations.openai_client import OpenAICompatibleClient, OpenAIBackendError
 from .nl2sql_service import _extract_json_blob  # reuse robust JSON extractor
 
@@ -152,7 +152,9 @@ class RouterService:
                 route = "none"
             conf = float(obj.get("confidence", 0.5))
             reason = str(obj.get("reason", "")) or "Classifié par LLM"
-            return RouterDecision(allow, route, max(0.0, min(conf, 1.0)), reason)
+            decision = RouterDecision(allow, route, max(0.0, min(conf, 1.0)), reason)
+            log_agent_event("router", request=text, response={"route": route, "allow": allow, "confidence": decision.confidence})
+            return decision
         except Exception as e:
             preview = (raw or "").strip()[:120]
             log.error("Échec du parsing JSON du routeur LLM: %s | preview=%.120s", e, preview)
