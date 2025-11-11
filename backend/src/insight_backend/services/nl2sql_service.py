@@ -639,5 +639,6 @@ class NL2SQLService:
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
             temperature=0,
+            max_tokens=int(settings.retrieval_max_tokens),
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
