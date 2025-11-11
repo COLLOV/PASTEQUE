@@ -236,6 +236,32 @@ class NL2SQLService:
         )
         return "\n".join(trimmed) + "\n…"
 
+    def _limit_evidence_rows(self, items: List[Dict[str, object]] | None) -> List[Dict[str, object]]:
+        """Limit the number of rows per evidence entry to the configured cap.
+
+        Keeps the rest of the structure intact; logs when truncation occurs.
+        """
+        cap = settings.evidence_limit_default
+        if not items:
+            return []
+        if cap <= 0:
+            return items
+        trimmed = False
+        limited: List[Dict[str, object]] = []
+        for entry in items:
+            if isinstance(entry, dict):
+                rows = entry.get("rows")
+                if isinstance(rows, list) and len(rows) > cap:
+                    new_entry = dict(entry)
+                    new_entry["rows"] = rows[:cap]
+                    limited.append(new_entry)
+                    trimmed = True
+                    continue
+            limited.append(entry)
+        if trimmed:
+            log.info("Truncated evidence rows for LLM prompt (limit=%d)", cap)
+        return limited
+
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
         # Input validation (defensive)
         if not isinstance(question, str) or not question.strip():
