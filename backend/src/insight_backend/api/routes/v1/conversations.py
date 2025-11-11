@@ -97,6 +97,7 @@ def get_conversation(  # type: ignore[valid-type]
             if last_user_ts is not None:
                 steps: list[dict[str, Any]] = []
                 plan: dict[str, Any] | None = None
+                retrieval_detail: dict[str, Any] | None = None
                 for evt in evs:
                     ts = evt.created_at
                     if ts < last_user_ts or ts > msg.created_at:
@@ -109,8 +110,19 @@ def get_conversation(  # type: ignore[valid-type]
                         })
                     elif evt.kind == "plan" and isinstance(evt.payload, dict):
                         plan = evt.payload
-                if steps or plan:
-                    details = {"steps": steps} | ({"plan": plan} if plan is not None else {})
+                    elif evt.kind == "meta" and isinstance(evt.payload, dict):
+                        retrieval_payload = _normalize_retrieval_meta(evt.payload.get("retrieval"))
+                        if retrieval_payload:
+                            retrieval_detail = retrieval_payload
+                detail_payload: dict[str, Any] = {}
+                if steps:
+                    detail_payload["steps"] = steps
+                if plan is not None:
+                    detail_payload["plan"] = plan
+                if retrieval_detail:
+                    detail_payload["retrieval"] = retrieval_detail
+                if detail_payload:
+                    details = detail_payload
         payload: dict[str, Any] = {
             "role": msg.role,
             "content": msg.content,
@@ -328,3 +340,31 @@ def _validate_select_sql(sql: str, *, required_prefix: str, limit_default: int) 
     if not re.search(r"\blimit\b", s, flags=re.I):
         s = f"{s} LIMIT {limit_default}"
     return s
+
+
+def _normalize_retrieval_meta(payload: Any) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return None
+    normalized_rows: list[dict[str, Any]] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        values = item.get("values")
+        normalized_rows.append(
+            {
+                "table": str(item.get("table") or ""),
+                "score": item.get("score"),
+                "focus": item.get("focus"),
+                "source_column": item.get("source_column"),
+                "values": values if isinstance(values, dict) else {},
+            }
+        )
+    if not normalized_rows:
+        return None
+    detail: dict[str, Any] = {"rows": normalized_rows}
+    if isinstance(payload.get("round"), int):
+        detail["round"] = payload["round"]
+    return detail
