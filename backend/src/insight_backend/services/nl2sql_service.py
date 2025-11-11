@@ -302,6 +302,7 @@ class NL2SQLService:
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
+            max_tokens=int(settings.retrieval_max_tokens),
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
@@ -319,13 +320,14 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        user = json.dumps({"question": question, "evidence": self._limit_evidence_rows(evidence)}, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         resp = client.chat_completions(
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
+            max_tokens=int(settings.retrieval_max_tokens),
         )
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
@@ -410,6 +412,7 @@ class NL2SQLService:
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
+            max_tokens=int(settings.retrieval_max_tokens),
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         blob = text
@@ -478,6 +481,7 @@ class NL2SQLService:
             model=model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=0,
+            max_tokens=int(settings.retrieval_max_tokens),
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
@@ -532,6 +536,7 @@ class NL2SQLService:
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
             temperature=0,
+            max_tokens=int(settings.retrieval_max_tokens),
         )
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         blob = text
