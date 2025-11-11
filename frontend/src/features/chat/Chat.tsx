@@ -15,7 +15,8 @@ import type {
   ChatStreamDone,
   SavedChartResponse,
   EvidenceSpec,
-  EvidenceRowsPayload
+  EvidenceRowsPayload,
+  RetrievalDetails
 } from '@/types/chat'
 import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark } from 'react-icons/hi2'
 import clsx from 'clsx'
@@ -39,6 +40,58 @@ function normaliseRows(columns: string[] = [], rows: any[] = []): Record<string,
     }
     return { [headings[0]]: row }
   })
+}
+
+function normalizeRetrievalDetail(raw: unknown): RetrievalDetails | null {
+  if (!raw || typeof raw !== 'object' || raw === null) {
+    return null
+  }
+  const rowsCandidate = (raw as { rows?: unknown }).rows
+  if (!Array.isArray(rowsCandidate) || rowsCandidate.length === 0) {
+    return null
+  }
+  const normalizedRows: RetrievalDetails['rows'] = []
+  for (const item of rowsCandidate) {
+    if (!item || typeof item !== 'object') continue
+    const entry = item as Record<string, unknown>
+    const tableRaw = entry['table']
+    const focusRaw = entry['focus']
+    const sourceColumnRaw = entry['source_column']
+    const table = typeof tableRaw === 'string' && tableRaw.trim() ? tableRaw : undefined
+    const focus = typeof focusRaw === 'string' && focusRaw.trim() ? focusRaw : undefined
+    const sourceColumn = typeof sourceColumnRaw === 'string' && sourceColumnRaw.trim()
+      ? sourceColumnRaw
+      : undefined
+    const scoreRaw = entry['score']
+    let score: number | undefined
+    if (typeof scoreRaw === 'number' && Number.isFinite(scoreRaw)) {
+      score = scoreRaw
+    } else if (typeof scoreRaw === 'string') {
+      const parsed = Number(scoreRaw)
+      if (Number.isFinite(parsed)) score = parsed
+    }
+    const valuesRaw = entry['values']
+    let values: Record<string, unknown> | undefined
+    if (valuesRaw && typeof valuesRaw === 'object' && !Array.isArray(valuesRaw)) {
+      values = { ...(valuesRaw as Record<string, unknown>) }
+    }
+    normalizedRows.push({
+      table,
+      score,
+      focus,
+      source_column: sourceColumn,
+      values,
+    })
+  }
+  if (normalizedRows.length === 0) {
+    return null
+  }
+  const detail: RetrievalDetails = { rows: normalizedRows }
+  const roundRaw = (raw as { round?: unknown }).round
+  if (typeof roundRaw === 'number' && Number.isFinite(roundRaw)) {
+    detail.round = roundRaw
+  }
+  return detail
 }
 
 function createMessageId(): string {
@@ -204,22 +257,37 @@ export default function Chat() {
             setEffectiveTables(eff)
             // Ne pas recalculer excludedTables à partir de effective_tables pour éviter flicker
           }
-          setMessages(prev => {
-            const copy = [...prev]
-            const idx = copy.findIndex(m => m.ephemeral)
-            if (idx >= 0) {
-              copy[idx] = {
-                ...copy[idx],
-                details: {
-                  ...(copy[idx].details || {}),
-                  requestId: meta.request_id,
-                  provider: meta.provider,
-                  model: meta.model,
+          const detailUpdates: Partial<NonNullable<Message['details']>> = {}
+          if (typeof meta?.request_id === 'string' && meta.request_id) {
+            detailUpdates.requestId = meta.request_id
+          }
+          if (typeof meta?.provider === 'string' && meta.provider) {
+            detailUpdates.provider = meta.provider
+          }
+          if (typeof meta?.model === 'string' && meta.model) {
+            detailUpdates.model = meta.model
+          }
+          const retrievalDetail = normalizeRetrievalDetail(meta?.retrieval)
+          if (retrievalDetail) {
+            detailUpdates.retrieval = retrievalDetail
+          }
+          if (Object.keys(detailUpdates).length > 0) {
+            setMessages(prev => {
+              const copy = [...prev]
+              const idx = copy.findIndex(m => m.ephemeral)
+              if (idx >= 0) {
+                const existingDetails = copy[idx].details ? { ...copy[idx].details } : {}
+                copy[idx] = {
+                  ...copy[idx],
+                  details: {
+                    ...existingDetails,
+                    ...detailUpdates,
+                  }
                 }
               }
-            }
-            return copy
-          })
+              return copy
+            })
+          }
           // Capture la spec pour alimenter les tickets à gauche (si fournie)
           const spec = meta?.evidence_spec as EvidenceSpec | undefined
           if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
@@ -467,6 +535,7 @@ export default function Chat() {
           details?: {
             plan?: any
             steps?: Array<{ step?: number; purpose?: string; sql?: string }>
+            retrieval?: RetrievalDetails
           }
         }>
         evidence_spec?: EvidenceSpec
@@ -475,19 +544,32 @@ export default function Chat() {
       }>(`/conversations/${id}`)
       setConversationId(data.id)
       setMessages(
-        (data.messages || []).map(m => ({
-          id: createMessageId(),
-          role: m.role,
-          content: m.content,
-          details: m.details,
-          ...(m as any).chart_url ? {
-            chartUrl: (m as any).chart_url,
-            chartTitle: (m as any).chart_title,
-            chartDescription: (m as any).chart_description,
-            chartTool: (m as any).chart_tool,
-            chartSpec: (m as any).chart_spec,
-          } : {}
-        }))
+        (data.messages || []).map(m => {
+          const details = m.details
+            ? ({ ...(m.details as Message['details']) } as Message['details'])
+            : undefined
+          if (details?.retrieval) {
+            const normalized = normalizeRetrievalDetail(details.retrieval)
+            if (normalized) {
+              details.retrieval = normalized
+            } else {
+              delete details.retrieval
+            }
+          }
+          return {
+            id: createMessageId(),
+            role: m.role,
+            content: m.content,
+            details,
+            ...(m as any).chart_url ? {
+              chartUrl: (m as any).chart_url,
+              chartTitle: (m as any).chart_title,
+              chartDescription: (m as any).chart_description,
+              chartTool: (m as any).chart_tool,
+              chartSpec: (m as any).chart_spec,
+            } : {}
+          }
+        })
       )
       setEvidenceSpec(data?.evidence_spec ?? null)
       // Defensive normalization: history may contain array-rows; convert to objects
@@ -1481,7 +1563,11 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
           </div>
         )}
         {/* Détails n'apparaissent que lorsque le message est finalisé */}
-        {!isUser && !message.ephemeral && message.details && (message.details.steps?.length || message.details.plan) ? (
+        {!isUser && !message.ephemeral && message.details && (
+          message.details.steps?.length ||
+          message.details.plan ||
+          message.details.retrieval?.rows?.length
+        ) ? (
           <div className="mt-2 text-xs">
             {showDetails && (
               <div className="mt-1 space-y-2 text-primary-700">
@@ -1507,6 +1593,50 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                           {s.step ? `#${s.step}: ` : ''}{s.columns?.slice(0,3)?.join(', ') || '—'} ({s.row_count ?? 0} lignes)
                         </li>
                       ))}
+                    </ul>
+                  </div>
+                )}
+                {message.details.retrieval?.rows && message.details.retrieval.rows.length > 0 && (
+                  <div className="text-[11px]">
+                    <div className="uppercase tracking-wide text-primary-500 mb-1 flex items-center justify-between">
+                      <span>Lignes RAG</span>
+                      {typeof message.details.retrieval.round === 'number' && (
+                        <span className="text-[10px] text-primary-400">itération {message.details.retrieval.round}</span>
+                      )}
+                    </div>
+                    <ul className="space-y-1 max-h-48 overflow-auto pr-1">
+                      {message.details.retrieval.rows.map((row, i) => {
+                        const values = row.values && Object.entries(row.values)
+                          .filter(([, value]) => value != null && String(value ?? '').trim() !== '')
+                        const formatted = values && values.length > 0
+                          ? values.slice(0, 4).map(([key, value]) => `${key}: ${String(value ?? '')}`)
+                          : null
+                        return (
+                          <li
+                            key={`${row.table ?? 'row'}-${i}`}
+                            className="border border-primary-100 rounded p-2 space-y-1 text-primary-700"
+                          >
+                            <div className="flex items-center justify-between gap-2 text-[10px]">
+                              <span className="font-semibold text-primary-800">
+                                {row.table || `Exemple #${i + 1}`}
+                              </span>
+                              {typeof row.score === 'number' && Number.isFinite(row.score) && (
+                                <span className="text-primary-500">score {row.score.toFixed(3)}</span>
+                              )}
+                            </div>
+                            {row.focus && (
+                              <div className="text-[11px] text-primary-700 break-words">
+                                {(row.source_column || 'Focus')} : {row.focus}
+                              </div>
+                            )}
+                            {formatted && (
+                              <div className="text-[10px] text-primary-500 break-words">
+                                {formatted.join(' · ')}
+                              </div>
+                            )}
+                          </li>
+                        )
+                      })}
                     </ul>
                   </div>
                 )}
