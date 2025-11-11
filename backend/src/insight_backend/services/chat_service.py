@@ -339,8 +339,12 @@ class ChatService:
                         if pii_hits:
                             log.warning("PII columns included in dictionary: %s", pii_hits)
 
+                        # In local mode, reduce dictionary payload further to fit local context windows
+                        dico_cap = settings.data_dictionary_max_chars
+                        if (settings.llm_mode or "").strip().lower() == "local":
+                            dico_cap = min(dico_cap, 3000)
                         blob, truncated, kept_tables, kept_cols = _serialize_dico_compact(
-                            dico, limit=max(1, settings.data_dictionary_max_chars)
+                            dico, limit=max(1, dico_cap)
                         )
                         if truncated:
                             log.warning(

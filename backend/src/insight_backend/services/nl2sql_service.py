@@ -215,6 +215,9 @@ class NL2SQLService:
 
         Preserves line boundaries so we don't truncate in the middle of a table/column name.
         """
+        # In local mode, keep the prompt smaller to fit typical local model context windows
+        if (settings.llm_mode or "").strip().lower() == "local":
+            max_chars = min(max_chars, 4000)
         lines: List[str] = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
@@ -294,6 +297,12 @@ class NL2SQLService:
             log.info("Truncated evidence rows for LLM prompt (limit=%d)", row_cap)
         if trimmed_cols:
             log.info("Truncated evidence columns for LLM prompt (limit=%d)", col_cap)
+        # Also cap the number of evidence entries to keep the overall prompt size bounded
+        # Keep the last items which are typically most relevant to the final answer
+        max_items = 8
+        if len(limited) > max_items:
+            log.info("Truncated evidence entries for LLM prompt (kept=%d of %d)", max_items, len(limited))
+            return limited[-max_items:]
         return limited
 
     def generate(self, *, question: str, schema: Dict[str, List[str]]) -> str:
