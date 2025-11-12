@@ -137,6 +137,12 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
 
 Quel que soit le mode, `LLM_MAX_TOKENS` (défaut 1024) borne explicitement les réponses des appels `chat_completions` (explorateur, analyste, rédaction, router, chat). Cela évite les erreurs `max_tokens` négatives lorsque les prompts deviennent volumineux.
 
+Depuis PR #76, les prompts NL→SQL qui incluent des « evidence » (résultats d'exploration) sont compactés avant l'appel LLM:
+- Limitation stricte du nombre d'items, du nombre de lignes échantillonnées et de la taille des cellules,
+- Troncature progressive si le JSON dépasse ~20k caractères (suppression des `sample_rows`, puis de `columns`).
+
+Les logs `insight.services.nl2sql` indiquent explicitement quand une compaction est appliquée (statistiques d'items/rows conservés). Cela supprime les charges utiles géantes (ex. >400k caractères) et empêche les erreurs côté backend OpenAI‑compatible.
+
 Appel:
 
 ```bash

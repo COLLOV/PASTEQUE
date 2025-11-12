@@ -27,6 +27,86 @@ def _preview(text: str, *, limit: int = 160) -> str:
     return f"{compact[:cutoff]}..."
 
 
+def _compact_evidence(
+    evidence: List[Dict[str, object]],
+    *,
+    max_items: int = 6,
+    max_rows_per_item: int = 10,
+    max_columns_per_item: int = 12,
+    max_sql_chars: int = 200,
+    max_cell_chars: int = 80,
+    max_total_chars: int = 20000,
+) -> tuple[List[Dict[str, object]], Dict[str, int]]:
+    """Create a compact evidence preview fit for LLM prompts.
+
+    Keeps only lightweight metadata and a small sample of rows, with progressive
+    degradation if the serialized size still exceeds ``max_total_chars``.
+    """
+    def _trim_text(val: object, cap: int) -> str:
+        s = "" if val is None else str(val)
+        return s if len(s) <= cap else s[: max(1, cap - 1)] + "…"
+
+    preview: list[dict[str, object]] = []
+    stats = {
+        "orig_items": len(evidence or []),
+        "orig_rows": 0,
+        "kept_items": 0,
+        "kept_rows": 0,
+        "dropped_sample_rows": 0,
+        "dropped_columns": 0,
+    }
+    items = list(evidence or [])[: max(1, max_items)]
+    for e in items:
+        cols = e.get("columns") if isinstance(e, dict) else None
+        rows = e.get("rows") if isinstance(e, dict) else None
+        cols_list = [str(c) for c in (cols or [])][: max(0, max_columns_per_item)]
+        row_list = list(rows or [])
+        stats["orig_rows"] += len(row_list)
+        row_sample = row_list[: max(0, max_rows_per_item)]
+        sample_rows: list[list[object]] = []
+        for r in row_sample:
+            if isinstance(r, (list, tuple)):
+                sample_rows.append([_trim_text(v, max_cell_chars) for v in r])
+            elif isinstance(r, dict):
+                keys = cols_list or list(r.keys())
+                sample_rows.append([_trim_text(r.get(k), max_cell_chars) for k in keys])
+            else:
+                sample_rows.append([_trim_text(r, max_cell_chars)])
+        preview.append(
+            {
+                "purpose": _trim_text((e.get("purpose") if isinstance(e, dict) else ""), 120),
+                "sql": _trim_text((e.get("sql") if isinstance(e, dict) else ""), max_sql_chars),
+                "columns": cols_list,
+                "row_count": len(row_list),
+                "sample_rows": sample_rows,
+            }
+        )
+    stats["kept_items"] = len(preview)
+    stats["kept_rows"] = sum(len(it.get("sample_rows") or []) for it in preview)
+
+    def _size(pre: list[dict[str, object]]) -> int:
+        try:
+            return len(json.dumps(pre, ensure_ascii=False))
+        except Exception:
+            return 10 ** 9
+
+    size = _size(preview)
+    if size > max_total_chars:
+        # Drop sample_rows first (largest contributor)
+        for it in preview:
+            if it.get("sample_rows"):
+                it["sample_rows"] = []
+        stats["dropped_sample_rows"] = 1
+        size = _size(preview)
+    if size > max_total_chars:
+        # Then drop columns list
+        for it in preview:
+            it["columns"] = []
+        stats["dropped_columns"] = 1
+
+    return preview, stats
+
+
 def _extract_sql(text: str) -> str:
     t = text.strip()
     if "```" in t:
@@ -327,7 +407,18 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        ev_preview, ev_stats = _compact_evidence(
+            evidence,
+            max_items=6,
+            max_rows_per_item=10,
+            max_columns_per_item=12,
+            max_sql_chars=200,
+            max_cell_chars=80,
+            max_total_chars=20000,
+        )
+        if ev_stats.get("dropped_sample_rows") or ev_stats.get("dropped_columns"):
+            log.warning("NL2SQL.synthesize evidence compacted: %s", ev_stats)
+        user = json.dumps({"question": question, "evidence": ev_preview}, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         log.info(
@@ -370,9 +461,20 @@ class NL2SQLService:
             len(evidence),
             len(retrieval_context or []),
         )
+        ev_preview, ev_stats = _compact_evidence(
+            evidence,
+            max_items=4,
+            max_rows_per_item=12,
+            max_columns_per_item=12,
+            max_sql_chars=240,
+            max_cell_chars=80,
+            max_total_chars=24000,
+        )
+        if ev_stats.get("dropped_sample_rows") or ev_stats.get("dropped_columns"):
+            log.warning("NL2SQL.write(synthesis) evidence compacted: %s", ev_stats)
         payload = {
             "question": question,
-            "evidence": evidence,
+            "evidence": ev_preview,
             "retrieval": retrieval_context or [],
             "guidelines": [
                 "Base the answer primarily on SQL evidence (columns/rows).",
@@ -534,14 +636,23 @@ class NL2SQLService:
             "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
             "Return only the SQL (optionally fenced). No explanation."
         )
+        ev_preview, ev_stats = _compact_evidence(
+            evidence,
+            max_items=6,
+            max_rows_per_item=8,
+            max_columns_per_item=12,
+            max_sql_chars=200,
+            max_cell_chars=60,
+            max_total_chars=20000,
+        )
+        if ev_stats.get("dropped_sample_rows") or ev_stats.get("dropped_columns"):
+            log.warning("NL2SQL.generate_with_evidence evidence compacted: %s", ev_stats)
         user = json.dumps(
             {
                 "question": question,
                 "tables": tables_desc,
-                "evidence": evidence,
-                "rules": {
-                    "schema_prefix": settings.nl2sql_db_prefix,
-                },
+                "evidence": ev_preview,
+                "rules": {"schema_prefix": settings.nl2sql_db_prefix},
             },
             ensure_ascii=False,
         )
@@ -700,9 +811,20 @@ class NL2SQLService:
             "- Français professionnel, direct et concis (2-5 phrases selon le contexte)\n"
             "- Pas de SQL ni de jargon technique dans la réponse finale"
         )
+        ev_preview, ev_stats = _compact_evidence(
+            evidence,
+            max_items=4,
+            max_rows_per_item=12,
+            max_columns_per_item=12,
+            max_sql_chars=240,
+            max_cell_chars=80,
+            max_total_chars=24000,
+        )
+        if ev_stats.get("dropped_sample_rows") or ev_stats.get("dropped_columns"):
+            log.warning("NL2SQL.write(writer) evidence compacted: %s", ev_stats)
         payload = {
             "question": question,
-            "evidence": evidence,
+            "evidence": ev_preview,
         }
         if retrieval_context is not None:
             payload["retrieval_context"] = retrieval_context
