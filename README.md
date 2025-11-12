@@ -17,7 +17,7 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 
 Script combiné (depuis la racine):
 
-- `./start.sh` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), recrée systématiquement le conteneur `mindsdb_container` via `${CONTAINER_RUNTIME} run …` (`CONTAINER_RUNTIME` défini dans `backend/.env`, valeurs supportées : `docker` ou `podman`), attend que l’API MindsDB réponde, synchronise les tables locales, puis configure `ALLOWED_ORIGINS` côté backend avant de lancer backend, frontend et SSR. Les hôtes/ports sont lus dans `backend/.env` (`BACKEND_DEV_URL`) et `frontend/.env.development` (`FRONTEND_DEV_URL`), tandis que `VITE_API_URL` sert de base d’appels pour le frontend. Optionnellement, `FRONTEND_URLS` peut lister plusieurs origines pour CORS (séparées par des virgules).
+- `./start.sh` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), recrée systématiquement le conteneur `mindsdb_container` via `${CONTAINER_RUNTIME} run …` (`CONTAINER_RUNTIME` défini dans `backend/.env`, valeurs supportées : `docker` ou `podman`), attend que l’API MindsDB réponde, synchronise les tables locales, puis configure `ALLOWED_ORIGINS` côté backend avant de lancer backend, frontend et SSR. Le frontend est désormais servi en mode « preview » (build + `vite preview`) pour éviter les erreurs de type « too many files open » liées aux watchers; pas de rechargement instantané. Les hôtes/ports sont lus dans `backend/.env` (`BACKEND_DEV_URL`) et `frontend/.env.development` (`FRONTEND_DEV_URL`), tandis que `VITE_API_URL` sert de base d’appels pour le frontend. Optionnellement, `FRONTEND_URLS` peut lister plusieurs origines pour CORS (séparées par des virgules).
 - `./start_full.sh` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
 - Exemple: définir `BACKEND_DEV_URL=http://0.0.0.0:8000`, `FRONTEND_DEV_URL=http://localhost:5173` puis lancer `./start.sh`.
 
@@ -39,7 +39,7 @@ Backend (depuis `backend/`):
 Frontend (depuis `frontend/`):
 
 1. Installer deps: `npm i` ou `pnpm i` ou `yarn`
-2. Lancer: `npm run dev`
+2. Lancer: `npm run build && npm run preview` (recommandé pour éviter les watchers) ou `npm run dev` si vous avez besoin du HMR.
 
 SSR GPT-Vis (depuis `vis-ssr/`):
 
@@ -54,7 +54,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 ### Streaming Chat
 
 - Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
-- Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL et échantillons (métadonnées techniques masquées pour alléger l’UI).
+- Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL, les échantillons et désormais les lignes RAG récupérées (table, score, colonnes clés) pour expliquer la mise en avant.
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 - `LLM_MAX_TOKENS` (défaut 1024) impose le plafond `max_tokens` sur tous les appels OpenAI-compatibles (explorateur, analyste, rédaction, router, chat) pour éviter les erreurs lorsque `model_max_tokens - context_tokens` devient négatif.
 - `AGENT_OUTPUT_MAX_ROWS`/`AGENT_OUTPUT_MAX_COLUMNS` (défauts 200/20) bornent le volume de lignes/colonnes envoyé par les agents NL→SQL dans les événements SSE afin d’éviter des payloads géants.
