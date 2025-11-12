@@ -150,6 +150,7 @@ data/
 - `LOG_LEVEL` (dans `backend/.env`) est appliqué dès le démarrage grâce à `insight.core.logging`, ce qui garantit que les logs NL→SQL (et tous les autres) sont bien affichés dans la console `./start.sh`.
 - Les requêtes générées qualifient toujours les tables avec `files.` et réutilisent les alias déclarés pour éviter les erreurs DuckDB/MindsDB.
 - Le backend n’impose plus de `LIMIT 50` automatique et renvoie désormais l’intégralité des lignes de résultat au frontend pour l’aperçu.
+- Pour les appels LLM, les « evidences » envoyées au modèle sont compactées (nombre d’items, lignes/colonnes et longueur des valeurs) afin d’éviter des prompts trop volumineux en production. Les détails sont journalisés (`payload_chars`).
 - Supprimez `NL2SQL_MAX_ROWS` de vos fichiers `.env` existants: la variable est obsolète et n’est plus supportée.
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.

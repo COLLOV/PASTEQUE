@@ -137,6 +137,13 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
 
 Quel que soit le mode, `LLM_MAX_TOKENS` (défaut 1024) borne explicitement les réponses des appels `chat_completions` (explorateur, analyste, rédaction, router, chat). Cela évite les erreurs `max_tokens` négatives lorsque les prompts deviennent volumineux.
 
+De plus, les charges utiles transmises au LLM sont « compactées » côté backend pour rester dans une fenêtre de contexte réaliste:
+
+- Evidence compactée: au plus 5–6 items, 10–12 lignes par item, 10 colonnes max, valeurs tronquées à ~80 caractères.
+- Schéma compacté: la description des tables est tronquée à ~8 000 caractères.
+
+Ces garde‑fous sont visibles dans les logs `insight.services.nl2sql` via `payload_chars` et ne changent pas les données persistées côté conversation.
+
 Appel:
 
 ```bash

@@ -27,6 +27,77 @@ def _preview(text: str, *, limit: int = 160) -> str:
     return f"{compact[:cutoff]}..."
 
 
+def _truncate_text(val: object, *, max_chars: int) -> object:
+    """Truncate string-like values for prompt safety.
+
+    Leaves non-string values untouched. Returns original value if already small.
+    """
+    try:
+        s = str(val)
+    except Exception:
+        return val
+    if len(s) <= max_chars:
+        return val
+    # Keep tail hint when long textual content appears
+    return s[: max(1, max_chars - 1)] + "…"
+
+
+def _condense_evidence(
+    evidence: List[Dict[str, object]],
+    *,
+    max_items: int = 5,
+    rows_per_item: int = 10,
+    max_columns: int = 10,
+    cell_max_chars: int = 80,
+) -> List[Dict[str, object]]:
+    """Return a compact version of evidence for LLM prompts.
+
+    - Limits number of items, columns, and rows
+    - Truncates long SQL, purposes and cell values
+    - Preserves shape using {columns, rows} where rows are list[list]
+    """
+    out: List[Dict[str, object]] = []
+    if not isinstance(evidence, list):
+        return out
+    for e in evidence[: max(1, max_items)]:
+        try:
+            cols_raw = e.get("columns") if isinstance(e, dict) else []  # type: ignore[assignment]
+            cols = [str(c) for c in (cols_raw or [])][: max_columns]
+            # Rows can be list[list] or list[dict]; normalize to list[list]
+            rows_raw = e.get("rows") if isinstance(e, dict) else []  # type: ignore[assignment]
+            rows_list: List[object] = list(rows_raw or []) if isinstance(rows_raw, list) else []
+            if rows_list and cols:
+                trimmed_rows: List[List[object]] = []
+                for row in rows_list[: max(1, rows_per_item)]:
+                    if isinstance(row, dict):
+                        # Keep column order from cols, drop extras
+                        vals = [row.get(c) for c in cols]
+                    elif isinstance(row, (list, tuple)):
+                        vals = list(row)[: len(cols)]
+                    else:
+                        # Unrecognized row shape → stringify
+                        vals = [str(row)]
+                    # Truncate verbose cell values
+                    trimmed_rows.append([
+                        _truncate_text(v, max_chars=cell_max_chars) for v in vals
+                    ])
+            else:
+                trimmed_rows = []
+            out.append(
+                {
+                    "purpose": str(e.get("purpose", ""))[:200] if isinstance(e, dict) else "",
+                    "sql": str(e.get("sql", ""))[:400] if isinstance(e, dict) else "",
+                    "columns": cols,
+                    "rows": trimmed_rows,
+                    "row_count": len(rows_list),
+                }
+            )
+        except Exception:  # pragma: no cover - defensive
+            # Skip malformed entries but continue
+            continue
+    return out
+
+
 def _extract_sql(text: str) -> str:
     t = text.strip()
     if "```" in t:
@@ -327,14 +398,22 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        condensed = _condense_evidence(
+            evidence,
+            max_items=6,
+            rows_per_item=10,
+            max_columns=min(10, settings.agent_output_max_columns),
+            cell_max_chars=80,
+        )
+        user = json.dumps({"question": question, "evidence": condensed}, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         log.info(
-            "NL2SQL.synthesize invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            "NL2SQL.synthesize invoking LLM: model=%s max_tokens=%d payload_chars=%d (items=%d)",
             model,
             settings.llm_max_tokens,
             len(user),
+            len(condensed),
         )
         try:
             resp = client.chat_completions(
@@ -372,7 +451,13 @@ class NL2SQLService:
         )
         payload = {
             "question": question,
-            "evidence": evidence,
+            "evidence": _condense_evidence(
+                evidence,
+                max_items=6,
+                rows_per_item=12,
+                max_columns=min(10, settings.agent_output_max_columns),
+                cell_max_chars=80,
+            ),
             "retrieval": retrieval_context or [],
             "guidelines": [
                 "Base the answer primarily on SQL evidence (columns/rows).",
@@ -534,11 +619,19 @@ class NL2SQLService:
             "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
             "Return only the SQL (optionally fenced). No explanation."
         )
+        # Condense evidence to keep prompt within safe bounds
+        condensed = _condense_evidence(
+            evidence,
+            max_items=5,
+            rows_per_item=10,
+            max_columns=min(10, settings.agent_output_max_columns),
+            cell_max_chars=80,
+        )
         user = json.dumps(
             {
                 "question": question,
                 "tables": tables_desc,
-                "evidence": evidence,
+                "evidence": condensed,
                 "rules": {
                     "schema_prefix": settings.nl2sql_db_prefix,
                 },
@@ -548,10 +641,11 @@ class NL2SQLService:
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         log.info(
-            "NL2SQL.generate_with_evidence invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            "NL2SQL.generate_with_evidence invoking LLM: model=%s max_tokens=%d payload_chars=%d (items=%d)",
             model,
             settings.llm_max_tokens,
             len(user),
+            len(condensed),
         )
         try:
             resp = client.chat_completions(
@@ -702,7 +796,13 @@ class NL2SQLService:
         )
         payload = {
             "question": question,
-            "evidence": evidence,
+            "evidence": _condense_evidence(
+                evidence,
+                max_items=6,
+                rows_per_item=12,
+                max_columns=min(10, settings.agent_output_max_columns),
+                cell_max_chars=80,
+            ),
         }
         if retrieval_context is not None:
             payload["retrieval_context"] = retrieval_context
