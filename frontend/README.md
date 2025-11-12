@@ -48,7 +48,9 @@ Tous les composants sont situés dans `src/components/ui/`:
 
 ```bash
 npm install
-npm run dev
+# Mode sans watchers (recommandé si vous avez trop de fichiers)
+npm run build && npm run preview
+# ou utilisez le script racine: ../../start.sh
 ```
 
 Configurer l'API via `.env.development` (voir `.env.development.example`). Le script racine `start.sh` lit `FRONTEND_DEV_URL` (hôte/port Vite), `VITE_API_URL` (base API) et, si présent, `FRONTEND_URLS`; il ne modifie plus ce fichier.
@@ -93,9 +95,9 @@ src/
 
 ## Scripts
 
-- `npm run dev` - Lance le serveur de développement (port 5173)
+- `npm run dev` - Lance le serveur de développement (port 5173) [active les watchers]
 - `npm run build` - Compile l'application pour la production
-- `npm run preview` - Prévisualise le build de production
+- `npm run preview` - Prévisualise le build de production (sans watchers)
 - `npm run type-check` - Vérifie les types TypeScript
 
 ## Configuration
