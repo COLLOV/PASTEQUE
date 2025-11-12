@@ -413,10 +413,10 @@ BACKEND_PID=$!
 # Allow backend to initialise before starting frontend
 sleep 1
 
-echo "[start] Building frontend (no watchers)"
+echo "[start] Building frontend (no watchers, mode=development)"
 (
   cd frontend
-  npm run build >/dev/null
+  npm run build -- --mode development >/dev/null
 )
 
 echo "[start] Serving frontend (preview) on ${FRONTEND_HOST}:${FRONTEND_PORT}"

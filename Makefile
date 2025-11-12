@@ -12,4 +12,4 @@ frontend-setup:
 	cd frontend && npm i
 
 frontend-dev:
-	cd frontend && npm run build && npm run preview
+	cd frontend && npm run build -- --mode development && npm run preview
