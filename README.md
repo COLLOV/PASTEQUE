@@ -146,6 +146,7 @@ data/
 
 - Pour un mode global, vous pouvez activer `NL2SQL_ENABLED=true` dans `backend/.env` pour que le LLM génère du SQL exécuté sur MindsDB. Désormais, un bouton « NL→SQL (MindsDB) » dans la zone d’input permet d’activer ce mode au coup‑par‑coup sans modifier l’environnement.
 - En streaming, le frontend affiche d’abord le SQL en cours d’exécution dans la bulle, puis remplace par la synthèse finale. Les détails (SQL, échantillons de colonnes/lignes) restent accessibles dans la bulle via « Afficher les détails de la requête ». Les logs backend (`insight.services.chat`) tracent également ces étapes.
+- Le logger `insight.services.nl2sql` trace désormais chaque appel LLM (question pré-traitée, taille du schéma, `max_tokens` utilisé, aperçu SQL/synthèse). Lancer `./start.sh` suffit pour voir ces logs et identifier précisément l'étape qui échoue lorsqu’un appel NL→SQL casse en développement.
 - Les requêtes générées qualifient toujours les tables avec `files.` et réutilisent les alias déclarés pour éviter les erreurs DuckDB/MindsDB.
 - Le backend n’impose plus de `LIMIT 50` automatique et renvoie désormais l’intégralité des lignes de résultat au frontend pour l’aperçu.
 - Supprimez `NL2SQL_MAX_ROWS` de vos fichiers `.env` existants: la variable est obsolète et n’est plus supportée.

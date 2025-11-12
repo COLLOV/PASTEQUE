@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-from pathlib import Path
 from typing import Dict, List
 import json
+import logging
 
 from ..core.config import settings
 import sqlglot
@@ -12,6 +12,19 @@ from sqlglot import exp
 from ..integrations.openai_client import OpenAICompatibleClient
 from ..core.agent_limits import check_and_increment
 from ..repositories.data_repository import DataRepository
+
+log = logging.getLogger("insight.services.nl2sql")
+
+
+def _preview(text: str, *, limit: int = 160) -> str:
+    """Compact text for logging."""
+    if not text:
+        return ""
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    cutoff = max(limit - 3, 1)
+    return f"{compact[:cutoff]}..."
 
 
 def _extract_sql(text: str) -> str:
@@ -198,6 +211,13 @@ class NL2SQLService:
             raise RuntimeError("Invalid LLM_MODE; expected 'local' or 'api'")
         if not base_url or not model:
             raise RuntimeError("LLM base_url/model not configured")
+        log.info(
+            "NL2SQL LLM target resolved: mode=%s base=%s model=%s timeout_s=%s",
+            settings.llm_mode,
+            base_url,
+            model,
+            settings.openai_timeout_s,
+        )
         return (
             OpenAICompatibleClient(
                 base_url=base_url,
@@ -213,6 +233,11 @@ class NL2SQLService:
             raise RuntimeError("La question est vide.")
         if not isinstance(schema, dict) or not schema:
             raise RuntimeError("Aucun schéma disponible pour générer le SQL.")
+        log.info(
+            "NL2SQL.generate start: schema_tables=%d question=\"%s\"",
+            len(schema),
+            _preview(question, limit=200),
+        )
         client, model = self._client_and_model()
         tables_desc = []
         for t, cols in schema.items():
@@ -230,12 +255,18 @@ class NL2SQLService:
                 truncated.append(line)
                 length += len(line) + 1
             tables_blob = "\n".join(truncated) + "\n…"
+            log.warning(
+                "NL2SQL.generate truncated schema blob to 8000 chars (kept_lines=%d)",
+                len(truncated),
+            )
         # Hints for date-like columns
         date_hints: Dict[str, List[str]] = {}
         for t, cols in schema.items():
             dcols = [c for c in cols if "date" in c.lower()]
             if dcols:
                 date_hints[t] = dcols
+        if date_hints:
+            log.info("NL2SQL.generate date hints for tables: %s", sorted(date_hints.keys()))
 
         system = (
             "You are a strict SQL generator. Dialect: MindsDB SQL (MySQL-like).\n"
@@ -258,23 +289,39 @@ class NL2SQLService:
         )
         # Enforce per-agent cap (nl2sql)
         check_and_increment("nl2sql")
-        resp = client.chat_completions(
-            model=model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            temperature=0,
-            max_tokens=settings.llm_max_tokens,
+        log.info(
+            "NL2SQL.generate invoking LLM: model=%s max_tokens=%d table_blob_chars=%d",
+            model,
+            settings.llm_max_tokens,
+            len(tables_blob),
         )
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.generate LLM call failed")
+            raise
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
         sql = _rewrite_date_functions(sql)
         if not _is_select_only(sql):
             raise RuntimeError("Generated SQL is invalid or not SELECT-only")
         _ensure_required_prefix(sql)
+        log.info("NL2SQL.generate done: sql_preview=\"%s\"", _preview(sql, limit=200))
         return sql
 
 
     def synthesize(self, *, question: str, evidence: List[Dict[str, object]]) -> str:
         client, model = self._client_and_model()
+        log.info(
+            "NL2SQL.synthesize start: question=\"%s\" evidence_items=%d",
+            _preview(question, limit=200),
+            len(evidence),
+        )
         system = (
             "You are an analyst. Given a question and the results of prior SQL queries,"
             " write a concise answer in French. Use numbers and be precise."
@@ -283,13 +330,25 @@ class NL2SQLService:
         user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
-        resp = client.chat_completions(
-            model=model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            temperature=0,
-            max_tokens=settings.llm_max_tokens,
+        log.info(
+            "NL2SQL.synthesize invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            model,
+            settings.llm_max_tokens,
+            len(user),
         )
-        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.synthesize LLM call failed")
+            raise
+        reply = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        log.info("NL2SQL.synthesize done: reply_preview=\"%s\"", _preview(reply, limit=200))
+        return reply
 
     def write(
         self,
@@ -305,6 +364,12 @@ class NL2SQLService:
         - Produces a concise French answer, no SQL in the output
         """
         client, model = self._client_and_model()
+        log.info(
+            "NL2SQL.write(synthesis) start: question=\"%s\" evidence=%d retrieval=%d",
+            _preview(question, limit=200),
+            len(evidence),
+            len(retrieval_context or []),
+        )
         payload = {
             "question": question,
             "evidence": evidence,
@@ -323,16 +388,29 @@ class NL2SQLService:
         )
         # Enforce per-agent cap (redaction)
         check_and_increment("redaction")
-        resp = client.chat_completions(
-            model=model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-            ],
-            temperature=0,
-            max_tokens=settings.llm_max_tokens,
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        log.info(
+            "NL2SQL.write(synthesis) invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            model,
+            settings.llm_max_tokens,
+            len(payload_json),
         )
-        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": payload_json},
+                ],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.write(synthesis) LLM call failed")
+            raise
+        reply = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        log.info("NL2SQL.write(synthesis) done: reply_preview=\"%s\"", _preview(reply, limit=200))
+        return reply
 
     # --- Multi‑agent helpers -------------------------------------------------
     def explore(
@@ -350,6 +428,13 @@ class NL2SQLService:
         Returns a list of {"purpose", "sql"}.
         """
         client, model = self._client_and_model()
+        log.info(
+            "NL2SQL.explore start: question=\"%s\" schema_tables=%d max_steps=%d observations=%s",
+            _preview(question, limit=160),
+            len(schema),
+            max_steps,
+            "yes" if observations else "no",
+        )
         tables_desc = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
@@ -373,12 +458,22 @@ class NL2SQLService:
         )
         # Enforce per-agent cap (explorateur)
         check_and_increment("explorateur")
-        resp = client.chat_completions(
-            model=model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            temperature=0,
-            max_tokens=settings.llm_max_tokens,
+        log.info(
+            "NL2SQL.explore invoking LLM: model=%s max_tokens=%d tables=%d",
+            model,
+            settings.llm_max_tokens,
+            len(schema),
         )
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.explore LLM call failed")
+            raise
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         blob = text
         if "```" in text:
@@ -407,6 +502,7 @@ class NL2SQLService:
             out.append({"purpose": purpose, "sql": sql})
         if not out:
             raise RuntimeError("Aucune requête exploratoire exploitable")
+        log.info("NL2SQL.explore done: queries=%d", len(out))
         return out
 
     def generate_with_evidence(
@@ -421,6 +517,12 @@ class NL2SQLService:
         The model must return only one SELECT that answers the question precisely.
         """
         client, model = self._client_and_model()
+        log.info(
+            "NL2SQL.generate_with_evidence start: question=\"%s\" schema_tables=%d evidence_items=%d",
+            _preview(question, limit=200),
+            len(schema),
+            len(evidence),
+        )
         tables_desc = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
@@ -445,18 +547,29 @@ class NL2SQLService:
         )
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
-        resp = client.chat_completions(
-            model=model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            temperature=0,
-            max_tokens=settings.llm_max_tokens,
+        log.info(
+            "NL2SQL.generate_with_evidence invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            model,
+            settings.llm_max_tokens,
+            len(user),
         )
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.generate_with_evidence LLM call failed")
+            raise
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
         sql = _rewrite_date_functions(sql)
         if not _is_select_only(sql):
             raise RuntimeError("La requête finale générée n'est pas un SELECT")
         _ensure_required_prefix(sql)
+        log.info("NL2SQL.generate_with_evidence done: sql_preview=\"%s\"", _preview(sql, limit=200))
         return sql
 
     def propose_axes(
@@ -472,6 +585,13 @@ class NL2SQLService:
         Returns a list of objects with keys: x, y (optional), agg (optional), chart (bar|line|pie|table), reason.
         """
         client, model = self._client_and_model()
+        log.info(
+            "NL2SQL.propose_axes start: question=\"%s\" schema_tables=%d evidence_items=%d max_items=%d",
+            _preview(question, limit=160),
+            len(schema),
+            len(evidence or []),
+            max_items,
+        )
         tables_desc = []
         for t, cols in schema.items():
             col_list = ", ".join(cols)
@@ -500,15 +620,26 @@ class NL2SQLService:
         )
         # Enforce per-agent cap (axes)
         check_and_increment("axes")
-        resp = client.chat_completions(
-            model=model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-            ],
-            temperature=0,
-            max_tokens=settings.llm_max_tokens,
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        log.info(
+            "NL2SQL.propose_axes invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            model,
+            settings.llm_max_tokens,
+            len(payload_json),
         )
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": payload_json},
+                ],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.propose_axes LLM call failed")
+            raise
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         blob = text
         if "```" in text:
@@ -536,6 +667,7 @@ class NL2SQLService:
             out.append({"x": x, "y": y, "agg": agg, "chart": chart, "reason": reason})
         if not out:
             raise RuntimeError("Aucune proposition d'axes exploitable")
+        log.info("NL2SQL.propose_axes done: suggestions=%d", len(out))
         return out
 
     # Writer agent: interpret results with Constat / Action / Question
@@ -547,6 +679,12 @@ class NL2SQLService:
         retrieval_context: List[Dict[str, object]] | None = None,
     ) -> str:
         client, model = self._client_and_model()
+        log.info(
+            "NL2SQL.write(writer) start: question=\"%s\" evidence=%d retrieval=%d",
+            _preview(question, limit=200),
+            len(evidence),
+            len(retrieval_context or []),
+        )
         system = (
             "Tu es un rédacteur‑analyste français. À partir des tableaux de résultats fournis (evidence), "
             "réponds directement à la question de l'utilisateur de manière naturelle et fluide.\n\n"
@@ -570,13 +708,26 @@ class NL2SQLService:
             payload["retrieval_context"] = retrieval_context
         # Enforce per-agent cap (redaction)
         check_and_increment("redaction")
-        resp = client.chat_completions(
-            model=model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-            ],
-            temperature=0,
-            max_tokens=settings.llm_max_tokens,
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        log.info(
+            "NL2SQL.write(writer) invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            model,
+            settings.llm_max_tokens,
+            len(payload_json),
         )
-        return resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": payload_json},
+                ],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.write(writer) LLM call failed")
+            raise
+        reply = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        log.info("NL2SQL.write(writer) done: reply_preview=\"%s\"", _preview(reply, limit=200))
+        return reply
