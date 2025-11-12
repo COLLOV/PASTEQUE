@@ -137,6 +137,8 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
 
 Quel que soit le mode, `LLM_MAX_TOKENS` (défaut 1024) borne explicitement les réponses des appels `chat_completions` (explorateur, analyste, rédaction, router, chat). Cela évite les erreurs `max_tokens` négatives lorsque les prompts deviennent volumineux.
 
+De plus, les charges utiles envoyées aux LLM pour les agents NL→SQL « analyste » et « rédaction » sont compactées et plafonnées (~100k caractères). Les listes `evidence.rows` sont réduites (lignes/colonnes) et les cellules textuelles tronquées proprement. Un indicateur `compacted: …` est journalisé lors de l’appel. Cela prévient les dépassements de fenêtre de contexte côté serveur OpenAI‑compatible (vLLM) qui mènent à des erreurs du type « max_tokens must be at least 1 ».
+
 Appel:
 
 ```bash

@@ -65,6 +65,80 @@ def _extract_json_blob(text: str) -> str:
     return blob.strip()
 
 
+def _trim_cell(val: object, *, max_chars: int) -> object:
+    """Trim a single cell value to at most ``max_chars`` when it's a string.
+
+    Keeps original value for non-strings.
+    """
+    try:
+        if isinstance(val, str) and max_chars > 0 and len(val) > max_chars:
+            cutoff = max(1, max_chars - 1)
+            return val[:cutoff] + "…"
+        return val
+    except Exception:  # pragma: no cover - defensive
+        return val
+
+
+def _compact_evidence(
+    evidence: list[dict[str, object]] | None,
+    *,
+    row_cap: int,
+    col_cap: int,
+    cell_cap: int,
+) -> list[dict[str, object]]:
+    """Return a compacted copy of ``evidence`` limiting rows/cols/cell sizes.
+
+    - Keeps keys: purpose, sql (previewed), columns (capped), rows (capped and trimmed).
+    - Preserves ordering.
+    """
+    if not evidence:
+        return []
+    out: list[dict[str, object]] = []
+    for item in evidence:
+        try:
+            purpose = str(item.get("purpose", "")) if isinstance(item, dict) else ""
+            sql = str(item.get("sql", "")) if isinstance(item, dict) else ""
+            cols = list(item.get("columns", []) or []) if isinstance(item, dict) else []
+            rows = list(item.get("rows", []) or []) if isinstance(item, dict) else []
+
+            # Cap columns first
+            if col_cap > 0 and cols:
+                cols = cols[:col_cap]
+
+            # Cap rows and trim cells
+            if row_cap > 0 and rows:
+                rows = rows[:row_cap]
+                trimmed_rows: list[object] = []
+                for r in rows:
+                    if isinstance(r, dict):
+                        # Keep only capped columns order
+                        tr: dict[str, object] = {}
+                        for c in cols:
+                            tr[c] = _trim_cell(r.get(c), max_chars=cell_cap)
+                        trimmed_rows.append(tr)
+                    elif isinstance(r, (list, tuple)):
+                        values = list(r)[: len(cols) if cols else col_cap or len(r)]
+                        trimmed_rows.append([_trim_cell(v, max_chars=cell_cap) for v in values])
+                    else:
+                        trimmed_rows.append(_trim_cell(r, max_chars=cell_cap))
+                rows = trimmed_rows
+            else:
+                rows = []
+
+            out.append(
+                {
+                    "purpose": purpose,
+                    "sql": sql[:200],  # preview long SQL
+                    "columns": cols,
+                    "rows": rows,
+                }
+            )
+        except Exception:  # pragma: no cover - defensive
+            # Skip malformed items rather than failing whole request
+            continue
+    return out
+
+
 _TABLE_REF_PATTERN = re.compile(r"\b(from|join)\s+(?!\s*\()([a-zA-Z_][\w\.]*)", re.IGNORECASE)
 _PREFIX_SKIP_KEYWORDS = {"select", "lateral", "unnest", "values", "table", "cast"}
 
@@ -327,14 +401,38 @@ class NL2SQLService:
             " write a concise answer in French. Use numbers and be precise."
             " If data is insufficient, say so. Do not include SQL in the final answer."
         )
-        user = json.dumps({"question": question, "evidence": evidence}, ensure_ascii=False)
+        # Build compacted payload with safeguards on size
+        CAP = 100_000  # hard cap in characters for safety
+        levels = [
+            (30, 12, 240),
+            (20, 10, 200),
+            (12, 8, 160),
+            (6, 6, 120),
+            (3, 5, 80),
+            (0, 0, 0),  # last resort: structure only
+        ]
+        user = ""
+        compacted_note: str | None = None
+        for (row_cap, col_cap, cell_cap) in levels:
+            ev_compact = _compact_evidence(evidence, row_cap=row_cap, col_cap=col_cap, cell_cap=cell_cap)
+            candidate = json.dumps({"question": question, "evidence": ev_compact}, ensure_ascii=False)
+            if len(candidate) <= CAP:
+                user = candidate
+                if (row_cap, col_cap, cell_cap) != levels[0]:
+                    compacted_note = f"rows<=${row_cap}, cols<=${col_cap}, cell<=${cell_cap}"
+                break
+        if not user:
+            # Fallback: empty evidence if nothing fits (extremely unlikely)
+            user = json.dumps({"question": question, "evidence": []}, ensure_ascii=False)
+            compacted_note = "rows<=0"
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         log.info(
-            "NL2SQL.synthesize invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            "NL2SQL.synthesize invoking LLM: model=%s max_tokens=%d payload_chars=%d%s",
             model,
             settings.llm_max_tokens,
             len(user),
+            f" (compacted: {compacted_note})" if compacted_note else "",
         )
         try:
             resp = client.chat_completions(
@@ -534,24 +632,55 @@ class NL2SQLService:
             "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
             "Return only the SQL (optionally fenced). No explanation."
         )
-        user = json.dumps(
-            {
-                "question": question,
-                "tables": tables_desc,
-                "evidence": evidence,
-                "rules": {
-                    "schema_prefix": settings.nl2sql_db_prefix,
+        # Build compacted payload with safeguards on evidence size
+        CAP = 100_000  # hard cap in characters for safety
+        levels = [
+            (30, 12, 240),
+            (20, 10, 200),
+            (12, 8, 160),
+            (6, 6, 120),
+            (3, 5, 80),
+            (0, 0, 0),
+        ]
+        user = ""
+        compacted_note: str | None = None
+        for (row_cap, col_cap, cell_cap) in levels:
+            ev_compact = _compact_evidence(evidence, row_cap=row_cap, col_cap=col_cap, cell_cap=cell_cap)
+            candidate = json.dumps(
+                {
+                    "question": question,
+                    "tables": tables_desc,
+                    "evidence": ev_compact,
+                    "rules": {
+                        "schema_prefix": settings.nl2sql_db_prefix,
+                    },
                 },
-            },
-            ensure_ascii=False,
-        )
+                ensure_ascii=False,
+            )
+            if len(candidate) <= CAP:
+                user = candidate
+                if (row_cap, col_cap, cell_cap) != levels[0]:
+                    compacted_note = f"rows<=${row_cap}, cols<=${col_cap}, cell<=${cell_cap}"
+                break
+        if not user:
+            user = json.dumps(
+                {
+                    "question": question,
+                    "tables": tables_desc,
+                    "evidence": [],
+                    "rules": {"schema_prefix": settings.nl2sql_db_prefix},
+                },
+                ensure_ascii=False,
+            )
+            compacted_note = "rows<=0"
         # Enforce per-agent cap (analyste)
         check_and_increment("analyste")
         log.info(
-            "NL2SQL.generate_with_evidence invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            "NL2SQL.generate_with_evidence invoking LLM: model=%s max_tokens=%d payload_chars=%d%s",
             model,
             settings.llm_max_tokens,
             len(user),
+            f" (compacted: {compacted_note})" if compacted_note else "",
         )
         try:
             resp = client.chat_completions(
@@ -700,20 +829,53 @@ class NL2SQLService:
             "- Français professionnel, direct et concis (2-5 phrases selon le contexte)\n"
             "- Pas de SQL ni de jargon technique dans la réponse finale"
         )
-        payload = {
-            "question": question,
-            "evidence": evidence,
-        }
-        if retrieval_context is not None:
-            payload["retrieval_context"] = retrieval_context
+        # Compact evidence as in other agents to keep payload under control
+        CAP = 100_000  # hard cap in characters for safety
+        levels = [
+            (30, 12, 240),
+            (20, 10, 200),
+            (12, 8, 160),
+            (6, 6, 120),
+            (3, 5, 80),
+            (0, 0, 0),
+        ]
+        compacted_note: str | None = None
+
+        # Minimal compaction for retrieval context: keep first 8 items and trim long strings
+        rc = retrieval_context or []
+        if isinstance(rc, list) and len(rc) > 8:
+            rc = rc[:8]
+        def _trim_dict_strings(obj: object, *, cap: int) -> object:
+            if isinstance(obj, dict):
+                return {k: (v[:cap] + "…" if isinstance(v, str) and len(v) > cap else v) for k, v in obj.items()}
+            if isinstance(obj, str) and len(obj) > cap:
+                return obj[:cap] + "…"
+            return obj
+
+        payload_json = ""
+        for (row_cap, col_cap, cell_cap) in levels:
+            ev_compact = _compact_evidence(evidence, row_cap=row_cap, col_cap=col_cap, cell_cap=cell_cap)
+            rc_compact = [_trim_dict_strings(x, cap=400) for x in rc] if rc else []
+            candidate = json.dumps(
+                {"question": question, "evidence": ev_compact, **({"retrieval_context": rc_compact} if rc_compact else {})},
+                ensure_ascii=False,
+            )
+            if len(candidate) <= CAP:
+                payload_json = candidate
+                if (row_cap, col_cap, cell_cap) != levels[0] or (rc and len(rc) != len(retrieval_context or [])):
+                    compacted_note = f"rows<=${row_cap}, cols<=${col_cap}, cell<=${cell_cap}, rc<=8, rc_str<=400"
+                break
+        if not payload_json:
+            payload_json = json.dumps({"question": question, "evidence": []}, ensure_ascii=False)
+            compacted_note = "rows<=0"
         # Enforce per-agent cap (redaction)
         check_and_increment("redaction")
-        payload_json = json.dumps(payload, ensure_ascii=False)
         log.info(
-            "NL2SQL.write(writer) invoking LLM: model=%s max_tokens=%d payload_chars=%d",
+            "NL2SQL.write(writer) invoking LLM: model=%s max_tokens=%d payload_chars=%d%s",
             model,
             settings.llm_max_tokens,
             len(payload_json),
+            f" (compacted: {compacted_note})" if compacted_note else "",
         )
         try:
             resp = client.chat_completions(
