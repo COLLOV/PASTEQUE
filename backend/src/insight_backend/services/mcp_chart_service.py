@@ -390,28 +390,28 @@ class ChartGenerationService:
         return provider, model_name
 
     def _validate_chart_url(self, chart_url: str) -> None:
-        """Ensure returned chart_url starts with VIS_REQUEST_SERVER base URL.
+        """Ensure returned chart_url starts with the `.env` public base URL.
 
-        Minimal check: verifies the MCP URL begins with the configured
-        `VIS_REQUEST_SERVER` (string prefix match). Raises ChartGenerationError
-        on mismatch.
+        Minimal check: verifies the MCP URL begins with the value of
+        `GPT_VIS_SSR_PUBLIC_URL` from the environment (string prefix match).
+        If not defined, validation is skipped to avoid false negatives.
         """
 
-        expect_base = (self._chart_spec.env or {}).get("VIS_REQUEST_SERVER")
+        expect_base = os.environ.get("GPT_VIS_SSR_PUBLIC_URL")
         if not expect_base:
-            log.debug("Aucune VIS_REQUEST_SERVER dans la configuration MCP; validation ignorée")
+            log.debug("Aucun GPT_VIS_SSR_PUBLIC_URL dans l'environnement; validation ignorée")
             return
 
         # Normalize to ensure trailing slash for consistent prefix comparison
         base = expect_base.rstrip("/") + "/"
         if not chart_url.startswith(base):
             log.error(
-                "URL de graphique MCP rejetée: ne commence pas par la base attendue %s (reçu %s)",
+                "URL de graphique MCP rejetée: ne commence pas par la base .env attendue %s (reçu %s)",
                 base,
                 chart_url,
             )
             raise ChartGenerationError(
-                "L'URL de rendu retournée par le MCP ne correspond pas au serveur configuré"
+                "L'URL de rendu retournée par le MCP ne correspond pas à l'URL publique configurée"
             )
 
     @staticmethod
