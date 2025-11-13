@@ -19,10 +19,10 @@ Variables d’environnement via `.env` (voir `.env.example`). Le script racine `
 - Clé: `AGENT_MAX_REQUESTS`. Exemple:
 
 ```
-AGENT_MAX_REQUESTS={"explorateur":2, "analyste":1, "redaction":1, "router":1}
+AGENT_MAX_REQUESTS={"explorateur":2, "analyste":1, "check":1, "redaction":1, "router":1}
 ```
 
-Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `retrieval`, `mcp_chart`.
+Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `redaction`, `axes`, `embedding`, `retrieval`, `mcp_chart`, `check`.
 
 - Quand la limite est atteinte, l’API répond `429 Too Many Requests` (ou un événement `error` en SSE) avec un message explicite.
 - Par défaut (variable absente ou invalide), aucune limite n’est appliquée.
@@ -30,6 +30,12 @@ Agents disponibles: `router`, `chat`, `nl2sql`, `explorateur`, `analyste`, `reda
 Note (PR #72): les dépassements de quota par agent sont désormais correctement propagés jusqu’aux routes afin de produire un statut HTTP 429, y compris pour le chemin multi‑agent NL→SQL et la génération de graphiques via MCP.
 
 Au démarrage, l’API journalise le mapping effectif des plafonds (ou l’absence de plafonds). En production, une valeur JSON invalide pour `AGENT_MAX_REQUESTS` provoque une erreur de démarrage. Les variables dépréciées `NL2SQL_ENABLED`, `NL2SQL_INCLUDE_SAMPLES`, `NL2SQL_SAMPLES_PATH`, `NL2SQL_PLAN_MODE` sont ignorées et signalées dans les logs.
+
+#### Agent `check` (validation)
+
+- Rôle: vérifier si la réponse de l’analyste/rédaction répond bien à la question utilisateur.
+- Si la validation échoue, la raison est transmise comme « observation » à l’agent explorateur et une nouvelle itération d’exploration est tentée (dans la limite des budgets).
+- Limite: contrôlée par `AGENT_MAX_REQUESTS["check"]` (par requête HTTP). Mettre `0` pour désactiver la validation.
 
 ### Dictionnaire de données (YAML)
 
