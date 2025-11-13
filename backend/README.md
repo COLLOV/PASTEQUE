@@ -274,6 +274,19 @@ MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 # MINDSDB_TIMEOUT_S=120  # délai lecture/écriture HTTP en secondes
 ```
 
+Contrôle du conteneur MindsDB via `backend/.env` (utilisé par `start.sh`):
+
+```
+# Nom du conteneur
+MINDSDB_CONTAINER_NAME=mindsdb_container
+
+# Ports côté hôte (gauche du -p) — doivent être numériques
+MINDSDB_HTTP_PORT=47334
+MINDSDB_MYSQL_PORT=47335
+
+# Note: le port de `MINDSDB_BASE_URL` doit correspondre à `MINDSDB_HTTP_PORT`.
+```
+
 Le délai par défaut est de 120 s, suffisant pour publier des CSV volumineux; ajustez `MINDSDB_TIMEOUT_S` si vos imports dépassent cette fenêtre.
 
 1) Synchroniser les fichiers locaux `data/raw` vers la DB `files` de MindsDB:
