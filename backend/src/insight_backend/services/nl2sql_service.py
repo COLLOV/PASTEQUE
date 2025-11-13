@@ -144,11 +144,20 @@ def _rewrite_date_functions(sql: str) -> str:
     """Rewrite YEAR(col) / MONTH(col) into DuckDB-safe EXTRACT with CAST to DATE."""
     def rep_year(m: re.Match[str]) -> str:
         expr = m.group(1).strip()
-        return f"EXTRACT(YEAR FROM CAST(NULLIF({expr}, 'None') AS DATE))"
+        # Avoid NULLIF; use explicit CASE to handle 'None' or empty strings
+        return (
+            "EXTRACT(YEAR FROM CAST("
+            f"CASE WHEN {expr} IS NULL OR {expr} IN ('None','') THEN NULL ELSE {expr} END"
+            " AS DATE))"
+        )
 
     def rep_month(m: re.Match[str]) -> str:
         expr = m.group(1).strip()
-        return f"EXTRACT(MONTH FROM CAST(NULLIF({expr}, 'None') AS DATE))"
+        return (
+            "EXTRACT(MONTH FROM CAST("
+            f"CASE WHEN {expr} IS NULL OR {expr} IN ('None','') THEN NULL ELSE {expr} END"
+            " AS DATE))"
+        )
 
     out = re.sub(r"(?is)\byear\s*\(\s*([^\)]+?)\s*\)", rep_year, sql)
     out = re.sub(r"(?is)\bmonth\s*\(\s*([^\)]+?)\s*\)", rep_month, out)
@@ -344,7 +353,8 @@ class NL2SQLService:
             f"Use only the tables listed below under the '{settings.nl2sql_db_prefix}.' schema.\n"
             "Return exactly ONE SELECT query. No comments. No explanations.\n"
             "Rules: SELECT-only; never modify data. Date-like columns are TEXT in 'YYYY-MM-DD'.\n"
-            "Always CAST(NULLIF(date_col,'None') AS DATE) before date filters and use EXTRACT(YEAR|MONTH FROM ...).\n"
+            "For date parts, use EXTRACT(YEAR|MONTH FROM CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)).\n"
+            "Never use NULLIF with more than 2 arguments. Prefer the CASE…END form above over NULLIF.\n"
             f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
             "After introducing an alias, reuse it everywhere (SELECT, WHERE, subqueries) instead of the raw table name.\n"
             "Never invent table or column names: use them exactly as provided (e.g. if only 'tickets_jira' exists, do NOT use 'tickets')."
@@ -532,6 +542,8 @@ class NL2SQLService:
             "or numbers, COUNTs by key categories, and a few sample rows (LIMIT ≤ 20).\n"
             f"Use only the '{settings.nl2sql_db_prefix}.' schema and always add an alias after each table.\n"
             "All queries must be SELECT‑only, safe to execute, and return quickly.\n"
+            "For date parts, use EXTRACT(YEAR|MONTH FROM CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)).\n"
+            "Never use NULLIF with more than 2 arguments; prefer the CASE…END form above.\n"
             "Return JSON only: {\"queries\":[{\"purpose\":str,\"sql\":str}, ...]}. No prose."
         )
         obs_section = (f"\nObservations to consider:\n{observations}\n" if observations else "")
@@ -616,7 +628,8 @@ class NL2SQLService:
             "You are an analyst agent. Given a natural language question and the results of prior\n"
             "exploratory queries, write ONE SQL SELECT that directly answers the question.\n"
             "Dialect: MindsDB (MySQL-like). Rules: SELECT-only; prefix tables with the allowed schema;\n"
-            "CAST(NULLIF(date_col,'None') AS DATE) and use EXTRACT for date parts.\n"
+            "For date parts, use EXTRACT(YEAR|MONTH FROM CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)).\n"
+            "Never use NULLIF with more than 2 arguments; prefer the CASE…END form above.\n"
             "Return only the SQL (optionally fenced). No explanation."
         )
         # Condense evidence to keep prompt within safe bounds
