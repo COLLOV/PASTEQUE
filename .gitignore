@@ -50,3 +50,6 @@ data/mindsdb_embeddings.yaml
 
 # MCP external servers (do not vendor inside repo)
 backend/mcp/**
+
+# Local MCP config (untracked)
+plan/Z/mcp.config.json
