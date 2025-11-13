@@ -211,6 +211,7 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
   - Mode API: `EMBEDDING_MODE=api` + `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `EMBEDDING_MODEL`.
 - La configuration du serveur (`VIS_REQUEST_SERVER`, `SERVICE_ID`…) reste gérée par `MCP_CONFIG_PATH` / `MCP_SERVERS_JSON`. Le serveur MCP `chart` nécessite une sortie réseau vers l’instance AntV par défaut, sauf si vous fournissez votre propre endpoint.
 - Le backend filtre les lignes stdout non JSON renvoyées par le serveur MCP `chart` pour éviter les erreurs `Invalid JSON` dues aux logs d'initialisation.
+- Sécurité: le backend rejette toute URL de rendu renvoyée par le MCP dont l’hôte:port ne correspond pas à `VIS_REQUEST_SERVER` (défini dans votre config MCP). Cela évite les liens « fake » ou inattendus.
 
 ### Sauvegarde des graphiques MCP
 
