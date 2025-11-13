@@ -109,6 +109,7 @@ Corrigez ces variables dans `backend/.env` (ou vos secrets d’exécution) avant
   - Aucune opération DML/DDL (INSERT/UPDATE/DELETE/ALTER/DROP/CREATE),
   - Toutes les tables doivent respecter le préfixe configuré par `NL2SQL_DB_PREFIX` (par défaut: `files`),
   - Ajout automatique d’un `LIMIT` si absent (valeur: `EVIDENCE_LIMIT_DEFAULT`, 100 par défaut).
+- Les agents NL→SQL (exploration, analyste, rédaction) n’exposent jamais plus de `AGENT_OUTPUT_MAX_ROWS` lignes (défaut 200) ni plus de `AGENT_OUTPUT_MAX_COLUMNS` colonnes (défaut 20) dans les événements SSE `rows` / `meta`. Les colonnes excédentaires sont tronquées avant envoi pour éviter des payloads volumineux.
 - Les titres de conversations sont assainis côté API (suppression caractères de contrôle, crochets d’angle, normalisation d’espace, longueur ≤ 120).
 - Les écritures (création de conversation, messages, événements) sont encapsulées dans des transactions SQLAlchemy pour éviter les incohérences en cas d’erreur.
 - Des index composites sont créés automatiquement pour accélérer l’accès à l’historique: `(conversation_id, created_at)` sur `conversation_messages` et `conversation_events`.
@@ -133,6 +134,15 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
   - `OPENAI_API_KEY=<clé>`
   - `LLM_MODEL=GLM-4.5-Air`
   - Voir quick start: https://docs.z.ai/guides/overview/quick-start
+
+Quel que soit le mode, `LLM_MAX_TOKENS` (défaut 1024) borne explicitement les réponses des appels `chat_completions` (explorateur, analyste, rédaction, router, chat). Cela évite les erreurs `max_tokens` négatives lorsque les prompts deviennent volumineux.
+
+De plus, les charges utiles transmises au LLM sont « compactées » côté backend pour rester dans une fenêtre de contexte réaliste:
+
+- Evidence compactée: au plus 5–6 items, 10–12 lignes par item, 10 colonnes max, valeurs tronquées à ~80 caractères.
+- Schéma compacté: la description des tables est tronquée à ~8 000 caractères.
+
+Ces garde‑fous sont visibles dans les logs `insight.services.nl2sql` via `payload_chars` et ne changent pas les données persistées côté conversation.
 
 Appel:
 
@@ -275,6 +285,19 @@ Config côté backend (`backend/.env`):
 MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 # MINDSDB_TOKEN=   # optionnel si auth activée côté MindsDB
 # MINDSDB_TIMEOUT_S=120  # délai lecture/écriture HTTP en secondes
+```
+
+Contrôle du conteneur MindsDB via `backend/.env` (utilisé par `start.sh`):
+
+```
+# Nom du conteneur
+MINDSDB_CONTAINER_NAME=mindsdb_container
+
+# Ports côté hôte (gauche du -p) — doivent être numériques
+MINDSDB_HTTP_PORT=47334
+MINDSDB_MYSQL_PORT=47335
+
+# Note: le port de `MINDSDB_BASE_URL` doit correspondre à `MINDSDB_HTTP_PORT`.
 ```
 
 Le délai par défaut est de 120 s, suffisant pour publier des CSV volumineux; ajustez `MINDSDB_TIMEOUT_S` si vos imports dépassent cette fenêtre.
