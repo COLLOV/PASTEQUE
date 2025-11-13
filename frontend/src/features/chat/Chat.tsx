@@ -111,6 +111,8 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Statut éphémère en mode ANIMATION=true
+  const [animStatus, setAnimStatus] = useState('')
   // Animation de chargement pendant la génération d'un graphique
   const [chartGenerating, setChartGenerating] = useState(false)
   const [chartMode, setChartMode] = useState(false)
@@ -291,6 +293,8 @@ export default function Chat() {
           if (spec && typeof spec === 'object' && spec.entity_label && spec.pk) {
             setEvidenceSpec(spec)
           }
+          // Nouveau flux: réinitialiser le statut animator
+          setAnimStatus('')
         } else if (type === 'plan') {
           setMessages(prev => {
             const copy = [...prev]
@@ -314,11 +318,9 @@ export default function Chat() {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
             const target = idx >= 0 ? idx : copy.length - 1
-            const interimText = sqlText
             copy[target] = {
               ...copy[target],
-              content: interimText,
-              interimSql: interimText,
+              // Ne pas afficher le SQL inline; stocker uniquement pour "Détail"
               details: {
                 ...(copy[target].details || {}),
                 steps: [ ...((copy[target].details?.steps) || []), step ]
@@ -374,16 +376,33 @@ export default function Chat() {
           }
         } else if (type === 'delta') {
           const delta = data as ChatStreamDelta
+          // Dès qu'on commence la réponse, on remplace le contenu éventuel d'Animator
+          setAnimStatus('')
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
             const target = idx >= 0 ? idx : copy.length - 1
-            const wasInterim = Boolean(copy[target].interimSql)
+            const shouldReplace = Boolean((copy[target] as any).interimSql) || Boolean(animStatus)
             copy[target] = {
               ...copy[target],
-              content: wasInterim ? (delta.content || '') : ((copy[target].content || '') + (delta.content || '')),
+              content: shouldReplace ? (delta.content || '') : ((copy[target].content || '') + (delta.content || '')),
               interimSql: undefined,
               ephemeral: true,
+            }
+            return copy
+          })
+        } else if (type === 'anim') {
+          // Message court côté UI; ne pas écraser un SQL intérimaire
+          const msg = typeof (data?.message) === 'string' ? String(data.message) : ''
+          if (msg) setAnimStatus(msg)
+          setMessages(prev => {
+            const copy = [...prev]
+            const idx = copy.findIndex(m => m.ephemeral)
+            if (idx >= 0) {
+              const hasInterim = Boolean(copy[idx].interimSql)
+              if (!hasInterim && msg) {
+                copy[idx] = { ...copy[idx], content: msg, ephemeral: true }
+              }
             }
             return copy
           })
@@ -413,6 +432,7 @@ export default function Chat() {
           // Fin du streaming: message final fixé
           // Refresh history list after message persisted
           refreshHistory()
+          setAnimStatus('')
         } else if (type === 'error') {
           setError(data?.message || 'Erreur streaming')
         }
@@ -915,6 +935,7 @@ export default function Chat() {
                 </button>
               </div>
             </div>
+            
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id ?? index}

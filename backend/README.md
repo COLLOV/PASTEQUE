@@ -211,6 +211,19 @@ Notes de prod:
 - Si vous terminez derrière Nginx/Cloudflare, désactivez le buffering pour ce chemin.
 - Un seul flux actif par requête; le client doit annuler via `AbortController` si nécessaire.
 
+### Animation UI (ANIMATION)
+
+Pilote le niveau d'animation côté front à partir des évènements SSE:
+
+- `ANIMATION=sql` (défaut): conserve les évènements `plan`/`sql`/`rows` tels quels (affichage du SQL intérimaire, échantillons, etc.).
+- `ANIMATION=false`: supprime les évènements `plan` et `sql` côté SSE (et ne les persiste pas). Les métadonnées utiles (`meta`, `effective_tables`, `evidence`) restent émises pour garder les panneaux synchronisés.
+- `ANIMATION=true`: active un agent LLM « animator » qui observe les évènements et émet des messages courts `anim` pour expliquer la progression (ex: « Tables actives: N », « Comptage par catégorie », « Résultats: 20 lignes »). Dans ce mode, les évènements `plan`/`sql` sont de nouveau émis ET persistés afin d’alimenter le panneau « Détails » et l’historique; le message « anim » reste concis et n’impacte pas les données.
+
+Validation: la variable doit valoir `sql`, `true` ou `false`.
+
+Notes UI:
+- En `ANIMATION=true`, le front n’affiche pas le SQL « inline » si un message `anim` est présent; le SQL reste accessible via le bouton « Détails » (et dans l’historique).
+
 ### Router à chaque message
 
 Objectif: éviter de déclencher des requêtes SQL/NL→SQL lorsque un message utilisateur n’est pas orienté « data ».
@@ -280,6 +293,19 @@ MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 # MINDSDB_TIMEOUT_S=120  # délai lecture/écriture HTTP en secondes
 ```
 
+Contrôle du conteneur MindsDB via `backend/.env` (utilisé par `start.sh`):
+
+```
+# Nom du conteneur
+MINDSDB_CONTAINER_NAME=mindsdb_container
+
+# Ports côté hôte (gauche du -p) — doivent être numériques
+MINDSDB_HTTP_PORT=47334
+MINDSDB_MYSQL_PORT=47335
+
+# Note: le port de `MINDSDB_BASE_URL` doit correspondre à `MINDSDB_HTTP_PORT`.
+```
+
 Le délai par défaut est de 120 s, suffisant pour publier des CSV volumineux; ajustez `MINDSDB_TIMEOUT_S` si vos imports dépassent cette fenêtre.
 
 1) Synchroniser les fichiers locaux `data/raw` vers la DB `files` de MindsDB:
@@ -339,6 +365,7 @@ Notes PR #72 (comportements):
  - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 2 blocs similaires: passage `/sql` et NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
  - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
  - 2025-10-31: Evidence panel — dérivation de la requête `SELECT *` désormais basée sur l'AST (sqlglot) au lieu de regex, en conservant `WHERE` et CTE, et en plafonnant avec `LIMIT`. Les opérations en ensemble (UNION/INTERSECT/EXCEPT) sont ignorées par sécurité. Tests: `uv run pytest` → 20 tests OK.
+ - 2025-11-10: NL→SQL — suppression de l'usage de `NULLIF` dans les règles et la réécriture YEAR/MONTH. Les dates texte sont maintenant castées via `CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)` et les prompts imposent explicitement ce schéma (pas de fallback). Le correctif élimine la source des `NULLIF(..., 'None', 'None')` invalides observés lors des comparaisons août vs juillet, sans post‑traitement.
 
  
 
