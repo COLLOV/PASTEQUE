@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(None, alias="OPENAI_API_KEY")
     llm_model: str | None = Field(None, alias="LLM_MODEL")
     openai_timeout_s: int = Field(90, alias="OPENAI_TIMEOUT_S")
+    llm_max_tokens: int = Field(1024, alias="LLM_MAX_TOKENS")
     # vLLM local
     vllm_base_url: str | None = Field("http://localhost:8000/v1", alias="VLLM_BASE_URL")
     z_local_model: str | None = Field("GLM-4.5-Air", alias="Z_LOCAL_MODEL")
@@ -93,6 +94,8 @@ class Settings(BaseSettings):
 
     # Evidence panel / dataset defaults
     evidence_limit_default: int = Field(100, alias="EVIDENCE_LIMIT_DEFAULT")
+    agent_output_max_rows: int = Field(200, alias="AGENT_OUTPUT_MAX_ROWS")
+    agent_output_max_columns: int = Field(20, alias="AGENT_OUTPUT_MAX_COLUMNS")
 
     # Exclusions / validation caps
     max_excluded_tables: int = Field(1000, alias="MAX_EXCLUDED_TABLES")
@@ -126,6 +129,20 @@ class Settings(BaseSettings):
     def _validate_retrieval_max_tokens(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("RETRIEVAL_MAX_TOKENS must be > 0")
+        return int(v)
+
+    @field_validator("llm_max_tokens")
+    @classmethod
+    def _validate_llm_max_tokens(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("LLM_MAX_TOKENS must be > 0")
+        return int(v)
+
+    @field_validator("agent_output_max_rows", "agent_output_max_columns")
+    @classmethod
+    def _validate_agent_output_caps(cls, v: int, info: ValidationInfo) -> int:
+        if v <= 0:
+            raise ValueError(f"{info.field_name.upper()} must be > 0")
         return int(v)
 
     # Database

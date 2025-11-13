@@ -718,7 +718,30 @@ class ChatService:
                 rows = data.get("result", {}).get("rows") or data.get("rows") or rows
             if not columns:
                 columns = data.get("result", {}).get("columns") or data.get("columns") or columns
-        return columns or [], rows or []
+
+        columns_list = [str(col) for col in (columns or [])]
+        rows_list = list(rows or [])
+
+        max_rows = settings.agent_output_max_rows
+        if max_rows and len(rows_list) > max_rows:
+            rows_list = rows_list[:max_rows]
+
+        max_cols = settings.agent_output_max_columns
+        if max_cols and columns_list and len(columns_list) > max_cols:
+            columns_list = columns_list[:max_cols]
+
+            def _trim_row(row: Any) -> Any:
+                if isinstance(row, dict):
+                    return {col: row.get(col) for col in columns_list}
+                if isinstance(row, list):
+                    return row[: len(columns_list)]
+                if isinstance(row, tuple):
+                    return row[: len(columns_list)]
+                return row
+
+            rows_list = [_trim_row(row) for row in rows_list]
+
+        return columns_list, rows_list
 
     def _derive_evidence_sql(self, sql: str, *, limit: int | None = None) -> str | None:
         """Build a safe ``SELECT * ... LIMIT N`` for the evidence panel.

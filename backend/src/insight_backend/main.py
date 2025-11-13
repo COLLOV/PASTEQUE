@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings, assert_secure_configuration
+from .core.logging import configure_logging
 from .core.database import init_database, session_scope
 from .api.routes.v1.health import router as health_router
 from .api.routes.v1.chat import router as chat_router
@@ -17,6 +18,7 @@ from .repositories.user_repository import UserRepository
 from .services.auth_service import AuthService
 
 
+configure_logging(settings.log_level)
 log = logging.getLogger("insight.main")
 
 
