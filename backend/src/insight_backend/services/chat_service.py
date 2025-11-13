@@ -414,6 +414,7 @@ class ChatService:
                             context="completion done (nl2sql-multiagent-no-round)",
                         )
 
+                    extra_observations: str | None = None
                     for r in range(1, rounds + 1):
                         try:
                             observations = None
@@ -423,6 +424,12 @@ class ChatService:
                                     observations = f"Evidence so far: {len(evidence)} items."
                                 except Exception:
                                     observations = None
+                            # If a previous check failed, feed its reason to the explorer
+                            if extra_observations:
+                                if observations:
+                                    observations = f"{observations} Suggestion: {extra_observations}"
+                                else:
+                                    observations = f"Suggestion: {extra_observations}"
                             plan = nl2sql.explore(
                                 question=contextual_question_with_dico,
                                 schema=schema,
@@ -589,19 +596,44 @@ class ChatService:
                                     retrieval_context=retrieval_payload,
                                 ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
-                                metadata = {
-                                    "provider": "nl2sql-multiagent",
-                                    "rounds_used": r,
-                                    "sql": final_sql,
-                                    "agents": ["explorateur", "analyste", "retrieval", "redaction"],
-                                    "retrieval_rows": retrieval_payload,
-                                }
-                                return self._log_completion(
-                                    ChatResponse(
-                                        reply=reply_text,
-                                        metadata=metadata,
-                                    ),
-                                    context="completion done (nl2sql-multiagent)",
+
+                                # Run check agent to validate the analyst/synthesis result
+                                try:
+                                    ok, reason = nl2sql.check(
+                                        question=raw_question,
+                                        answer=reply_text,
+                                    )
+                                except AgentBudgetExceeded:
+                                    raise
+                                except Exception as e:
+                                    # If the check agent errors, log and proceed as if it failed, to allow retry
+                                    log.warning("Check agent failed: %s", e)
+                                    ok, reason = False, f"Validation indisponible: {e}"
+
+                                if events:
+                                    try:
+                                        events("meta", {"provider": "check", "ok": ok, "reason": reason, "round": r})
+                                    except Exception:
+                                        log.warning("Failed to emit check meta event", exc_info=True)
+
+                                if ok:
+                                    metadata = {
+                                        "provider": "nl2sql-multiagent",
+                                        "rounds_used": r,
+                                        "sql": final_sql,
+                                        "agents": ["explorateur", "analyste", "retrieval", "redaction", "check"],
+                                        "retrieval_rows": retrieval_payload,
+                                    }
+                                    return self._log_completion(
+                                        ChatResponse(
+                                            reply=reply_text,
+                                            metadata=metadata,
+                                        ),
+                                        context="completion done (nl2sql-multiagent)",
+                                    )
+                                # Not ok → set guidance for the next explore round
+                                extra_observations = (
+                                    reason or "La réponse précédente ne répond pas clairement à la question."
                                 )
                             except AgentBudgetExceeded:
                                 # Bubble up so API can convert to 429

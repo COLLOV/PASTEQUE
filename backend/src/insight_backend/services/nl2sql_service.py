@@ -386,6 +386,72 @@ class NL2SQLService:
         return sql
 
 
+    def check(
+        self,
+        *,
+        question: str,
+        answer: str,
+    ) -> tuple[bool, str]:
+        """Validate that the analyst's answer addresses the user's question.
+
+        Returns (ok, reason). When invalid, reason briefly explains why.
+        Uses the same LLM backend and respects per-agent caps via 'check'.
+        """
+        # Fast guardrail: empty answers never satisfy the question
+        if not isinstance(answer, str) or not answer.strip():
+            return False, "Réponse vide ou invalide."
+
+        client, model = self._client_and_model()
+        # Enforce per-agent cap (check)
+        check_and_increment("check")
+        payload = {
+            "question": str(question or "").strip(),
+            "answer": answer.strip(),
+            "instruction": (
+                "Dis si la réponse répond clairement et directement à la question. "
+                "Répond STRICTEMENT en JSON: {\"ok\": true|false, \"reason\": string}."
+            ),
+        }
+        system = (
+            "You are a strict QA agent. Evaluate if the answer directly and adequately "
+            "answers the user's question. Output only compact JSON."
+        )
+        body = json.dumps(payload, ensure_ascii=False)
+        log.info(
+            "NL2SQL.check start: q_preview=\"%s\" a_preview=\"%s\"",
+            _preview(question, limit=120),
+            _preview(answer, limit=120),
+        )
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": body},
+                ],
+                temperature=0,
+                max_tokens=min(128, settings.llm_max_tokens or 512),
+            )
+        except Exception:
+            log.exception("NL2SQL.check LLM call failed")
+            raise
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        blob = _extract_json_blob(text)
+        try:
+            data = json.loads(blob)
+            ok = bool(data.get("ok"))
+            reason = str(data.get("reason", "")).strip()
+            # Reason must be present when not ok to guide the next round
+            if not ok and not reason:
+                reason = "Validation négative sans justification fournie."
+            log.info("NL2SQL.check done: ok=%s reason_preview=\"%s\"", ok, _preview(reason, limit=160))
+            return ok, reason
+        except Exception as e:
+            msg = f"Réponse de validation invalide: {e}"
+            log.warning("NL2SQL.check parse error: %s (raw=%.160s)", e, text)
+            return False, msg
+
+
     def synthesize(self, *, question: str, evidence: List[Dict[str, object]]) -> str:
         client, model = self._client_and_model()
         log.info(
