@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Iterable, List, TextIO, Tuple
@@ -391,45 +390,25 @@ class ChartGenerationService:
         return provider, model_name
 
     def _validate_chart_url(self, chart_url: str) -> None:
-        """Ensure returned chart_url points to the configured VIS_REQUEST_SERVER host:port.
+        """Ensure returned chart_url starts with VIS_REQUEST_SERVER base URL.
 
-        Minimal, defensive check: compares hostname and effective port (defaults
-        80/443) between the returned URL and the VIS_REQUEST_SERVER configured in
-        the MCP server spec. Raises ChartGenerationError on mismatch.
+        Minimal check: verifies the MCP URL begins with the configured
+        `VIS_REQUEST_SERVER` (string prefix match). Raises ChartGenerationError
+        on mismatch.
         """
 
         expect_base = (self._chart_spec.env or {}).get("VIS_REQUEST_SERVER")
         if not expect_base:
-            # No explicit base provided; nothing to validate against.
             log.debug("Aucune VIS_REQUEST_SERVER dans la configuration MCP; validation ignorée")
             return
 
-        def _host_port(url: str) -> tuple[str | None, int | None, str | None]:
-            parsed = urlparse(url)
-            host = parsed.hostname
-            port = parsed.port
-            scheme = (parsed.scheme or "").lower()
-            if port is None:
-                if scheme == "https":
-                    port = 443
-                elif scheme == "http":
-                    port = 80
-            return host, port, scheme
-
-        exp_host, exp_port, _ = _host_port(expect_base)
-        got_host, got_port, _ = _host_port(chart_url)
-
-        # Only enforce host:port consistency (scheme differences are tolerated)
-        if not exp_host or not exp_port or not got_host or not got_port:
-            raise ChartGenerationError("URL de rendu invalide (hôte/port introuvables)")
-
-        if (exp_host, exp_port) != (got_host, got_port):
+        # Normalize to ensure trailing slash for consistent prefix comparison
+        base = expect_base.rstrip("/") + "/"
+        if not chart_url.startswith(base):
             log.error(
-                "URL de graphique MCP rejetée: incohérence host:port (attendu %s:%s, reçu %s:%s)",
-                exp_host,
-                exp_port,
-                got_host,
-                got_port,
+                "URL de graphique MCP rejetée: ne commence pas par la base attendue %s (reçu %s)",
+                base,
+                chart_url,
             )
             raise ChartGenerationError(
                 "L'URL de rendu retournée par le MCP ne correspond pas au serveur configuré"
