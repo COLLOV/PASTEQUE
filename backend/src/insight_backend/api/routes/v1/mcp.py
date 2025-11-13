@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from ....integrations.mcp_manager import MCPManager
@@ -7,6 +9,7 @@ from ....core.agent_limits import reset_from_settings, AgentBudgetExceeded
 
 
 router = APIRouter(prefix="/mcp")
+log = logging.getLogger("insight.api.mcp")
 
 
 @router.get("/servers")
@@ -30,8 +33,10 @@ async def generate_mcp_chart(payload: ChartRequest) -> ChartResponse:  # type: i
             answer=payload.answer,
         )
     except AgentBudgetExceeded as exc:
+        log.error("/mcp/chart budget exceeded: %s", exc)
         raise HTTPException(status_code=429, detail=str(exc))
     except ChartGenerationError as exc:
+        log.error("/mcp/chart generation failed: %s", exc)
         raise HTTPException(status_code=502, detail=str(exc))
 
     return ChartResponse(

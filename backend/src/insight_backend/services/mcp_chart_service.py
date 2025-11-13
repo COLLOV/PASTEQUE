@@ -343,6 +343,12 @@ class ChartGenerationService:
         if not output.chart_url:
             raise ChartGenerationError("L'agent n'a pas fourni d'URL de graphique.")
 
+        # Log the URL produced by the MCP agent
+        try:
+            log.info("[mcp-chart] Agent produced chart_url=%s", output.chart_url)
+        except Exception:
+            pass
+
         # Validate that the MCP-returned URL matches the configured VIS_REQUEST_SERVER (host:port)
         self._validate_chart_url(output.chart_url)
 
@@ -418,7 +424,7 @@ class ChartGenerationService:
                 chart_url,
             )
             raise ChartGenerationError(
-                "L'URL de rendu retournée par le MCP ne correspond pas à l'URL publique configurée"
+                f"URL de rendu invalide: attend un préfixe '{base}', reçu '{chart_url}'"
             )
 
     @staticmethod
