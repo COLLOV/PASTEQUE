@@ -109,6 +109,7 @@ Corrigez ces variables dans `backend/.env` (ou vos secrets d’exécution) avant
   - Aucune opération DML/DDL (INSERT/UPDATE/DELETE/ALTER/DROP/CREATE),
   - Toutes les tables doivent respecter le préfixe configuré par `NL2SQL_DB_PREFIX` (par défaut: `files`),
   - Ajout automatique d’un `LIMIT` si absent (valeur: `EVIDENCE_LIMIT_DEFAULT`, 100 par défaut).
+- Les agents NL→SQL (exploration, analyste, rédaction) n’exposent jamais plus de `AGENT_OUTPUT_MAX_ROWS` lignes (défaut 200) ni plus de `AGENT_OUTPUT_MAX_COLUMNS` colonnes (défaut 20) dans les événements SSE `rows` / `meta`. Les colonnes excédentaires sont tronquées avant envoi pour éviter des payloads volumineux.
 - Les titres de conversations sont assainis côté API (suppression caractères de contrôle, crochets d’angle, normalisation d’espace, longueur ≤ 120).
 - Les écritures (création de conversation, messages, événements) sont encapsulées dans des transactions SQLAlchemy pour éviter les incohérences en cas d’erreur.
 - Des index composites sont créés automatiquement pour accélérer l’accès à l’historique: `(conversation_id, created_at)` sur `conversation_messages` et `conversation_events`.
@@ -133,6 +134,15 @@ Le backend utilise un moteur OpenAI‑compatible unique (léger) pour adresser:
   - `OPENAI_API_KEY=<clé>`
   - `LLM_MODEL=GLM-4.5-Air`
   - Voir quick start: https://docs.z.ai/guides/overview/quick-start
+
+Quel que soit le mode, `LLM_MAX_TOKENS` (défaut 1024) borne explicitement les réponses des appels `chat_completions` (explorateur, analyste, rédaction, router, chat). Cela évite les erreurs `max_tokens` négatives lorsque les prompts deviennent volumineux.
+
+De plus, les charges utiles transmises au LLM sont « compactées » côté backend pour rester dans une fenêtre de contexte réaliste:
+
+- Evidence compactée: au plus 5–6 items, 10–12 lignes par item, 10 colonnes max, valeurs tronquées à ~80 caractères.
+- Schéma compacté: la description des tables est tronquée à ~8 000 caractères.
+
+Ces garde‑fous sont visibles dans les logs `insight.services.nl2sql` via `payload_chars` et ne changent pas les données persistées côté conversation.
 
 Appel:
 
@@ -194,6 +204,19 @@ En-têtes envoyés par le serveur: `Cache-Control: no-cache`, `X-Accel-Buffering
 Notes de prod:
 - Si vous terminez derrière Nginx/Cloudflare, désactivez le buffering pour ce chemin.
 - Un seul flux actif par requête; le client doit annuler via `AbortController` si nécessaire.
+
+### Animation UI (ANIMATION)
+
+Pilote le niveau d'animation côté front à partir des évènements SSE:
+
+- `ANIMATION=sql` (défaut): conserve les évènements `plan`/`sql`/`rows` tels quels (affichage du SQL intérimaire, échantillons, etc.).
+- `ANIMATION=false`: supprime les évènements `plan` et `sql` côté SSE (et ne les persiste pas). Les métadonnées utiles (`meta`, `effective_tables`, `evidence`) restent émises pour garder les panneaux synchronisés.
+- `ANIMATION=true`: active un agent LLM « animator » qui observe les évènements et émet des messages courts `anim` pour expliquer la progression (ex: « Tables actives: N », « Comptage par catégorie », « Résultats: 20 lignes »). Dans ce mode, les évènements `plan`/`sql` sont de nouveau émis ET persistés afin d’alimenter le panneau « Détails » et l’historique; le message « anim » reste concis et n’impacte pas les données.
+
+Validation: la variable doit valoir `sql`, `true` ou `false`.
+
+Notes UI:
+- En `ANIMATION=true`, le front n’affiche pas le SQL « inline » si un message `anim` est présent; le SQL reste accessible via le bouton « Détails » (et dans l’historique).
 
 ### Router à chaque message
 
@@ -264,6 +287,19 @@ MINDSDB_BASE_URL=http://127.0.0.1:47334/api
 # MINDSDB_TIMEOUT_S=120  # délai lecture/écriture HTTP en secondes
 ```
 
+Contrôle du conteneur MindsDB via `backend/.env` (utilisé par `start.sh`):
+
+```
+# Nom du conteneur
+MINDSDB_CONTAINER_NAME=mindsdb_container
+
+# Ports côté hôte (gauche du -p) — doivent être numériques
+MINDSDB_HTTP_PORT=47334
+MINDSDB_MYSQL_PORT=47335
+
+# Note: le port de `MINDSDB_BASE_URL` doit correspondre à `MINDSDB_HTTP_PORT`.
+```
+
 Le délai par défaut est de 120 s, suffisant pour publier des CSV volumineux; ajustez `MINDSDB_TIMEOUT_S` si vos imports dépassent cette fenêtre.
 
 1) Synchroniser les fichiers locaux `data/raw` vers la DB `files` de MindsDB:
@@ -323,6 +359,7 @@ Notes PR #72 (comportements):
  - 2025-10-30: Déduplication de la normalisation `columns/rows` des réponses MindsDB dans `ChatService` via la méthode privée `_normalize_result` (remplace 2 blocs similaires: passage `/sql` et NL→SQL simple). Aucun changement fonctionnel attendu. Suite au refactor: `uv run pytest` → 18 tests OK.
  - 2025-10-30: NL→SQL – extraction JSON centralisée et garde‑fous d'entrée. Ajout de `_extract_json_blob()` dans `nl2sql_service.py` (remplace la logique de parsing des blocs ```json … ```), validation des paramètres (`question`, `schema`, bornes `max_steps`) et mise sous cap de la taille du prompt (`tables_blob`). Tests: `uv run pytest` → 18 tests OK.
  - 2025-10-31: Evidence panel — dérivation de la requête `SELECT *` désormais basée sur l'AST (sqlglot) au lieu de regex, en conservant `WHERE` et CTE, et en plafonnant avec `LIMIT`. Les opérations en ensemble (UNION/INTERSECT/EXCEPT) sont ignorées par sécurité. Tests: `uv run pytest` → 20 tests OK.
+ - 2025-11-10: NL→SQL — suppression de l'usage de `NULLIF` dans les règles et la réécriture YEAR/MONTH. Les dates texte sont maintenant castées via `CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)` et les prompts imposent explicitement ce schéma (pas de fallback). Le correctif élimine la source des `NULLIF(..., 'None', 'None')` invalides observés lors des comparaisons août vs juillet, sans post‑traitement.
 
  
 

@@ -36,6 +36,8 @@ Backend (depuis `backend/`):
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
 4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (`BACKEND_DEV_URL` pour l’hôte/port d’écoute du backend, PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, `CONTAINER_RUNTIME` = `docker` ou `podman` pour le lancement de MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence.
 
+`backend/.env` (également versionné) est désormais maintenu strictement aligné sur `backend/.env.example`. Si vous avez besoin de variantes locales, créez un fichier ignoré (ex. `backend/.env.local`) ou exportez temporairement vos variables sans modifier ceux qui servent de base commune à l’équipe.
+
 Frontend (depuis `frontend/`):
 
 1. Installer deps: `npm i` ou `pnpm i` ou `yarn`
@@ -46,7 +48,7 @@ SSR GPT-Vis (depuis `vis-ssr/`):
 1. Installer deps: `npm install`
 2. Copier `.env.ssr.example` en `.env` et ajuster `GPT_VIS_SSR_PORT` / `VIS_IMAGE_DIR` / `GPT_VIS_SSR_PUBLIC_URL`
 3. Lancer: `npm run start` (endpoint `POST /generate` + statiques `/charts/*`, PNG rendu via `@antv/gpt-vis-ssr`)
-4. Ajuster l'URL du plan/Z/mcp.config.json (variable VIS_REQUEST_SERVER) en fonction du `GPT_VIS_SSR_PORT` port choisi. Si le domaine public diffère de `localhost`, renseigner `GPT_VIS_SSR_PUBLIC_URL` (URL absolue, http(s)) pour que les liens de rendu retournés par l'API SSR soient corrects.
+4. Ajuster l'URL du plan/Z/mcp.config.json (variable `VIS_REQUEST_SERVER`) en fonction du port `GPT_VIS_SSR_PORT` choisi. Par défaut, le SSR écoute sur `6363` (voir `vis-ssr/.env.ssr.example`) et le fichier `plan/Z/mcp.config.json` référence `http://localhost:6363/`. Si le domaine public diffère de `localhost`, renseigner `GPT_VIS_SSR_PUBLIC_URL` (URL absolue, http(s)) pour que les liens de rendu retournés par l'API SSR soient corrects.
 
 Configurer le frontend via `frontend/.env.development` (`FRONTEND_DEV_URL`, `VITE_API_URL`, `FRONTEND_URLS` si plusieurs origines sont nécessaires).
 Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `ADMIN_USERNAME` / `ADMIN_PASSWORD` définies dans le backend).
@@ -56,6 +58,8 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
 - Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL, les échantillons et désormais les lignes RAG récupérées (table, score, colonnes clés) pour expliquer la mise en avant.
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
+- `LLM_MAX_TOKENS` (défaut 1024) impose le plafond `max_tokens` sur tous les appels OpenAI-compatibles (explorateur, analyste, rédaction, router, chat) pour éviter les erreurs lorsque `model_max_tokens - context_tokens` devient négatif.
+- `AGENT_OUTPUT_MAX_ROWS`/`AGENT_OUTPUT_MAX_COLUMNS` (défauts 200/20) bornent le volume de lignes/colonnes envoyé par les agents NL→SQL dans les événements SSE afin d’éviter des payloads géants.
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
@@ -144,8 +148,11 @@ data/
 
 - Pour un mode global, vous pouvez activer `NL2SQL_ENABLED=true` dans `backend/.env` pour que le LLM génère du SQL exécuté sur MindsDB. Désormais, un bouton « NL→SQL (MindsDB) » dans la zone d’input permet d’activer ce mode au coup‑par‑coup sans modifier l’environnement.
 - En streaming, le frontend affiche d’abord le SQL en cours d’exécution dans la bulle, puis remplace par la synthèse finale. Les détails (SQL, échantillons de colonnes/lignes) restent accessibles dans la bulle via « Afficher les détails de la requête ». Les logs backend (`insight.services.chat`) tracent également ces étapes.
+- Le logger `insight.services.nl2sql` trace désormais chaque appel LLM (question pré-traitée, taille du schéma, `max_tokens` utilisé, aperçu SQL/synthèse). Lancer `./start.sh` suffit pour voir ces logs et identifier précisément l'étape qui échoue lorsqu’un appel NL→SQL casse en développement.
+- `LOG_LEVEL` (dans `backend/.env`) est appliqué dès le démarrage grâce à `insight.core.logging`, ce qui garantit que les logs NL→SQL (et tous les autres) sont bien affichés dans la console `./start.sh`.
 - Les requêtes générées qualifient toujours les tables avec `files.` et réutilisent les alias déclarés pour éviter les erreurs DuckDB/MindsDB.
 - Le backend n’impose plus de `LIMIT 50` automatique et renvoie désormais l’intégralité des lignes de résultat au frontend pour l’aperçu.
+- Pour les appels LLM, les « evidences » envoyées au modèle sont compactées (nombre d’items, lignes/colonnes et longueur des valeurs) afin d’éviter des prompts trop volumineux en production. Les détails sont journalisés (`payload_chars`).
 - Supprimez `NL2SQL_MAX_ROWS` de vos fichiers `.env` existants: la variable est obsolète et n’est plus supportée.
 - Les CTE (`WITH ...`) sont maintenant reconnus par le garde-fou de préfixe afin d'éviter les faux positifs lorsque le LLM réutilise ses sous-requêtes.
 - Le timeout des appels LLM se règle via `OPENAI_TIMEOUT_S` (90s par défaut) pour tolérer des latences élevées côté provider.

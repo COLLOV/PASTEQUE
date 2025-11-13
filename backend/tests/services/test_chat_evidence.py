@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import pytest
 
+from insight_backend.core.config import settings
 from insight_backend.services.chat_service import ChatService
 
 
@@ -87,6 +88,20 @@ def test_normalize_result_handles_table_shape():
     cols, rows = svc._normalize_result(payload)
     assert cols == ["id", "title"]
     assert rows == [[1, "a"], [2, "b"]]
+
+
+def test_normalize_result_caps_rows_and_columns(monkeypatch: pytest.MonkeyPatch):
+    svc = ChatService(DummyEngine())
+    monkeypatch.setattr(settings, "agent_output_max_rows", 1)
+    monkeypatch.setattr(settings, "agent_output_max_columns", 1)
+    payload = {
+        "type": "table",
+        "column_names": ["id", "title"],
+        "data": [[1, "a"], [2, "b"]],
+    }
+    cols, rows = svc._normalize_result(payload)
+    assert cols == ["id"]
+    assert rows == [[1]]
 
 
 def test_emit_evidence_uses_fallback_when_no_derived():
