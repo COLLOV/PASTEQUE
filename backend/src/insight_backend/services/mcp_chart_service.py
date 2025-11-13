@@ -343,6 +343,31 @@ class ChartGenerationService:
         if not output.chart_url:
             raise ChartGenerationError("L'agent n'a pas fourni d'URL de graphique.")
 
+        # Validate the returned URL against the configured VIS_REQUEST_SERVER.
+        # This ensures the MCP chart URL is served by our vis-ssr endpoint.
+        allowed_base = (self._chart_spec.env or {}).get("VIS_REQUEST_SERVER")
+        if not allowed_base:
+            # Fail fast to avoid silently accepting unexpected URLs
+            raise ChartGenerationError(
+                "VIS_REQUEST_SERVER manquant dans la configuration MCP; vérifiez mcp.config.json ou MCP_SERVERS_JSON."
+            )
+
+        # Normalize: ensure trailing slash for consistent prefix checks
+        allowed_base = allowed_base.rstrip("/") + "/"
+        if not output.chart_url.startswith(allowed_base):
+            log.error(
+                "URL de graphique rejetée: hors domaine vis-ssr",
+                extra={"chart_url": output.chart_url, "allowed_base": allowed_base},
+            )
+            raise ChartGenerationError(
+                "URL de graphique non autorisée (ne correspond pas à VIS_REQUEST_SERVER)."
+            )
+
+        log.info(
+            "URL de graphique validée",
+            extra={"chart_url": output.chart_url, "allowed_base": allowed_base},
+        )
+
         total_rows = normalized_dataset.row_count if normalized_dataset.row_count is not None else len(normalized_dataset.rows)
 
         return ChartResult(
