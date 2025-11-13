@@ -243,6 +243,49 @@ echo "[start] backend dev server -> $BACKEND_DEV_URL"
 echo "[start] frontend/.env.development -> VITE_API_URL=$VITE_API_URL_VALUE"
 echo "[start] backend CORS -> ALLOWED_ORIGINS=$ALLOWED_ORIGINS_VALUE"
 
+# MindsDB container configuration (from backend/.env)
+MINDSDB_CONTAINER_NAME="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_CONTAINER_NAME")"
+if [[ -z "$MINDSDB_CONTAINER_NAME" ]]; then
+  echo "ERROR: MINDSDB_CONTAINER_NAME must be defined in '$BACKEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+MINDSDB_HTTP_PORT="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_HTTP_PORT")"
+MINDSDB_MYSQL_PORT="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_MYSQL_PORT")"
+
+if [[ -z "$MINDSDB_HTTP_PORT" || -z "$MINDSDB_MYSQL_PORT" ]]; then
+  echo "ERROR: MINDSDB_HTTP_PORT and MINDSDB_MYSQL_PORT must be defined in '$BACKEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+if ! is_number "$MINDSDB_HTTP_PORT" || ! is_number "$MINDSDB_MYSQL_PORT"; then
+  echo "ERROR: MINDSDB_HTTP_PORT and MINDSDB_MYSQL_PORT must be numeric. Got HTTP='$MINDSDB_HTTP_PORT' MYSQL='$MINDSDB_MYSQL_PORT'." >&2
+  exit 1
+fi
+
+MINDSDB_BASE_URL_VAL="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_BASE_URL")"
+if [[ -z "$MINDSDB_BASE_URL_VAL" ]]; then
+  echo "ERROR: MINDSDB_BASE_URL must be defined in '$BACKEND_ENV_FILE'." >&2
+  exit 1
+fi
+
+if ! read -r MINDSDB_HOST_FROM_URL MINDSDB_PORT_FROM_URL MINDSDB_SCHEME_FROM_URL < <(parse_url_components "$MINDSDB_BASE_URL_VAL"); then
+  echo "ERROR: Unable to parse MINDSDB_BASE_URL '$MINDSDB_BASE_URL_VAL'." >&2
+  exit 1
+fi
+
+if ! is_number "$MINDSDB_PORT_FROM_URL"; then
+  echo "ERROR: MINDSDB_BASE_URL must include a numeric port. Got '$MINDSDB_BASE_URL_VAL'." >&2
+  exit 1
+fi
+
+if [[ "$MINDSDB_PORT_FROM_URL" -ne "$MINDSDB_HTTP_PORT" ]]; then
+  echo "ERROR: MINDSDB_BASE_URL port ($MINDSDB_PORT_FROM_URL) must match MINDSDB_HTTP_PORT ($MINDSDB_HTTP_PORT)." >&2
+  exit 1
+fi
+
+echo "[start] mindsdb container -> $MINDSDB_CONTAINER_NAME (http:$MINDSDB_HTTP_PORT mysql:$MINDSDB_MYSQL_PORT)"
+
 # Embeddings configuration visibility and validation
 EMBED_CFG_PATH="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_EMBEDDINGS_CONFIG_PATH")"
 if [[ -n "$EMBED_CFG_PATH" ]]; then
@@ -255,7 +298,7 @@ else
   echo "[start] embeddings config -> (disabled)"
 fi
 
-for port in "$FRONTEND_PORT" "$BACKEND_PORT"; do
+for port in "$FRONTEND_PORT" "$BACKEND_PORT" "$MINDSDB_HTTP_PORT" "$MINDSDB_MYSQL_PORT"; do
   if ! is_number "$port"; then
     echo "ERROR: Ports must be numeric. Got '$port'." >&2
     exit 1
@@ -288,7 +331,7 @@ fi
 free_port "$SSR_PORT"
 
 ensure_mindsdb() {
-  local container="mindsdb_container"
+  local container="$MINDSDB_CONTAINER_NAME"
 
   if "$CONTAINER_RUNTIME" ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
     echo "[start] Resetting existing MindsDB container '$container'"
@@ -300,7 +343,7 @@ ensure_mindsdb() {
   echo "[start] Launching MindsDB container '$container'"
   "$CONTAINER_RUNTIME" run -d --name "$container" \
     -e MINDSDB_APIS=http,mysql \
-    -p 47334:47334 -p 47335:47335 \
+    -p "$MINDSDB_HTTP_PORT":47334 -p "$MINDSDB_MYSQL_PORT":47335 \
     mindsdb/mindsdb >/dev/null
 
   echo "[start] MindsDB container '$container' status"
@@ -312,7 +355,7 @@ ensure_mindsdb() {
 wait_for_mindsdb() {
   local max_wait=60
   local elapsed=0
-  local url="http://127.0.0.1:47334/api/status"
+  local url="http://127.0.0.1:${MINDSDB_HTTP_PORT}/api/status"
 
   echo "[start] Waiting for MindsDB to be ready..."
 
