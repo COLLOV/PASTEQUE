@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Iterable, List, TextIO, Tuple
@@ -343,6 +344,9 @@ class ChartGenerationService:
         if not output.chart_url:
             raise ChartGenerationError("L'agent n'a pas fourni d'URL de graphique.")
 
+        # Validate that the MCP-returned URL matches the configured VIS_REQUEST_SERVER (host:port)
+        self._validate_chart_url(output.chart_url)
+
         total_rows = normalized_dataset.row_count if normalized_dataset.row_count is not None else len(normalized_dataset.rows)
 
         return ChartResult(
@@ -385,6 +389,51 @@ class ChartGenerationService:
 
         provider = OpenAIProvider(base_url=base_url, api_key=api_key)
         return provider, model_name
+
+    def _validate_chart_url(self, chart_url: str) -> None:
+        """Ensure returned chart_url points to the configured VIS_REQUEST_SERVER host:port.
+
+        Minimal, defensive check: compares hostname and effective port (defaults
+        80/443) between the returned URL and the VIS_REQUEST_SERVER configured in
+        the MCP server spec. Raises ChartGenerationError on mismatch.
+        """
+
+        expect_base = (self._chart_spec.env or {}).get("VIS_REQUEST_SERVER")
+        if not expect_base:
+            # No explicit base provided; nothing to validate against.
+            log.debug("Aucune VIS_REQUEST_SERVER dans la configuration MCP; validation ignorée")
+            return
+
+        def _host_port(url: str) -> tuple[str | None, int | None, str | None]:
+            parsed = urlparse(url)
+            host = parsed.hostname
+            port = parsed.port
+            scheme = (parsed.scheme or "").lower()
+            if port is None:
+                if scheme == "https":
+                    port = 443
+                elif scheme == "http":
+                    port = 80
+            return host, port, scheme
+
+        exp_host, exp_port, _ = _host_port(expect_base)
+        got_host, got_port, _ = _host_port(chart_url)
+
+        # Only enforce host:port consistency (scheme differences are tolerated)
+        if not exp_host or not exp_port or not got_host or not got_port:
+            raise ChartGenerationError("URL de rendu invalide (hôte/port introuvables)")
+
+        if (exp_host, exp_port) != (got_host, got_port):
+            log.error(
+                "URL de graphique MCP rejetée: incohérence host:port (attendu %s:%s, reçu %s:%s)",
+                exp_host,
+                exp_port,
+                got_host,
+                got_port,
+            )
+            raise ChartGenerationError(
+                "L'URL de rendu retournée par le MCP ne correspond pas au serveur configuré"
+            )
 
     @staticmethod
     def _normalize_rows(columns: List[str], rows: Iterable[Any]) -> List[Dict[str, Any]]:
