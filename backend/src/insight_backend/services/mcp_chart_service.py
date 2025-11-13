@@ -324,12 +324,44 @@ class ChartGenerationService:
             max_rows=self._DEFAULT_MAX_ROWS,
         )
 
+        # Pre-run diagnostics at INFO level to help troubleshoot failures
+        try:
+            vis_req_server = (self._chart_spec.env or {}).get("VIS_REQUEST_SERVER")
+            public_env = os.environ.get("GPT_VIS_SSR_PUBLIC_URL")
+            prompt_preview = prompt.strip().replace("\n", " ")
+            if len(prompt_preview) > 160:
+                prompt_preview = prompt_preview[:160] + "…"
+            log.info(
+                "[mcp-chart] run: tool=%s model=%s cols=%d rows=%d vis_server=%s public_env=%s prompt=%s",
+                self._chart_spec.name,
+                model_name,
+                len(normalized_dataset.columns or []),
+                len(normalized_dataset.rows or []),
+                vis_req_server,
+                public_env,
+                prompt_preview,
+            )
+        except Exception:
+            pass
+
         try:
             async with agent:
                 # Enforce per-agent cap (mcp_chart)
                 check_and_increment("mcp_chart")
                 result = await agent.run(prompt, deps=deps)
         except UnexpectedModelBehavior as exc:
+            # Extra diagnostics to understand incompatibility root-cause
+            try:
+                log.error(
+                    "[mcp-chart] incompatible LLM response: %s | tool=%s model=%s cols=%d rows=%d",
+                    exc,
+                    self._chart_spec.name,
+                    model_name,
+                    len(normalized_dataset.columns or []),
+                    len(normalized_dataset.rows or []),
+                )
+            except Exception:
+                pass
             log.exception("Réponse LLM incompatible pour la génération de graphiques")
             raise ChartGenerationError(f"Réponse LLM incompatible: {exc}") from exc
         except AgentBudgetExceeded:
