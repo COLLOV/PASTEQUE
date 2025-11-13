@@ -399,12 +399,19 @@ class ChartGenerationService:
 
         expect_base = os.environ.get("GPT_VIS_SSR_PUBLIC_URL")
         if not expect_base:
-            log.debug("Aucun GPT_VIS_SSR_PUBLIC_URL dans l'environnement; validation ignorée")
+            log.info("[mcp-chart] URL check skipped: GPT_VIS_SSR_PUBLIC_URL not set")
             return
 
         # Normalize to ensure trailing slash for consistent prefix comparison
         base = expect_base.rstrip("/") + "/"
-        if not chart_url.startswith(base):
+        ok = chart_url.startswith(base)
+        log.info(
+            "[mcp-chart] URL check: expect_prefix=%s, got=%s, ok=%s",
+            base,
+            chart_url,
+            ok,
+        )
+        if not ok:
             log.error(
                 "URL de graphique MCP rejetée: ne commence pas par la base .env attendue %s (reçu %s)",
                 base,
