@@ -188,6 +188,9 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 - Le frontend capture le dernier dataset NL→SQL (SQL, colonnes, lignes tronquées à `NL2SQL_MAX_ROWS`) et le transmet tel quel au backend; sans résultat exploitable, aucun graphique n’est généré et un message explicite est renvoyé.
 - Le backend n’explore plus directement les CSV du répertoire `DATA_TABLES_DIR` pendant cette étape : l’agent `pydantic-ai` exploite exclusivement les données reçues via l’outil `get_sql_result`. Les helpers `load_dataset` / `aggregate_counts` restent disponibles avant l’appel `generate_*_chart` si besoin.
 - La réponse API inclut l’URL du rendu, les métadonnées (titre, description, spec JSON) ainsi que la requête SQL source et son volume de lignes pour garder la traçabilité côté frontend.
+ - Sécurité: le backend refuse désormais toute URL de graphique ne commençant pas par la base publique de `vis-ssr/.env`.
+   - Définissez `GPT_VIS_SSR_PUBLIC_URL` dans `vis-ssr/.env` (terminée par `/`) ou, à défaut, `GPT_VIS_SSR_PORT` pour imposer `http://localhost:<port>/`.
+   - En cas d’incohérence (préfixe différent), `POST /api/v1/mcp/chart` renvoie une erreur explicite.
 
 #### Mode Multi‑agent (Explorateur + Analyste + Rédaction)
 

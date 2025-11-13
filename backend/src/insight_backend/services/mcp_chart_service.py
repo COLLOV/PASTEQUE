@@ -343,6 +343,16 @@ class ChartGenerationService:
         if not output.chart_url:
             raise ChartGenerationError("L'agent n'a pas fourni d'URL de graphique.")
 
+        # Enforce that returned URL points to our SSR base URL
+        try:
+            self._assert_chart_url_prefix(output.chart_url)
+        except ChartGenerationError:
+            # Re-raise as-is for clear 502 propagation
+            raise
+        except Exception as exc:  # pragma: no cover - defensive guardrail
+            log.exception("Échec de la validation d'URL de graphique")
+            raise ChartGenerationError(str(exc)) from exc
+
         total_rows = normalized_dataset.row_count if normalized_dataset.row_count is not None else len(normalized_dataset.rows)
 
         return ChartResult(
@@ -355,6 +365,99 @@ class ChartGenerationService:
             source_sql=normalized_dataset.sql,
             source_row_count=total_rows,
         )
+
+    @staticmethod
+    def _parse_env_file(path: str) -> dict[str, str]:
+        """Minimal .env parser for KEY=VALUE lines (no expansions)."""
+        mapping: dict[str, str] = {}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for raw in f:
+                    line = raw.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    # tolerate leading 'export '
+                    if line.startswith("export "):
+                        line = line[len("export ") :].lstrip()
+                    if "=" not in line:
+                        continue
+                    key, val = line.split("=", 1)
+                    key = key.strip()
+                    val = val.strip().strip('"').strip("'")
+                    if key:
+                        mapping[key] = val
+        except FileNotFoundError:
+            raise
+        return mapping
+
+    def _resolve_ssr_base_url(self) -> str:
+        """Resolve the effective public base URL for vis-ssr.
+
+        Priority:
+        - vis-ssr/.env: GPT_VIS_SSR_PUBLIC_URL
+        - else: build http://localhost:{GPT_VIS_SSR_PORT}/ if port is set
+        """
+        from pathlib import Path
+        from urllib.parse import urlparse
+
+        # Compute repo root and vis-ssr/.env path
+        here = Path(__file__).resolve()
+        try:
+            repo_root = here.parents[4]  # backend/src/insight_backend/services -> repo root
+        except IndexError:
+            raise ChartGenerationError("Impossible de localiser la racine du dépôt pour lire vis-ssr/.env")
+
+        env_path = repo_root / "vis-ssr" / ".env"
+        if not env_path.exists():
+            raise ChartGenerationError(
+                f"Configuration SSR manquante: fichier {env_path} introuvable (copiez vis-ssr/.env.ssr.example)."
+            )
+
+        env = self._parse_env_file(str(env_path))
+
+        public_url = (env.get("GPT_VIS_SSR_PUBLIC_URL") or "").strip()
+        if public_url:
+            try:
+                parsed = urlparse(public_url)
+            except Exception as exc:
+                raise ChartGenerationError(f"GPT_VIS_SSR_PUBLIC_URL invalide: {public_url!r} ({exc})")
+            if parsed.scheme not in {"http", "https"}:
+                raise ChartGenerationError(
+                    f"Protocole non supporté pour GPT_VIS_SSR_PUBLIC_URL: {parsed.scheme!r}"
+                )
+            # Normalize to trailing slash
+            if not public_url.endswith("/"):
+                public_url = public_url + "/"
+            return public_url
+
+        # Derive from port if public URL is not set
+        port_raw = (env.get("GPT_VIS_SSR_PORT") or "").strip()
+        if not port_raw:
+            raise ChartGenerationError(
+                "GPT_VIS_SSR_PUBLIC_URL non défini et GPT_VIS_SSR_PORT absent dans vis-ssr/.env"
+            )
+        if not port_raw.isdigit():
+            raise ChartGenerationError(
+                f"GPT_VIS_SSR_PORT invalide: {port_raw!r} (valeur numérique requise)"
+            )
+        port = int(port_raw, 10)
+        if not (1 <= port <= 65535):
+            raise ChartGenerationError(
+                f"GPT_VIS_SSR_PORT hors plage valide: {port} (1-65535)"
+            )
+        return f"http://localhost:{port}/"
+
+    def _assert_chart_url_prefix(self, chart_url: str) -> None:
+        """Ensure the chart URL starts with the expected vis-ssr public base URL."""
+        base = self._resolve_ssr_base_url()
+        if not chart_url.startswith(base):
+            log.error(
+                "URL de graphique rejetée (hors base SSR)",
+                extra={"chart_url": chart_url, "expected_prefix": base},
+            )
+            raise ChartGenerationError(
+                f"URL de graphique invalide. Attendu un préfixe '{base}', reçu: '{chart_url}'."
+            )
 
     def _resolve_chart_spec(self) -> MCPServerSpec:
         manager = MCPManager()
