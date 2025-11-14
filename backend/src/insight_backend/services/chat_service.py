@@ -120,6 +120,7 @@ class ChatService:
         question: str,
         events: Callable[[str, Dict[str, Any]], None] | None = None,
         round_label: int | None = None,
+        allowed_tables: Iterable[str] | None = None,
     ) -> tuple[List[Dict[str, Any]], str]:
         try:
             agent = self._get_retrieval_agent()
@@ -128,6 +129,7 @@ class ChatService:
                 top_n=settings.rag_top_n,
                 events=events,
                 round_label=round_label,
+                allowed_tables=allowed_tables,
             )
             return payload, highlight
         except AgentBudgetExceeded:
@@ -581,6 +583,7 @@ class ChatService:
                                 question=retrieval_question,
                                 events=events,
                                 round_label=r,
+                                allowed_tables=tables,
                             )
                             try:
                                 answer = nl2sql.write(

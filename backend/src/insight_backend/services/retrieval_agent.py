@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from ..core.config import settings
 from ..core.agent_limits import check_and_increment
@@ -30,13 +30,18 @@ class RetrievalAgent:
         top_n: Optional[int] = None,
         events: Optional[Callable[[str, Dict[str, Any]], None]] = None,
         round_label: Optional[int] = None,
+        allowed_tables: Optional[Iterable[str]] = None,
     ) -> Tuple[List[Dict[str, Any]], str]:
         """Retourne (payload_lignes, texte_mise_en_avant)."""
         q = (question or "").strip()
         if not q:
             raise ValueError("Question vide pour l'agent retrieval.")
 
-        rows = self._service.retrieve(question=q, top_n=top_n or settings.rag_top_n)
+        rows = self._service.retrieve(
+            question=q,
+            top_n=top_n or settings.rag_top_n,
+            allowed_tables=allowed_tables,
+        )
         payload = [r.as_payload() for r in rows]
 
         if events and payload:
@@ -140,4 +145,3 @@ class RetrievalAgent:
         if not text:
             raise RuntimeError("Réponse LLM vide pour la mise en avant.")
         return text
-
