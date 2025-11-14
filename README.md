@@ -63,6 +63,16 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+### Agents NL→SQL (explorateur, analyste, raisonneur)
+
+Le pipeline NL→SQL repose sur plusieurs agents orchestrés côté backend:
+
+- `explorateur`: propose des requêtes SELECT courtes (DISTINCT, MIN/MAX, échantillons) pour cartographier les données pertinentes.
+- `analyste`: génère une requête SQL finale unique à partir de la question et de l'evidence produite par l'explorateur.
+- `raisonneur`: intervient lorsque la requête finale retourne trop peu de lignes (typos dans les valeurs de filtre, conditions trop strictes) et tente de la corriger en s'alignant sur les valeurs réellement observées dans l'evidence, avant la synthèse de la réponse.
+
+Chaque agent peut être plafonné via `AGENT_MAX_REQUESTS` dans `backend/.env`. Le champ `metadata.agents` dans la réponse de l’API reflète les agents effectivement utilisés pour une complétion donnée.
+
 #### Métadonnées de requête (API)
 
 - `metadata.exclude_tables: string[]` — liste de tables à exclure pour la conversation en cours. Validée côté serveur (normalisation, limite de taille, filtrage sur tables connues/permises).

@@ -372,6 +372,7 @@ class ChatService:
                     evidence: list[dict[str, object]] = []
                     last_columns: list[Any] = []
                     last_rows: list[Any] = []
+                    used_reasoner = False
                     # Derive exploration rounds from per-agent budgets (explorateur/analyste)
                     def _remaining(agent: str) -> int | None:
                         cap = get_limit(agent)
@@ -540,6 +541,64 @@ class ChatService:
                                 )
                             except Exception:
                                 log.warning("Failed to emit rows event (final)", exc_info=True)
+                        # If the final answer is empty, let the reasoning agent attempt a refinement.
+                        if len(frows) < min_rows:
+                            try:
+                                refined_sql = nl2sql.refine_after_empty(
+                                    question=contextual_question_with_dico,
+                                    schema=schema,
+                                    evidence=evidence,
+                                    previous_sql=final_sql,
+                                )
+                            except AgentBudgetExceeded:
+                                # Bubble up so API can convert to 429
+                                raise
+                            except Exception as e:
+                                log.warning("NL2SQL reasoner failed to refine SQL: %s", e)
+                            else:
+                                if refined_sql and refined_sql != final_sql:
+                                    log.info(
+                                        "NL2SQL reasoner adjusted SQL after empty result: %s",
+                                        _preview_text(str(refined_sql), limit=200),
+                                    )
+                                    if events:
+                                        try:
+                                            events(
+                                                "sql",
+                                                {"sql": refined_sql, "purpose": "answer-refined", "round": r},
+                                            )
+                                        except Exception:
+                                            log.warning("Failed to emit sql event (answer-refined)", exc_info=True)
+                                    result_refined = client.sql(refined_sql)
+                                    rcols, rrows = self._normalize_result(result_refined)
+                                    if events:
+                                        try:
+                                            events(
+                                                "rows",
+                                                {
+                                                    "purpose": "answer-refined",
+                                                    "round": r,
+                                                    "columns": rcols,
+                                                    "rows": rrows,
+                                                    "row_count": len(rrows),
+                                                },
+                                            )
+                                        except Exception:
+                                            log.warning(
+                                                "Failed to emit rows event (answer-refined)", exc_info=True
+                                            )
+                                    if len(rrows) >= min_rows:
+                                        final_sql = refined_sql
+                                        fcols, frows = rcols, rrows
+                                        evidence.append(
+                                            {
+                                                "purpose": "answer-refined",
+                                                "sql": refined_sql,
+                                                "columns": rcols,
+                                                "rows": rrows,
+                                            }
+                                        )
+                                        used_reasoner = True
                         # Emit evidence for the side panel based on the final result or last non-empty exploration
                         self._emit_evidence(
                             events=events,
@@ -589,11 +648,14 @@ class ChatService:
                                     retrieval_context=retrieval_payload,
                                 ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                                agents_list = ["explorateur", "analyste", "retrieval", "redaction"]
+                                if used_reasoner:
+                                    agents_list.insert(2, "raisonneur")
                                 metadata = {
                                     "provider": "nl2sql-multiagent",
                                     "rounds_used": r,
                                     "sql": final_sql,
-                                    "agents": ["explorateur", "analyste", "retrieval", "redaction"],
+                                    "agents": agents_list,
                                     "retrieval_rows": retrieval_payload,
                                 }
                                 return self._log_completion(

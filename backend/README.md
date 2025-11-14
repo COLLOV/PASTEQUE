@@ -179,6 +179,18 @@ En mode local, `EMBEDDING_LOCAL_MODEL` prime sur la clé `default_model` du YAML
 - En cas d'échec du LLM, l'API signale explicitement l'indisponibilité de la synthèse dans la réponse afin d'éviter toute dégradation silencieuse.
 - Les extraits issus du RAG ne sont plus tronqués côté backend afin de laisser le LLM exploiter l'intégralité du texte récupéré.
 
+### Agent de raisonnement NL→SQL (`raisonneur`)
+
+Lorsque la requête SQL finale produite par l'agent `analyste` retourne trop peu de lignes (par défaut 0, via `NL2SQL_SATISFACTION_MIN_ROWS`), un agent de raisonnement dédié `raisonneur` est invoqué:
+
+- Entrées: question enrichie, schéma courant, evidence exploratoire (résultats des requêtes `explorateur`), SQL final précédent et information « zéro ligne ».
+- Objectif: détendre ou corriger uniquement les filtres trop stricts (typos sur les valeurs de `WHERE`, conditions de jointure trop restrictives) en s'alignant sur les valeurs réellement observées dans l'evidence.
+- Sortie: un nouveau `SELECT` unique, dans le même dialecte MindsDB (MySQL‑like) et sous le même préfixe de schéma (`NL2SQL_DB_PREFIX`).
+
+Si le SQL raffiné retourne au moins `NL2SQL_SATISFACTION_MIN_ROWS` lignes, il remplace le SQL précédent et alimente la synthèse finale. Sinon, le comportement reste identique à avant (nouveau tour d'exploration éventuel, puis réponse explicite « Impossible de produire une réponse satisfaisante… »).
+
+L'agent `raisonneur` peut être plafonné via `AGENT_MAX_REQUESTS` (clé `\"raisonneur\"`), comme les autres agents (`explorateur`, `analyste`, `redaction`, etc.). Le champ `metadata.agents` de la réponse NL→SQL inclut `\"raisonneur\"` lorsque cet agent a effectivement contribué à la réponse.
+
 ### Streaming (SSE)
 
 Endpoint de streaming compatible navigateurs (SSE via `text/event-stream`) — utilise la même configuration LLM:

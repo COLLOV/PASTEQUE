@@ -679,6 +679,94 @@ class NL2SQLService:
         log.info("NL2SQL.generate_with_evidence done: sql_preview=\"%s\"", _preview(sql, limit=200))
         return sql
 
+    def refine_after_empty(
+        self,
+        *,
+        question: str,
+        schema: Dict[str, List[str]],
+        evidence: List[Dict[str, object]],
+        previous_sql: str,
+    ) -> str:
+        """Reasoning agent: refine a final SELECT that returned zero rows.
+
+        Uses existing exploration evidence to relax or correct overly strict filters
+        (typically value typos) while preserving the user's intent.
+        """
+        client, model = self._client_and_model()
+        log.info(
+            "NL2SQL.refine_after_empty start: question=\"%s\" schema_tables=%d evidence_items=%d",
+            _preview(question, limit=200),
+            len(schema),
+            len(evidence),
+        )
+        tables_desc = []
+        for t, cols in schema.items():
+            col_list = ", ".join(cols)
+            tables_desc.append(f"- {settings.nl2sql_db_prefix}.{t}({col_list})")
+        condensed = _condense_evidence(
+            evidence,
+            max_items=5,
+            rows_per_item=10,
+            max_columns=min(10, settings.agent_output_max_columns),
+            cell_max_chars=80,
+        )
+        system = (
+            "You are a reasoning agent that operates after an analyst SQL agent.\n"
+            "The previous final SELECT query executed against the database returned ZERO rows.\n"
+            "Your goal is to adjust ONLY overly restrictive filters (typically WHERE or JOIN conditions\n"
+            "that use values not present in the data) so that the query is more robust to user typos,\n"
+            "while staying faithful to the user's intent.\n"
+            f"Dialect: MindsDB (MySQL-like) on the '{settings.nl2sql_db_prefix}.' schema.\n"
+            "Use ONLY the provided tables and columns. Never invent new tables or columns.\n"
+            "Prefer values and categories that actually appear in the evidence rows.\n"
+            "If the question mentions a value with a typo, and a close match exists in the evidence\n"
+            "(e.g. 'openn' vs 'open'), correct the filter to use the observed value.\n"
+            "If you cannot find a plausible correction using the evidence, return a query that is\n"
+            "as close as possible to the original one (do not invent arbitrary new filters).\n"
+            "Return exactly ONE SELECT query (optionally fenced in ```sql```), with no prose."
+        )
+        payload = {
+            "question": question,
+            "tables": tables_desc,
+            "evidence": condensed,
+            "previous_sql": previous_sql,
+            "zero_row_result": True,
+            "rules": {
+                "schema_prefix": settings.nl2sql_db_prefix,
+            },
+        }
+        # Enforce per-agent cap (raisonneur)
+        check_and_increment("raisonneur")
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        log.info(
+            "NL2SQL.refine_after_empty invoking LLM: model=%s max_tokens=%d payload_chars=%d (items=%d)",
+            model,
+            settings.llm_max_tokens,
+            len(payload_json),
+            len(condensed),
+        )
+        try:
+            resp = client.chat_completions(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": payload_json},
+                ],
+                temperature=0,
+                max_tokens=settings.llm_max_tokens,
+            )
+        except Exception:
+            log.exception("NL2SQL.refine_after_empty LLM call failed")
+            raise
+        text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        sql = _extract_sql(text)
+        sql = _rewrite_date_functions(sql)
+        if not _is_select_only(sql):
+            raise RuntimeError("La requête raffinée n'est pas un SELECT")
+        _ensure_required_prefix(sql)
+        log.info("NL2SQL.refine_after_empty done: sql_preview=\"%s\"", _preview(sql, limit=200))
+        return sql
+
     def propose_axes(
         self,
         *,

@@ -1,7 +1,10 @@
+import json
+
 import pytest
 
 from insight_backend.services.nl2sql_service import _ensure_required_prefix
 from insight_backend.services.nl2sql_service import NL2SQLService
+from insight_backend.core.config import settings
 
 
 class _StubLLMClient:
@@ -59,3 +62,53 @@ def test_write_injects_retrieval_context(monkeypatch: pytest.MonkeyPatch) -> Non
     assert "Mise en avant" in system_prompt
     user_payload = client.last_messages[1]["content"]
     assert "retrieval_context" in user_payload
+
+
+class _RefineStubLLMClient:
+    def __init__(self) -> None:
+        self.last_messages = None
+
+    def chat_completions(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, str]],
+        temperature: int = 0,
+        **params: object,
+    ) -> dict[str, object]:
+        self.last_messages = messages
+        # Return a minimal valid SELECT that passes validation.
+        return {"choices": [{"message": {"content": "SELECT 1 FROM files.tickets LIMIT 1"}}]}
+
+
+def test_refine_after_empty_uses_previous_sql_and_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = NL2SQLService()
+    client = _RefineStubLLMClient()
+    monkeypatch.setattr(service, "_client_and_model", lambda: (client, "stub-model"))
+    monkeypatch.setattr(settings, "nl2sql_db_prefix", "files")
+
+    question = "Combien de tickets ouverts ?"
+    schema = {"tickets": ["id", "status"]}
+    evidence = [
+        {
+            "purpose": "explore",
+            "sql": "SELECT DISTINCT status FROM files.tickets",
+            "columns": ["status"],
+            "rows": [["open"], ["closed"]],
+        }
+    ]
+    previous_sql = "SELECT * FROM files.tickets WHERE status = 'openn'"
+
+    sql = service.refine_after_empty(
+        question=question,
+        schema=schema,
+        evidence=evidence,
+        previous_sql=previous_sql,
+    )
+
+    assert sql.startswith("SELECT 1")
+    assert client.last_messages is not None
+    user_payload = client.last_messages[1]["content"]
+    parsed = json.loads(user_payload)
+    assert parsed["previous_sql"] == previous_sql
+    assert parsed["question"] == question
