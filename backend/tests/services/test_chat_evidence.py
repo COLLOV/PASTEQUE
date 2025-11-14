@@ -178,3 +178,31 @@ def test_append_highlight_adds_separator():
     result = ChatService._append_highlight("Réponse", "Mise en avant : Exemple")
     assert result.endswith("Mise en avant : Exemple")
     assert "\n\n" in result
+
+
+def test_autocorrect_zero_result_sql_uses_distinct_values():
+    svc = ChatService(DummyEngine())
+    payload = {
+        "type": "table",
+        "column_names": ["value"],
+        "data": [["open"], ["closed"]],
+    }
+    client = DummyClient(payload)
+    sql = "SELECT count(*) FROM files.tickets WHERE status = 'opne'"
+    corrected_sql, corrections = svc._autocorrect_zero_result_sql(sql=sql, client=client)
+    assert corrected_sql is not None
+    low = corrected_sql.lower().replace(" ", "")
+    assert "status='open'" in low or "status = 'open'" in corrected_sql
+    assert corrections
+    assert corrections[0]["from"] == "opne"
+    assert corrections[0]["to"] == "open"
+
+
+def test_append_autocorrect_note_appends_summary():
+    text = "Réponse finale."
+    corrections = [
+        {"column": "t.status", "from": "opne", "to": "open"},
+    ]
+    out = ChatService._append_autocorrect_note(text, corrections)
+    assert "opne" in out and "open" in out
+    assert "Note :" in out

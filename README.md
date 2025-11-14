@@ -63,6 +63,14 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
 - Le mode NL→SQL est maintenant actif par défaut (plus de bouton dédié dans le chat).
 
+### Robustesse des agents SQL (Explorateur / Analyste)
+
+- Lorsqu’une requête SQL finale de l’Analyste retourne 0 ligne, le backend tente une **auto‑correction prudente** des clauses `WHERE` basées sur des valeurs texte.
+- Le service parcourt les filtres d’égalité sur des colonnes (ex. `status = 'opne'`), interroge MindsDB pour récupérer les `DISTINCT` existants sur ces colonnes, puis choisit la valeur la plus proche via une distance de Levenshtein avec seuil conservateur.
+- Si une correction est jugée fiable, une seconde requête SQL (SELECT‑only) est exécutée et utilisée comme base de réponse, sans jamais modifier les données.
+- La réponse retournée au chat inclut une note explicite en tête indiquant quels filtres ont été corrigés (ex. `t.status : « opne » → « open ») afin de ne pas masquer les erreurs initiales de saisie.
+- L’Explorateur continue de produire des requêtes exploratoires (DISTINCT, MIN/MAX, échantillons) comme auparavant; l’auto‑correction renforce la robustesse globale du pipeline multi‑agents existant sans introduire de nouveau mode.
+
 #### Métadonnées de requête (API)
 
 - `metadata.exclude_tables: string[]` — liste de tables à exclure pour la conversation en cours. Validée côté serveur (normalisation, limite de taille, filtrage sur tables connues/permises).
