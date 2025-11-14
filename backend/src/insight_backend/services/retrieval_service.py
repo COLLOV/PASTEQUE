@@ -46,7 +46,13 @@ class RetrievalService:
         self._config_path = config_path or settings.mindsdb_embeddings_config_path
         self._config: EmbeddingConfig | None = None
 
-    def retrieve(self, *, question: str, top_n: int | None = None) -> List[SimilarRow]:
+    def retrieve(
+        self,
+        *,
+        question: str,
+        top_n: int | None = None,
+        allowed_tables: Iterable[str] | None = None,
+    ) -> List[SimilarRow]:
         question = (question or "").strip()
         if not question:
             raise ValueError("Question must not be empty for retrieval.")
@@ -56,6 +62,39 @@ class RetrievalService:
             raise ValueError("top_n must be > 0.")
 
         config = self._ensure_config()
+        tables = config.tables
+        if allowed_tables is not None:
+            allowed_lookup = {
+                name.strip().casefold()
+                for name in allowed_tables
+                if isinstance(name, str) and name.strip()
+            }
+            if allowed_lookup:
+                filtered: dict[str, EmbeddingTableConfig] = {
+                    table_name: table_cfg
+                    for table_name, table_cfg in tables.items()
+                    if table_name.casefold() in allowed_lookup
+                }
+                unknown = sorted(
+                    key
+                    for key in allowed_lookup
+                    if key not in {name.casefold() for name in tables.keys()}
+                )
+                if unknown:
+                    log.info(
+                        "Retrieval: allowed_tables contains names without embeddings, ignored=%s",
+                        unknown,
+                    )
+                log.info(
+                    "Retrieval: tables filtered by allowed_tables (requested=%s, used=%s)",
+                    sorted(allowed_lookup),
+                    sorted(filtered.keys()),
+                )
+                tables = filtered
+        if not tables:
+            log.warning("Retrieval: no tables available after filtering; skipping embeddings.")
+            return []
+
         embedding_client, embedding_model = build_embedding_client(config)
         try:
             # Enforce per-agent cap (embedding)
@@ -73,7 +112,7 @@ class RetrievalService:
         client = MindsDBClient(base_url=settings.mindsdb_base_url, token=settings.mindsdb_token)
         results: List[SimilarRow] = []
         try:
-            for table_name, table_cfg in config.tables.items():
+            for table_name, table_cfg in tables.items():
                 rows_payload = self._fetch_table_rows(client, table_name, table_cfg)
                 columns, row_dicts = rows_payload
                 if not row_dicts:

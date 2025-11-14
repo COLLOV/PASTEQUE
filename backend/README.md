@@ -166,7 +166,7 @@ En mode local, `EMBEDDING_LOCAL_MODEL` prime sur la clé `default_model` du YAML
 ### Mise en avant RAG
 
 - Les mises en avant sont produites par un agent dédié `retrieval` qui orchestre:
-  - la récupération de lignes proches via `RetrievalService` (embeddings MindsDB)
+  - la récupération de lignes proches via `RetrievalService` (embeddings MindsDB) en ne ciblant que les tables actives pour la requête (ACL utilisateur et exclusions de l’UI appliquées, puis intersection avec la configuration d’embeddings).
   - la synthèse via LLM (local via vLLM ou API externe selon `LLM_MODE`).
 - Quotas: l'appel au LLM pour la synthèse consomme le budget `retrieval` (et le calcul d'embedding consomme `embedding`). Configurez via `AGENT_MAX_REQUESTS`.
 - Tuning de la synthèse:
