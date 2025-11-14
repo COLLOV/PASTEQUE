@@ -35,7 +35,7 @@ Backend (depuis `backend/`):
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
 4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (`BACKEND_DEV_URL` pour l’hôte/port d’écoute du backend, PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, `CONTAINER_RUNTIME` = `docker` ou `podman` pour le lancement de MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence.
-5. Les dictionnaires de données (YAML) utilisés par les agents NL→SQL sont lus par défaut depuis `data/dictionary` (répertoire racine du projet) via la variable `DATA_DICTIONARY_DIR` documentée dans `backend/README.md`.
+5. Les dictionnaires de données (YAML) utilisés par les agents NL→SQL sont lus par défaut depuis `data/dictionary` (répertoire racine du projet) via la variable `DATA_DICTIONARY_DIR` documentée dans `backend/README.md`. Si une table active n'a pas de fichier YAML correspondant, le flux NL→SQL est bloqué avec un message expliquant quelles tables manquent de dictionnaire.
 
 `backend/.env` (également versionné) est désormais maintenu strictement aligné sur `backend/.env.example`. Si vous avez besoin de variantes locales, créez un fichier ignoré (ex. `backend/.env.local`) ou exportez temporairement vos variables sans modifier ceux qui servent de base commune à l’équipe.
 

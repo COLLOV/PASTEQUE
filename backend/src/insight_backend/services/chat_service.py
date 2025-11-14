@@ -322,10 +322,41 @@ class ChatService:
                 for name in tables:
                     cols = [c for c, _ in repo.get_schema(name)]
                     schema[name] = cols
-                # Load compact data dictionary (if available) limited to the current schema
+                # Load compact data dictionary (required) limited to the current schema
                 dico_repo = DataDictionaryRepository(
                     directory=Path(resolve_project_path(settings.data_dictionary_dir))
                 )
+                missing_dico: list[str] = []
+                for table_name in schema.keys():
+                    try:
+                        doc = dico_repo.load_table(table_name)
+                    except Exception as e:  # pragma: no cover - defensive, logged below
+                        log.error("Failed to load data dictionary for table '%s': %s", table_name, e, exc_info=True)
+                        doc = None
+                    if not doc:
+                        missing_dico.append(table_name)
+                if missing_dico:
+                    missing_dico_sorted = sorted(missing_dico)
+                    log.error(
+                        "Missing data dictionary YAML for tables: %s (DATA_DICTIONARY_DIR=%s)",
+                        missing_dico_sorted,
+                        settings.data_dictionary_dir,
+                    )
+                    message = (
+                        "Configuration invalide : aucun dictionnaire de données YAML trouvé pour les tables "
+                        f"suivantes : {', '.join(missing_dico_sorted)}. "
+                        "Créez un fichier <table>.yml dans le répertoire configuré par DATA_DICTIONARY_DIR."
+                    )
+                    return self._log_completion(
+                        ChatResponse(
+                            reply=f"{message}\n{self._llm_diag()}",
+                            metadata={
+                                "provider": "nl2sql-config",
+                                "missing_dictionaries": missing_dico_sorted,
+                            },
+                        ),
+                        context="completion denied (missing data dictionary)",
+                    )
                 dico = dico_repo.for_schema(schema)
                 contextual_question_with_dico = contextual_question
                 if dico:
