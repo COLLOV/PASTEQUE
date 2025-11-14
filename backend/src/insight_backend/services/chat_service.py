@@ -1,6 +1,7 @@
 import logging
 import json
 import re
+import difflib
 
 from sqlglot import parse_one, exp
 from pathlib import Path
@@ -30,6 +31,22 @@ def _preview_text(text: str, *, limit: int = 160) -> str:
         return compact
     cutoff = max(limit - 3, 1)
     return f"{compact[:cutoff]}..."
+
+
+def _find_similar_values(value: str, candidates: List[str], *, max_suggestions: int = 3) -> List[str]:
+    """Return up to ``max_suggestions`` close matches for ``value`` within ``candidates``."""
+    if not candidates:
+        return []
+    value_cf = value.casefold()
+    # Map lowercase -> original to preserve representative casing
+    lookup: Dict[str, str] = {}
+    for c in candidates:
+        lc = c.casefold()
+        if lc not in lookup:
+            lookup[lc] = c
+    keys = list(lookup.keys())
+    matches_cf = difflib.get_close_matches(value_cf, keys, n=max_suggestions, cutoff=0.75)
+    return [lookup[m] for m in matches_cf]
 
 
 def _serialize_dico_compact(dico: Dict[str, Any], *, limit: int) -> tuple[str, bool, int, int]:
@@ -414,6 +431,10 @@ class ChatService:
                             context="completion done (nl2sql-multiagent-no-round)",
                         )
 
+                    last_final_sql: str | None = None
+                    last_final_rows: list[Any] | None = None
+                    last_final_evidence: list[dict[str, object]] | None = None
+
                     for r in range(1, rounds + 1):
                         try:
                             observations = None
@@ -549,6 +570,9 @@ class ChatService:
                             fallback_columns=last_columns,
                             fallback_rows=last_rows,
                         )
+                        last_final_sql = str(final_sql)
+                        last_final_rows = list(frows)
+                        last_final_evidence = list(evidence)
                         if len(frows) >= min_rows:
                             ev_for_answer = evidence + [
                                 {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
@@ -620,11 +644,22 @@ class ChatService:
                                 )
                         # Not satisfied; continue another explore round if available
                     # After all rounds, no satisfactory result
+                    hint = None
+                    if last_final_sql and last_final_rows == [] and last_final_evidence is not None:
+                        hint = self._diagnose_zero_result(
+                            sql=last_final_sql,
+                            evidence=last_final_evidence,
+                        )
+                        if hint:
+                            log.info("NL2SQL multi‑agent zero‑rows diagnosis: %s", _preview_text(hint, limit=200))
                     return self._log_completion(
                         ChatResponse(
                             reply=(
                                 "Impossible de produire une réponse satisfaisante après l'exploration. "
-                                "Affinez votre question ou vérifiez les données disponibles.\n" + self._llm_diag()
+                                "Affinez votre question ou vérifiez les données disponibles."
+                                + (f"\n\nIndice possible : {hint}" if hint else "")
+                                + "\n"
+                                + self._llm_diag()
                             ),
                             metadata={"provider": "nl2sql-multiagent-empty"},
                         ),
@@ -866,3 +901,99 @@ class ChatService:
         except Exception:
             # Defensive: do not break the main flow, but keep traceback
             log.warning("Failed to emit evidence (helper)", exc_info=True)
+
+    def _diagnose_zero_result(
+        self,
+        *,
+        sql: str,
+        evidence: List[Dict[str, Any]],
+    ) -> str | None:
+        """Try to explain zero-row results by highlighting suspicious literal filters.
+
+        Uses exploration evidence to detect string filters that never match any observed value and
+        suggests close alternatives when available.
+        """
+        try:
+            node = parse_one(sql, read=None)
+        except Exception:
+            log.warning("Failed to parse SQL for zero-result diagnosis", exc_info=True)
+            return None
+
+        filters: List[tuple[str, str]] = []
+
+        def _record_filter(col: exp.Column | None, lit: exp.Literal | None) -> None:
+            if not isinstance(col, exp.Column) or not isinstance(lit, exp.Literal) or not lit.is_string:
+                return
+            col_name = col.name or col.sql()
+            val = str(lit.this).strip("'\"")
+            if col_name and val:
+                filters.append((col_name, val))
+
+        for eq in node.find_all(exp.EQ):
+            left = eq.args.get("this")
+            right = eq.args.get("expression")
+            if isinstance(left, exp.Column) and isinstance(right, exp.Literal):
+                _record_filter(left, right)
+            elif isinstance(right, exp.Column) and isinstance(left, exp.Literal):
+                _record_filter(right, left)
+
+        for inn in node.find_all(exp.In):
+            col = inn.args.get("this")
+            if not isinstance(col, exp.Column):
+                continue
+            for lit in inn.expressions:
+                if isinstance(lit, exp.Literal) and lit.is_string:
+                    _record_filter(col, lit)
+
+        if not filters:
+            return None
+
+        observed: Dict[str, set[str]] = {}
+        for ev in evidence:
+            cols = ev.get("columns") if isinstance(ev, dict) else None
+            rows = ev.get("rows") if isinstance(ev, dict) else None
+            if not isinstance(cols, list) or not isinstance(rows, list) or not cols or not rows:
+                continue
+            # Normalize to list-alike rows
+            for row in rows:
+                if isinstance(row, dict):
+                    for k, v in row.items():
+                        key = str(k).casefold()
+                        observed.setdefault(key, set()).add(str(v))
+                elif isinstance(row, (list, tuple)):
+                    for idx, col_name in enumerate(cols):
+                        if idx >= len(row):
+                            break
+                        key = str(col_name).casefold()
+                        observed.setdefault(key, set()).add(str(row[idx]))
+                else:
+                    continue
+
+        if not observed:
+            return None
+
+        issues: List[str] = []
+        for col_name, val in filters:
+            key = col_name.split(".")[-1].casefold()
+            candidates = sorted(observed.get(key, set()))
+            if not candidates:
+                continue
+            val_cf = val.casefold()
+            if any(val_cf == c.casefold() for c in candidates):
+                continue
+            similars = _find_similar_values(val, candidates, max_suggestions=3)
+            if similars:
+                pretty_sim = ", ".join(f"«{s}»" for s in similars)
+                issues.append(f"{col_name} = «{val}» (valeurs proches dans les données : {pretty_sim})")
+            else:
+                issues.append(f"{col_name} = «{val}» (aucune valeur correspondante observée)")
+
+        if not issues:
+            return None
+
+        # Keep the message compact for the UI
+        joined = "; ".join(issues[:3])
+        return (
+            "certaines valeurs dans les filtres SQL ne semblent pas correspondre aux catégories présentes dans les données, "
+            f"par exemple : {joined}."
+        )

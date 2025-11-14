@@ -141,6 +141,34 @@ def test_emit_evidence_with_derived_sql():
     assert "meta" in kinds and "rows" in kinds
 
 
+def test_zero_rows_diagnosis_suggests_similar_values():
+    svc = ChatService(DummyEngine())
+    sql = (
+        "SELECT COUNT(*) FROM files.tickets t "
+        "WHERE t.channel = 'WhatsAppp' AND product = 'AutoPlus'"
+    )
+    evidence = [
+        {
+            "purpose": "explore",
+            "sql": "SELECT DISTINCT channel FROM files.tickets",
+            "columns": ["channel"],
+            "rows": [["WhatsApp"], ["Mail"]],
+        },
+        {
+            "purpose": "explore",
+            "sql": "SELECT DISTINCT product FROM files.tickets",
+            "columns": ["product"],
+            "rows": [["Auto+"], ["Home"]],
+        },
+    ]
+
+    hint = svc._diagnose_zero_result(sql=sql, evidence=evidence)
+    assert hint is not None
+    assert "WhatsAppp" in hint
+    assert "AutoPlus" in hint
+    assert "WhatsApp" in hint
+
+
 def test_format_retrieval_highlight_with_payload(monkeypatch: pytest.MonkeyPatch):
     svc = ChatService(DummyEngine())
 
