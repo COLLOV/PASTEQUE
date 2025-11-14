@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     vector_store_path: str = Field("../data/vector_store", alias="VECTOR_STORE_PATH")
     tables_dir: str = Field("../data", alias="DATA_TABLES_DIR")
     # Default path fixed: 'dictionary' (not 'dictionnary')
-    data_dictionary_dir: str = Field("../data/dictionary", alias="DATA_DICTIONARY_DIR")
+    # Path is relative to the project root (e.g. 'data/dictionary')
+    data_dictionary_dir: str = Field("data/dictionary", alias="DATA_DICTIONARY_DIR")
     # Cap for injected data dictionary JSON in prompts
     data_dictionary_max_chars: int = Field(6000, alias="DATA_DICTIONARY_MAX_CHARS")
 

@@ -35,7 +35,7 @@ Au démarrage, l’API journalise le mapping effectif des plafonds (ou l’absen
 
 But: fournir aux agents NL→SQL des définitions claires de tables/colonnes.
 
-- Emplacement: `DATA_DICTIONARY_DIR` (défaut `../data/dictionary`).
+- Emplacement: `DATA_DICTIONARY_DIR` (défaut `data/dictionary` par rapport à la racine du projet).
 - Format: 1 fichier YAML par table (`<table>.yml`), par ex. `tickets_jira.yml`.
 - Schéma minimal:
 
