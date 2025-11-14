@@ -540,6 +540,60 @@ class ChatService:
                                 )
                             except Exception:
                                 log.warning("Failed to emit rows event (final)", exc_info=True)
+                        sql_for_answer = final_sql
+                        autocorrect_info: list[dict[str, str]] = []
+                        if not frows:
+                            corrected_sql, corrections = self._autocorrect_zero_result_sql(
+                                sql=final_sql,
+                                client=client,
+                            )
+                            if corrected_sql and corrected_sql != final_sql:
+                                log.info(
+                                    "NL2SQL autocorrect candidate due to 0 rows: original=\"%s\" corrected=\"%s\"",
+                                    _preview_text(str(final_sql), limit=160),
+                                    _preview_text(str(corrected_sql), limit=160),
+                                )
+                                try:
+                                    result2 = client.sql(corrected_sql)
+                                    ccols, crows = self._normalize_result(result2)
+                                except Exception:
+                                    log.warning("NL2SQL autocorrect execution failed", exc_info=True)
+                                else:
+                                    if crows:
+                                        if events:
+                                            try:
+                                                events(
+                                                    "sql",
+                                                    {
+                                                        "sql": corrected_sql,
+                                                        "purpose": "answer-autocorrect",
+                                                        "round": r,
+                                                    },
+                                                )
+                                                events(
+                                                    "rows",
+                                                    {
+                                                        "purpose": "answer-autocorrect",
+                                                        "round": r,
+                                                        "columns": ccols,
+                                                        "rows": crows,
+                                                        "row_count": len(crows),
+                                                    },
+                                                )
+                                            except Exception:
+                                                log.warning("Failed to emit rows/sql event (autocorrect)", exc_info=True)
+                                        fcols, frows = ccols, crows
+                                        sql_for_answer = corrected_sql
+                                        autocorrect_info = corrections
+                                        log.info(
+                                            "NL2SQL autocorrect applied: corrections=%s rows=%d",
+                                            autocorrect_info,
+                                            len(frows),
+                                        )
+                                    else:
+                                        log.info(
+                                            "NL2SQL autocorrect produced no rows; keeping original empty result."
+                                        )
                         # Emit evidence for the side panel based on the final result or last non-empty exploration
                         self._emit_evidence(
                             events=events,
@@ -551,7 +605,7 @@ class ChatService:
                         )
                         if len(frows) >= min_rows:
                             ev_for_answer = evidence + [
-                                {"purpose": "answer", "sql": final_sql, "columns": fcols, "rows": frows}
+                                {"purpose": "answer", "sql": sql_for_answer, "columns": fcols, "rows": frows}
                             ]
                             # Optionally ask the analyst to draft a SQL-only answer and inject
                             # it into the retrieval question to guide investigation.
@@ -589,10 +643,17 @@ class ChatService:
                                     retrieval_context=retrieval_payload,
                                 ).strip()
                                 reply_text = answer or "Je n'ai pas pu formuler de réponse à partir des résultats."
+                                if autocorrect_info:
+                                    reply_text = self._append_autocorrect_note(reply_text, autocorrect_info)
                                 metadata = {
                                     "provider": "nl2sql-multiagent",
                                     "rounds_used": r,
-                                    "sql": final_sql,
+                                    "sql": sql_for_answer,
+                                    **(
+                                        {"sql_original": final_sql}
+                                        if sql_for_answer != final_sql
+                                        else {}
+                                    ),
                                     "agents": ["explorateur", "analyste", "retrieval", "redaction"],
                                     "retrieval_rows": retrieval_payload,
                                 }
@@ -866,3 +927,187 @@ class ChatService:
         except Exception:
             # Defensive: do not break the main flow, but keep traceback
             log.warning("Failed to emit evidence (helper)", exc_info=True)
+
+    @staticmethod
+    def _levenshtein(a: str, b: str) -> int:
+        """Compute Levenshtein distance between two strings."""
+        if a == b:
+            return 0
+        if not a:
+            return len(b)
+        if not b:
+            return len(a)
+        # Soft cap to keep runtime bounded on very long strings
+        if len(a) > 128:
+            a = a[:128]
+        if len(b) > 128:
+            b = b[:128]
+        la, lb = len(a), len(b)
+        prev = list(range(lb + 1))
+        cur = [0] * (lb + 1)
+        for i in range(1, la + 1):
+            cur[0] = i
+            ca = a[i - 1]
+            for j in range(1, lb + 1):
+                cost = 0 if ca == b[j - 1] else 1
+                cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+            prev, cur = cur, prev
+        return prev[lb]
+
+    def _find_best_distinct_value(
+        self,
+        *,
+        client: MindsDBClient,
+        from_node: exp.From,
+        column_expr: exp.Expression,
+        original_value: str,
+        limit: int,
+    ) -> str | None:
+        """Return the closest DISTINCT value for a column, or None."""
+        value = original_value.strip()
+        if not value:
+            return None
+        # Build a compact introspection query reusing the original FROM.
+        from_sql = from_node.sql()
+        distinct_limit = max(1, limit)
+        introspection_sql = f"SELECT DISTINCT {column_expr.sql()} AS value {from_sql} LIMIT {distinct_limit}"
+        log.info(
+            "NL2SQL autocorrect introspection SQL: %s",
+            _preview_text(introspection_sql, limit=160),
+        )
+        data = client.sql(introspection_sql)
+        cols, rows = self._normalize_result(data)
+        if not rows:
+            return None
+        try:
+            idx = cols.index("value")
+        except ValueError:
+            idx = 0 if cols else 0
+        target = value.lower()
+        best: str | None = None
+        best_score: float | None = None
+        for row in rows:
+            if isinstance(row, dict):
+                cand_obj = row.get("value")
+                if cand_obj is None:
+                    continue
+                cand = str(cand_obj)
+            elif isinstance(row, (list, tuple)):
+                if not row:
+                    continue
+                cand = str(row[idx])
+            else:
+                cand = str(row)
+            cand = cand.strip()
+            if not cand:
+                continue
+            dist = self._levenshtein(target, cand.lower())
+            if dist == 0:
+                # Exact match but zero rows indicate another issue; skip
+                continue
+            norm = dist / max(len(target), 1)
+            # Require reasonably small absolute and relative distance
+            if dist > 2 or norm > 0.6:
+                continue
+            if best_score is None or norm < best_score:
+                best_score = norm
+                best = cand
+        return best
+
+    def _autocorrect_zero_result_sql(
+        self,
+        *,
+        sql: str,
+        client: MindsDBClient,
+    ) -> tuple[str | None, list[dict[str, str]]]:
+        """Try to fix obvious typos in string equality filters using DISTINCT values.
+
+        Only runs extra read-only SELECT queries. Returns (corrected_sql, corrections).
+        """
+        try:
+            s = (sql or "").strip()
+            if not s:
+                return None, []
+            node = parse_one(s, read=None)
+            select_node: exp.Select | None = None
+            if isinstance(node, exp.Select):
+                select_node = node
+            elif isinstance(node, exp.With) and isinstance(node.this, exp.Select):
+                select_node = node.this
+            else:
+                return None, []
+            from_node = select_node.args.get("from")
+            where_node = select_node.args.get("where")
+            if not from_node or not where_node:
+                return None, []
+            corrections: list[dict[str, str]] = []
+            changed = False
+            distinct_limit = settings.evidence_limit_default or 100
+            for eq in where_node.find_all(exp.EQ):
+                left = eq.args.get("this")
+                right = eq.args.get("expression")
+                if isinstance(left, exp.Column) and isinstance(right, exp.Literal):
+                    col_expr = left
+                    lit = right
+                elif isinstance(right, exp.Column) and isinstance(left, exp.Literal):
+                    col_expr = right
+                    lit = left
+                else:
+                    continue
+                raw_val = str(lit.this)
+                if (raw_val.startswith("'") and raw_val.endswith("'")) or (
+                    raw_val.startswith('"') and raw_val.endswith('"')
+                ):
+                    raw_val = raw_val[1:-1]
+                suggestion = self._find_best_distinct_value(
+                    client=client,
+                    from_node=from_node,
+                    column_expr=col_expr,
+                    original_value=raw_val,
+                    limit=distinct_limit,
+                )
+                if suggestion is None or suggestion == raw_val:
+                    continue
+                new_lit = exp.Literal.string(suggestion)
+                if isinstance(left, exp.Column):
+                    eq.set("expression", new_lit)
+                else:
+                    eq.set("this", new_lit)
+                corrections.append(
+                    {
+                        "column": col_expr.sql(),
+                        "from": raw_val,
+                        "to": suggestion,
+                    }
+                )
+                changed = True
+            if not changed:
+                return None, []
+            corrected_sql = node.sql()
+            return corrected_sql, corrections
+        except Exception:
+            log.warning("NL2SQL autocorrect failed for SQL", exc_info=True)
+            return None, []
+
+    @staticmethod
+    def _append_autocorrect_note(
+        text: str,
+        corrections: list[dict[str, str]],
+    ) -> str:
+        if not corrections:
+            return text
+        parts = []
+        for c in corrections:
+            col = c.get("column", "")
+            old = c.get("from", "")
+            new = c.get("to", "")
+            if col and old and new:
+                parts.append(f"{col} : « {old} » → « {new} »")
+        if not parts:
+            return text
+        note = "Note : la requête SQL initiale ne renvoyait aucune ligne. Les filtres suivants ont été corrigés automatiquement en se basant sur les valeurs existantes : " + "; ".join(
+            parts
+        )
+        if not text:
+            return note
+        return f"{note}\n\n{text}"
