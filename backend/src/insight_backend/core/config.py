@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # OpenAI-compatible (API provider Z or others)
     openai_base_url: str | None = Field(None, alias="OPENAI_BASE_URL")
     openai_api_key: str | None = Field(None, alias="OPENAI_API_KEY")
+    llm_verify_ssl: bool = Field(True, alias="LLM_VERIFY_SSL")
     llm_model: str | None = Field(None, alias="LLM_MODEL")
     openai_timeout_s: int = Field(90, alias="OPENAI_TIMEOUT_S")
     llm_max_tokens: int = Field(1024, alias="LLM_MAX_TOKENS")
