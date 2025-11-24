@@ -5,6 +5,7 @@ import logging
 from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
+from ..core.config import settings
 
 
 class OpenAIBackendError(RuntimeError):
@@ -25,7 +26,14 @@ class OpenAICompatibleClient:
     def __init__(self, *, base_url: str, api_key: Optional[str] = None, timeout_s: float = 30.0):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
-        self.client = httpx.Client(timeout=timeout_s)
+        verify_ssl = bool(settings.llm_verify_ssl)
+        if not verify_ssl:
+            log.warning(
+                "LLM SSL verification disabled (LLM_VERIFY_SSL=%r). "
+                "Use this setting only in controlled environments.",
+                settings.llm_verify_ssl,
+            )
+        self.client = httpx.Client(timeout=timeout_s, verify=verify_ssl)
 
     def chat_completions(self, *, model: str, messages: List[Dict[str, str]], **params: Any) -> Dict[str, Any]:
         url = f"{self.base_url}/chat/completions"
