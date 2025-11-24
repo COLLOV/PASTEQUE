@@ -163,6 +163,15 @@ En mode local, `EMBEDDING_LOCAL_MODEL` prime sur la clé `default_model` du YAML
 
 `MINDSDB_EMBEDDINGS_CONFIG_PATH` décrit toujours les tables/colonnes à vectoriser. Le script `start.sh` applique la configuration choisie avant chaque import vers MindsDB. Les logs `insight.services.mindsdb_embeddings` précisent le mode et le modèle utilisés.
 
+### Vérification TLS du backend LLM (LLM_VERIFY_SSL)
+
+Par défaut, toutes les requêtes HTTP vers le backend LLM OpenAI‑compatible (vLLM local ou provider externe en mode API) vérifient le certificat TLS du serveur.
+
+- `LLM_VERIFY_SSL=true` (défaut): vérifie la chaîne de certificats comme attendu en production.
+- `LLM_VERIFY_SSL=false`: désactive la vérification TLS pour le client LLM (utilise `verify=False` côté HTTP). **À n'utiliser que dans un environnement contrôlé** lorsque vous devez contourner un certificat auto‑signé ou une chaîne incomplète.
+
+Lorsque `LLM_VERIFY_SSL=false`, un avertissement explicite est journalisé par `insight.integrations.openai` au démarrage du client.
+
 ### Mise en avant RAG
 
 - Les mises en avant sont produites par un agent dédié `retrieval` qui orchestre:
