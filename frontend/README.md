@@ -78,6 +78,8 @@ src/
 │   │   └── Chat.tsx
 │   ├── dashboard/
 │   │   └── Dashboard.tsx
+│   ├── explorer/
+│   │   └── Explorer.tsx
 │   └── admin/
 │       └── AdminPanel.tsx
 ├── services/
@@ -235,6 +237,12 @@ Personnalisation rapide:
 - Ajuster `pl-14` / `pr-14` et `h-12` dans `src/features/chat/Chat.tsx`.
 - Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
 - Pour changer la largeur des colonnes: adapter les classes Tailwind `lg:col-span-*` dans `src/features/chat/Chat.tsx`.
+
+### Explorer
+
+- Page `/explorer` accessible depuis le header (bouton à gauche de « Nouveau chat ») pour une vision globale des sources autorisées.
+- Consomme `GET /data/overview` : total par source et répartitions par date, département, campagne et domaine lorsque les colonnes sont présentes.
+- Cartes par source avec mini-barres (horizontales/verticales) pour visualiser rapidement les volumes et les découpes.
 
 ### Dashboard
 

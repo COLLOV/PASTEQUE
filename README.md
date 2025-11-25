@@ -112,6 +112,12 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.
 - Le backend applique ces restrictions pour les listings/ schémas (`GET /api/v1/data/...`) ainsi que pour le NL→SQL et les graphiques via `/api/v1/chat/*`: un utilisateur ne voit ni n’utilise de table qui ne lui a pas été accordée.
 
+### Explorer (vision globale des sources)
+
+- API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les répartitions par date, département, campagne et domaine lorsque ces colonnes sont présentes (respect des ACL `user_table_permissions`).
+- Frontend : nouvelle page `/explorer` (bouton à gauche de « Nouveau chat ») affichant des cartes par source avec indicateurs synthétiques et mini-barres pour chaque dimension disponible.
+- Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
+
 ## Principes d’architecture
 
 - Routes HTTP minces -> délèguent à des services.

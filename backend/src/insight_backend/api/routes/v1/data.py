@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, UploadFile, HTTPException, Depends
 from sqlalchemy.orm import Session
 
-from ....schemas.data import IngestResponse
+from ....schemas.data import IngestResponse, DataOverviewResponse
 from ....schemas.tables import TableInfo, ColumnInfo
 from ....services.data_service import DataService
 from ....repositories.data_repository import DataRepository
@@ -51,3 +51,14 @@ def get_table_schema(  # type: ignore[valid-type]
         raise HTTPException(status_code=403, detail=str(e))
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/overview", response_model=DataOverviewResponse)
+def get_data_overview(  # type: ignore[valid-type]
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> DataOverviewResponse:
+    allowed = None
+    if not user_is_admin(current_user):
+        allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    return _service.get_overview(allowed_tables=allowed)
