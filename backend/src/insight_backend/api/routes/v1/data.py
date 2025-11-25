@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, HTTPException, Depends
-from fastapi.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
+from fastapi import APIRouter, UploadFile, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 
 from ....schemas.data import (
@@ -85,18 +84,18 @@ def update_hidden_fields(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
 ) -> HiddenFieldsResponse:
     if not user_is_admin(current_user):
-        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
     table_name = source.strip()
     if not table_name:
-        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="Table name is required")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Table name is required")
 
     try:
         schema = _service.get_schema(table_name)
     except PermissionError as exc:
-        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
     available_fields = {col.name for col in schema}
     cleaned: list[str] = []
@@ -119,7 +118,7 @@ def update_hidden_fields(  # type: ignore[valid-type]
 
     if unknown:
         raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Colonnes inconnues pour {table_name}: {', '.join(sorted(set(unknown)))}",
         )
 
