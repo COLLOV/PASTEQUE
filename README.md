@@ -231,6 +231,7 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 
 - 2025-10-21: L'état vide du chat (« Discutez avec vos données ») est maintenant centré via un overlay `fixed` non interactif: pas de scroll tant qu'aucun message n'est présent; la barre de saisie reste accessible.
  - 2025-10-21: Ajout d'un petit avertissement sous la zone de saisie: « L'IA peut faire des erreurs, FoyerInsight aussi. »
+ - 2025-11-25: L’onglet « Explorer » affiche désormais automatiquement des statistiques pour toutes les colonnes détectées dans chaque table (fréquences de valeurs, timeline pour les colonnes de type date) sans configuration de colonnes en dur; les administrateurs peuvent configurer, dans l’espace admin, quelles colonnes sont visibles par table via la section « Colonnes visibles dans l’explorateur ».
 
 ## Maintenance
 

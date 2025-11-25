@@ -22,63 +22,18 @@ log = logging.getLogger("insight.services.data")
 
 
 @dataclass(frozen=True)
-class DimensionField:
-    field: str
-    label: str
-
-
-@dataclass(frozen=True)
 class DatasetConfig:
-    title: str
-    date: DimensionField | None = None
-    department: DimensionField | None = None
-    campaign: DimensionField | None = None
-    domain: DimensionField | None = None
+    title: str | None = None
 
 
 DATASET_CONFIGS: dict[str, DatasetConfig] = {
-    "myfeelback_agences": DatasetConfig(
-        title="Feedback agences",
-        date=DimensionField("date_feedback", "Date du feedback"),
-        department=DimensionField("agence", "Agence"),
-        domain=DimensionField("motif_visite", "Motif de visite"),
-    ),
-    "myfeelback_app_mobile": DatasetConfig(
-        title="App mobile",
-        date=DimensionField("date_feedback", "Date du feedback"),
-        campaign=DimensionField("type_feedback", "Type de feedback"),
-        domain=DimensionField("fonctionnalite", "Fonctionnalité"),
-    ),
-    "myfeelback_nps": DatasetConfig(
-        title="NPS",
-        date=DimensionField("date_feedback", "Date du feedback"),
-        campaign=DimensionField("categorie", "Segment NPS"),
-        domain=DimensionField("profil_client", "Profil client"),
-    ),
-    "myfeelback_remboursements": DatasetConfig(
-        title="Remboursements",
-        date=DimensionField("date_declaration", "Date de déclaration"),
-        department=DimensionField("departement", "Département"),
-        campaign=DimensionField("statut", "Statut du dossier"),
-        domain=DimensionField("type_sinistre", "Type de sinistre"),
-    ),
-    "myfeelback_service_client": DatasetConfig(
-        title="Service client",
-        date=DimensionField("date_feedback", "Date du feedback"),
-        department=DimensionField("canal", "Canal"),
-        campaign=DimensionField("motif_contact", "Motif de contact"),
-    ),
-    "myfeelback_souscriptions": DatasetConfig(
-        title="Souscriptions",
-        date=DimensionField("date_feedback", "Date du feedback"),
-        campaign=DimensionField("canal", "Canal de souscription"),
-        domain=DimensionField("type_contrat", "Type de contrat"),
-    ),
-    "tickets_jira": DatasetConfig(
-        title="Tickets Jira",
-        date=DimensionField("creation_date", "Date de création"),
-        department=DimensionField("departement", "Département"),
-    ),
+    "myfeelback_agences": DatasetConfig(title="Feedback agences"),
+    "myfeelback_app_mobile": DatasetConfig(title="App mobile"),
+    "myfeelback_nps": DatasetConfig(title="NPS"),
+    "myfeelback_remboursements": DatasetConfig(title="Remboursements"),
+    "myfeelback_service_client": DatasetConfig(title="Service client"),
+    "myfeelback_souscriptions": DatasetConfig(title="Souscriptions"),
+    "tickets_jira": DatasetConfig(title="Tickets Jira"),
 }
 
 
@@ -103,18 +58,20 @@ def _normalize_date(value: object | None) -> str | None:
 
 def _build_dimension(
     counter: Counter[str],
-    dim: DimensionField | None,
+    field: str,
+    label: str | None = None,
     *,
     sort_by_label: bool = False,
 ) -> DimensionBreakdown | None:
-    if not dim or not counter:
+    if not counter:
         return None
     if sort_by_label:
         items = sorted(counter.items(), key=lambda item: item[0])
     else:
         items = sorted(counter.items(), key=lambda item: (-item[1], item[0]))
-    counts = [DimensionCount(label=label, count=count) for label, count in items]
-    return DimensionBreakdown(field=dim.field, label=dim.label, counts=counts)
+    counts = [DimensionCount(label=value, count=count) for value, count in items]
+    dim_label = label or field
+    return DimensionBreakdown(field=field, label=dim_label, counts=counts)
 
 
 class DataService:
@@ -147,17 +104,27 @@ class DataService:
         cols = self.repo.get_schema(table_name)
         return [ColumnInfo(name=name, dtype=dtype) for name, dtype in cols]
 
-    def get_overview(self, *, allowed_tables: Iterable[str] | None = None) -> DataOverviewResponse:
+    def get_overview(
+        self,
+        *,
+        allowed_tables: Iterable[str] | None = None,
+        hidden_columns: dict[str, set[str]] | None = None,
+    ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
             allowed_set = {name.casefold() for name in allowed_tables}
             table_names = [name for name in table_names if name.casefold() in allowed_set]
             log.debug("Filtered overview tables with permissions (count=%d)", len(table_names))
 
+        hidden_lookup = hidden_columns or {}
         sources: list[DataSourceOverview] = []
         for name in table_names:
-            config = DATASET_CONFIGS.get(name, DatasetConfig(title=name))
-            overview = self._compute_table_overview(table_name=name, config=config)
+            config = DATASET_CONFIGS.get(name, DatasetConfig())
+            overview = self._compute_table_overview(
+                table_name=name,
+                title=config.title or name,
+                hidden_columns=hidden_lookup.get(name),
+            )
             if overview:
                 sources.append(overview)
 
@@ -167,7 +134,8 @@ class DataService:
         self,
         *,
         table_name: str,
-        config: DatasetConfig,
+        title: str,
+        hidden_columns: set[str] | None = None,
     ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
@@ -175,63 +143,48 @@ class DataService:
             return None
 
         delimiter = "," if path.suffix.lower() == ".csv" else "\t"
-        date_counter: Counter[str] = Counter()
-        department_counter: Counter[str] = Counter()
-        campaign_counter: Counter[str] = Counter()
-        domain_counter: Counter[str] = Counter()
         total_rows = 0
+        hidden = {name.casefold() for name in hidden_columns} if hidden_columns else set()
+        dimensions: list[DimensionBreakdown] = []
 
         with path.open("r", newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle, delimiter=delimiter)
-            headers = set(reader.fieldnames or [])
-
-            date_field = config.date if (config.date and config.date.field in headers) else None
-            department_field = (
-                config.department if (config.department and config.department.field in headers) else None
-            )
-            campaign_field = (
-                config.campaign if (config.campaign and config.campaign.field in headers) else None
-            )
-            domain_field = config.domain if (config.domain and config.domain.field in headers) else None
-
-            if config.date and not date_field:
-                log.info("Colonne date absente pour %s: %s", table_name, config.date.field)
-            if config.department and not department_field:
-                log.info("Colonne département absente pour %s: %s", table_name, config.department.field)
-            if config.campaign and not campaign_field:
-                log.info("Colonne campagne absente pour %s: %s", table_name, config.campaign.field)
-            if config.domain and not domain_field:
-                log.info("Colonne domaine absente pour %s: %s", table_name, config.domain.field)
+            headers = [h for h in (reader.fieldnames or []) if h and h.casefold() not in hidden]
+            counters: dict[str, Counter[str]] = {name: Counter() for name in headers}
 
             for row in reader:
                 total_rows += 1
-
-                if date_field:
-                    key = _normalize_date(row.get(date_field.field))
+                for field in headers:
+                    raw = row.get(field)
+                    if raw is None:
+                        continue
+                    field_lower = field.casefold()
+                    if "date" in field_lower:
+                        key = _normalize_date(raw)
+                    else:
+                        key = _clean_text(raw)
                     if key:
-                        date_counter[key] += 1
+                        counters[field][key] += 1
 
-                if department_field:
-                    value = _clean_text(row.get(department_field.field))
-                    if value:
-                        department_counter[value] += 1
+        for field in headers:
+            counter = counters.get(field)
+            if not counter:
+                continue
+            is_date_dimension = "date" in field.casefold()
+            dim = _build_dimension(counter, field=field, label=None, sort_by_label=is_date_dimension)
+            if dim:
+                dimensions.append(dim)
 
-                if campaign_field:
-                    value = _clean_text(row.get(campaign_field.field))
-                    if value:
-                        campaign_counter[value] += 1
-
-                if domain_field:
-                    value = _clean_text(row.get(domain_field.field))
-                    if value:
-                        domain_counter[value] += 1
+        log.info(
+            "Computed overview for table=%s rows=%d columns=%d (visible)",
+            table_name,
+            total_rows,
+            len(dimensions),
+        )
 
         return DataSourceOverview(
             source=table_name,
-            title=config.title or table_name,
+            title=title or table_name,
             total_rows=total_rows,
-            date=_build_dimension(date_counter, date_field, sort_by_label=True),
-            department=_build_dimension(department_counter, department_field),
-            campaign=_build_dimension(campaign_counter, campaign_field),
-            domain=_build_dimension(domain_counter, domain_field),
+            columns=dimensions,
         )

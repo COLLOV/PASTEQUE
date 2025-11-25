@@ -55,3 +55,17 @@ export interface AdminUsageStatsResponse {
   totals: UsageTotals
   per_user: UserUsageStats[]
 }
+
+export interface ExplorerTableColumns {
+  table: string
+  columns: string[]
+  hidden_columns: string[]
+}
+
+export interface ExplorerColumnVisibilityOverviewResponse {
+  tables: ExplorerTableColumns[]
+}
+
+export interface UpdateExplorerHiddenColumnsRequest {
+  hidden_columns: string[]
+}

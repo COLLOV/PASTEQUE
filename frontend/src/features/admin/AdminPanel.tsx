@@ -10,6 +10,9 @@ import type {
   UserWithPermissionsResponse,
   AdminResetPasswordResponse,
   AdminUsageStatsResponse,
+  ExplorerColumnVisibilityOverviewResponse,
+  ExplorerTableColumns,
+  UpdateExplorerHiddenColumnsRequest,
 } from '@/types/user'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
 
@@ -46,6 +49,10 @@ export default function AdminPanel() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsError, setStatsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
+  const [columnOverview, setColumnOverview] = useState<ExplorerColumnVisibilityOverviewResponse | null>(null)
+  const [columnsLoading, setColumnsLoading] = useState(true)
+  const [columnsError, setColumnsError] = useState('')
+  const [updatingColumnsForTable, setUpdatingColumnsForTable] = useState<string | null>(null)
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
 
@@ -79,10 +86,26 @@ export default function AdminPanel() {
     }
   }, [])
 
+  const loadColumns = useCallback(async () => {
+    setColumnsLoading(true)
+    setColumnsError('')
+    try {
+      const response = await apiFetch<ExplorerColumnVisibilityOverviewResponse>('/admin/explorer-columns')
+      setColumnOverview(response ?? { tables: [] })
+    } catch (err) {
+      setColumnsError(
+        err instanceof Error ? err.message : 'Chargement des colonnes impossible.'
+      )
+    } finally {
+      setColumnsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     void loadPermissions()
     void loadStats()
-  }, [loadPermissions, loadStats])
+    void loadColumns()
+  }, [loadPermissions, loadStats, loadColumns])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -249,6 +272,73 @@ export default function AdminPanel() {
         next.delete(targetUsername)
         return next
       })
+    }
+  }
+
+  async function handleToggleHiddenColumn(table: string, column: string, nextHidden: boolean) {
+    if (!columnOverview) return
+
+    const current = columnOverview.tables.find(t => t.table === table)
+    if (!current) return
+
+    const currentHidden = new Set(current.hidden_columns.map(name => name.toLowerCase()))
+    const columnKey = column.toLowerCase()
+
+    if (nextHidden) {
+      currentHidden.add(columnKey)
+    } else {
+      currentHidden.delete(columnKey)
+    }
+
+    const payload: UpdateExplorerHiddenColumnsRequest = {
+      hidden_columns: current.columns.filter(name => currentHidden.has(name.toLowerCase())),
+    }
+
+    setUpdatingColumnsForTable(table)
+    setColumnOverview(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        tables: prev.tables.map(entry =>
+          entry.table === table
+            ? {
+                ...entry,
+                hidden_columns: payload.hidden_columns,
+              }
+            : entry
+        ),
+      }
+    })
+
+    try {
+      const response = await apiFetch<ExplorerTableColumns>(
+        `/admin/explorer-columns/${encodeURIComponent(table)}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        }
+      )
+      setColumnOverview(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          tables: prev.tables.map(entry =>
+            entry.table === table ? response : entry
+          ),
+        }
+      })
+      setStatus({
+        type: 'success',
+        message: `Colonnes mises à jour pour ${table}.`,
+      })
+    } catch (err) {
+      await loadColumns()
+      setStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Mise à jour des colonnes impossible.',
+      })
+    } finally {
+      setUpdatingColumnsForTable(prev => (prev === table ? null : prev))
     }
   }
 
@@ -454,6 +544,88 @@ export default function AdminPanel() {
               )}
             </div>
           </>
+        )}
+      </Card>
+
+      <Card variant="elevated">
+        <div className="flex flex-col gap-2 mb-4">
+          <h3 className="text-lg font-semibold text-primary-950">
+            Colonnes visibles dans l’explorateur
+          </h3>
+          <p className="text-sm text-primary-600">
+            Configurez quelles colonnes sont affichées pour chaque table dans l’explorateur.
+          </p>
+        </div>
+
+        {columnsLoading ? (
+          <div className="py-12 flex justify-center">
+            <Loader text="Chargement des colonnes…" />
+          </div>
+        ) : columnsError ? (
+          <div className="py-6 text-sm text-red-600">
+            {columnsError}
+          </div>
+        ) : !columnOverview || columnOverview.tables.length === 0 ? (
+          <div className="py-6 text-sm text-primary-600">
+            Aucune table de données détectée dans le système.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {columnOverview.tables.map(table => {
+              const hiddenSet = new Set(
+                table.hidden_columns.map(name => name.toLowerCase())
+              )
+              const isUpdating = updatingColumnsForTable === table.table
+              return (
+                <div key={table.table} className="border border-primary-100 rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-primary-500">
+                        {table.table}
+                      </p>
+                      <p className="text-sm text-primary-600">
+                        {table.columns.length} colonnes détectées
+                      </p>
+                    </div>
+                  </div>
+                  {table.columns.length === 0 ? (
+                    <p className="text-sm text-primary-600">
+                      Aucune colonne détectée pour cette table.
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                      {table.columns.map(column => {
+                        const hidden = hiddenSet.has(column.toLowerCase())
+                        return (
+                          <label
+                            key={column}
+                            className="flex items-center gap-2 text-sm text-primary-700"
+                          >
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={!hidden}
+                              disabled={isUpdating}
+                              onChange={event =>
+                                handleToggleHiddenColumn(
+                                  table.table,
+                                  column,
+                                  !event.target.checked
+                                )
+                              }
+                            />
+                            <span className="truncate" title={column}>
+                              {column}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
       </Card>
 

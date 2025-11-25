@@ -112,3 +112,17 @@ class AdminUsageStatsResponse(BaseModel):
 class AdminResetPasswordResponse(BaseModel):
     username: str
     temporary_password: str
+
+
+class ExplorerTableColumns(BaseModel):
+    table: str
+    columns: list[str] = Field(default_factory=list)
+    hidden_columns: list[str] = Field(default_factory=list)
+
+
+class ExplorerColumnVisibilityOverviewResponse(BaseModel):
+    tables: list[ExplorerTableColumns] = Field(default_factory=list)
+
+
+class UpdateExplorerHiddenColumnsRequest(BaseModel):
+    hidden_columns: list[str] = Field(default_factory=list)

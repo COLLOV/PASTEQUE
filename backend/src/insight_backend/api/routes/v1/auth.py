@@ -8,6 +8,7 @@ from ....core.security import get_current_user, user_is_admin
 from ....models.user import User
 from ....repositories.user_repository import UserRepository
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
+from ....repositories.explorer_column_repository import ExplorerColumnPreferenceRepository
 from ....schemas.auth import (
     CreateUserRequest,
     LoginRequest,
@@ -19,6 +20,9 @@ from ....schemas.auth import (
     UserWithPermissionsResponse,
     AdminResetPasswordResponse,
     AdminUsageStatsResponse,
+    ExplorerColumnVisibilityOverviewResponse,
+    ExplorerTableColumns,
+    UpdateExplorerHiddenColumnsRequest,
 )
 from ....services.auth_service import AuthService
 from ....services.data_service import DataService
@@ -76,6 +80,81 @@ async def get_admin_usage_stats(
     repository = UserRepository(session)
     stats = repository.gather_usage_stats()
     return AdminUsageStatsResponse.model_validate(stats)
+
+
+@router.get("/admin/explorer-columns", response_model=ExplorerColumnVisibilityOverviewResponse)
+async def get_explorer_column_visibility_overview(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> ExplorerColumnVisibilityOverviewResponse:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    data_service = DataService()
+    tables = [info.name for info in data_service.list_tables()]
+
+    repo = ExplorerColumnPreferenceRepository(session)
+    hidden_map = repo.get_hidden_columns_for_tables(tables)
+
+    table_responses: list[ExplorerTableColumns] = []
+    for table in tables:
+        schema = data_service.get_schema(table)
+        all_columns = [col.name for col in schema]
+        hidden = sorted(
+            [
+                name
+                for name in hidden_map.get(table, set())
+                if any(name.casefold() == col.casefold() for col in all_columns)
+            ],
+            key=lambda value: value.casefold(),
+        )
+        table_responses.append(
+            ExplorerTableColumns(
+                table=table,
+                columns=all_columns,
+                hidden_columns=hidden,
+            )
+        )
+
+    return ExplorerColumnVisibilityOverviewResponse(tables=table_responses)
+
+
+@router.put(
+    "/admin/explorer-columns/{table_name}",
+    response_model=ExplorerTableColumns,
+)
+async def update_explorer_hidden_columns(
+    table_name: str,
+    payload: UpdateExplorerHiddenColumnsRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> ExplorerTableColumns:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    data_service = DataService()
+    try:
+        schema = data_service.get_schema(table_name)
+    except FileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found")
+
+    available_columns = {col.name.casefold() for col in schema}
+    filtered = [
+        name
+        for name in payload.hidden_columns
+        if name.casefold() in available_columns
+    ]
+
+    repo = ExplorerColumnPreferenceRepository(session)
+    updated_hidden = repo.set_hidden_columns(table_name, filtered)
+    session.commit()
+
+    all_columns = [col.name for col in schema]
+    return ExplorerTableColumns(
+        table=table_name,
+        columns=all_columns,
+        hidden_columns=updated_hidden,
+    )
 
 
 @router.post("/auth/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

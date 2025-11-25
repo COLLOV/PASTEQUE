@@ -8,6 +8,7 @@ from ....schemas.tables import TableInfo, ColumnInfo
 from ....services.data_service import DataService
 from ....repositories.data_repository import DataRepository
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
+from ....repositories.explorer_column_repository import ExplorerColumnPreferenceRepository
 from ....core.config import settings
 from ....core.database import get_session
 from ....core.security import get_current_user, user_is_admin
@@ -61,4 +62,11 @@ def get_data_overview(  # type: ignore[valid-type]
     allowed = None
     if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
-    return _service.get_overview(allowed_tables=allowed)
+    tables_for_hidden: list[str]
+    if allowed is None:
+        tables_for_hidden = [info.name for info in _service.list_tables()]
+    else:
+        tables_for_hidden = list(allowed)
+    hidden_repo = ExplorerColumnPreferenceRepository(session)
+    hidden = hidden_repo.get_hidden_columns_for_tables(tables_for_hidden)
+    return _service.get_overview(allowed_tables=allowed, hidden_columns=hidden)

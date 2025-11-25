@@ -23,10 +23,7 @@ class DataSourceOverview(BaseModel):
     source: str
     title: str
     total_rows: int
-    date: DimensionBreakdown | None = None
-    department: DimensionBreakdown | None = None
-    campaign: DimensionBreakdown | None = None
-    domain: DimensionBreakdown | None = None
+    columns: list[DimensionBreakdown] = Field(default_factory=list)
 
 
 class DataOverviewResponse(BaseModel):

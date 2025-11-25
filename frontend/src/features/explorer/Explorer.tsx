@@ -55,7 +55,7 @@ export default function Explorer() {
   const sourcesWithDimensions = useMemo(
     () =>
       sources.reduce((acc, src) => {
-        const dims = [src.date, src.department, src.campaign, src.domain].filter(Boolean).length
+        const dims = Array.isArray(src.columns) ? src.columns.length : 0
         return acc + dims
       }, 0),
     [sources]
@@ -147,12 +147,7 @@ function SummaryCard({
 }
 
 function SourceCard({ source }: { source: DataSourceOverview }) {
-  const dimensions: Array<{ key: string; title: string; dimension: DimensionBreakdown | null | undefined }> = [
-    { key: 'date', title: 'Par date', dimension: source.date },
-    { key: 'department', title: 'Par département', dimension: source.department },
-    { key: 'campaign', title: 'Par campagne', dimension: source.campaign },
-    { key: 'domain', title: 'Par domaine', dimension: source.domain },
-  ]
+  const dimensions: DimensionBreakdown[] = Array.isArray(source.columns) ? source.columns : []
 
   return (
     <Card variant="elevated" className="p-5 space-y-4">
@@ -168,8 +163,12 @@ function SourceCard({ source }: { source: DataSourceOverview }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {dimensions.map(dim => (
-          <DimensionSection key={dim.key} title={dim.title} dimension={dim.dimension} />
+        {dimensions.map(dimension => (
+          <DimensionSection
+            key={dimension.field}
+            title={dimension.label}
+            dimension={dimension}
+          />
         ))}
       </div>
     </Card>

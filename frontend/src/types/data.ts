@@ -13,10 +13,7 @@ export interface DataSourceOverview {
   source: string
   title: string
   total_rows: number
-  date?: DimensionBreakdown | null
-  department?: DimensionBreakdown | null
-  campaign?: DimensionBreakdown | null
-  domain?: DimensionBreakdown | null
+  columns: DimensionBreakdown[]
 }
 
 export interface DataOverviewResponse {
