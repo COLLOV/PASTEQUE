@@ -54,10 +54,7 @@ export default function Explorer() {
   )
   const sourcesWithDimensions = useMemo(
     () =>
-      sources.reduce((acc, src) => {
-        const dims = [src.date, src.department, src.campaign, src.domain].filter(Boolean).length
-        return acc + dims
-      }, 0),
+      sources.reduce((acc, src) => acc + (src.dimensions?.length ?? 0), 0),
     [sources]
   )
 
@@ -66,8 +63,8 @@ export default function Explorer() {
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl font-bold text-primary-950">Explorer</h2>
         <p className="text-primary-600 max-w-3xl">
-          Vision transverse des sources de données : volume global, répartition temporelle et découpage
-          par département, campagne et domaine lorsqu’ils sont disponibles.
+          Vision transverse des sources de données : volume global et statistiques par colonne
+          sur les tables autorisées pour votre compte.
         </p>
       </div>
 
@@ -88,7 +85,7 @@ export default function Explorer() {
           icon={<HiOutlineSquares2X2 className="w-5 h-5" />}
           title="Dimensions actives"
           value={formatNumber(sourcesWithDimensions)}
-          subtitle="Dates, départements, campagnes, domaines"
+          subtitle="Colonnes analysées (hors colonnes masquées)"
         />
         <SummaryCard
           icon={<HiOutlineClock className="w-5 h-5" />}
@@ -98,7 +95,7 @@ export default function Explorer() {
         />
       </div>
 
-      {loading ? (
+  {loading ? (
         <Card variant="elevated" className="py-12 flex justify-center">
           <Loader text="Chargement de l’explorateur…" />
         </Card>
@@ -147,12 +144,7 @@ function SummaryCard({
 }
 
 function SourceCard({ source }: { source: DataSourceOverview }) {
-  const dimensions: Array<{ key: string; title: string; dimension: DimensionBreakdown | null | undefined }> = [
-    { key: 'date', title: 'Par date', dimension: source.date },
-    { key: 'department', title: 'Par département', dimension: source.department },
-    { key: 'campaign', title: 'Par campagne', dimension: source.campaign },
-    { key: 'domain', title: 'Par domaine', dimension: source.domain },
-  ]
+  const dimensions = source.dimensions ?? []
 
   return (
     <Card variant="elevated" className="p-5 space-y-4">
@@ -167,51 +159,51 @@ function SourceCard({ source }: { source: DataSourceOverview }) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {dimensions.map(dim => (
-          <DimensionSection key={dim.key} title={dim.title} dimension={dim.dimension} />
-        ))}
-      </div>
+      {dimensions.length === 0 ? (
+        <Card padding="sm" className="bg-primary-50">
+          <p className="text-sm font-semibold text-primary-800 mb-1">
+            Aucune statistique disponible pour cette source.
+          </p>
+          <p className="text-xs text-primary-500">
+            Vérifiez le dictionnaire de données ou les colonnes masquées dans l’espace admin.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {dimensions.map(dimension => (
+            <DimensionSection key={dimension.field} dimension={dimension} />
+          ))}
+        </div>
+      )}
     </Card>
   )
 }
 
 function DimensionSection({
-  title,
   dimension,
 }: {
-  title: string
-  dimension: DimensionBreakdown | null | undefined
+  dimension: DimensionBreakdown
 }) {
-  if (!dimension) {
-    return (
-      <Card padding="sm" className="h-full bg-primary-50">
-        <p className="text-sm font-semibold text-primary-800 mb-1">{title}</p>
-        <p className="text-xs text-primary-500">Donnée non disponible pour cette source.</p>
-      </Card>
-    )
-  }
-
   const counts = dimension.counts
   if (!counts || counts.length === 0) {
     return (
       <Card padding="sm" className="h-full bg-primary-50">
-        <p className="text-sm font-semibold text-primary-800 mb-1">{title}</p>
+        <p className="text-sm font-semibold text-primary-800 mb-1">{dimension.label}</p>
         <p className="text-xs text-primary-500">Aucune valeur renseignée.</p>
       </Card>
     )
   }
 
-  const limit = dimension.field === 'creation_date' || dimension.field.includes('date') ? 12 : 6
-  const isDateDimension = dimension.field.includes('date')
+  const isDateDimension = dimension.kind === 'date'
+  const limit = isDateDimension ? 12 : 6
   const sliced = isDateDimension ? counts.slice(-limit) : counts.slice(0, limit)
 
   return (
     <Card padding="sm" className="h-full">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <p className="text-sm font-semibold text-primary-800">{title}</p>
-          <p className="text-xs text-primary-500">Champ : {dimension.label}</p>
+          <p className="text-sm font-semibold text-primary-800">{dimension.label}</p>
+          <p className="text-xs text-primary-500">Champ : {dimension.field}</p>
         </div>
         <span className="text-[11px] text-primary-500">{counts.length} valeurs</span>
       </div>

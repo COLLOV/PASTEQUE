@@ -114,9 +114,10 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 
 ### Explorer (vision globale des sources)
 
-- API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les répartitions par date, département, campagne et domaine lorsque ces colonnes sont présentes (respect des ACL `user_table_permissions`).
-- Frontend : nouvelle page `/explorer` (bouton à gauche de « Nouveau chat ») affichant des cartes par source avec indicateurs synthétiques et mini-barres pour chaque dimension disponible.
-- Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
+- API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et des répartitions pour **toutes les colonnes** détectées (dates, catégories, etc.), en appliquant les ACL `user_table_permissions` et la configuration de colonnes masquées de l’admin.
+- Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») affichant des cartes par source avec indicateurs synthétiques et mini‑barres / chronologies pour chaque colonne visible.
+- Administration : un panneau dédié dans l’espace admin permet de masquer certaines colonnes par table; ces colonnes sont exclues des statistiques de l’explorateur.
+- Usage : vérifier la santé, la couverture et la distribution des jeux de données (toutes colonnes confondues) avant d’ouvrir un chat ou de générer des graphiques.
 
 ## Principes d’architecture
 

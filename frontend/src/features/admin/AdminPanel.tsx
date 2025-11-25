@@ -11,6 +11,11 @@ import type {
   AdminResetPasswordResponse,
   AdminUsageStatsResponse,
 } from '@/types/user'
+import type {
+  ExplorerColumnsConfigResponse,
+  ExplorerTableConfig,
+  UpdateExplorerColumnsRequest,
+} from '@/types/data'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
 
 interface Status {
@@ -46,6 +51,10 @@ export default function AdminPanel() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsError, setStatsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
+  const [explorerConfig, setExplorerConfig] = useState<ExplorerColumnsConfigResponse | null>(null)
+  const [explorerLoading, setExplorerLoading] = useState(true)
+  const [explorerError, setExplorerError] = useState('')
+  const [updatingTables, setUpdatingTables] = useState<Set<string>>(() => new Set())
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
 
@@ -79,10 +88,26 @@ export default function AdminPanel() {
     }
   }, [])
 
+  const loadExplorerConfig = useCallback(async () => {
+    setExplorerLoading(true)
+    setExplorerError('')
+    try {
+      const response = await apiFetch<ExplorerColumnsConfigResponse>('/data/overview/columns')
+      setExplorerConfig(response ?? { tables: [] })
+    } catch (err) {
+      setExplorerError(
+        err instanceof Error ? err.message : 'Chargement des colonnes impossible.'
+      )
+    } finally {
+      setExplorerLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     void loadPermissions()
     void loadStats()
-  }, [loadPermissions, loadStats])
+    void loadExplorerConfig()
+  }, [loadPermissions, loadStats, loadExplorerConfig])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -247,6 +272,80 @@ export default function AdminPanel() {
       setUpdatingUsers(prev => {
         const next = new Set(prev)
         next.delete(targetUsername)
+        return next
+      })
+    }
+  }
+
+  async function handleToggleExplorerColumn(
+    tableName: string,
+    columnName: string,
+    nextVisible: boolean
+  ) {
+    if (!explorerConfig) return
+    const table = explorerConfig.tables.find(t => t.table === tableName)
+    if (!table) return
+
+    const nextHidden = table.columns
+      .filter(col => (col.name === columnName ? !nextVisible : col.hidden))
+      .map(col => col.name)
+    const payload: UpdateExplorerColumnsRequest = { hidden_columns: nextHidden }
+
+    setUpdatingTables(prev => {
+      const next = new Set(prev)
+      next.add(tableName)
+      return next
+    })
+
+    setExplorerConfig(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        tables: prev.tables.map(t =>
+          t.table === tableName
+            ? {
+                ...t,
+                columns: t.columns.map(col =>
+                  col.name === columnName ? { ...col, hidden: !nextVisible } : col
+                ),
+              }
+            : t
+        ),
+      }
+    })
+
+    try {
+      const updated = await apiFetch<ExplorerTableConfig>(
+        `/data/overview/columns/${encodeURIComponent(tableName)}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        }
+      )
+      setExplorerConfig(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          tables: prev.tables.map(t => (t.table === updated.table ? updated : t)),
+        }
+      })
+      setStatus({
+        type: 'success',
+        message: `Colonnes mises à jour pour ${tableName}.`,
+      })
+    } catch (err) {
+      await loadExplorerConfig()
+      setStatus({
+        type: 'error',
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Mise à jour des colonnes impossible.',
+      })
+    } finally {
+      setUpdatingTables(prev => {
+        const next = new Set(prev)
+        next.delete(tableName)
         return next
       })
     }
@@ -454,6 +553,99 @@ export default function AdminPanel() {
               )}
             </div>
           </>
+        )}
+      </Card>
+
+      <Card variant="elevated">
+        <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-primary-950">
+              Colonnes de l’explorateur
+            </h3>
+            <p className="text-sm text-primary-600">
+              Masquez les colonnes inutiles pour alléger la vue Explorer. Toutes les colonnes visibles
+              sont prises en compte dans les statistiques.
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { void loadExplorerConfig() }}
+            disabled={explorerLoading}
+          >
+            {explorerLoading ? 'Actualisation…' : 'Actualiser'}
+          </Button>
+        </div>
+
+        {explorerLoading ? (
+          <div className="py-12 flex justify-center">
+            <Loader text="Chargement des colonnes…" />
+          </div>
+        ) : explorerError ? (
+          <div className="py-6 text-sm text-red-600">
+            {explorerError}
+          </div>
+        ) : !explorerConfig || explorerConfig.tables.length === 0 ? (
+          <div className="py-6 text-sm text-primary-600">
+            Aucune table de données détectée pour la configuration de l’explorateur.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {explorerConfig.tables.map(table => {
+              const isUpdating = updatingTables.has(table.table)
+              return (
+                <div
+                  key={table.table}
+                  className="border border-primary-100 rounded-lg p-4 bg-white"
+                >
+                  <div className="flex flex-col gap-1 mb-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-primary-500">
+                        {table.table}
+                      </p>
+                      <h4 className="text-sm font-semibold text-primary-900">
+                        {table.title || table.table}
+                      </h4>
+                    </div>
+                  </div>
+                  {table.columns.length === 0 ? (
+                    <p className="text-xs text-primary-600">
+                      Aucune colonne détectée pour cette table.
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {table.columns.map(column => (
+                        <label
+                          key={column.name}
+                          className="flex items-center gap-2 text-xs text-primary-700"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={!column.hidden}
+                            disabled={isUpdating}
+                            onChange={(event) =>
+                              handleToggleExplorerColumn(
+                                table.table,
+                                column.name,
+                                event.target.checked
+                              )
+                            }
+                          />
+                          <span className="truncate">
+                            <span className="font-medium">{column.label}</span>
+                            {column.label !== column.name && (
+                              <span className="text-primary-500"> ({column.name})</span>
+                            )}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
       </Card>
 

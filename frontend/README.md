@@ -241,8 +241,8 @@ Personnalisation rapide:
 ### Explorer
 
 - Page `/explorer` accessible depuis le header (bouton à gauche de « Nouveau chat ») pour une vision globale des sources autorisées.
-- Consomme `GET /data/overview` : total par source et répartitions par date, département, campagne et domaine lorsque les colonnes sont présentes.
-- Cartes par source avec mini-barres (horizontales/verticales) pour visualiser rapidement les volumes et les découpes.
+- Consomme `GET /data/overview` : total par source et statistiques pour **toutes les colonnes** disponibles (dates, catégories, numériques, etc.), en respectant les ACL et la configuration de colonnes masquées.
+- Cartes par source avec mini‑barres (horizontales/verticales) ou chronologie selon le type de colonne pour visualiser rapidement les volumes et les découpes.
 
 ### Dashboard
 
@@ -253,8 +253,9 @@ Personnalisation rapide:
 ### Admin
 
 - Création de nouveaux utilisateurs
-- Validation des formulaires
-- Feedback visuel (succès/erreur)
+- Gestion des droits d’accès aux tables par utilisateur
+- Configuration des colonnes visibles dans l’explorateur (par table)
+- Validation des formulaires et feedback visuel (succès/erreur)
 - Limité aux utilisateurs admin
 
 ## Design Principles
