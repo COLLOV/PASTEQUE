@@ -244,6 +244,7 @@ Personnalisation rapide:
 - Page `/explorer` accessible depuis le header (bouton à gauche de « Nouveau chat ») pour une vision globale des sources autorisées.
 - Consomme `GET /data/overview` : total par source et statistiques sur toutes les colonnes détectées (inférence des dates), en respectant les ACL.
 - Cartes par source avec mini-barres / timeline Chart.js colorées, gestion des colonnes affichées (masquage/affichage par l’admin) pour rester lisible malgré un grand nombre de champs.
+- Chaque carte est repliée par défaut avec un dropdown bien visible (chevron et pastille « Détails ») pour parcourir rapidement la liste des tables; cliquer pour dérouler statistiques et gestion des colonnes.
 
 ### Dashboard
 

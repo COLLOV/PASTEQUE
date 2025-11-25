@@ -29,6 +29,7 @@ import {
   HiAdjustmentsHorizontal,
   HiEye,
   HiEyeSlash,
+  HiChevronDown,
 } from 'react-icons/hi2'
 
 type HiddenFieldsState = Record<string, string[]>
@@ -313,51 +314,80 @@ function SourceCard({
   const visibleFields = source.fields?.filter(field => !hiddenSet.has(field.field)) ?? []
   const totalFieldCount = source.field_count ?? source.fields.length
   const hiddenCount = Math.max(totalFieldCount - visibleFields.length, 0)
+  const [open, setOpen] = useState(false)
 
   return (
-    <Card variant="elevated" className="p-5 space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
-          <h3 className="text-xl font-semibold text-primary-950">{source.title}</h3>
-          <p className="text-xs text-primary-500">
-            {visibleFields.length} / {totalFieldCount} colonnes affichées
-            {!isAdmin && hiddenCount > 0 ? ' (masquage administrateur)' : ''}
+    <Card variant="elevated" padding="none" className="overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        aria-expanded={open}
+        aria-controls={`source-${source.source}`}
+        className="w-full px-5 py-4 flex flex-col gap-2 text-left bg-primary-50/60 hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 transition-colors"
+      >
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
+            <h3 className="text-xl font-semibold text-primary-950">{source.title}</h3>
+            <p className="text-xs text-primary-500">
+              {visibleFields.length} / {totalFieldCount} colonnes affichées
+              {!isAdmin && hiddenCount > 0 ? ' (masquage administrateur)' : ''}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-primary-500">Total données</p>
+            <p className="text-2xl font-bold text-primary-950">{formatNumber(source.total_rows)}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-primary-600">
+            {open ? 'Masquer les détails' : 'Déplier pour voir les colonnes et statistiques'}
           </p>
+          <span className="flex items-center gap-2 rounded-full border border-primary-200 bg-white px-3 py-1 text-primary-800">
+            <span className="text-[11px] font-semibold uppercase tracking-wide">Détails</span>
+            <HiChevronDown
+              className={`w-5 h-5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            />
+          </span>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-primary-500">Total données</p>
-          <p className="text-2xl font-bold text-primary-950">{formatNumber(source.total_rows)}</p>
-        </div>
-      </div>
+      </button>
 
-      {isAdmin ? (
-        <FieldVisibilitySelector
-          fields={source.fields}
-          hiddenSet={hiddenSet}
-          onToggle={onToggleField}
-          onHideAll={onHideAll}
-          onShowAll={onShowAll}
-          disabled={isSaving}
-        />
-      ) : hiddenCount > 0 ? (
-        <div className="text-xs text-primary-600 bg-primary-50 border border-primary-100 rounded-md px-3 py-2">
-          Colonnes masquées par l’administrateur pour cette source.
+      {open ? (
+        <div
+          id={`source-${source.source}`}
+          className="px-5 pb-5 pt-4 space-y-4 border-t border-primary-100 bg-white"
+        >
+          {isAdmin ? (
+            <FieldVisibilitySelector
+              fields={source.fields}
+              hiddenSet={hiddenSet}
+              onToggle={onToggleField}
+              onHideAll={onHideAll}
+              onShowAll={onShowAll}
+              disabled={isSaving}
+            />
+          ) : hiddenCount > 0 ? (
+            <div className="text-xs text-primary-600 bg-primary-50 border border-primary-100 rounded-md px-3 py-2">
+              Colonnes masquées par l’administrateur pour cette source.
+            </div>
+          ) : null}
+
+          {visibleFields.length === 0 ? (
+            <Card padding="sm" className="bg-primary-50">
+              <p className="text-sm font-semibold text-primary-800 mb-1">Aucune colonne affichée</p>
+              <p className="text-xs text-primary-500">
+                Sélectionnez au moins un champ pour voir les statistiques.
+              </p>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {visibleFields.map(field => (
+                <FieldSection key={field.field} field={field} />
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
-
-      {visibleFields.length === 0 ? (
-        <Card padding="sm" className="bg-primary-50">
-          <p className="text-sm font-semibold text-primary-800 mb-1">Aucune colonne affichée</p>
-          <p className="text-xs text-primary-500">Sélectionnez au moins un champ pour voir les statistiques.</p>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {visibleFields.map(field => (
-            <FieldSection key={field.field} field={field} />
-          ))}
-        </div>
-      )}
     </Card>
   )
 }
