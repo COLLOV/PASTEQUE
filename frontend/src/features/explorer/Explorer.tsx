@@ -28,6 +28,16 @@ type HiddenFieldsState = Record<string, string[]>
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend)
 
+const CHART_COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#f97316']
+const LINE_COLOR = '#2563eb'
+const LINE_FILL = 'rgba(37,99,235,0.15)'
+
+function pickColor(index: number): string {
+  const paletteSize = CHART_COLORS.length
+  if (paletteSize === 0) return '#2563eb'
+  return CHART_COLORS[index % paletteSize]
+}
+
 function formatNumber(value: number | null | undefined): string {
   if (typeof value !== 'number' || Number.isNaN(value)) return '0'
   return value.toLocaleString('fr-FR')
@@ -399,13 +409,14 @@ function DateTimeline({ counts }: { counts: ValueCount[] }) {
         {
           label: 'Occurrences',
           data: counts.map(item => item.count),
-          borderColor: '#0f172a',
-          backgroundColor: '#0f172a',
+          borderColor: LINE_COLOR,
+          backgroundColor: LINE_FILL,
           borderWidth: 2,
           pointRadius: 3,
           pointHoverRadius: 4,
-          pointBackgroundColor: '#0f172a',
+          pointBackgroundColor: LINE_COLOR,
           tension: 0.25,
+          fill: true,
         },
       ],
     }),
@@ -460,7 +471,8 @@ function BarList({ counts }: { counts: ValueCount[] }) {
         {
           label: 'Occurrences',
           data: counts.map(item => item.count),
-          backgroundColor: '#0f172a',
+          backgroundColor: counts.map((_, index) => pickColor(index)),
+          borderColor: counts.map((_, index) => pickColor(index)),
           borderRadius: 8,
           barThickness: 18,
           maxBarThickness: 24,
