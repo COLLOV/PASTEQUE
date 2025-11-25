@@ -3,7 +3,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import Collection, Iterable, Mapping
 import csv
 
 from ..schemas.data import IngestResponse, DataOverviewResponse, DataSourceOverview, FieldBreakdown, ValueCount
@@ -143,22 +143,44 @@ class DataService:
         cols = self.repo.get_schema(table_name)
         return [ColumnInfo(name=name, dtype=dtype) for name, dtype in cols]
 
-    def get_overview(self, *, allowed_tables: Iterable[str] | None = None) -> DataOverviewResponse:
+    def get_overview(
+        self,
+        *,
+        allowed_tables: Iterable[str] | None = None,
+        hidden_fields_by_source: Mapping[str, Iterable[str]] | None = None,
+        include_hidden_fields: bool = False,
+    ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
             allowed_set = {name.casefold() for name in allowed_tables}
             table_names = [name for name in table_names if name.casefold() in allowed_set]
             log.debug("Filtered overview tables with permissions (count=%d)", len(table_names))
 
+        hidden_lookup: Mapping[str, set[str]] = {
+            (name.casefold() if hasattr(name, "casefold") else str(name)): set(fields)
+            for name, fields in (hidden_fields_by_source or {}).items()
+        }
+
         sources: list[DataSourceOverview] = []
         for name in table_names:
-            overview = self._compute_table_overview(table_name=name)
+            hidden_for_table = hidden_lookup.get(name.casefold(), set())
+            overview = self._compute_table_overview(
+                table_name=name,
+                hidden_fields=hidden_for_table,
+                include_hidden_fields=include_hidden_fields,
+            )
             if overview:
                 sources.append(overview)
 
         return DataOverviewResponse(generated_at=datetime.now(timezone.utc), sources=sources)
 
-    def _compute_table_overview(self, *, table_name: str) -> DataSourceOverview | None:
+    def _compute_table_overview(
+        self,
+        *,
+        table_name: str,
+        hidden_fields: Collection[str] | None = None,
+        include_hidden_fields: bool = False,
+    ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
             log.warning("Table introuvable pour l'overview: %s", table_name)
@@ -176,6 +198,7 @@ class DataService:
                     source=table_name,
                     title=TABLE_TITLES.get(table_name, table_name),
                     total_rows=0,
+                    field_count=0,
                     fields=[],
                 )
 
@@ -187,17 +210,27 @@ class DataService:
                     acc.add(row.get(name))
 
         fields = [acc.build_breakdown(total_rows=total_rows) for acc in accumulators.values()]
+        hidden_set = set(hidden_fields or [])
+        for item in fields:
+            item.hidden = item.field in hidden_set
 
+        total_field_count = len(fields)
+        if hidden_set and not include_hidden_fields:
+            fields = [item for item in fields if item.field not in hidden_set]
+
+        visible_count = len(fields)
         log.info(
-            "Overview calculé pour %s : %d lignes, %d colonnes",
+            "Overview calculé pour %s : %d lignes, colonnes visibles=%d / total=%d",
             table_name,
             total_rows,
-            len(fields),
+            visible_count,
+            total_field_count,
         )
 
         return DataSourceOverview(
             source=table_name,
             title=TABLE_TITLES.get(table_name, table_name),
             total_rows=total_rows,
+            field_count=total_field_count,
             fields=fields,
         )

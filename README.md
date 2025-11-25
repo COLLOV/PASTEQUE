@@ -115,7 +115,7 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 ### Explorer (vision globale des sources)
 
 - API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
-- Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») avec cartes par source, colonnes autodécouvertes et possibilité de masquer/afficher les champs pour alléger la vue.
+- Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») avec cartes par source, colonnes autodécouvertes et masquage des champs piloté par l’administrateur (mise à jour persistante appliquée à tous les utilisateurs ; la tuile « Colonnes affichées » est retirée du header).
 - Visualisations Chart.js (lignes + barres) avec palette colorée pour timelines et répartitions des valeurs à partir des colonnes détectées automatiquement.
 - Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
 

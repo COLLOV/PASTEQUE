@@ -14,7 +14,14 @@ import {
 } from 'chart.js'
 import { Card, Loader, Button } from '@/components/ui'
 import { apiFetch } from '@/services/api'
-import type { DataOverviewResponse, DataSourceOverview, FieldBreakdown, ValueCount } from '@/types/data'
+import { getAuth } from '@/services/auth'
+import type {
+  DataOverviewResponse,
+  DataSourceOverview,
+  FieldBreakdown,
+  HiddenFieldsResponse,
+  ValueCount,
+} from '@/types/data'
 import {
   HiChartBar,
   HiOutlineGlobeAlt,
@@ -54,12 +61,17 @@ export default function Explorer() {
   const [overview, setOverview] = useState<DataOverviewResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [updateError, setUpdateError] = useState('')
   const [hiddenFields, setHiddenFields] = useState<HiddenFieldsState>({})
+  const [savingSources, setSavingSources] = useState<Set<string>>(() => new Set())
+  const auth = getAuth()
+  const isAdmin = Boolean(auth?.isAdmin)
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       setError('')
+      setUpdateError('')
       try {
         const res = await apiFetch<DataOverviewResponse>('/data/overview')
         setOverview(res ?? { generated_at: '', sources: [] })
@@ -72,6 +84,21 @@ export default function Explorer() {
     void load()
   }, [])
 
+  useEffect(() => {
+    if (!overview || !isAdmin) {
+      setHiddenFields({})
+      return
+    }
+    const next: HiddenFieldsState = {}
+    overview.sources.forEach(src => {
+      const hidden = (src.fields ?? []).filter(field => field.hidden).map(field => field.field)
+      if (hidden.length) {
+        next[src.source] = hidden
+      }
+    })
+    setHiddenFields(next)
+  }, [overview, isAdmin])
+
   const sources = overview?.sources ?? []
 
   const totalRecords = useMemo(
@@ -80,50 +107,88 @@ export default function Explorer() {
   )
 
   const totalFields = useMemo(
-    () => sources.reduce((acc, src) => acc + (src.fields?.length ?? 0), 0),
+    () => sources.reduce((acc, src) => acc + (src.field_count ?? src.fields?.length ?? 0), 0),
     [sources]
   )
 
-  const totalVisibleFields = useMemo(
-    () =>
-      sources.reduce((acc, src) => {
-        const hidden = new Set(hiddenFields[src.source] ?? [])
-        const visibleCount = (src.fields ?? []).filter(field => !hidden.has(field.field)).length
-        return acc + visibleCount
-      }, 0),
-    [sources, hiddenFields]
-  )
+  const persistHiddenFields = async (source: string, nextHidden: string[]) => {
+    if (!isAdmin) return
+    setUpdateError('')
+    setSavingSources(prev => {
+      const next = new Set(prev)
+      next.add(source)
+      return next
+    })
+    const uniqueHidden = Array.from(new Set(nextHidden))
+    try {
+      const response = await apiFetch<HiddenFieldsResponse>(
+        `/data/overview/${encodeURIComponent(source)}/hidden-fields`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ hidden_fields: uniqueHidden }),
+        }
+      )
+      const persisted = response?.hidden_fields ?? uniqueHidden
+      setHiddenFields(prev => {
+        const next = { ...prev }
+        if (persisted.length === 0) {
+          delete next[source]
+        } else {
+          next[source] = persisted
+        }
+        return next
+      })
+      setOverview(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          sources: prev.sources.map(item =>
+            item.source === source
+              ? {
+                  ...item,
+                  fields: (item.fields ?? []).map(field => ({
+                    ...field,
+                    hidden: persisted.includes(field.field),
+                  })),
+                }
+              : item
+          ),
+        }
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Mise à jour impossible'
+      setUpdateError(message)
+    } finally {
+      setSavingSources(prev => {
+        const next = new Set(prev)
+        next.delete(source)
+        return next
+      })
+    }
+  }
 
   const toggleFieldVisibility = (source: string, field: string, visible: boolean) => {
-    setHiddenFields(prev => {
-      const current = new Set(prev[source] ?? [])
-      if (visible) {
-        current.delete(field)
-      } else {
-        current.add(field)
-      }
-      if (current.size === 0) {
-        const next = { ...prev }
-        delete next[source]
-        return next
-      }
-      return { ...prev, [source]: Array.from(current) }
-    })
+    if (!isAdmin) return
+    const current = new Set(hiddenFields[source] ?? [])
+    if (visible) {
+      current.delete(field)
+    } else {
+      current.add(field)
+    }
+    void persistHiddenFields(source, Array.from(current))
   }
 
   const showAllFields = (source: string) => {
-    setHiddenFields(prev => {
-      const next = { ...prev }
-      delete next[source]
-      return next
-    })
+    if (!isAdmin) return
+    void persistHiddenFields(source, [])
   }
 
   const hideAllFields = (source: string, fields: FieldBreakdown[]) => {
-    setHiddenFields(prev => ({
-      ...prev,
-      [source]: fields.map(field => field.field),
-    }))
+    if (!isAdmin) return
+    void persistHiddenFields(
+      source,
+      fields.map(field => field.field)
+    )
   }
 
   return (
@@ -143,7 +208,7 @@ export default function Explorer() {
         ) : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard
           icon={<HiOutlineGlobeAlt className="w-5 h-5" />}
           title="Sources couvertes"
@@ -162,13 +227,13 @@ export default function Explorer() {
           value={formatNumber(totalFields)}
           subtitle="Découverte automatique par table"
         />
-        <SummaryCard
-          icon={<HiAdjustmentsHorizontal className="w-5 h-5" />}
-          title="Colonnes affichées"
-          value={formatNumber(totalVisibleFields)}
-          subtitle="Après masquage éventuel"
-        />
       </div>
+
+      {updateError ? (
+        <Card variant="elevated" className="py-3 px-4 text-sm text-red-700 border border-red-100 bg-red-50">
+          {updateError}
+        </Card>
+      ) : null}
 
       {loading ? (
         <Card variant="elevated" className="py-12 flex justify-center">
@@ -188,6 +253,8 @@ export default function Explorer() {
             <SourceCard
               key={source.source}
               source={source}
+              isAdmin={isAdmin}
+              isSaving={savingSources.has(source.source)}
               hiddenFields={hiddenFields[source.source] ?? []}
               onToggleField={(field, visible) => toggleFieldVisibility(source.source, field, visible)}
               onHideAll={() => hideAllFields(source.source, source.fields ?? [])}
@@ -228,18 +295,24 @@ function SummaryCard({
 function SourceCard({
   source,
   hiddenFields,
+  isAdmin,
+  isSaving,
   onToggleField,
   onHideAll,
   onShowAll,
 }: {
   source: DataSourceOverview
   hiddenFields: string[]
+  isAdmin: boolean
+  isSaving: boolean
   onToggleField: (field: string, visible: boolean) => void
   onHideAll: () => void
   onShowAll: () => void
 }) {
   const hiddenSet = useMemo(() => new Set(hiddenFields), [hiddenFields])
   const visibleFields = source.fields?.filter(field => !hiddenSet.has(field.field)) ?? []
+  const totalFieldCount = source.field_count ?? source.fields.length
+  const hiddenCount = Math.max(totalFieldCount - visibleFields.length, 0)
 
   return (
     <Card variant="elevated" className="p-5 space-y-4">
@@ -248,7 +321,8 @@ function SourceCard({
           <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
           <h3 className="text-xl font-semibold text-primary-950">{source.title}</h3>
           <p className="text-xs text-primary-500">
-            {visibleFields.length} / {source.fields.length} colonnes affichées
+            {visibleFields.length} / {totalFieldCount} colonnes affichées
+            {!isAdmin && hiddenCount > 0 ? ' (masquage administrateur)' : ''}
           </p>
         </div>
         <div className="text-right">
@@ -257,13 +331,20 @@ function SourceCard({
         </div>
       </div>
 
-      <FieldVisibilitySelector
-        fields={source.fields}
-        hiddenSet={hiddenSet}
-        onToggle={onToggleField}
-        onHideAll={onHideAll}
-        onShowAll={onShowAll}
-      />
+      {isAdmin ? (
+        <FieldVisibilitySelector
+          fields={source.fields}
+          hiddenSet={hiddenSet}
+          onToggle={onToggleField}
+          onHideAll={onHideAll}
+          onShowAll={onShowAll}
+          disabled={isSaving}
+        />
+      ) : hiddenCount > 0 ? (
+        <div className="text-xs text-primary-600 bg-primary-50 border border-primary-100 rounded-md px-3 py-2">
+          Colonnes masquées par l’administrateur pour cette source.
+        </div>
+      ) : null}
 
       {visibleFields.length === 0 ? (
         <Card padding="sm" className="bg-primary-50">
@@ -287,15 +368,17 @@ function FieldVisibilitySelector({
   onToggle,
   onHideAll,
   onShowAll,
+  disabled,
 }: {
   fields: FieldBreakdown[]
   hiddenSet: Set<string>
   onToggle: (field: string, visible: boolean) => void
   onHideAll: () => void
   onShowAll: () => void
+  disabled: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const visibleCount = fields.length - hiddenSet.size
+  const visibleCount = Math.max(0, fields.length - hiddenSet.size)
 
   return (
     <div className="border border-primary-100 rounded-lg bg-primary-50/60 p-3 space-y-3">
@@ -311,6 +394,7 @@ function FieldVisibilitySelector({
           size="sm"
           className="flex items-center gap-2"
           onClick={() => setOpen(prev => !prev)}
+          disabled={disabled}
         >
           <HiAdjustmentsHorizontal className="w-4 h-4" />
           {open ? 'Fermer' : 'Choisir'}
@@ -332,6 +416,7 @@ function FieldVisibilitySelector({
                     className="h-4 w-4 rounded border-primary-300 text-primary-950 focus:ring-primary-600"
                     checked={isVisible}
                     onChange={e => onToggle(field.field, e.target.checked)}
+                    disabled={disabled}
                   />
                   <span className="truncate" title={field.label}>
                     {field.label}
@@ -342,11 +427,23 @@ function FieldVisibilitySelector({
             })}
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="xs" className="flex items-center gap-1" onClick={onHideAll}>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="flex items-center gap-1"
+              onClick={onHideAll}
+              disabled={disabled}
+            >
               <HiEyeSlash className="w-4 h-4" />
               Tout masquer
             </Button>
-            <Button variant="secondary" size="xs" className="flex items-center gap-1" onClick={onShowAll}>
+            <Button
+              variant="secondary"
+              size="xs"
+              className="flex items-center gap-1"
+              onClick={onShowAll}
+              disabled={disabled}
+            >
               <HiEye className="w-4 h-4" />
               Tout afficher
             </Button>

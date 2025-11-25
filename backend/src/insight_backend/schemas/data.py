@@ -24,15 +24,26 @@ class FieldBreakdown(BaseModel):
     unique_values: int = 0
     counts: list[ValueCount] = Field(default_factory=list)
     truncated: bool = False
+    hidden: bool = False
 
 
 class DataSourceOverview(BaseModel):
     source: str
     title: str
     total_rows: int
+    field_count: int = 0
     fields: list[FieldBreakdown] = Field(default_factory=list)
 
 
 class DataOverviewResponse(BaseModel):
     generated_at: datetime
     sources: list[DataSourceOverview] = Field(default_factory=list)
+
+
+class UpdateHiddenFieldsRequest(BaseModel):
+    hidden_fields: list[str] = Field(default_factory=list)
+
+
+class HiddenFieldsResponse(BaseModel):
+    source: str
+    hidden_fields: list[str] = Field(default_factory=list)

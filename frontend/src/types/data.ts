@@ -14,16 +14,23 @@ export interface FieldBreakdown {
   unique_values: number
   counts: ValueCount[]
   truncated: boolean
+  hidden?: boolean
 }
 
 export interface DataSourceOverview {
   source: string
   title: string
   total_rows: number
+  field_count: number
   fields: FieldBreakdown[]
 }
 
 export interface DataOverviewResponse {
   generated_at: string
   sources: DataSourceOverview[]
+}
+
+export interface HiddenFieldsResponse {
+  source: string
+  hidden_fields: string[]
 }
