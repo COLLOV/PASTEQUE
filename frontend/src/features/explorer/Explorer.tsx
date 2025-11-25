@@ -108,8 +108,12 @@ export default function Explorer() {
   )
 
   const totalFields = useMemo(
-    () => sources.reduce((acc, src) => acc + (src.field_count ?? src.fields?.length ?? 0), 0),
-    [sources]
+    () =>
+      sources.reduce((acc, src) => {
+        const count = isAdmin ? src.field_count ?? src.fields?.length ?? 0 : src.fields?.length ?? 0
+        return acc + count
+      }, 0),
+    [sources, isAdmin]
   )
 
   const persistHiddenFields = async (source: string, nextHidden: string[]) => {
@@ -313,7 +317,7 @@ function SourceCard({
   const hiddenSet = useMemo(() => new Set(hiddenFields), [hiddenFields])
   const visibleFields = source.fields?.filter(field => !hiddenSet.has(field.field)) ?? []
   const totalFieldCount = source.field_count ?? source.fields.length
-  const hiddenCount = Math.max(totalFieldCount - visibleFields.length, 0)
+  const displayedTotal = isAdmin ? totalFieldCount : visibleFields.length
   const [open, setOpen] = useState(false)
 
   return (
@@ -330,8 +334,9 @@ function SourceCard({
             <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
             <h3 className="text-xl font-semibold text-primary-950">{source.title}</h3>
             <p className="text-xs text-primary-500">
-              {visibleFields.length} / {totalFieldCount} colonnes affichées
-              {!isAdmin && hiddenCount > 0 ? ' (masquage administrateur)' : ''}
+              {isAdmin
+                ? `${visibleFields.length} / ${displayedTotal} colonnes affichées`
+                : `${visibleFields.length} colonnes affichées`}
             </p>
           </div>
           <div className="text-right">
@@ -366,10 +371,6 @@ function SourceCard({
               onShowAll={onShowAll}
               disabled={isSaving}
             />
-          ) : hiddenCount > 0 ? (
-            <div className="text-xs text-primary-600 bg-primary-50 border border-primary-100 rounded-md px-3 py-2">
-              Colonnes masquées par l’administrateur pour cette source.
-            </div>
           ) : null}
 
           {visibleFields.length === 0 ? (
