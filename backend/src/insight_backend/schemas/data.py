@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -8,25 +10,27 @@ class IngestResponse(BaseModel):
     details: str | None = None
 
 
-class DimensionCount(BaseModel):
+class ValueCount(BaseModel):
     label: str
     count: int
 
 
-class DimensionBreakdown(BaseModel):
+class FieldBreakdown(BaseModel):
     field: str
     label: str
-    counts: list[DimensionCount] = Field(default_factory=list)
+    kind: Literal["date", "text", "number", "boolean", "unknown"] = "text"
+    non_null: int = 0
+    missing_values: int = 0
+    unique_values: int = 0
+    counts: list[ValueCount] = Field(default_factory=list)
+    truncated: bool = False
 
 
 class DataSourceOverview(BaseModel):
     source: str
     title: str
     total_rows: int
-    date: DimensionBreakdown | None = None
-    department: DimensionBreakdown | None = None
-    campaign: DimensionBreakdown | None = None
-    domain: DimensionBreakdown | None = None
+    fields: list[FieldBreakdown] = Field(default_factory=list)
 
 
 class DataOverviewResponse(BaseModel):

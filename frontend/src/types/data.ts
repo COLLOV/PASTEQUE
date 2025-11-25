@@ -1,22 +1,26 @@
-export interface DimensionCount {
+export type FieldKind = 'date' | 'text' | 'number' | 'boolean' | 'unknown'
+
+export interface ValueCount {
   label: string
   count: number
 }
 
-export interface DimensionBreakdown {
+export interface FieldBreakdown {
   field: string
   label: string
-  counts: DimensionCount[]
+  kind: FieldKind
+  non_null: number
+  missing_values: number
+  unique_values: number
+  counts: ValueCount[]
+  truncated: boolean
 }
 
 export interface DataSourceOverview {
   source: string
   title: string
   total_rows: number
-  date?: DimensionBreakdown | null
-  department?: DimensionBreakdown | null
-  campaign?: DimensionBreakdown | null
-  domain?: DimensionBreakdown | null
+  fields: FieldBreakdown[]
 }
 
 export interface DataOverviewResponse {

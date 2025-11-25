@@ -241,8 +241,8 @@ Personnalisation rapide:
 ### Explorer
 
 - Page `/explorer` accessible depuis le header (bouton à gauche de « Nouveau chat ») pour une vision globale des sources autorisées.
-- Consomme `GET /data/overview` : total par source et répartitions par date, département, campagne et domaine lorsque les colonnes sont présentes.
-- Cartes par source avec mini-barres (horizontales/verticales) pour visualiser rapidement les volumes et les découpes.
+- Consomme `GET /data/overview` : total par source et statistiques sur toutes les colonnes détectées (inférence des dates), en respectant les ACL.
+- Cartes par source avec mini-barres / timeline, gestion des colonnes affichées (masquage/affichage par l’admin) pour rester lisible malgré un grand nombre de champs.
 
 ### Dashboard
 
