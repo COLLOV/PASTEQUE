@@ -116,6 +116,7 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 
 - API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
 - Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») avec cartes par source, colonnes autodécouvertes et possibilité de masquer/afficher les champs pour alléger la vue.
+- Visualisations Chart.js (lignes + barres) pour timelines et répartitions des valeurs à partir des colonnes détectées automatiquement.
 - Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
 
 ## Principes d’architecture

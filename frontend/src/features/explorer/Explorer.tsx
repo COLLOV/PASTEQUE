@@ -1,4 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Bar, Line } from 'react-chartjs-2'
+import {
+  Chart as ChartJS,
+  BarElement,
+  CategoryScale,
+  LineElement,
+  LinearScale,
+  PointElement,
+  Tooltip,
+  Legend,
+  type ChartData,
+  type ChartOptions,
+} from 'chart.js'
 import { Card, Loader, Button } from '@/components/ui'
 import { apiFetch } from '@/services/api'
 import type { DataOverviewResponse, DataSourceOverview, FieldBreakdown, ValueCount } from '@/types/data'
@@ -12,6 +25,8 @@ import {
 } from 'react-icons/hi2'
 
 type HiddenFieldsState = Record<string, string[]>
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend)
 
 function formatNumber(value: number | null | undefined): string {
   if (typeof value !== 'number' || Number.isNaN(value)) return '0'
@@ -377,52 +392,127 @@ function FieldSection({ field }: { field: FieldBreakdown }) {
 }
 
 function DateTimeline({ counts }: { counts: ValueCount[] }) {
-  const max = counts.reduce((acc, item) => Math.max(acc, item.count), 0) || 1
+  const chartData = useMemo<ChartData<'line'>>(
+    () => ({
+      labels: counts.map(item => item.label),
+      datasets: [
+        {
+          label: 'Occurrences',
+          data: counts.map(item => item.count),
+          borderColor: '#0f172a',
+          backgroundColor: '#0f172a',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 4,
+          pointBackgroundColor: '#0f172a',
+          tension: 0.25,
+        },
+      ],
+    }),
+    [counts]
+  )
+
+  const options = useMemo<ChartOptions<'line'>>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const value = typeof context.raw === 'number' ? context.raw : Number(context.raw ?? 0)
+              return `${value.toLocaleString('fr-FR')} enregistrements`
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#52525b', maxRotation: 45, minRotation: 45 },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: '#e5e7eb' },
+          ticks: {
+            color: '#52525b',
+            callback: value => Number(value).toLocaleString('fr-FR'),
+          },
+        },
+      },
+    }),
+    []
+  )
+
   return (
-    <div className="flex items-end gap-1 h-28">
-      {counts.map(item => {
-        const height = Math.max((item.count / max) * 100, 6)
-        return (
-          <div key={item.label} className="flex-1 flex flex-col items-center gap-1">
-            <div className="w-full bg-primary-100 rounded-sm overflow-hidden h-20 flex items-end">
-              <div
-                className="w-full bg-primary-950"
-                style={{ height: `${height}%` }}
-                aria-label={`${item.label}: ${item.count}`}
-              />
-            </div>
-            <span className="text-[10px] text-primary-500">{item.label}</span>
-          </div>
-        )
-      })}
+    <div className="h-48">
+      <Line data={chartData} options={options} />
     </div>
   )
 }
 
 function BarList({ counts }: { counts: ValueCount[] }) {
-  const max = counts.reduce((acc, item) => Math.max(acc, item.count), 0) || 1
+  const chartData = useMemo<ChartData<'bar'>>(
+    () => ({
+      labels: counts.map(item => item.label),
+      datasets: [
+        {
+          label: 'Occurrences',
+          data: counts.map(item => item.count),
+          backgroundColor: '#0f172a',
+          borderRadius: 8,
+          barThickness: 18,
+          maxBarThickness: 24,
+        },
+      ],
+    }),
+    [counts]
+  )
+
+  const options = useMemo<ChartOptions<'bar'>>(
+    () => ({
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const value = typeof context.raw === 'number' ? context.raw : Number(context.raw ?? 0)
+              return `${value.toLocaleString('fr-FR')} enregistrements`
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: '#e5e7eb' },
+          ticks: {
+            color: '#52525b',
+            callback: value => Number(value).toLocaleString('fr-FR'),
+          },
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            color: '#52525b',
+            autoSkip: false,
+          },
+        },
+      },
+      layout: { padding: { top: 4, right: 8, bottom: 4, left: 0 } },
+    }),
+    []
+  )
+
+  const dynamicHeight = Math.max(140, counts.length * 28)
+
   return (
-    <div className="space-y-2">
-      {counts.map(item => {
-        const width = Math.max((item.count / max) * 100, 6)
-        return (
-          <div key={item.label} className="flex items-center gap-2">
-            <span className="w-32 text-xs text-primary-600 truncate" title={item.label}>
-              {item.label}
-            </span>
-            <div className="flex-1 h-2 rounded-full bg-primary-100 overflow-hidden">
-              <div
-                className="h-full bg-primary-950"
-                style={{ width: `${width}%` }}
-                aria-label={`${item.label}: ${item.count}`}
-              />
-            </div>
-            <span className="w-12 text-right text-xs font-semibold text-primary-900">
-              {item.count.toLocaleString('fr-FR')}
-            </span>
-          </div>
-        )
-      })}
+    <div style={{ height: `${dynamicHeight}px` }}>
+      <Bar data={chartData} options={options} />
     </div>
   )
 }
