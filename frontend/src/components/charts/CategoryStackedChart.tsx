@@ -1,19 +1,10 @@
 import { useMemo, useRef, type MouseEvent } from 'react'
-import { Bar, getElementAtEvent } from 'react-chartjs-2'
-import {
-  BarElement,
-  CategoryScale,
-  Chart as ChartJS,
-  Legend,
-  LinearScale,
-  Tooltip,
-  type ChartData,
-  type ChartOptions,
-} from 'chart.js'
+import { Doughnut, getElementAtEvent } from 'react-chartjs-2'
+import { ArcElement, Chart as ChartJS, Legend, Tooltip, type ChartData, type ChartOptions } from 'chart.js'
 import { Card } from '@/components/ui'
 import type { CategorySubCategoryCount } from '@/types/data'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 const PALETTE = ['#2563eb', '#0ea5e9', '#14b8a6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#f97316']
 
@@ -25,7 +16,7 @@ function pickColor(index: number): string {
 
 type Props = {
   breakdown: CategorySubCategoryCount[]
-  onSelect?: (category: string, subCategory: string) => void
+  onSelect?: (category: string, subCategory?: string) => void
   title?: string
   subtitle?: string
   height?: number
@@ -36,7 +27,7 @@ export default function CategoryStackedChart({
   breakdown,
   onSelect,
   title = 'Répartition Category / Sub Category',
-  subtitle = 'Cliquez sur un segment pour explorer les lignes correspondantes.',
+  subtitle = 'Cliquez sur une part pour ouvrir la sous-catégorie la plus fréquente.',
   height = 224,
   className,
 }: Props) {
@@ -52,75 +43,73 @@ export default function CategoryStackedChart({
     [breakdown]
   )
 
-  const categories = useMemo(
-    () => Array.from(new Set(sanitized.map(item => item.category as string))),
-    [sanitized]
-  )
-  const subCategories = useMemo(
-    () => Array.from(new Set(sanitized.map(item => item.sub_category as string))),
-    [sanitized]
-  )
-  const chartRef = useRef<ChartJS<'bar'> | null>(null)
+  const categoryTotals = useMemo(() => {
+    const totals = new Map<string, number>()
+    const topSub = new Map<string, { sub: string; count: number }>()
+    sanitized.forEach(item => {
+      const category = item.category as string
+      const sub = item.sub_category as string
+      const count = item.count ?? 0
+      totals.set(category, (totals.get(category) ?? 0) + count)
+      const currentTop = topSub.get(category)
+      if (!currentTop || count > currentTop.count) {
+        topSub.set(category, { sub, count })
+      }
+    })
+    return { totals, topSub }
+  }, [sanitized])
 
-  if (!categories.length || !subCategories.length) {
+  const categories = useMemo(() => {
+    return Array.from(categoryTotals.totals.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([cat]) => cat)
+  }, [categoryTotals.totals])
+
+  const chartRef = useRef<ChartJS<'doughnut'> | null>(null)
+
+  if (!categories.length) {
     return null
   }
 
-  const chartData = useMemo<ChartData<'bar'>>(
+  const chartData = useMemo<ChartData<'doughnut'>>(
     () => ({
       labels: categories,
-      datasets: subCategories.map((sub, datasetIndex) => ({
-        label: sub,
-        data: categories.map(cat => {
-          const match = sanitized.find(
-            item => item.category === cat && item.sub_category === sub
-          )
-          return match ? match.count : 0
-        }),
-        backgroundColor: pickColor(datasetIndex),
-        borderColor: pickColor(datasetIndex),
-        borderWidth: 1,
-        stack: 'category',
-      })),
+      datasets: [
+        {
+          label: 'Occurrences',
+          data: categories.map(cat => categoryTotals.totals.get(cat) ?? 0),
+          backgroundColor: categories.map((_, index) => pickColor(index)),
+          borderColor: '#ffffff',
+          borderWidth: 1,
+          hoverOffset: 8,
+        },
+      ],
     }),
-    [categories, subCategories, sanitized]
+    [categories, categoryTotals.totals]
   )
 
-  const options = useMemo<ChartOptions<'bar'>>(
+  const options = useMemo<ChartOptions<'doughnut'>>(
     () => ({
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
           display: true,
-          position: 'bottom',
-          labels: { color: '#52525b' },
+          position: 'right',
+          labels: { color: '#52525b', boxWidth: 12 },
         },
         tooltip: {
           callbacks: {
             label: context => {
               const value = typeof context.raw === 'number' ? context.raw : Number(context.raw ?? 0)
-              return `${context.dataset.label ?? ''}: ${value.toLocaleString('fr-FR')} enregistrements`
+              const total = context.dataset.data.reduce((acc, v) => acc + (typeof v === 'number' ? v : Number(v ?? 0)), 0)
+              const pct = total ? ((value / total) * 100).toFixed(1) : '0'
+              return `${context.label ?? ''}: ${value.toLocaleString('fr-FR')} (${pct}%)`
             },
           },
         },
       },
-      scales: {
-        x: {
-          stacked: true,
-          grid: { display: false },
-          ticks: { color: '#52525b', maxRotation: 45, minRotation: 45 },
-        },
-        y: {
-          stacked: true,
-          beginAtZero: true,
-          grid: { color: '#e5e7eb' },
-          ticks: {
-            color: '#52525b',
-            callback: value => Number(value).toLocaleString('fr-FR'),
-          },
-        },
-      },
+      cutout: '55%',
     }),
     []
   )
@@ -131,11 +120,11 @@ export default function CategoryStackedChart({
     if (!chart) return
     const elements = getElementAtEvent(chart, event)
     if (!elements.length) return
-    const { index, datasetIndex } = elements[0]
+    const { index } = elements[0]
     const category = categories[index ?? 0]
-    const subCategory = subCategories[datasetIndex ?? 0]
-    if (category && subCategory) {
-      onSelect(category, subCategory)
+    const topSub = categoryTotals.topSub.get(category)?.sub
+    if (category) {
+      onSelect(category, topSub)
     }
   }
 
@@ -152,7 +141,7 @@ export default function CategoryStackedChart({
         </div>
       ) : null}
       <div style={{ height }}>
-        <Bar ref={chartRef} data={chartData} options={options} onClick={handleClick} />
+        <Doughnut ref={chartRef} data={chartData} options={options} onClick={handleClick} />
       </div>
     </Card>
   )

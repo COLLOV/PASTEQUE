@@ -423,7 +423,8 @@ function SourceCard({
   const hasCategoryChart =
     Array.isArray(source.category_breakdown) && (source.category_breakdown?.length ?? 0) > 0
 
-  const handleSelectCategory = (category: string, subCategory: string) => {
+  const handleSelectCategory = (category: string, subCategory?: string) => {
+    if (!subCategory) return
     setSelection({ category, subCategory })
     setPreview(null)
     setPreviewError('')
