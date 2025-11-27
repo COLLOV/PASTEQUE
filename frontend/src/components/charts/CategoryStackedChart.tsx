@@ -157,6 +157,10 @@ export default function CategoryStackedChart({
       const category = categories[index ?? 0]
       if (category) {
         setFocusedCategory(category)
+        const topSub = categoryTotals.topSub.get(category)?.sub
+        if (topSub && onSelect) {
+          onSelect(category, topSub)
+        }
       }
       return
     }

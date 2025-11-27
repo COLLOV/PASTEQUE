@@ -599,8 +599,12 @@ function SourceCategoryCard({
   const handleChartSelect = (category: string, subCategory?: string) => {
     setActiveCategory(category)
     setSubFilter('')
-    if (subCategory) {
-      onSelect(source.source, category, subCategory)
+    const targetSub =
+      subCategory ??
+      categoryNodes.find(node => node.name === category)?.subCategories[0]?.name ??
+      ''
+    if (targetSub) {
+      onSelect(source.source, category, targetSub)
     }
   }
 
