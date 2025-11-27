@@ -282,6 +282,10 @@ export default function Chat() {
       if (next && !ticketMeta && !ticketMetaLoading) {
         void loadTicketMetadata()
       }
+      if (next) {
+        setSqlMode(false)
+        setChartMode(false)
+      }
       if (!next) {
         setTicketStatus('')
       }

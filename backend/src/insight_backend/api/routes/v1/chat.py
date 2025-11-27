@@ -321,6 +321,7 @@ def chat_stream(  # type: ignore[valid-type]
     # Resolve conversation id from metadata or create one on the fly
     conversation_id: int | None = None
     meta_in = payload.metadata or {}
+    ticket_mode_active = bool(meta_in.get("ticket_mode")) if isinstance(meta_in, dict) else False
     try:
         raw_id = meta_in.get("conversation_id") if isinstance(meta_in, dict) else None
         conversation_id = int(raw_id) if raw_id is not None else None
@@ -384,10 +385,7 @@ def chat_stream(  # type: ignore[valid-type]
                 }
             }
             ticket_events.append(("meta", ctx_meta))
-            if ticket_context.get("evidence_spec"):
-                ticket_events.append(("meta", {"evidence_spec": ticket_context["evidence_spec"]}))  # type: ignore[index]
-            if ticket_context.get("evidence_rows"):
-                ticket_events.append(("rows", ticket_context["evidence_rows"]))  # type: ignore[index]
+            # Evidence non diffusée pour ce mode: injection contextuelle uniquement
         except HTTPException as exc:
             ticket_context_error = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
         except Exception as exc:  # pragma: no cover - defensive
@@ -584,8 +582,8 @@ def chat_stream(  # type: ignore[valid-type]
                 )
                 return
 
-            # NL→SQL always enabled when not using '/sql' passthrough
-            if last and last.role == "user":
+            # NL→SQL always enabled when not using '/sql' passthrough (sauf mode tickets)
+            if last and last.role == "user" and not ticket_mode_active:
                 prov = "nl2sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
@@ -677,10 +675,10 @@ def chat_stream(  # type: ignore[valid-type]
 
             # 2) Default LLM streaming
             # Default LLM streaming branch
+            yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model, "conversation_id": conversation_id})
             if ticket_events:
                 for chunk in _emit_ticket_events_direct():
                     yield chunk
-            yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model, "conversation_id": conversation_id})
             full: list[str] = []
             for event in engine.stream(payload):
                 if event.get("type") == "delta":
