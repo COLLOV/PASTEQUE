@@ -38,24 +38,28 @@ function renderBlocks(content: string) {
   }
 
   for (const raw of lines) {
-    const line = raw.trim()
+    const line = raw.replace(/\u00a0+/g, ' ').trim()
     if (!line) {
       flushList()
       continue
     }
 
-    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
+    if (/^[-]{3,}$/.test(line)) {
+      flushList()
+      blocks.push(<hr key={`hr-${blocks.length}`} className="border-primary-200" />)
+      continue
+    }
+
+    const headingMatch = line.match(/^\s*#+\s*(.+)$/)
     const listMatch = line.match(/^([-*•]|\d+[.)]|[A-Za-z][.)])\s+(.*)$/)
 
     if (headingMatch) {
       flushList()
-      const level = Math.min(4, headingMatch[1].length + 2) // map ### -> h5-ish
-      const Tag = (`h${level}` as keyof JSX.IntrinsicElements)
       blocks.push(
-        <Tag
+        <div
           key={`h-${blocks.length}`}
           className="text-primary-900 font-semibold text-base mt-2"
-          dangerouslySetInnerHTML={{ __html: renderInline(headingMatch[2]) }}
+          dangerouslySetInnerHTML={{ __html: renderInline(headingMatch[1]) }}
         />
       )
       continue
@@ -89,7 +93,7 @@ function SummaryList({ title, summaries }: { title: string; summaries: LoopSumma
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-w-5xl w-full">
       <div className="flex items-center gap-2">
         <HiOutlineDocumentText className="w-5 h-5 text-primary-500" />
         <h3 className="text-lg font-semibold text-primary-900">{title}</h3>
