@@ -6,7 +6,6 @@ import Chat from '@/features/chat/Chat'
 import Dashboard from '@/features/dashboard/Dashboard'
 import AdminPanel from '@/features/admin/AdminPanel'
 import Loop from '@/features/loop/Loop'
-import FeedbackAdmin from '@/features/admin/FeedbackAdmin'
 import Explorer from '@/features/explorer/Explorer'
 import IaView from '@/features/ai/IaView'
 
@@ -42,7 +41,7 @@ export default function App() {
             path="feedback"
             element={
               <ProtectedRoute requireAdmin>
-                <FeedbackAdmin />
+                <Navigate to="/admin?tab=feedback" replace />
               </ProtectedRoute>
             }
           />

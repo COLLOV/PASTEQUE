@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
 import { Button, Input, Card, Loader } from '@/components/ui'
@@ -14,6 +15,7 @@ import type {
 import type { LoopConfig, LoopOverview, LoopConfigPayload, LoopTableOverview } from '@/types/loop'
 import { HiCheckCircle, HiXCircle, HiArrowPath } from 'react-icons/hi2'
 import DictionaryManager from './DictionaryManager'
+import FeedbackAdmin from './FeedbackAdmin'
 
 interface Status {
   type: 'success' | 'error'
@@ -40,7 +42,27 @@ function formatActivity(value: string | null): string {
   return formatDate(value)
 }
 
+type TabKey = 'stats' | 'dictionary' | 'loop' | 'users' | 'feedback'
+
+const DEFAULT_TAB: TabKey = 'stats'
+const TAB_KEYS = new Set<TabKey>(['stats', 'dictionary', 'loop', 'users', 'feedback'])
+const TAB_ITEMS: { key: TabKey; label: string }[] = [
+  { key: 'stats', label: 'Statistiques' },
+  { key: 'dictionary', label: 'Dictionnaire' },
+  { key: 'loop', label: 'Loop' },
+  { key: 'users', label: 'Utilisateurs' },
+  { key: 'feedback', label: 'Feedback' },
+]
+
+function getValidTab(value: string | null): TabKey | null {
+  if (!value) return null
+  return TAB_KEYS.has(value as TabKey) ? (value as TabKey) : null
+}
+
 export default function AdminPanel() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<TabKey>(() => getValidTab(tabParam) ?? DEFAULT_TAB)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<Status | null>(null)
@@ -68,6 +90,28 @@ export default function AdminPanel() {
   const loopItems: LoopTableOverview[] = loopOverviewData?.items ?? []
   const selectedLoopConfig: LoopConfig | null =
     loopItems.find(item => item.config.table_name === selectedTable)?.config ?? null
+
+  useEffect(() => {
+    const tabFromUrl = getValidTab(tabParam)
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl)
+      return
+    }
+    if (!tabFromUrl && activeTab !== DEFAULT_TAB) {
+      setActiveTab(DEFAULT_TAB)
+    }
+  }, [tabParam, activeTab])
+
+  const handleTabChange = useCallback(
+    (nextTab: TabKey) => {
+      if (nextTab === activeTab) return
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.set('tab', nextTab)
+      setActiveTab(nextTab)
+      setSearchParams(nextParams, { replace: true })
+    },
+    [activeTab, searchParams, setSearchParams]
+  )
 
   const loadPermissions = useCallback(async () => {
     setPermissionsLoading(true)
@@ -458,7 +502,27 @@ export default function AdminPanel() {
         </p>
       </div>
 
-      {status && (
+      <div className="flex flex-wrap items-center gap-2 border-b border-primary-100 pb-2">
+        {TAB_ITEMS.map(tab => {
+          const isActive = tab.key === activeTab
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => handleTabChange(tab.key)}
+              className={`px-3 py-2 text-sm font-semibold rounded-full border transition-colors ${
+                isActive
+                  ? 'bg-primary-900 text-white border-primary-900 shadow-sm'
+                  : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {activeTab === 'users' && status && (
         <div
           className={`flex items-start gap-3 p-4 rounded-lg border-2 animate-fade-in ${
             status.type === 'success'
@@ -481,7 +545,8 @@ export default function AdminPanel() {
         </div>
       )}
 
-      <Card variant="elevated">
+      {activeTab === 'stats' && (
+        <Card variant="elevated">
         <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-primary-950">
@@ -613,10 +678,12 @@ export default function AdminPanel() {
             </div>
           </>
         )}
-      </Card>
+        </Card>
+      )}
 
-      <DictionaryManager />
+      {activeTab === 'dictionary' && <DictionaryManager />}
 
+      {activeTab === 'loop' && (
       <Card variant="elevated">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
           <div>
@@ -807,167 +874,174 @@ export default function AdminPanel() {
           </div>
         )}
       </Card>
+      )}
 
-      <Card variant="elevated">
-        <h3 className="text-lg font-semibold text-primary-950 mb-4">
-          Créer un nouvel utilisateur
-        </h3>
+      {activeTab === 'users' && (
+        <>
+          <Card variant="elevated">
+            <h3 className="text-lg font-semibold text-primary-950 mb-4">
+              Créer un nouvel utilisateur
+            </h3>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Nouvel utilisateur"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            minLength={1}
-            maxLength={64}
-            autoComplete="off"
-            fullWidth
-            placeholder="Nom d'utilisateur"
-          />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                label="Nouvel utilisateur"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                minLength={1}
+                maxLength={64}
+                autoComplete="off"
+                fullWidth
+                placeholder="Nom d'utilisateur"
+              />
 
-          <Input
-            label="Mot de passe"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={1}
-            maxLength={128}
-            autoComplete="new-password"
-            fullWidth
-            placeholder="Mot de passe"
-          />
-          <Button
-            type="submit"
-            disabled={loadingUser}
-            fullWidth
-            size="lg"
-          >
-            {loadingUser ? 'Création en cours…' : 'Créer l\'utilisateur'}
-          </Button>
-        </form>
-      </Card>
+              <Input
+                label="Mot de passe"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={1}
+                maxLength={128}
+                autoComplete="new-password"
+                fullWidth
+                placeholder="Mot de passe"
+              />
+              <Button
+                type="submit"
+                disabled={loadingUser}
+                fullWidth
+                size="lg"
+              >
+                {loadingUser ? 'Création en cours…' : 'Créer l\'utilisateur'}
+              </Button>
+            </form>
+          </Card>
 
-      <Card variant="elevated">
-        <div className="flex flex-col gap-2 mb-4">
-          <h3 className="text-lg font-semibold text-primary-950">
-            Droits d’accès aux tables
-          </h3>
-          <p className="text-sm text-primary-600">
-            Activez ou désactivez l’accès aux tables pour chaque utilisateur. L’administrateur dispose toujours d’un accès complet.
-          </p>
-        </div>
+          <Card variant="elevated">
+            <div className="flex flex-col gap-2 mb-4">
+              <h3 className="text-lg font-semibold text-primary-950">
+                Droits d’accès aux tables
+              </h3>
+              <p className="text-sm text-primary-600">
+                Activez ou désactivez l’accès aux tables pour chaque utilisateur. L’administrateur dispose toujours d’un accès complet.
+              </p>
+            </div>
 
-        {permissionsLoading ? (
-          <div className="py-12 flex justify-center">
-            <Loader text="Chargement des droits…" />
-          </div>
-        ) : permissionsError ? (
-          <div className="py-6 text-sm text-red-600">
-            {permissionsError}
-          </div>
-        ) : tables.length === 0 ? (
-          <div className="py-6 text-sm text-primary-600">
-            Aucune table de données détectée dans le système.
-          </div>
-        ) : users.length === 0 ? (
-          <div className="py-6 text-sm text-primary-600">
-            Aucun utilisateur enregistré pour le moment.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border border-primary-100 rounded-lg overflow-hidden">
-              <thead className="bg-primary-50">
-                <tr>
-                  <th className="text-left text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100">
-                    Utilisateur
-                  </th>
-                  {tables.map(table => (
-                    <th
-                      key={table}
-                      className="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100"
-                    >
-                      {table}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(user => {
-                  const isAdminRow = Boolean(user.is_admin)
-                  const isUpdating = updatingUsers.has(user.username)
-                  const allowedSet = new Set(
-                    user.allowed_tables.map(name => name.toLowerCase())
-                  )
-                  return (
-                    <tr
-                      key={user.username}
-                      className="odd:bg-white even:bg-primary-25"
-                    >
-                      <td className="align-top px-4 py-3 border-b border-primary-100">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-medium text-primary-900">
-                            {user.username}
-                          </span>
-                          <span className="text-xs text-primary-500">
-                            Créé le {formatDate(user.created_at)}
-                          </span>
-                          {isAdminRow && (
-                            <span className="text-xs font-semibold text-primary-600">
-                              Accès administrateur
-                            </span>
-                          )}
-                          <div className="pt-1 flex gap-2">
-                            <Button
-                              variant="secondary"
-                              size="xs"
-                              onClick={() => handleResetPassword(user.username)}
-                              disabled={isUpdating}
-                            >
-                              Réinitialiser mot de passe
-                            </Button>
-                            {!isAdminRow && (
-                              <Button
-                                variant="danger"
-                                size="xs"
-                                onClick={() => handleDeleteUser(user.username)}
-                                disabled={isUpdating}
-                              >
-                                Supprimer
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      {tables.map(table => {
-                        const checked = isAdminRow || allowedSet.has(table.toLowerCase())
-                        return (
-                          <td
-                            key={`${user.username}-${table}`}
-                            className="text-center px-4 py-3 border-b border-primary-100"
-                          >
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              checked={checked}
-                              disabled={isAdminRow || isUpdating}
-                              onChange={(event) =>
-                                handleTogglePermission(user.username, table, event.target.checked)
-                              }
-                            />
-                          </td>
-                        )
-                      })}
+            {permissionsLoading ? (
+              <div className="py-12 flex justify-center">
+                <Loader text="Chargement des droits…" />
+              </div>
+            ) : permissionsError ? (
+              <div className="py-6 text-sm text-red-600">
+                {permissionsError}
+              </div>
+            ) : tables.length === 0 ? (
+              <div className="py-6 text-sm text-primary-600">
+                Aucune table de données détectée dans le système.
+              </div>
+            ) : users.length === 0 ? (
+              <div className="py-6 text-sm text-primary-600">
+                Aucun utilisateur enregistré pour le moment.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border border-primary-100 rounded-lg overflow-hidden">
+                  <thead className="bg-primary-50">
+                    <tr>
+                      <th className="text-left text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100">
+                        Utilisateur
+                      </th>
+                      {tables.map(table => (
+                        <th
+                          key={table}
+                          className="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 px-4 py-3 border-b border-primary-100"
+                        >
+                          {table}
+                        </th>
+                      ))}
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                  </thead>
+                  <tbody>
+                    {users.map(user => {
+                      const isAdminRow = Boolean(user.is_admin)
+                      const isUpdating = updatingUsers.has(user.username)
+                      const allowedSet = new Set(
+                        user.allowed_tables.map(name => name.toLowerCase())
+                      )
+                      return (
+                        <tr
+                          key={user.username}
+                          className="odd:bg-white even:bg-primary-25"
+                        >
+                          <td className="align-top px-4 py-3 border-b border-primary-100">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium text-primary-900">
+                                {user.username}
+                              </span>
+                              <span className="text-xs text-primary-500">
+                                Créé le {formatDate(user.created_at)}
+                              </span>
+                              {isAdminRow && (
+                                <span className="text-xs font-semibold text-primary-600">
+                                  Accès administrateur
+                                </span>
+                              )}
+                              <div className="pt-1 flex gap-2">
+                                <Button
+                                  variant="secondary"
+                                  size="xs"
+                                  onClick={() => handleResetPassword(user.username)}
+                                  disabled={isUpdating}
+                                >
+                                  Réinitialiser mot de passe
+                                </Button>
+                                {!isAdminRow && (
+                                  <Button
+                                    variant="danger"
+                                    size="xs"
+                                    onClick={() => handleDeleteUser(user.username)}
+                                    disabled={isUpdating}
+                                  >
+                                    Supprimer
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          {tables.map(table => {
+                            const checked = isAdminRow || allowedSet.has(table.toLowerCase())
+                            return (
+                              <td
+                                key={`${user.username}-${table}`}
+                                className="text-center px-4 py-3 border-b border-primary-100"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4"
+                                  checked={checked}
+                                  disabled={isAdminRow || isUpdating}
+                                  onChange={(event) =>
+                                    handleTogglePermission(user.username, table, event.target.checked)
+                                  }
+                                />
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {activeTab === 'feedback' && <FeedbackAdmin embedded />}
     </div>
   )
 }
