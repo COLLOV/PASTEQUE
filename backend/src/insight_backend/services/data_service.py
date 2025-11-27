@@ -244,7 +244,11 @@ class DataService:
                     date_field = name
 
             if (date_from_norm or date_to_norm) and not date_field:
-                raise ValueError("Colonne 'date' requise pour filtrer l'overview par date.")
+                log.warning(
+                    "Filtre date ignoré pour %s : colonne 'date' absente, source exclue du résultat filtré.",
+                    table_name,
+                )
+                return None
 
             for row in reader:
                 normalized_date = _normalize_date(row.get(date_field)) if date_field else None

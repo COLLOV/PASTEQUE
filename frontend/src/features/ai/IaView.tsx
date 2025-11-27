@@ -135,6 +135,15 @@ export default function IaView() {
   const startTs =
     startIso && minTs !== undefined ? Math.max(minTs, toTimestamp(startIso) ?? minTs) : minTs
   const endTs = endIso && maxTs !== undefined ? Math.min(maxTs, toTimestamp(endIso) ?? maxTs) : maxTs
+  const totalSpan = minTs !== undefined && maxTs !== undefined ? Math.max(maxTs - minTs, 1) : 1
+  const startPercent =
+    startTs !== undefined && minTs !== undefined
+      ? Math.max(0, Math.min(100, ((startTs - minTs) / totalSpan) * 100))
+      : 0
+  const endPercent =
+    endTs !== undefined && minTs !== undefined
+      ? Math.max(startPercent, Math.min(100, ((endTs - minTs) / totalSpan) * 100))
+      : 100
 
   const clampAndIso = (value: number | undefined, fallback: number | undefined) => {
     if (value === undefined && fallback === undefined) return undefined
@@ -327,7 +336,12 @@ export default function IaView() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="relative h-10">
+            <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-100" />
+            <div
+              className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-900/60 transition-all duration-200"
+              style={{ left: `${startPercent}%`, right: `${100 - endPercent}%` }}
+            />
             <input
               type="range"
               min={minTs}
@@ -335,7 +349,8 @@ export default function IaView() {
               step={86_400_000}
               value={startTs ?? minTs}
               onChange={e => handleRangeStartChange(Number(e.target.value))}
-              className="flex-1 accent-primary-900"
+              className="dual-range-thumb"
+              style={{ zIndex: 30 }}
             />
             <input
               type="range"
@@ -344,9 +359,13 @@ export default function IaView() {
               step={86_400_000}
               value={endTs ?? maxTs}
               onChange={e => handleRangeEndChange(Number(e.target.value))}
-              className="flex-1 accent-primary-700"
+              className="dual-range-thumb"
+              style={{ zIndex: 20 }}
             />
           </div>
+          <p className="text-[11px] text-primary-500">
+            Les sources sans colonne « date » sont ignorées quand un filtre est appliqué.
+          </p>
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
