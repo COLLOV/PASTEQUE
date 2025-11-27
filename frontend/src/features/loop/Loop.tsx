@@ -4,6 +4,7 @@ import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
 import type { LoopOverview, LoopSummary } from '@/types/loop'
 import { HiArrowPath, HiClock, HiOutlineDocumentText } from 'react-icons/hi2'
+import { marked, Renderer } from 'marked'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -12,76 +13,33 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleString()
 }
 
-function renderBlocks(content: string) {
-  const sanitized = content.replace(/^\s*#+\s*/gm, '')
-  const renderInline = (text: string) =>
-    text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/__(.+?)__/g, '<strong>$1</strong>')
+const escapeHtml = (text: string) =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
-  const lines = sanitized.split(/\r?\n/)
-  const blocks: React.ReactNode[] = []
-  let listBuffer: string[] = []
+const renderer = new Renderer()
+renderer.heading = (text) => `<p class="text-primary-900 font-semibold text-base mt-2">${text}</p>`
+renderer.paragraph = (text) => `<p class="text-primary-800 text-sm leading-relaxed">${text}</p>`
+renderer.list = (body) =>
+  `<ul class="list-disc pl-5 space-y-1 text-primary-800 text-sm">${body}</ul>`
+renderer.listitem = (text) => `<li>${text}</li>`
+renderer.hr = () => `<hr class="border-primary-200 my-2" />`
 
-  const flushList = () => {
-    if (listBuffer.length === 0) return
-    blocks.push(
-      <ul key={`list-${blocks.length}`} className="list-disc pl-5 space-y-1 text-primary-800 text-sm">
-        {listBuffer.map((item, idx) => (
-          <li
-            key={idx}
-            dangerouslySetInnerHTML={{ __html: renderInline(item) }}
-          />
-        ))}
-      </ul>
-    )
-    listBuffer = []
-  }
+marked.use({ renderer, mangle: false, headerIds: false, breaks: true, gfm: true })
 
-  for (const raw of lines) {
-    const line = raw.replace(/\u00a0+/g, ' ').trim()
-    if (!line) {
-      flushList()
-      continue
-    }
-
-    if (/^[-]{3,}$/.test(line)) {
-      flushList()
-      blocks.push(<hr key={`hr-${blocks.length}`} className="border-primary-200" />)
-      continue
-    }
-
-    const headingMatch = line.match(/^\s*#+\s*(.+)$/)
-    const listMatch = line.match(/^([-*•]|\d+[.)]|[A-Za-z][.)])\s+(.*)$/)
-
-    if (headingMatch) {
-      flushList()
-      blocks.push(
-        <div
-          key={`h-${blocks.length}`}
-          className="text-primary-900 font-semibold text-base mt-2"
-          dangerouslySetInnerHTML={{ __html: renderInline(headingMatch[1]) }}
-        />
-      )
-      continue
-    }
-
-    if (listMatch) {
-      listBuffer.push(listMatch[2])
-      continue
-    }
-
-    flushList()
-    blocks.push(
-      <p
-        key={`p-${blocks.length}`}
-        className="text-primary-800 text-sm leading-relaxed"
-        dangerouslySetInnerHTML={{ __html: renderInline(line) }}
-      />
-    )
-  }
-  flushList()
-  return blocks
+function renderMarkdown(content: string) {
+  const safe = escapeHtml(content || '')
+  const html = marked.parse(safe) as string
+  return (
+    <div
+      className="space-y-2"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
 }
 
 function SummaryList({ title, summaries }: { title: string; summaries: LoopSummary[] }) {
@@ -94,7 +52,7 @@ function SummaryList({ title, summaries }: { title: string; summaries: LoopSumma
   }
 
   return (
-    <div className="space-y-3 max-w-5xl w-full">
+    <div className="space-y-3 max-w-6xl w-full">
       <div className="flex items-center gap-2">
         <HiOutlineDocumentText className="w-5 h-5 text-primary-500" />
         <h3 className="text-lg font-semibold text-primary-900">{title}</h3>
@@ -122,9 +80,7 @@ function SummaryList({ title, summaries }: { title: string; summaries: LoopSumma
                 </p>
               </div>
             </div>
-            <div className="space-y-2">
-              {renderBlocks(item.content)}
-            </div>
+            {renderMarkdown(item.content)}
           </Card>
         ))}
       </div>
@@ -227,8 +183,8 @@ export default function Loop() {
             </Card>
           ) : (
             <div className="space-y-6">
-              <SummaryList title="Vue hebdomadaire" summaries={(overview?.weekly ?? []).slice(0, 1)} />
               <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
+              <SummaryList title="Vue hebdomadaire" summaries={(overview?.weekly ?? []).slice(0, 1)} />
             </div>
           )}
         </>

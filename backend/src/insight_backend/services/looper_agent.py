@@ -54,8 +54,8 @@ class LooperAgent:
             "Commence par les problèmes majeurs à résoudre (2-4 points précis, avec fréquence si visible), "
             "puis propose un plan d'action concret et priorisé. "
             "Reste fidèle aux tickets et n'invente rien. "
-            "Format attendu: texte clair avec sections en gras (ex: **Problèmes majeurs :**), listes à puces '-', "
-            "pas de titres Markdown (#, ##, ###), pas de code block, pas de tableaux."
+            "Format attendu: Markdown clair (titres ou sous-titres optionnels), listes à puces '-', sections en gras "
+            "(ex: **Problèmes majeurs**), pas de blocs de code ni de tableaux."
         )
         formatted = "\n".join(tickets)
         user_prompt = (
