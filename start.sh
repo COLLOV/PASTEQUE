@@ -286,6 +286,14 @@ fi
 
 echo "[start] mindsdb container -> $MINDSDB_CONTAINER_NAME (http:$MINDSDB_HTTP_PORT mysql:$MINDSDB_MYSQL_PORT)"
 
+MINDSDB_RUNNING_ALREADY=false
+if "$CONTAINER_RUNTIME" inspect -f '{{.State.Running}}' "$MINDSDB_CONTAINER_NAME" >/dev/null 2>&1; then
+  if "$CONTAINER_RUNTIME" inspect -f '{{.State.Running}}' "$MINDSDB_CONTAINER_NAME" | grep -q "true"; then
+    MINDSDB_RUNNING_ALREADY=true
+    echo "[start] Reusing existing MindsDB container (already running)"
+  fi
+fi
+
 # Embeddings configuration visibility and validation
 EMBED_CFG_PATH="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_EMBEDDINGS_CONFIG_PATH")"
 if [[ -n "$EMBED_CFG_PATH" ]]; then
@@ -302,6 +310,10 @@ for port in "$FRONTEND_PORT" "$BACKEND_PORT" "$MINDSDB_HTTP_PORT" "$MINDSDB_MYSQ
   if ! is_number "$port"; then
     echo "ERROR: Ports must be numeric. Got '$port'." >&2
     exit 1
+  fi
+  if [[ "$MINDSDB_RUNNING_ALREADY" == "true" && ( "$port" -eq "$MINDSDB_HTTP_PORT" || "$port" -eq "$MINDSDB_MYSQL_PORT" ) ]]; then
+    echo "[start] Skipping port $port (MindsDB already running)"
+    continue
   fi
   free_port "$port"
 done
@@ -334,10 +346,19 @@ ensure_mindsdb() {
   local container="$MINDSDB_CONTAINER_NAME"
 
   if "$CONTAINER_RUNTIME" ps -a --filter "name=^${container}$" --format '{{.Names}}' | grep -q .; then
-    echo "[start] Resetting existing MindsDB container '$container'"
-    "$CONTAINER_RUNTIME" rm -f "$container" >/dev/null 2>&1 || true
-  else
-    echo "[start] No previous MindsDB container detected"
+    if "$CONTAINER_RUNTIME" inspect -f '{{.State.Running}}' "$container" | grep -q "true"; then
+      echo "[start] MindsDB container '$container' already running, reusing it"
+      "$CONTAINER_RUNTIME" ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
+      echo "[start] MindsDB last logs (tail 10)"
+      "$CONTAINER_RUNTIME" logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
+      return
+    fi
+    echo "[start] Starting existing MindsDB container '$container'"
+    "$CONTAINER_RUNTIME" start "$container" >/dev/null
+    "$CONTAINER_RUNTIME" ps --filter "name=^${container}$" --format '  -> {{.ID}} {{.Status}} {{.Ports}}' || true
+    echo "[start] MindsDB last logs (tail 10)"
+    "$CONTAINER_RUNTIME" logs --tail 10 "$container" 2>/dev/null | sed 's/^/[mindsdb] /' || true
+    return
   fi
 
   echo "[start] Launching MindsDB container '$container'"

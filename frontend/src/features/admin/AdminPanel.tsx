@@ -689,7 +689,7 @@ export default function AdminPanel() {
           <div>
             <h3 className="text-lg font-semibold text-primary-950">Radar – résumés tickets</h3>
             <p className="text-sm text-primary-600">
-              Configurez plusieurs tables (colonne texte + date) pour générer des résumés journaliers, hebdomadaires et mensuels.
+              Configurez Radar sur plusieurs tables (colonne texte + date) pour générer des résumés journaliers, hebdomadaires et mensuels.
             </p>
           </div>
           <div className="text-sm text-primary-600">
