@@ -5,6 +5,7 @@ import time
 import uuid
 from typing import Iterator
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -12,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import StreamingResponse
 
 from ....schemas.chat import ChatRequest, ChatResponse
-from ....core.config import settings
+from ....core.config import settings, resolve_project_path
 from ....core.agent_limits import reset_from_settings, AgentBudgetExceeded
 from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
@@ -27,6 +28,8 @@ from ....repositories.conversation_repository import ConversationRepository
 from ....repositories.user_repository import UserRepository
 from ....utils.text import sanitize_title
 from ....repositories.data_repository import DataRepository
+from ....repositories.loop_repository import LoopRepository
+from ....services.ticket_context_service import TicketContextService
 
 log = logging.getLogger("insight.api.chat")
 
@@ -305,6 +308,10 @@ def chat_stream(  # type: ignore[valid-type]
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    ticket_service = TicketContextService(
+        loop_repo=LoopRepository(session),
+        data_repo=DataRepository(tables_dir=Path(resolve_project_path(settings.tables_dir))),
+    )
 
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"
     started = time.perf_counter()
@@ -351,6 +358,43 @@ def chat_stream(  # type: ignore[valid-type]
             payload.metadata = dict(payload.metadata or {})
             payload.metadata["exclude_tables"] = saved
 
+    # Optionnel: pré-charger le contexte tickets pour le mode dédié
+    ticket_context: dict[str, object] | None = None
+    ticket_context_error: str | None = None
+    ticket_events: list[tuple[str, dict]] = []
+    if isinstance(meta_in, dict) and meta_in.get("ticket_mode"):
+        try:
+            ticket_context = ticket_service.build_context(
+                allowed_tables=allowed_tables,
+                date_from=meta_in.get("tickets_from"),
+                date_to=meta_in.get("tickets_to"),
+            )
+            sys_msg = ticket_context.get("system_message")
+            if sys_msg:
+                payload.messages = [{"role": "system", "content": str(sys_msg)}] + list(payload.messages or [])
+            ctx_meta = {
+                "ticket_context": {
+                    "period_label": ticket_context.get("period_label"),
+                    "count": ticket_context.get("count"),
+                    "total": ticket_context.get("total"),
+                    "chunks": ticket_context.get("chunks"),
+                    "table": ticket_context.get("table"),
+                    "date_from": ticket_context.get("date_from"),
+                    "date_to": ticket_context.get("date_to"),
+                }
+            }
+            ticket_events.append(("meta", ctx_meta))
+            if ticket_context.get("evidence_spec"):
+                ticket_events.append(("meta", {"evidence_spec": ticket_context["evidence_spec"]}))  # type: ignore[index]
+            if ticket_context.get("evidence_rows"):
+                ticket_events.append(("rows", ticket_context["evidence_rows"]))  # type: ignore[index]
+        except HTTPException as exc:
+            ticket_context_error = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+        except Exception as exc:  # pragma: no cover - defensive
+            ticket_context_error = str(exc)
+        if ticket_context_error:
+            ticket_events.append(("meta", {"ticket_context_error": ticket_context_error}))
+
     def generate() -> Iterator[bytes]:
         nonlocal assistant_msg_id
         seq = 0
@@ -376,6 +420,19 @@ def chat_stream(  # type: ignore[valid-type]
             if k == "rows":
                 return isinstance(data, dict) and data.get("purpose") == "evidence"
             return False
+
+        def _prime_ticket_events(q: "queue.Queue[tuple[str, dict] | tuple[str, object]]") -> None:
+            for item in ticket_events:
+                q.put(item)
+
+        def _emit_ticket_events_direct():
+            for kind, data in ticket_events:
+                try:
+                    with transactional(session):
+                        repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                except SQLAlchemyError:
+                    log.warning("Failed to persist ticket event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
+                yield _sse(kind, data)
         try:
             # Router gate on every user message before any SQL activity
             last = payload.messages[-1] if payload.messages else None
@@ -432,6 +489,7 @@ def chat_stream(  # type: ignore[valid-type]
                 prov = "mindsdb-sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+                _prime_ticket_events(q)
 
                 def emit(evt: str, data: dict) -> None:
                     # Push to SSE queue only; persist on the consumer thread to avoid cross-thread session use
@@ -531,6 +589,7 @@ def chat_stream(  # type: ignore[valid-type]
                 prov = "nl2sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+                _prime_ticket_events(q)
 
                 def emit(evt: str, data: dict) -> None:
                     # Queue only; persistence happens on consumer side in this request thread
@@ -618,6 +677,9 @@ def chat_stream(  # type: ignore[valid-type]
 
             # 2) Default LLM streaming
             # Default LLM streaming branch
+            if ticket_events:
+                for chunk in _emit_ticket_events_direct():
+                    yield chunk
             yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model, "conversation_id": conversation_id})
             full: list[str] = []
             for event in engine.stream(payload):

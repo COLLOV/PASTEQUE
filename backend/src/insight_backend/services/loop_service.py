@@ -3,7 +3,7 @@ from __future__ import annotations
 import calendar
 import logging
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from fastapi import HTTPException, status
 
@@ -12,6 +12,11 @@ from ..repositories.data_repository import DataRepository
 from ..repositories.loop_repository import LoopRepository
 from ..services.looper_agent import LooperAgent
 from ..models.loop import LoopConfig, LoopSummary
+from .ticket_utils import (
+    chunk_ticket_items,
+    format_ticket_context,
+    prepare_ticket_entries,
+)
 
 
 log = logging.getLogger("insight.services.loop")
@@ -67,7 +72,7 @@ class LoopService:
             rows = self.data_repo.read_rows(config.table_name)
         except FileNotFoundError as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-        entries = self._prepare_entries(rows=rows, text_column=config.text_column, date_column=config.date_column)
+        entries = prepare_ticket_entries(rows=rows, text_column=config.text_column, date_column=config.date_column)
         if not entries:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -115,50 +120,6 @@ class LoopService:
                 detail=f"Colonnes manquantes dans {table_name}: {', '.join(missing)}",
             )
 
-    def _prepare_entries(self, *, rows: List[Dict[str, Any]], text_column: str, date_column: str) -> List[Dict[str, Any]]:
-        entries: list[dict[str, Any]] = []
-        for row in rows:
-            text_raw = row.get(text_column)
-            text_value = str(text_raw).strip() if text_raw is not None else ""
-            if not text_value:
-                continue
-            dt = self._parse_date(row.get(date_column))
-            if not dt:
-                log.warning("Ligne ignorée: date invalide (%r)", row.get(date_column))
-                continue
-            ticket_id = row.get("ticket_id") or row.get("id") or row.get("ref")
-            entries.append(
-                {
-                    "text": text_value,
-                    "date": dt,
-                    "ticket_id": ticket_id,
-                }
-            )
-        entries.sort(key=lambda item: item["date"], reverse=True)
-        log.info("Tickets préparés pour loop: %d", len(entries))
-        return entries
-
-    def _parse_date(self, raw: Any) -> date | None:
-        if raw is None:
-            return None
-        if isinstance(raw, date):
-            return raw
-        if isinstance(raw, datetime):
-            return raw.date()
-        text = str(raw).strip()
-        if not text:
-            return None
-        # Essais restreints pour rester explicites sur les formats acceptés
-        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S"):
-            try:
-                return datetime.strptime(text, fmt).date()
-            except ValueError:
-                continue
-        try:
-            return datetime.fromisoformat(text).date()
-        except ValueError:
-            return None
-
     def _group_by_week(self, entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         buckets: dict[tuple[int, int], list[dict[str, Any]]] = {}
         for item in entries:
@@ -205,54 +166,13 @@ class LoopService:
         limit = max(1, int(settings.loop_max_months))
         return groups[:limit]
 
-    def _format_context(self, items: List[Dict[str, Any]]) -> Tuple[List[str], bool]:
-        cap = max(1, int(settings.loop_max_tickets))
-        max_chars = max(32, int(settings.loop_ticket_text_max_chars))
-        trimmed = items[:cap]
-        lines: list[str] = []
-        for idx, item in enumerate(trimmed, start=1):
-            text = item["text"]
-            if len(text) > max_chars:
-                text = text[: max_chars - 1] + "…"
-            prefix = f"{item['date'].isoformat()}"
-            ticket_id = item.get("ticket_id")
-            if ticket_id:
-                prefix = f"{prefix} #{ticket_id}"
-            lines.append(f"{idx}. {prefix} — {text}")
-        return lines, len(items) > cap
-
-    def _chunk_items(self, items: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
-        max_tickets = max(1, int(settings.loop_max_tickets_per_call))
-        max_chars = max(1000, int(settings.loop_max_input_chars))
-        chunks: list[list[Dict[str, Any]]] = []
-        current: list[Dict[str, Any]] = []
-        current_chars = 0
-
-        def _ticket_cost(item: dict[str, Any]) -> int:
-            text = str(item.get("text") or "")
-            return min(len(text), settings.loop_ticket_text_max_chars)
-
-        for item in items:
-            cost = _ticket_cost(item)
-            if current and (len(current) >= max_tickets or (current_chars + cost) > max_chars):
-                chunks.append(current)
-                current = []
-                current_chars = 0
-            current.append(item)
-            current_chars += cost
-
-        if current:
-            chunks.append(current)
-
-        return chunks or [items]
-
     def _summarize_group(self, group: Dict[str, Any], *, kind: str) -> dict:
         items = group["items"]
-        chunks = self._chunk_items(items)
+        chunks = chunk_ticket_items(items)
         partial_summaries: list[str] = []
 
         for idx, chunk in enumerate(chunks, start=1):
-            lines, truncated = self._format_context(chunk)
+            lines, truncated = format_ticket_context(chunk)
             if truncated:
                 log.warning(
                     "Context %s %s tronqué à %d tickets (chunk=%d/%d total_chunk_tickets=%d)",

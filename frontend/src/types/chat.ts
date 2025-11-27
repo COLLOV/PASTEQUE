@@ -48,6 +48,10 @@ export interface ChatMetadata {
   exclude_tables?: string[]
   // Demander au serveur d'enregistrer ces exclusions comme valeur par défaut utilisateur
   save_as_default?: boolean
+  // Mode tickets: injecte un contexte de tickets borné par dates
+  ticket_mode?: boolean
+  tickets_from?: string
+  tickets_to?: string
   // Extension point
   [key: string]: unknown
 }
@@ -73,6 +77,8 @@ export interface ChatStreamMeta {
   // Tables effectivement actives côté serveur pour NL→SQL
   effective_tables?: string[]
   retrieval?: RetrievalDetails
+  ticket_context?: TicketContextMeta
+  ticket_context_error?: string
 }
 
 export interface ChatStreamDelta {
@@ -164,6 +170,16 @@ export interface RetrievalRow {
 export interface RetrievalDetails {
   rows: RetrievalRow[]
   round?: number
+}
+
+export interface TicketContextMeta {
+  period_label?: string
+  count?: number
+  total?: number
+  chunks?: number
+  table?: string
+  date_from?: string
+  date_to?: string
 }
 
 export interface FeedbackResponse {

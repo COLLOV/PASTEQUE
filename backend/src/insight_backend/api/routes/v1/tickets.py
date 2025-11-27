@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from ....core.config import settings, resolve_project_path
+from ....core.database import get_session
+from ....core.security import get_current_user, user_is_admin
+from ....models.user import User
+from ....repositories.loop_repository import LoopRepository
+from ....repositories.data_repository import DataRepository
+from ....repositories.user_table_permission_repository import UserTablePermissionRepository
+from ....services.ticket_context_service import TicketContextService
+from ....schemas.tickets import TicketContextMetadataResponse
+
+
+router = APIRouter(prefix="/tickets")
+
+
+def _service(session: Session) -> TicketContextService:
+    return TicketContextService(
+        loop_repo=LoopRepository(session),
+        data_repo=DataRepository(tables_dir=Path(resolve_project_path(settings.tables_dir))),
+    )
+
+
+@router.get("/context/metadata", response_model=TicketContextMetadataResponse)
+def get_ticket_context_metadata(  # type: ignore[valid-type]
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> TicketContextMetadataResponse:
+    allowed_tables = None
+    if not user_is_admin(current_user):
+        allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    service = _service(session)
+    meta = service.get_metadata(allowed_tables=allowed_tables)
+    return TicketContextMetadataResponse(
+        table=meta["table"],
+        text_column=meta["text_column"],
+        date_column=meta["date_column"],
+        date_min=meta["date_min"],
+        date_max=meta["date_max"],
+        total_count=meta["total_count"],
+    )
