@@ -139,6 +139,11 @@ cleanup() {
     wait "$FRONTEND_PID" 2>/dev/null || true
   fi
 
+  if [[ -n "${CONTAINER_RUNTIME:-}" && -n "${MINDSDB_CONTAINER_NAME:-}" ]]; then
+    echo "[start] Removing MindsDB container (${MINDSDB_CONTAINER_NAME})"
+    "$CONTAINER_RUNTIME" rm -f "$MINDSDB_CONTAINER_NAME" >/dev/null 2>&1 || true
+  fi
+
   exit "$code"
 }
 
