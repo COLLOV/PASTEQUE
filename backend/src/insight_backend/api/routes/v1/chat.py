@@ -45,8 +45,9 @@ _last_settings_update_ts_by_user: dict[int, float] = {}
 _MARKDOWN_SYSTEM_PROMPT = ChatMessage(
     role="system",
     content=(
-        "Formate toutes tes réponses en Markdown clair (titres concis, listes à puces, tableaux ou blocs de code "
-        "quand utile). Évite le HTML brut et les préambules verbeux."
+        "Formate toutes tes réponses en Markdown clair. Rédige en phrases complètes et synthétiques, pas en mots-clés. "
+        "Si tu utilises des listes, chaque puce doit être une phrase courte et explicite. Titres concis, tableaux ou blocs de code seulement si nécessaire. "
+        "Évite le HTML brut et les préambules verbeux."
     ),
 )
 
