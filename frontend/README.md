@@ -242,7 +242,7 @@ Personnalisation rapide:
 - API `GET /data/overview` : total par source et statistiques sur toutes les colonnes détectées (inférence des dates), en respectant les ACL.
 - Les colonnes Date / Category / Sub Category restent configurables par table via `/data/overview/{source}/column-roles` et pilotent les filtres/aperçus dans l’Explorer.
 
-### Dashboard
+### Graph
 
 - Cartes de statistiques avec icônes
 - Design en grille responsive

@@ -69,7 +69,7 @@ export default function Layout() {
                 Loop
               </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">
-                Dashboard
+                Graph
               </Button>
               {auth.isAdmin && (
                 <>
