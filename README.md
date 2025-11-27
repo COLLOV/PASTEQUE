@@ -112,6 +112,12 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.
 - Le backend applique ces restrictions pour les listings/ schémas (`GET /api/v1/data/...`) ainsi que pour le NL→SQL et les graphiques via `/api/v1/chat/*`: un utilisateur ne voit ni n’utilise de table qui ne lui a pas été accordée.
 
+### Loop – résumés hebdo/mensuels
+
+- Bouton « Loop » dans le header: affiche les résumés hebdomadaires et mensuels générés par l’agent `looper` (problèmes majeurs + plan d’action, réponses longues autorisées).
+- Panneau Admin → section « Loop »: choisir la table source et les colonnes texte/date des tickets, enregistrer, puis relancer la génération (`POST /api/v1/loop/regenerate`). Résultats persistés et visibles pour tous via `GET /api/v1/loop/overview`.
+- L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, etc.).
+
 ## Principes d’architecture
 
 - Routes HTTP minces -> délèguent à des services.

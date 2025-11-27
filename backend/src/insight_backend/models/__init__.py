@@ -2,6 +2,7 @@ from .user import User
 from .chart import Chart
 from .user_table_permission import UserTablePermission
 from .conversation import Conversation, ConversationMessage, ConversationEvent
+from .loop import LoopConfig, LoopSummary
 
 __all__ = [
     "User",
@@ -10,4 +11,6 @@ __all__ = [
     "Conversation",
     "ConversationMessage",
     "ConversationEvent",
+    "LoopConfig",
+    "LoopSummary",
 ]
