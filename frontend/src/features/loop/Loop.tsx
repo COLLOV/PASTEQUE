@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Card, Button, Loader } from '@/components/ui'
 import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
-import type { LoopOverview, LoopSummary } from '@/types/loop'
+import type { LoopOverview, LoopSummary, LoopTableOverview } from '@/types/loop'
 import { HiArrowPath, HiClock, HiOutlineDocumentText } from 'react-icons/hi2'
 import { marked, Renderer } from 'marked'
 
@@ -117,8 +117,6 @@ export default function Loop() {
     void fetchOverview()
   }, [fetchOverview])
 
-  const config = overview?.config ?? null
-
   return (
     <div className="max-w-7xl mx-auto animate-fade-in space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -126,8 +124,7 @@ export default function Loop() {
           <p className="text-sm uppercase tracking-wide text-primary-500">Loop</p>
           <h2 className="text-2xl font-bold text-primary-950">Résumés journaliers, hebdo & mensuels</h2>
           <p className="text-primary-600">
-            Synthèse des tickets par jour, semaine et mois, avec points majeurs et plan d'action. Quand il n'y a rien,
-            on vous le dit clairement.
+            Synthèses par table selon vos accès: jour, semaine, mois, avec points majeurs et plans d'action. Les périodes sans tickets sont signalées.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -154,46 +151,42 @@ export default function Loop() {
         </Card>
       ) : (
         <>
-          <Card variant="elevated" className="p-5 flex flex-col gap-2">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-              <div>
-                <p className="text-sm text-primary-500">Configuration actuelle</p>
-                {config ? (
-                  <div className="text-primary-900">
-                    <p className="font-semibold">{config.table_name}</p>
-                    <p className="text-sm text-primary-600">
-                      Colonne texte : <span className="font-medium">{config.text_column}</span> — Colonne date :{' '}
-                      <span className="font-medium">{config.date_column}</span>
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-primary-700">
-                    Aucune configuration définie. {isAdmin ? 'Renseignez les colonnes dans la vue Admin.' : 'Demandez à un administrateur de configurer les colonnes.'}
-                  </p>
-                )}
-              </div>
-              <div className="text-sm text-primary-600">
-                Dernière génération : <span className="font-medium text-primary-900">{formatDate(overview?.last_generated_at)}</span>
-              </div>
-            </div>
-          </Card>
-
-          {!config ? (
+          {(!overview?.items || overview.items.length === 0) ? (
             <Card variant="elevated" className="p-6">
               <p className="text-primary-700 text-sm">
-                Les résumés seront disponibles dès qu&apos;un administrateur aura choisi les colonnes de texte et de date dans la section
-                Admin &gt; Loop.
+                Aucune table Loop accessible pour votre compte. {isAdmin ? 'Ajoutez des configurations dans Admin > Loop.' : 'Contactez un administrateur pour obtenir l’accès à une table.'}
               </p>
             </Card>
           ) : (
             <div className="space-y-6">
-              <SummaryList
-                title="Vue journalière"
-                summaries={(overview?.daily ?? []).slice(0, 1)}
-                emptyText="Aucun ticket enregistré aujourd'hui."
-              />
-              <SummaryList title="Vue hebdomadaire" summaries={(overview?.weekly ?? []).slice(0, 1)} />
-              <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
+              {overview.items.map((item: LoopTableOverview) => (
+                <Card key={item.config.id} variant="elevated" className="p-5 space-y-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div>
+                      <p className="text-sm text-primary-500">Table</p>
+                      <h3 className="text-xl font-semibold text-primary-950">{item.config.table_name}</h3>
+                      <p className="text-sm text-primary-600">
+                        Colonne texte : <span className="font-medium">{item.config.text_column}</span> — Colonne date :{' '}
+                        <span className="font-medium">{item.config.date_column}</span>
+                      </p>
+                    </div>
+                    <div className="text-sm text-primary-600">
+                      Dernière génération :{' '}
+                      <span className="font-medium text-primary-900">{formatDate(item.config.last_generated_at ?? item.last_generated_at)}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <SummaryList
+                      title="Vue journalière"
+                      summaries={(item.daily ?? []).slice(0, 1)}
+                      emptyText="Aucun ticket enregistré aujourd'hui."
+                    />
+                    <SummaryList title="Vue hebdomadaire" summaries={(item.weekly ?? []).slice(0, 1)} />
+                    <SummaryList title="Vue mensuelle" summaries={(item.monthly ?? []).slice(0, 1)} />
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
         </>

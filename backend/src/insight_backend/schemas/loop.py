@@ -61,9 +61,13 @@ class LoopSummaryResponse(BaseModel):
         )
 
 
-class LoopOverviewResponse(BaseModel):
-    config: LoopConfigResponse | None
+class LoopTableOverviewResponse(BaseModel):
+    config: LoopConfigResponse
     daily: list[LoopSummaryResponse]
     weekly: list[LoopSummaryResponse]
     monthly: list[LoopSummaryResponse]
     last_generated_at: datetime | None = None
+
+
+class LoopOverviewResponse(BaseModel):
+    items: list[LoopTableOverviewResponse]

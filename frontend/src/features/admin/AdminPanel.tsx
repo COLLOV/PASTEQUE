@@ -11,7 +11,7 @@ import type {
   AdminResetPasswordResponse,
   AdminUsageStatsResponse,
 } from '@/types/user'
-import type { LoopConfig, LoopOverview, LoopConfigPayload } from '@/types/loop'
+import type { LoopConfig, LoopOverview, LoopConfigPayload, LoopTableOverview } from '@/types/loop'
 import { HiCheckCircle, HiXCircle, HiArrowPath } from 'react-icons/hi2'
 import DictionaryManager from './DictionaryManager'
 
@@ -52,7 +52,7 @@ export default function AdminPanel() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsError, setStatsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
-  const [loopConfig, setLoopConfig] = useState<LoopConfig | null>(null)
+  const [loopOverviewData, setLoopOverviewData] = useState<LoopOverview | null>(null)
   const [loopTables, setLoopTables] = useState<TableInfo[]>([])
   const [loopColumns, setLoopColumns] = useState<ColumnInfo[]>([])
   const [selectedTable, setSelectedTable] = useState('')
@@ -65,6 +65,9 @@ export default function AdminPanel() {
   const [loopRegenerating, setLoopRegenerating] = useState(false)
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
+  const loopItems: LoopTableOverview[] = loopOverviewData?.items ?? []
+  const selectedLoopConfig: LoopConfig | null =
+    loopItems.find(item => item.config.table_name === selectedTable)?.config ?? null
 
   const loadPermissions = useCallback(async () => {
     setPermissionsLoading(true)
@@ -123,38 +126,52 @@ export default function AdminPanel() {
     setLoopError('')
     try {
       const response = await apiFetch<LoopOverview>('/loop/overview')
-      const config = response?.config ?? null
-      setLoopConfig(config)
-      if (config) {
-        setSelectedTable(config.table_name)
-        setSelectedTextColumn(config.text_column)
-        setSelectedDateColumn(config.date_column)
-        await loadColumns(config.table_name)
+      const items = response?.items ?? []
+      setLoopOverviewData(response ?? { items: [] })
+
+      if (items.length === 0) {
+        setSelectedTable('')
+        setSelectedTextColumn('')
+        setSelectedDateColumn('')
+        setLoopColumns([])
+        return
+      }
+
+      const hasSelection = selectedTable && items.some(item => item.config.table_name === selectedTable)
+      const nextTable = hasSelection ? selectedTable : items[0]?.config.table_name ?? ''
+      const matched = items.find(item => item.config.table_name === nextTable)
+
+      setSelectedTable(nextTable)
+      setSelectedTextColumn(matched?.config.text_column ?? '')
+      setSelectedDateColumn(matched?.config.date_column ?? '')
+      if (nextTable) {
+        await loadColumns(nextTable)
       }
     } catch (err) {
       setLoopError(err instanceof Error ? err.message : 'Chargement Loop impossible.')
     } finally {
       setLoopLoading(false)
     }
-  }, [loadColumns])
+  }, [loadColumns, selectedTable])
 
   useEffect(() => {
     void loadPermissions()
     void loadStats()
     void loadTables()
     void loadLoopOverview()
-  }, [loadPermissions, loadStats, loadTables, loadLoopOverview])
+  }, [loadPermissions, loadStats, loadTables])
 
   const handleTableChange = useCallback(
     (value: string) => {
       setSelectedTable(value)
-      setSelectedTextColumn('')
-      setSelectedDateColumn('')
+      const matched = loopOverviewData?.items?.find(item => item.config.table_name === value)
+      setSelectedTextColumn(matched?.config.text_column ?? '')
+      setSelectedDateColumn(matched?.config.date_column ?? '')
       setLoopStatus(null)
       setLoopError('')
       void loadColumns(value)
     },
-    [loadColumns]
+    [loadColumns, loopOverviewData]
   )
 
   async function handleSaveLoopConfig() {
@@ -171,12 +188,12 @@ export default function AdminPanel() {
         text_column: selectedTextColumn,
         date_column: selectedDateColumn,
       }
-      const response = await apiFetch<LoopConfig>('/loop/config', {
+      await apiFetch<LoopConfig>('/loop/config', {
         method: 'PUT',
         body: JSON.stringify(payload),
       })
-      setLoopConfig(response ?? null)
-      setLoopStatus({ type: 'success', message: 'Configuration Loop enregistrée.' })
+      setLoopStatus({ type: 'success', message: `Configuration Loop enregistrée pour ${selectedTable}.` })
+      await loadLoopOverview()
     } catch (err) {
       setLoopStatus({
         type: 'error',
@@ -187,8 +204,8 @@ export default function AdminPanel() {
     }
   }
 
-  async function handleRegenerateLoop() {
-    if (!loopConfig) {
+  async function handleRegenerateLoop(tableName?: string) {
+    if (!loopOverviewData?.items?.length && !tableName) {
       setLoopStatus({ type: 'error', message: 'Configurez Loop avant de régénérer.' })
       return
     }
@@ -196,17 +213,25 @@ export default function AdminPanel() {
     setLoopRegenerating(true)
     setLoopStatus(null)
     try {
-      const response = await apiFetch<LoopOverview>('/loop/regenerate', {
+      const url = tableName
+        ? `/loop/regenerate?table_name=${encodeURIComponent(tableName)}`
+        : '/loop/regenerate'
+      const response = await apiFetch<LoopOverview>(url, {
         method: 'POST',
       })
-      const config = response?.config ?? null
-      setLoopConfig(config)
-      if (config) {
-        setSelectedTable(config.table_name)
-        setSelectedTextColumn(config.text_column)
-        setSelectedDateColumn(config.date_column)
+      const items = response?.items ?? []
+      setLoopOverviewData(response ?? { items: [] })
+      if (items.length > 0) {
+        const nextTable = tableName && items.some(item => item.config.table_name === tableName)
+          ? tableName
+          : selectedTable || items[0].config.table_name
+        const matched = items.find(item => item.config.table_name === nextTable)
+        setSelectedTable(nextTable)
+        setSelectedTextColumn(matched?.config.text_column ?? '')
+        setSelectedDateColumn(matched?.config.date_column ?? '')
       }
-      setLoopStatus({ type: 'success', message: 'Résumés Loop régénérés.' })
+      const label = tableName ? `Résumés Loop régénérés pour ${tableName}.` : 'Résumés Loop régénérés pour toutes les tables.'
+      setLoopStatus({ type: 'success', message: label })
     } catch (err) {
       setLoopStatus({
         type: 'error',
@@ -597,14 +622,11 @@ export default function AdminPanel() {
           <div>
             <h3 className="text-lg font-semibold text-primary-950">Loop – résumés tickets</h3>
             <p className="text-sm text-primary-600">
-              Sélectionnez la table et les colonnes utilisées pour générer les résumés hebdomadaires et mensuels.
+              Configurez plusieurs tables (colonne texte + date) pour générer des résumés journaliers, hebdomadaires et mensuels.
             </p>
           </div>
           <div className="text-sm text-primary-600">
-            Dernière génération :{' '}
-            <span className="font-medium text-primary-900">
-              {formatDate(loopConfig?.last_generated_at)}
-            </span>
+            Table sélectionnée : <span className="font-medium text-primary-900">{selectedTable || '—'}</span>
           </div>
         </div>
 
@@ -694,7 +716,7 @@ export default function AdminPanel() {
                   </select>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <Button
                   type="button"
                   variant="secondary"
@@ -703,42 +725,84 @@ export default function AdminPanel() {
                 >
                   {loopSaving ? 'Enregistrement…' : 'Enregistrer la configuration'}
                 </Button>
+                <p className="text-xs text-primary-500">
+                  Dernière génération (table sélectionnée) :{' '}
+                  <span className="font-semibold text-primary-800">{formatDate(selectedLoopConfig?.last_generated_at)}</span>
+                </p>
               </div>
             </div>
-            <div className="space-y-3 md:border-l md:border-primary-100 md:pl-6 pt-4 md:pt-0">
+            <div className="space-y-4 md:border-l md:border-primary-100 md:pl-6 pt-4 md:pt-0">
               <p className="text-sm text-primary-700">
-                Régénérez les résumés hebdomadaires et mensuels à partir de la configuration courante.
-                Les résultats seront visibles dans l&apos;onglet « Loop ».
+                Régénérez les résumés (jour/hebdo/mois) par table ou sur l’ensemble des tables configurées. Les résultats sont filtrés automatiquement selon les droits d’accès aux tables.
               </p>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleRegenerateLoop}
-                disabled={loopRegenerating || loopSaving || loopLoading}
-                className="inline-flex items-center gap-2"
-              >
-                {loopRegenerating ? (
-                  <>
-                    <HiArrowPath className="w-4 h-4 animate-spin" />
-                    Régénération…
-                  </>
-                ) : (
-                  <>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => handleRegenerateLoop()}
+                  disabled={loopRegenerating || loopSaving || loopLoading || loopItems.length === 0}
+                  className="inline-flex items-center gap-2"
+                >
+                  {loopRegenerating ? (
+                    <>
+                      <HiArrowPath className="w-4 h-4 animate-spin" />
+                      Régénération…
+                    </>
+                  ) : (
+                    <>
+                      <HiArrowPath className="w-4 h-4" />
+                      Régénérer toutes les tables
+                    </>
+                  )}
+                </Button>
+                {selectedTable && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => handleRegenerateLoop(selectedTable)}
+                    disabled={loopRegenerating || loopSaving || loopLoading}
+                    className="inline-flex items-center gap-2"
+                  >
                     <HiArrowPath className="w-4 h-4" />
-                    Régénérer les résumés
-                  </>
+                    Régénérer {selectedTable}
+                  </Button>
                 )}
-              </Button>
-              {loopConfig ? (
-                <p className="text-xs text-primary-500">
-                  Table : <span className="font-semibold text-primary-800">{loopConfig.table_name}</span> — texte :{' '}
-                  {loopConfig.text_column} — date : {loopConfig.date_column}
-                </p>
-              ) : (
-                <p className="text-xs text-primary-500">
-                  Configurez Loop pour activer la génération.
-                </p>
-              )}
+              </div>
+              <div className="space-y-2">
+                {loopItems.length === 0 ? (
+                  <p className="text-xs text-primary-500">Configurez au moins une table pour activer la génération Loop.</p>
+                ) : (
+                  loopItems.map(item => (
+                    <div
+                      key={item.config.id}
+                      className="rounded-md border border-primary-100 bg-primary-25 px-3 py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-primary-900">{item.config.table_name}</p>
+                          <p className="text-xs text-primary-600">
+                            Texte : {item.config.text_column} — Date : {item.config.date_column}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRegenerateLoop(item.config.table_name)}
+                          disabled={loopRegenerating || loopSaving || loopLoading}
+                          className="inline-flex items-center gap-1"
+                        >
+                          <HiArrowPath className="w-4 h-4" />
+                          Régénérer
+                        </Button>
+                      </div>
+                      <p className="text-xs text-primary-500">
+                        Dernière génération : {formatDate(item.config.last_generated_at ?? item.last_generated_at)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
