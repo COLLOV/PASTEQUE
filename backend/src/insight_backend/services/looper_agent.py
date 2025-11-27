@@ -51,8 +51,9 @@ class LooperAgent:
         system_prompt = (
             "Tu es en charge du suivi récurrent des tickets. "
             "À partir des tickets fournis pour la période indiquée, rédige en français un résumé structuré et riche. "
-            "Commence par les problèmes majeurs à résoudre (2-4 points précis, avec fréquence si visible), "
-            "puis propose un plan d'action concret et priorisé. "
+            "Commence par un bref paragraphe synthétique (3-4 phrases) qui capture l'état global, puis enchaîne avec "
+            "les problèmes majeurs à résoudre (2-4 points précis, avec fréquence si visible) et termine par un plan "
+            "d'action concret et priorisé. Mets en avant les points critiques (impact fort, récurrence élevée) de façon explicite. "
             "Reste fidèle aux tickets et n'invente rien. "
             "Format attendu: Markdown clair (titres ou sous-titres optionnels), listes à puces '-', sections en gras "
             "(ex: **Problèmes majeurs**), pas de blocs de code ni de tableaux."
