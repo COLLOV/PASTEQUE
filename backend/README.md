@@ -171,6 +171,7 @@ Par défaut, toutes les requêtes HTTP vers le backend LLM OpenAI‑compatible (
 - `LLM_VERIFY_SSL=false`: désactive la vérification TLS pour le client LLM (utilise `verify=False` côté HTTP). **À n'utiliser que dans un environnement contrôlé** lorsque vous devez contourner un certificat auto‑signé ou une chaîne incomplète.
 
 Lorsque `LLM_VERIFY_SSL=false`, un avertissement explicite est journalisé par `insight.integrations.openai` au démarrage du client.
+Ce flag s'applique aussi aux appels LLM utilisés par l'agent MCP `chart`.
 
 ### Mise en avant RAG
 
