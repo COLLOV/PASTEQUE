@@ -100,7 +100,7 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 ### Gestion des utilisateurs (admin)
 
 - Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Nouveau chat**, **Historique**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
-- L’espace admin est découpé en onglets (Statistiques, Dictionnaire, Loop, Utilisateurs, Feedback). L’ancien chemin `/feedback` redirige vers l’onglet Feedback pour centraliser la revue des avis.
+- L’espace admin est découpé en onglets (Statistiques, Dictionnaire, Radar, Utilisateurs, Feedback). L’ancien chemin `/feedback` redirige vers l’onglet Feedback pour centraliser la revue des avis.
 - Tout nouvel utilisateur (y compris l’administrateur initial) doit définir un mot de passe définitif lors de sa première connexion. Le backend retourne un code `PASSWORD_RESET_REQUIRED` si un utilisateur tente de se connecter avec son mot de passe provisoire: le frontend affiche alors un formulaire dédié qui impose la saisie du nouveau mot de passe deux fois avant de poursuivre.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 - L’API `POST /api/v1/auth/reset-password` (sans jeton) attend `{ username, current_password, new_password, confirm_password }`. En cas de succès elle renvoie `204` ; le frontend relance automatiquement la connexion avec le nouveau secret.
@@ -134,10 +134,10 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Les tuiles de synthèse (sources/couples/sélection) ont été retirées de la Vue IA pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
 - Les catégories sont maintenant sélectionnables via un dropdown, avec un filtre texte pour cibler les sous-catégories affichées dans une liste scrollable.
 
-### Loop – résumés journaliers/hebdo/mensuels
+### Radar – résumés journaliers/hebdo/mensuels
 
-- Bouton « Loop » dans le header: affiche les résumés journaliers (mention explicite lorsqu’aucun ticket n’est enregistré ce jour), hebdomadaires et mensuels générés par l’agent `looper`. Les tables visibles sont filtrées selon les droits `user_table_permissions`.
-- Panneau Admin → section « Loop »: configurer plusieurs tables (colonnes texte/date), puis relancer la génération pour une table donnée ou pour toutes (`POST /api/v1/loop/regenerate?table_name=...`). Résultats persistés et visibles via `GET /api/v1/loop/overview`.
+- Bouton « Radar » dans le header: affiche les résumés journaliers (mention explicite lorsqu’aucun ticket n’est enregistré ce jour), hebdomadaires et mensuels générés par l’agent `looper`. Les tables visibles sont filtrées selon les droits `user_table_permissions`.
+- Panneau Admin → section « Radar »: configurer plusieurs tables (colonnes texte/date), puis relancer la génération pour une table donnée ou pour toutes (`POST /api/v1/loop/regenerate?table_name=...`). Résultats persistés et visibles via `GET /api/v1/loop/overview`.
 - L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, `LOOP_MAX_DAYS/WEEKS/MONTHS` par défaut à 1, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`, etc.).
 
 ## Principes d’architecture

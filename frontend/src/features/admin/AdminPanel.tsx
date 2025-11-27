@@ -49,7 +49,7 @@ const TAB_KEYS = new Set<TabKey>(['stats', 'dictionary', 'loop', 'users', 'feedb
 const TAB_ITEMS: { key: TabKey; label: string }[] = [
   { key: 'stats', label: 'Statistiques' },
   { key: 'dictionary', label: 'Dictionnaire' },
-  { key: 'loop', label: 'Loop' },
+  { key: 'loop', label: 'Radar' },
   { key: 'users', label: 'Utilisateurs' },
   { key: 'feedback', label: 'Feedback' },
 ]
@@ -192,7 +192,7 @@ export default function AdminPanel() {
         await loadColumns(nextTable)
       }
     } catch (err) {
-      setLoopError(err instanceof Error ? err.message : 'Chargement Loop impossible.')
+      setLoopError(err instanceof Error ? err.message : 'Chargement Radar impossible.')
     } finally {
       setLoopLoading(false)
     }
@@ -236,7 +236,7 @@ export default function AdminPanel() {
         method: 'PUT',
         body: JSON.stringify(payload),
       })
-      setLoopStatus({ type: 'success', message: `Configuration Loop enregistrée pour ${selectedTable}.` })
+      setLoopStatus({ type: 'success', message: `Configuration Radar enregistrée pour ${selectedTable}.` })
       await loadLoopOverview()
     } catch (err) {
       setLoopStatus({
@@ -250,7 +250,7 @@ export default function AdminPanel() {
 
   async function handleRegenerateLoop(tableName?: string) {
     if (!loopOverviewData?.items?.length && !tableName) {
-      setLoopStatus({ type: 'error', message: 'Configurez Loop avant de régénérer.' })
+      setLoopStatus({ type: 'error', message: 'Configurez Radar avant de régénérer.' })
       return
     }
     setLoopError('')
@@ -274,7 +274,7 @@ export default function AdminPanel() {
         setSelectedTextColumn(matched?.config.text_column ?? '')
         setSelectedDateColumn(matched?.config.date_column ?? '')
       }
-      const label = tableName ? `Résumés Loop régénérés pour ${tableName}.` : 'Résumés Loop régénérés pour toutes les tables.'
+      const label = tableName ? `Résumés Radar régénérés pour ${tableName}.` : 'Résumés Radar régénérés pour toutes les tables.'
       setLoopStatus({ type: 'success', message: label })
     } catch (err) {
       setLoopStatus({
@@ -687,9 +687,9 @@ export default function AdminPanel() {
       <Card variant="elevated">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary-950">Loop – résumés tickets</h3>
+            <h3 className="text-lg font-semibold text-primary-950">Radar – résumés tickets</h3>
             <p className="text-sm text-primary-600">
-              Configurez plusieurs tables (colonne texte + date) pour générer des résumés journaliers, hebdomadaires et mensuels.
+              Configurez Radar sur plusieurs tables (colonne texte + date) pour générer des résumés journaliers, hebdomadaires et mensuels.
             </p>
           </div>
           <div className="text-sm text-primary-600">
@@ -722,7 +722,7 @@ export default function AdminPanel() {
 
         {loopLoading ? (
           <div className="py-8 flex justify-center">
-            <Loader text="Chargement de la configuration Loop…" />
+            <Loader text="Chargement de la configuration Radar…" />
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
@@ -837,7 +837,7 @@ export default function AdminPanel() {
               </div>
               <div className="space-y-2">
                 {loopItems.length === 0 ? (
-                  <p className="text-xs text-primary-500">Configurez au moins une table pour activer la génération Loop.</p>
+                  <p className="text-xs text-primary-500">Configurez au moins une table pour activer la génération Radar.</p>
                 ) : (
                   loopItems.map(item => (
                     <div
