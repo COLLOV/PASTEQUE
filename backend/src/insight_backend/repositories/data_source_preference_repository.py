@@ -18,6 +18,7 @@ class DataSourcePreferences:
     date_field: str | None
     category_field: str | None
     sub_category_field: str | None
+    ia_enabled: bool
 
 
 class DataSourcePreferenceRepository:
@@ -68,6 +69,7 @@ class DataSourcePreferenceRepository:
                 date_field=self._clean_optional_name(pref.date_field),
                 category_field=self._clean_optional_name(pref.category_field),
                 sub_category_field=self._clean_optional_name(pref.sub_category_field),
+                ia_enabled=bool(pref.ia_enabled),
             )
         log.debug("Loaded data source preferences for %d sources", len(result))
         return result
@@ -81,7 +83,7 @@ class DataSourcePreferenceRepository:
             .one_or_none()
         )
         if pref is None:
-            pref = DataSourcePreference(source=source, hidden_fields=cleaned)
+            pref = DataSourcePreference(source=source, hidden_fields=cleaned, ia_enabled=False)
             self.session.add(pref)
         else:
             pref.hidden_fields = cleaned
@@ -96,10 +98,12 @@ class DataSourcePreferenceRepository:
         date_field: str | None,
         category_field: str | None,
         sub_category_field: str | None,
+        ia_enabled: bool | None = None,
     ) -> DataSourcePreferences:
         date_clean = self._clean_optional_name(date_field)
         category_clean = self._clean_optional_name(category_field)
         sub_category_clean = self._clean_optional_name(sub_category_field)
+        enabled_value = bool(ia_enabled) if ia_enabled is not None else None
 
         pref = (
             self.session.query(DataSourcePreference)
@@ -113,24 +117,29 @@ class DataSourcePreferenceRepository:
                 date_field=date_clean,
                 category_field=category_clean,
                 sub_category_field=sub_category_clean,
+                ia_enabled=enabled_value if enabled_value is not None else False,
             )
             self.session.add(pref)
         else:
             pref.date_field = date_clean
             pref.category_field = category_clean
             pref.sub_category_field = sub_category_clean
+            if enabled_value is not None:
+                pref.ia_enabled = enabled_value
 
         updated = DataSourcePreferences(
             hidden_fields=self._clean_hidden_fields(pref.hidden_fields),
             date_field=date_clean,
             category_field=category_clean,
             sub_category_field=sub_category_clean,
+            ia_enabled=bool(pref.ia_enabled),
         )
         log.info(
-            "Updated column roles for source=%s (date=%s, category=%s, sub_category=%s)",
+            "Updated column roles for source=%s (date=%s, category=%s, sub_category=%s, ia_enabled=%s)",
             source,
             date_clean,
             category_clean,
             sub_category_clean,
+            updated.ia_enabled,
         )
         return updated

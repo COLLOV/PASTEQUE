@@ -67,6 +67,7 @@ L’onglet Explorer du frontend consomme principalement:
 - `GET /api/v1/data/overview` — vue globale des tables autorisées (sources) avec, pour chaque table:
   - `fields`: statistiques par colonne (détection de dates, distributions, champs masqués, etc.).
   - `category_breakdown`: liste de triplets `{ category, sub_category, count }` calculés à partir des colonnes `Category` et `Sub Category` si elles existent dans la table.
+- L’administrateur doit activer explicitement chaque table pour l’IA/Explorer et mapper les colonnes `date` / `category` / `sub_category` via `PUT /data/overview/{source}/column-roles` (champ `ia_enabled`). Les tables non activées ne sont pas parcourues (aperçu léger basé sur le schéma pour l’admin, invisibles pour les autres).
 - `GET /api/v1/data/explore/{source}?category=...&sub_category=...&limit=50` — aperçu des lignes correspondant au couple Category/Sub Category sélectionné dans le graphique de la table:
   - `matching_rows`: nombre total de lignes correspondantes dans la table.
   - `preview_columns`: ordre des colonnes dans l’aperçu.

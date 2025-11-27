@@ -40,6 +40,7 @@ type ColumnRoleSelection = {
   date_field: string | null
   category_field: string | null
   sub_category_field: string | null
+  ia_enabled: boolean
 }
 type ColumnRolesState = Record<string, ColumnRoleSelection>
 
@@ -134,6 +135,7 @@ export default function Explorer() {
         date_field: src.date_field ?? null,
         category_field: src.category_field ?? null,
         sub_category_field: src.sub_category_field ?? null,
+        ia_enabled: Boolean(src.ia_enabled),
       }
     })
     setColumnRoles(next)
@@ -224,6 +226,7 @@ export default function Explorer() {
       date_field: roles.date_field ?? null,
       category_field: roles.category_field ?? null,
       sub_category_field: roles.sub_category_field ?? null,
+      ia_enabled: roles.ia_enabled ?? false,
     }
 
     try {
@@ -241,6 +244,7 @@ export default function Explorer() {
           date_field: updated.date_field ?? null,
           category_field: updated.category_field ?? null,
           sub_category_field: updated.sub_category_field ?? null,
+          ia_enabled: Boolean(updated.ia_enabled),
         },
       }))
       await fetchOverview(false)
@@ -349,6 +353,7 @@ export default function Explorer() {
                 date_field: source.date_field ?? null,
                 category_field: source.category_field ?? null,
                 sub_category_field: source.sub_category_field ?? null,
+                ia_enabled: Boolean(source.ia_enabled),
               }}
               onUpdateRoles={roles => persistColumnRoles(source.source, roles)}
               onToggleField={(field, visible) => toggleFieldVisibility(source.source, field, visible)}
@@ -417,7 +422,10 @@ function SourceCard({
   const [preview, setPreview] = useState<TableExplorePreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState('')
-  const [rolesDraft, setRolesDraft] = useState<ColumnRoleSelection>(columnRoles)
+  const [rolesDraft, setRolesDraft] = useState<ColumnRoleSelection>({
+    ...columnRoles,
+    ia_enabled: Boolean(columnRoles.ia_enabled),
+  })
   const [rolesError, setRolesError] = useState('')
 
   const hasCategoryChart =
@@ -448,12 +456,22 @@ function SourceCard({
   }
 
   useEffect(() => {
-    setRolesDraft(columnRoles)
+    setRolesDraft({
+      ...columnRoles,
+      ia_enabled: Boolean(columnRoles.ia_enabled),
+    })
   }, [columnRoles])
 
   const handleSaveRoles = () => {
-    if ((rolesDraft.category_field && !rolesDraft.sub_category_field) || (rolesDraft.sub_category_field && !rolesDraft.category_field)) {
+    if (
+      (rolesDraft.category_field && !rolesDraft.sub_category_field) ||
+      (rolesDraft.sub_category_field && !rolesDraft.category_field)
+    ) {
       setRolesError('Choisissez une catégorie ET une sous-catégorie ou aucune des deux.')
+      return
+    }
+    if (rolesDraft.ia_enabled && (!rolesDraft.category_field || !rolesDraft.sub_category_field)) {
+      setRolesError("Activez uniquement après avoir défini Category et Sub Category.")
       return
     }
     setRolesError('')
@@ -502,6 +520,11 @@ function SourceCard({
           id={`source-${source.source}`}
           className="px-5 pb-5 pt-4 space-y-4 border-t border-primary-100 bg-white"
         >
+          {!source.ia_enabled ? (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
+              Table désactivée pour l’IA/Explorer. Activez-la après avoir choisi les colonnes.
+            </div>
+          ) : null}
           {isAdmin ? (
             <ColumnRolesSelector
               fields={source.fields ?? []}
@@ -764,20 +787,20 @@ function ColumnRolesSelector({
 }) {
   const fieldNames = useMemo(() => fields.map(field => field.field), [fields])
 
-  const handleChange = (key: keyof ColumnRoleSelection, nextValue: string) => {
+  const handleFieldChange = (key: 'date_field' | 'category_field' | 'sub_category_field', nextValue: string) => {
     onChange({
       ...value,
       [key]: nextValue ? nextValue : null,
     })
   }
 
-  const renderSelect = (label: string, key: keyof ColumnRoleSelection) => (
+  const renderFieldSelect = (label: string, key: 'date_field' | 'category_field' | 'sub_category_field') => (
     <label className="flex flex-col gap-1 text-xs text-primary-700">
       <span className="font-semibold text-primary-800">{label}</span>
       <select
         className="h-9 rounded-md border border-primary-200 bg-white px-2 text-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
         value={value[key] ?? ''}
-        onChange={e => handleChange(key, e.target.value)}
+        onChange={e => handleFieldChange(key, e.target.value)}
         disabled={disabled}
       >
         <option value="">Aucune</option>
@@ -801,10 +824,28 @@ function ColumnRolesSelector({
           Enregistrer
         </Button>
       </div>
+      <label className="flex items-center gap-2 text-sm text-primary-800">
+        <input
+          type="checkbox"
+          className="h-4 w-4"
+          checked={Boolean(value.ia_enabled)}
+          onChange={e =>
+            onChange({
+              ...value,
+              ia_enabled: e.target.checked,
+            })
+          }
+          disabled={disabled}
+        />
+        <span>Activer cette table pour l’IA / Explorer</span>
+      </label>
+      <p className="text-[11px] text-primary-500">
+        Activez uniquement après avoir mappé la date, la catégorie et la sous-catégorie.
+      </p>
       <div className="grid gap-2 sm:grid-cols-3">
-        {renderSelect('Colonne date', 'date_field')}
-        {renderSelect('Category', 'category_field')}
-        {renderSelect('Sub Category', 'sub_category_field')}
+        {renderFieldSelect('Colonne date', 'date_field')}
+        {renderFieldSelect('Category', 'category_field')}
+        {renderFieldSelect('Sub Category', 'sub_category_field')}
       </div>
       {error ? <p className="text-[11px] text-red-600">{error}</p> : null}
     </div>

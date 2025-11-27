@@ -245,6 +245,7 @@ Personnalisation rapide:
 - Si la table contient les colonnes `Category` et `Sub Category`, un graphique empilé (Category en abscisse, segments Sub Category) est affiché en haut de la carte:
   - passer la souris affiche le nombre d’enregistrements par couple;
   - un clic sur un segment interroge `GET /data/explore/{source}?category=...&sub_category=...` et affiche un aperçu des lignes correspondantes directement sous le graphique.
+- L’admin doit activer explicitement une table pour l’IA/Explorer (`ia_enabled`) et mapper les colonnes date/category/sub_category dans le bloc « Colonnes clés » avant qu’elle soit traitée; les tables inactives restent visibles pour l’admin avec un aperçu léger (schéma), mais ne déclenchent plus de préprocessing global.
 
 ### Dashboard
 

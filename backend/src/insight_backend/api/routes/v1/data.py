@@ -83,7 +83,9 @@ def get_data_overview(  # type: ignore[valid-type]
         )
         for source, pref in preferences.items()
     }
+    enabled_map = {source: pref.ia_enabled for source, pref in preferences.items()}
     include_hidden = user_is_admin(current_user)
+    include_disabled = user_is_admin(current_user)
     try:
         return _service.get_overview(
             allowed_tables=allowed,
@@ -92,6 +94,8 @@ def get_data_overview(  # type: ignore[valid-type]
             column_roles_by_source=column_roles_map,
             date_from=date_from,
             date_to=date_to,
+            ia_enabled_by_source=enabled_map,
+            include_disabled=include_disabled,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -189,11 +193,20 @@ def update_column_roles(  # type: ignore[valid-type]
     category_field = _validate(payload.category_field, "category_field")
     sub_category_field = _validate(payload.sub_category_field, "sub_category_field")
 
+    ia_enabled = bool(payload.ia_enabled) if payload.ia_enabled is not None else None
+
     if (category_field and not sub_category_field) or (sub_category_field and not category_field):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Sélectionnez à la fois une catégorie et une sous-catégorie ou aucune des deux.",
         )
+
+    if ia_enabled:
+        if not category_field or not sub_category_field:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Activez l'IA uniquement après avoir défini les colonnes category/sub_category.",
+            )
 
     repo = DataSourcePreferenceRepository(session)
     updated = repo.set_column_roles(
@@ -201,6 +214,7 @@ def update_column_roles(  # type: ignore[valid-type]
         date_field=date_field,
         category_field=category_field,
         sub_category_field=sub_category_field,
+        ia_enabled=ia_enabled,
     )
     session.commit()
 
@@ -209,6 +223,7 @@ def update_column_roles(  # type: ignore[valid-type]
         date_field=updated.date_field,
         category_field=updated.category_field,
         sub_category_field=updated.sub_category_field,
+        ia_enabled=updated.ia_enabled,
     )
 
 
@@ -245,7 +260,9 @@ def explore_table(  # type: ignore[valid-type]
     normalized_roles = {name.casefold(): pref for name, pref in preferences.items()}
     roles = normalized_roles.get(source.casefold())
     column_roles = None
+    ia_enabled = False
     if roles:
+        ia_enabled = roles.ia_enabled
         column_roles = ColumnRoles(
             date_field=roles.date_field,
             category_field=roles.category_field,
@@ -264,6 +281,7 @@ def explore_table(  # type: ignore[valid-type]
             date_to=date_to,
             allowed_tables=allowed,
             column_roles=column_roles,
+            ia_enabled=ia_enabled,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))

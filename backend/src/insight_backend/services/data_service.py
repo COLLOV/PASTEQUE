@@ -169,6 +169,8 @@ class DataService:
         column_roles_by_source: Mapping[str, ColumnRoles] | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
+        ia_enabled_by_source: Mapping[str, bool] | None = None,
+        include_disabled: bool = False,
     ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
@@ -193,16 +195,47 @@ class DataService:
             for name, roles in (column_roles_by_source or {}).items()
         }
 
+        enabled_lookup: Mapping[str, bool] | None = None
+        if ia_enabled_by_source is not None:
+            enabled_lookup = {
+                (name.casefold() if hasattr(name, "casefold") else str(name)): enabled
+                for name, enabled in ia_enabled_by_source.items()
+            }
+
         sources: list[DataSourceOverview] = []
         for name in table_names:
             hidden_for_table = hidden_lookup.get(name.casefold(), set())
+            enabled = True
+            if enabled_lookup is not None:
+                enabled = enabled_lookup.get(name.casefold(), False)
+            column_roles = roles_lookup.get(name.casefold())
+
+            if not enabled:
+                if include_disabled:
+                    placeholder = self._build_placeholder_overview(
+                        table_name=name,
+                        hidden_fields=hidden_for_table,
+                        include_hidden_fields=include_hidden_fields,
+                        column_roles=column_roles,
+                    )
+                    if placeholder:
+                        sources.append(placeholder)
+                continue
+
+            if enabled_lookup is not None:
+                if not column_roles or not (column_roles.category_field and column_roles.sub_category_field):
+                    raise ValueError(
+                        f"Configurez category_field et sub_category_field pour la table activée {name}."
+                    )
+
             overview = self._compute_table_overview(
                 table_name=name,
                 hidden_fields=hidden_for_table,
                 include_hidden_fields=include_hidden_fields,
-                column_roles=roles_lookup.get(name.casefold()),
+                column_roles=column_roles,
                 date_from=normalized_from,
                 date_to=normalized_to,
+                ia_enabled=enabled,
             )
             if overview:
                 sources.append(overview)
@@ -218,6 +251,7 @@ class DataService:
         column_roles: ColumnRoles | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
+        ia_enabled: bool = True,
     ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
@@ -364,6 +398,54 @@ class DataService:
             date_field=date_field,
             category_field=category_field,
             sub_category_field=sub_category_field,
+            ia_enabled=ia_enabled,
+        )
+
+    def _build_placeholder_overview(
+        self,
+        *,
+        table_name: str,
+        hidden_fields: Collection[str] | None,
+        include_hidden_fields: bool,
+        column_roles: ColumnRoles | None = None,
+    ) -> DataSourceOverview | None:
+        try:
+            schema = self.repo.get_schema(table_name)
+        except FileNotFoundError:
+            log.warning("Table introuvable pour le placeholder: %s", table_name)
+            return None
+
+        hidden_set = set(hidden_fields or [])
+        fields: list[FieldBreakdown] = []
+        for name, _ in schema:
+            is_hidden = name in hidden_set
+            if not include_hidden_fields and is_hidden:
+                continue
+            fields.append(
+                FieldBreakdown(
+                    field=name,
+                    label=name,
+                    kind="unknown",
+                    non_null=0,
+                    missing_values=0,
+                    unique_values=0,
+                    counts=[],
+                    truncated=False,
+                    hidden=is_hidden,
+                )
+            )
+
+        return DataSourceOverview(
+            source=table_name,
+            title=TABLE_TITLES.get(table_name, table_name),
+            total_rows=0,
+            field_count=len(schema),
+            fields=fields,
+            date_field=column_roles.date_field if column_roles else None,
+            category_field=column_roles.category_field if column_roles else None,
+            sub_category_field=column_roles.sub_category_field if column_roles else None,
+            ia_enabled=False,
+            disabled_reason="Table désactivée par l'administrateur pour l'IA/Explorer",
         )
 
     def explore_table(
@@ -379,12 +461,16 @@ class DataService:
         date_to: str | None = None,
         allowed_tables: Iterable[str] | None = None,
         column_roles: ColumnRoles | None = None,
+        ia_enabled: bool | None = None,
     ) -> TableExplorePreview:
         if allowed_tables is not None:
             allowed_set = {name.casefold() for name in allowed_tables}
             if table_name.casefold() not in allowed_set:
                 log.warning("Permission denied for explore access table=%s", table_name)
                 raise PermissionError(f"Access to table '{table_name}' is not permitted")
+
+        if ia_enabled is False:
+            raise ValueError("Table désactivée par l'administrateur pour l'IA/Explorer.")
 
         if limit < 1 or limit > 500:
             raise ValueError("Paramètre 'limit' invalide (doit être entre 1 et 500)")
@@ -428,6 +514,11 @@ class DataService:
                 )
 
             roles = column_roles or ColumnRoles()
+            require_roles = ia_enabled is not None
+            if require_roles and not (roles.category_field and roles.sub_category_field):
+                raise ValueError(
+                    "Configurez category_field et sub_category_field via l'administration avant d'explorer cette table."
+                )
             headers_set = set(headers)
 
             category_column = None
@@ -437,7 +528,7 @@ class DataService:
                         f"Colonne '{roles.category_field}' introuvable pour la catégorie dans {table_name}"
                     )
                 category_column = roles.category_field
-            elif CATEGORY_COLUMN_NAME in headers_set:
+            elif not require_roles and CATEGORY_COLUMN_NAME in headers_set:
                 category_column = CATEGORY_COLUMN_NAME
 
             sub_category_column = None
@@ -447,7 +538,7 @@ class DataService:
                         f"Colonne '{roles.sub_category_field}' introuvable pour la sous-catégorie dans {table_name}"
                     )
                 sub_category_column = roles.sub_category_field
-            elif SUB_CATEGORY_COLUMN_NAME in headers_set:
+            elif not require_roles and SUB_CATEGORY_COLUMN_NAME in headers_set:
                 sub_category_column = SUB_CATEGORY_COLUMN_NAME
 
             if not category_column or not sub_category_column:

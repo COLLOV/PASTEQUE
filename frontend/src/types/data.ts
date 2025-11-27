@@ -27,6 +27,8 @@ export interface DataSourceOverview {
   source: string
   title: string
   total_rows: number
+  ia_enabled?: boolean
+  disabled_reason?: string | null
   date_min?: string | null
   date_max?: string | null
   date_field?: string | null
@@ -52,12 +54,14 @@ export interface ColumnRolesResponse {
   date_field?: string | null
   category_field?: string | null
   sub_category_field?: string | null
+  ia_enabled?: boolean
 }
 
 export interface UpdateColumnRolesRequest {
   date_field?: string | null
   category_field?: string | null
   sub_category_field?: string | null
+  ia_enabled?: boolean | null
 }
 
 export type TableRow = Record<string, string | number | boolean | null>

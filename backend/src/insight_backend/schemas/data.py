@@ -37,6 +37,8 @@ class DataSourceOverview(BaseModel):
     source: str
     title: str
     total_rows: int
+    ia_enabled: bool = False
+    disabled_reason: str | None = None
     date_min: str | None = None
     date_max: str | None = None
     date_field: str | None = None
@@ -65,6 +67,7 @@ class UpdateColumnRolesRequest(BaseModel):
     date_field: str | None = None
     category_field: str | None = None
     sub_category_field: str | None = None
+    ia_enabled: bool | None = None
 
 
 class ColumnRolesResponse(BaseModel):
@@ -72,6 +75,7 @@ class ColumnRolesResponse(BaseModel):
     date_field: str | None = None
     category_field: str | None = None
     sub_category_field: str | None = None
+    ia_enabled: bool = False
 
 
 class TableExplorePreview(BaseModel):

@@ -83,6 +83,10 @@ def _ensure_data_source_preference_columns() -> None:
     inspector = inspect(engine)
     columns = {col["name"] for col in inspector.get_columns("data_source_preferences")}
     stmts = []
+    if "ia_enabled" not in columns:
+        stmts.append(
+            "ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS ia_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+        )
     if "date_field" not in columns:
         stmts.append("ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS date_field VARCHAR(255)")
     if "category_field" not in columns:

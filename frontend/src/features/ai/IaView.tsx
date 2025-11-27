@@ -28,6 +28,7 @@ type ColumnRoleSelection = {
   date_field: string | null
   category_field: string | null
   sub_category_field: string | null
+  ia_enabled: boolean
 }
 
 const PAGE_SIZE = 25
@@ -125,6 +126,7 @@ export default function IaView() {
           date_field: src.date_field ?? null,
           category_field: src.category_field ?? null,
           sub_category_field: src.sub_category_field ?? null,
+          ia_enabled: Boolean(src.ia_enabled),
         }
       })
       setColumnRoles(nextRoles)
@@ -143,10 +145,12 @@ export default function IaView() {
     void loadOverview()
   }, [])
 
+  const allSources = overview?.sources ?? []
   const sourcesWithCategories = useMemo(
-    () => (overview?.sources ?? []).filter(src => (src.category_breakdown?.length ?? 0) > 0),
-    [overview]
+    () => allSources.filter(src => (src.category_breakdown?.length ?? 0) > 0),
+    [allSources]
   )
+  const visibleSources = isAdmin ? allSources : sourcesWithCategories
   const hasGlobalDate = Boolean(globalBounds.min && globalBounds.max)
 
   const sourceHasDate = (sourceName: string) => {
@@ -328,8 +332,15 @@ export default function IaView() {
   const handleSaveColumnRoles = async (source: string, roles: ColumnRoleSelection) => {
     if (!isAdmin) return
 
-    if ((roles.category_field && !roles.sub_category_field) || (roles.sub_category_field && !roles.category_field)) {
+    if (
+      (roles.category_field && !roles.sub_category_field) ||
+      (roles.sub_category_field && !roles.category_field)
+    ) {
       setRolesError(prev => ({ ...prev, [source]: 'Choisissez une catégorie ET une sous-catégorie ou aucune des deux.' }))
+      return
+    }
+    if (roles.ia_enabled && (!roles.category_field || !roles.sub_category_field)) {
+      setRolesError(prev => ({ ...prev, [source]: "Activez uniquement après avoir défini Category et Sub Category." }))
       return
     }
 
@@ -350,6 +361,7 @@ export default function IaView() {
           date_field: updated.date_field ?? null,
           category_field: updated.category_field ?? null,
           sub_category_field: updated.sub_category_field ?? null,
+          ia_enabled: Boolean(updated.ia_enabled),
         },
       }))
       await loadOverview(appliedRange, false)
@@ -506,14 +518,15 @@ export default function IaView() {
         </Card>
       ) : error ? (
         <Card variant="elevated" className="py-6 px-4 text-sm text-red-600">{error}</Card>
-      ) : sourcesWithCategories.length === 0 ? (
+      ) : visibleSources.length === 0 ? (
         <Card variant="elevated" className="py-10 px-4 text-center text-primary-600">
-          Aucune source ne contient les colonnes « Category » et « Sub Category » avec des valeurs
-          exploitables.
+          {isAdmin
+            ? "Aucune source activée pour l’IA. Activez une table et mappez les colonnes dans l’Explorer."
+            : "Aucune source disponible avec des colonnes Category / Sub Category exploitables."}
         </Card>
       ) : (
         <div className="space-y-4">
-          {sourcesWithCategories.map(source => (
+          {visibleSources.map(source => (
             <SourceCategoryCard
               key={source.source}
               source={source}
@@ -524,6 +537,7 @@ export default function IaView() {
                   date_field: source.date_field ?? null,
                   category_field: source.category_field ?? null,
                   sub_category_field: source.sub_category_field ?? null,
+                  ia_enabled: Boolean(source.ia_enabled),
                 }
               }
               onSaveRoles={handleSaveColumnRoles}
@@ -560,7 +574,10 @@ function SourceCategoryCard({
   )
   const [activeCategory, setActiveCategory] = useState<string>(categoryNodes[0]?.name ?? '')
   const [subFilter, setSubFilter] = useState('')
-  const [rolesDraft, setRolesDraft] = useState<ColumnRoleSelection>(roles)
+  const [rolesDraft, setRolesDraft] = useState<ColumnRoleSelection>({
+    ...roles,
+    ia_enabled: Boolean(roles.ia_enabled),
+  })
 
   useEffect(() => {
     if (!activeCategory && categoryNodes[0]) {
@@ -571,7 +588,10 @@ function SourceCategoryCard({
   }, [categoryNodes, activeCategory])
 
   useEffect(() => {
-    setRolesDraft(roles)
+    setRolesDraft({
+      ...roles,
+      ia_enabled: Boolean(roles.ia_enabled),
+    })
   }, [roles])
 
   const selectedNode =
@@ -580,20 +600,6 @@ function SourceCategoryCard({
     selectedNode?.subCategories.filter(sub =>
       sub.name.toLowerCase().includes(subFilter.trim().toLowerCase())
     ) ?? []
-
-  if (!categoryNodes.length) {
-    return (
-      <Card padding="sm" className="bg-primary-50">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-primary-900">{source.title}</p>
-            <p className="text-xs text-primary-600">{source.source}</p>
-          </div>
-          <span className="text-xs text-primary-600">Aucune répartition Category/Sub Category</span>
-        </div>
-      </Card>
-    )
-  }
 
   return (
     <Card variant="elevated" padding="md" className="space-y-3">
@@ -613,6 +619,24 @@ function SourceCategoryCard({
               Enregistrer
             </Button>
           </div>
+          <label className="flex items-center gap-2 text-xs text-primary-800">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={Boolean(rolesDraft.ia_enabled)}
+              onChange={e =>
+                setRolesDraft(prev => ({
+                  ...prev,
+                  ia_enabled: e.target.checked,
+                }))
+              }
+              disabled={saving}
+            />
+            <span>Activer cette table pour l’IA / Explorer</span>
+          </label>
+          <p className="text-[11px] text-primary-500">
+            Activez uniquement après avoir mappé Category et Sub Category.
+          </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {(['date_field', 'category_field', 'sub_category_field'] as const).map(key => (
               <label key={key} className="flex flex-col gap-1 text-xs text-primary-700">
@@ -648,36 +672,43 @@ function SourceCategoryCard({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
-          <h3 className="text-lg font-semibold text-primary-950">{source.title}</h3>
-          <p className="text-xs text-primary-500">
-            {source.total_rows.toLocaleString('fr-FR')} lignes ·{' '}
-            {categoryNodes.length.toLocaleString('fr-FR')} catégories
-          </p>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
+            <h3 className="text-lg font-semibold text-primary-950">{source.title}</h3>
+            <p className="text-xs text-primary-500">
+              {source.total_rows.toLocaleString('fr-FR')} lignes ·{' '}
+              {categoryNodes.length.toLocaleString('fr-FR')} catégories
+            </p>
+            {!source.ia_enabled ? (
+              <p className="text-[11px] text-amber-700">
+                Table désactivée pour l’IA/Explorer. Activez et relancez l’aperçu après configuration.
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <select
+              value={activeCategory}
+              onChange={e => setActiveCategory(e.target.value)}
+              className="border border-primary-200 rounded-md px-3 py-2 text-sm text-primary-900 bg-white shadow-inner"
+              disabled={!categoryNodes.length}
+            >
+              {categoryNodes.map(node => (
+                <option key={node.name} value={node.name}>
+                  {node.name} ({node.subCategories.length})
+                </option>
+              ))}
+            </select>
+            <input
+              type="search"
+              placeholder="Filtrer les sous-catégories"
+              value={subFilter}
+              onChange={e => setSubFilter(e.target.value)}
+              className="border border-primary-200 rounded-md px-3 py-2 text-sm text-primary-900 bg-white shadow-inner"
+              disabled={!categoryNodes.length}
+            />
+          </div>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <select
-            value={activeCategory}
-            onChange={e => setActiveCategory(e.target.value)}
-            className="border border-primary-200 rounded-md px-3 py-2 text-sm text-primary-900 bg-white shadow-inner"
-          >
-            {categoryNodes.map(node => (
-              <option key={node.name} value={node.name}>
-                {node.name} ({node.subCategories.length})
-              </option>
-            ))}
-          </select>
-          <input
-            type="search"
-            placeholder="Filtrer les sous-catégories"
-            value={subFilter}
-            onChange={e => setSubFilter(e.target.value)}
-            className="border border-primary-200 rounded-md px-3 py-2 text-sm text-primary-900 bg-white shadow-inner"
-          />
-        </div>
-      </div>
 
       {selectedNode ? (
         <div className="overflow-hidden border border-primary-200 rounded-xl bg-white shadow-sm">
@@ -712,7 +743,12 @@ function SourceCategoryCard({
             )}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="px-3 py-3 text-sm text-primary-600 border border-primary-100 rounded-lg bg-primary-50/70">
+          Aucune répartition Category/Sub Category disponible pour cette table. Configurez les colonnes puis relancez
+          l’aperçu.
+        </div>
+      )}
     </Card>
   )
 }
