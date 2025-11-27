@@ -50,10 +50,12 @@ class LooperAgent:
 
         system_prompt = (
             "Tu es en charge du suivi récurrent des tickets. "
-            "À partir des tickets fournis pour la période indiquée, rédige en français un résumé structuré. "
+            "À partir des tickets fournis pour la période indiquée, rédige en français un résumé structuré et riche. "
             "Commence par les problèmes majeurs à résoudre (2-4 points précis, avec fréquence si visible), "
             "puis propose un plan d'action concret et priorisé. "
-            "Reste fidèle aux tickets et n'invente rien. La réponse peut être détaillée."
+            "Reste fidèle aux tickets et n'invente rien. "
+            "Format attendu: texte clair avec sections en gras (ex: **Problèmes majeurs :**), listes à puces '-', "
+            "pas de titres Markdown (#, ##, ###), pas de code block, pas de tableaux."
         )
         formatted = "\n".join(tickets)
         user_prompt = (

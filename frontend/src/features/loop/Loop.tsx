@@ -13,12 +13,13 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function renderBlocks(content: string) {
+  const sanitized = content.replace(/^\s*#+\s*/gm, '')
   const renderInline = (text: string) =>
     text
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/__(.+?)__/g, '<strong>$1</strong>')
 
-  const lines = content.split(/\r?\n/)
+  const lines = sanitized.split(/\r?\n/)
   const blocks: React.ReactNode[] = []
   let listBuffer: string[] = []
 
