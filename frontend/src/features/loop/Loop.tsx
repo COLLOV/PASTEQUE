@@ -29,7 +29,8 @@ renderer.list = (body) =>
 renderer.listitem = (text) => `<li>${text}</li>`
 renderer.hr = () => `<hr class="border-primary-200 my-2" />`
 
-marked.use({ renderer, mangle: false, headerIds: false, breaks: true, gfm: true })
+marked.use({ renderer })
+marked.setOptions({ breaks: true, gfm: true })
 
 function renderMarkdown(content: string) {
   const safe = escapeHtml(content || '')
