@@ -289,6 +289,9 @@ echo "[start] mindsdb container -> $MINDSDB_CONTAINER_NAME (http:$MINDSDB_HTTP_P
 # Embeddings configuration visibility and validation
 EMBED_CFG_PATH="$(read_env_var "$BACKEND_ENV_FILE" "MINDSDB_EMBEDDINGS_CONFIG_PATH")"
 if [[ -n "$EMBED_CFG_PATH" ]]; then
+  if [[ "$EMBED_CFG_PATH" != /* ]]; then
+    EMBED_CFG_PATH="$(cd "$(dirname "$BACKEND_ENV_FILE")" && pwd)/$EMBED_CFG_PATH"
+  fi
   echo "[start] embeddings config -> $EMBED_CFG_PATH"
   if [[ ! -f "$EMBED_CFG_PATH" ]]; then
     echo "ERROR: MINDSDB_EMBEDDINGS_CONFIG_PATH points to a missing file: $EMBED_CFG_PATH" >&2
