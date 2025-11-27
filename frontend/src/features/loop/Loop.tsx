@@ -12,6 +12,41 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleString()
 }
 
+function renderBlocks(content: string) {
+  const blocks = content.split(/\n\s*\n/).filter(Boolean)
+
+  const renderBold = (text: string) => text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+
+  return blocks.map((block, idx) => {
+    const lines = block
+      .split(/\n/)
+      .map(line => line.trim())
+      .filter(Boolean)
+    const isList = lines.length > 0 && lines.every(line => /^[-*]\s+/.test(line))
+
+    if (isList) {
+      return (
+        <ul key={idx} className="list-disc pl-5 space-y-1 text-primary-800 text-sm">
+          {lines.map((line, i) => {
+            const text = line.replace(/^[-*]\s+/, '')
+            return (
+              <li key={i} dangerouslySetInnerHTML={{ __html: renderBold(text) }} />
+            )
+          })}
+        </ul>
+      )
+    }
+
+    return (
+      <p
+        key={idx}
+        className="text-primary-800 text-sm leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: renderBold(lines.join(' ')) }}
+      />
+    )
+  })
+}
+
 function SummaryList({ title, summaries }: { title: string; summaries: LoopSummary[] }) {
   if (summaries.length === 0) {
     return (
@@ -46,8 +81,8 @@ function SummaryList({ title, summaries }: { title: string; summaries: LoopSumma
                 </p>
               </div>
             </div>
-            <div className="text-primary-800 text-sm leading-relaxed whitespace-pre-wrap">
-              {item.content}
+            <div className="space-y-2">
+              {renderBlocks(item.content)}
             </div>
           </Card>
         ))}
@@ -151,8 +186,8 @@ export default function Loop() {
             </Card>
           ) : (
             <div className="space-y-6">
-              <SummaryList title="Vue mensuelle" summaries={overview?.monthly ?? []} />
-              <SummaryList title="Vue hebdomadaire" summaries={overview?.weekly ?? []} />
+              <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
+              <SummaryList title="Vue hebdomadaire" summaries={(overview?.weekly ?? []).slice(0, 1)} />
             </div>
           )}
         </>

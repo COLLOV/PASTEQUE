@@ -61,8 +61,8 @@ class Settings(BaseSettings):
     # Loop (résumés hebdo/mensuels)
     loop_max_tickets: int = Field(60, alias="LOOP_MAX_TICKETS")
     loop_ticket_text_max_chars: int = Field(360, alias="LOOP_TICKET_TEXT_MAX_CHARS")
-    loop_max_weeks: int = Field(8, alias="LOOP_MAX_WEEKS")
-    loop_max_months: int = Field(6, alias="LOOP_MAX_MONTHS")
+    loop_max_weeks: int = Field(1, alias="LOOP_MAX_WEEKS")
+    loop_max_months: int = Field(1, alias="LOOP_MAX_MONTHS")
     loop_temperature: float = Field(0.3, alias="LOOP_TEMPERATURE")
     loop_max_tokens: int = Field(800, alias="LOOP_MAX_TOKENS")
 

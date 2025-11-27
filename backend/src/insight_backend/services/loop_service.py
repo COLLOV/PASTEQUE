@@ -33,8 +33,8 @@ class LoopService:
         config = self.repo.get_config()
         if not config:
             return None, [], []
-        weekly = self.repo.list_by_kind(kind="weekly", config_id=config.id)
-        monthly = self.repo.list_by_kind(kind="monthly", config_id=config.id)
+        weekly = self.repo.list_by_kind(kind="weekly", config_id=config.id)[:1]
+        monthly = self.repo.list_by_kind(kind="monthly", config_id=config.id)[:1]
         return config, weekly, monthly
 
     def save_config(self, *, table_name: str, text_column: str, date_column: str) -> LoopConfig:
@@ -141,8 +141,8 @@ class LoopService:
         now = datetime.now(timezone.utc)
         self.repo.touch_generated(config_id=config.id, ts=now)
 
-        weekly = [item for item in saved if item.kind == "weekly"]
-        monthly = [item for item in saved if item.kind == "monthly"]
+        weekly = [item for item in saved if item.kind == "weekly"][:1]
+        monthly = [item for item in saved if item.kind == "monthly"][:1]
         return config, weekly, monthly
 
     # --- Helpers -------------------------------------------------------
