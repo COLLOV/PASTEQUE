@@ -13,38 +13,70 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function renderBlocks(content: string) {
-  const blocks = content.split(/\n\s*\n/).filter(Boolean)
+  const renderInline = (text: string) =>
+    text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.+?)__/g, '<strong>$1</strong>')
 
-  const renderBold = (text: string) => text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  const lines = content.split(/\r?\n/)
+  const blocks: React.ReactNode[] = []
+  let listBuffer: string[] = []
 
-  return blocks.map((block, idx) => {
-    const lines = block
-      .split(/\n/)
-      .map(line => line.trim())
-      .filter(Boolean)
-    const isList = lines.length > 0 && lines.every(line => /^[-*]\s+/.test(line))
+  const flushList = () => {
+    if (listBuffer.length === 0) return
+    blocks.push(
+      <ul key={`list-${blocks.length}`} className="list-disc pl-5 space-y-1 text-primary-800 text-sm">
+        {listBuffer.map((item, idx) => (
+          <li
+            key={idx}
+            dangerouslySetInnerHTML={{ __html: renderInline(item) }}
+          />
+        ))}
+      </ul>
+    )
+    listBuffer = []
+  }
 
-    if (isList) {
-      return (
-        <ul key={idx} className="list-disc pl-5 space-y-1 text-primary-800 text-sm">
-          {lines.map((line, i) => {
-            const text = line.replace(/^[-*]\s+/, '')
-            return (
-              <li key={i} dangerouslySetInnerHTML={{ __html: renderBold(text) }} />
-            )
-          })}
-        </ul>
-      )
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      flushList()
+      continue
     }
 
-    return (
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
+    const listMatch = line.match(/^([-*•]|\d+[.)]|[A-Za-z][.)])\s+(.*)$/)
+
+    if (headingMatch) {
+      flushList()
+      const level = Math.min(4, headingMatch[1].length + 2) // map ### -> h5-ish
+      const Tag = (`h${level}` as keyof JSX.IntrinsicElements)
+      blocks.push(
+        <Tag
+          key={`h-${blocks.length}`}
+          className="text-primary-900 font-semibold text-base mt-2"
+          dangerouslySetInnerHTML={{ __html: renderInline(headingMatch[2]) }}
+        />
+      )
+      continue
+    }
+
+    if (listMatch) {
+      listBuffer.push(listMatch[2])
+      continue
+    }
+
+    flushList()
+    blocks.push(
       <p
-        key={idx}
+        key={`p-${blocks.length}`}
         className="text-primary-800 text-sm leading-relaxed"
-        dangerouslySetInnerHTML={{ __html: renderBold(lines.join(' ')) }}
+        dangerouslySetInnerHTML={{ __html: renderInline(line) }}
       />
     )
-  })
+  }
+  flushList()
+  return blocks
 }
 
 function SummaryList({ title, summaries }: { title: string; summaries: LoopSummary[] }) {
@@ -62,9 +94,13 @@ function SummaryList({ title, summaries }: { title: string; summaries: LoopSumma
         <HiOutlineDocumentText className="w-5 h-5 text-primary-500" />
         <h3 className="text-lg font-semibold text-primary-900">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="flex flex-col gap-4">
         {summaries.map(item => (
-          <Card key={`${item.kind}-${item.id}`} variant="elevated" className="flex flex-col gap-3">
+          <Card
+            key={`${item.kind}-${item.id}`}
+            variant="elevated"
+            className="flex flex-col gap-3 w-full"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-primary-500">{item.kind === 'weekly' ? 'Hebdomadaire' : 'Mensuel'}</p>
@@ -186,8 +222,8 @@ export default function Loop() {
             </Card>
           ) : (
             <div className="space-y-6">
-              <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
               <SummaryList title="Vue hebdomadaire" summaries={(overview?.weekly ?? []).slice(0, 1)} />
+              <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
             </div>
           )}
         </>
