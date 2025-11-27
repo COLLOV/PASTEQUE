@@ -51,6 +51,48 @@
   textarea:focus-visible {
     @apply outline-none ring-2 ring-primary-400 ring-offset-2;
   }
+
+  /* Curseur double pour le filtre de dates */
+  .dual-range-thumb {
+    @apply absolute inset-0 w-full h-10;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    opacity: 0; /* rendre la piste native invisible, on garde le handle custom au-dessus */
+    pointer-events: none; /* seule la zone du pouce doit être cliquable */
+  }
+  .dual-range-thumb::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 9999px;
+    background: #0f172a;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+  }
+  .dual-range-thumb::-webkit-slider-runnable-track {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    height: 0;
+  }
+  .dual-range-thumb::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 9999px;
+    background: #0f172a;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+  }
+  .dual-range-thumb::-moz-range-track {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    height: 0;
+  }
 }
 
 /* Utilitaires personnalisés */

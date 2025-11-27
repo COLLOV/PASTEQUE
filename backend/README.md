@@ -60,6 +60,20 @@ Chargement et usage:
 - `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
 - Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. La taille est plafonnée via `DATA_DICTIONARY_MAX_CHARS` (défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
 
+### Explorer – agrégats Category / Sub Category
+
+L’onglet Explorer du frontend consomme principalement:
+
+- `GET /api/v1/data/overview` — vue globale des tables autorisées (sources) avec, pour chaque table:
+  - `fields`: statistiques par colonne (détection de dates, distributions, champs masqués, etc.).
+  - `category_breakdown`: liste de triplets `{ category, sub_category, count }` calculés à partir des colonnes `Category` et `Sub Category` si elles existent dans la table.
+- `GET /api/v1/data/explore/{source}?category=...&sub_category=...&limit=50` — aperçu des lignes correspondant au couple Category/Sub Category sélectionné dans le graphique de la table:
+  - `matching_rows`: nombre total de lignes correspondantes dans la table.
+  - `preview_columns`: ordre des colonnes dans l’aperçu.
+  - `preview_rows`: lignes brutes (JSON) limitées par `limit` (1–500).
+
+Si les colonnes `Category` et `Sub Category` sont absentes d’une table, `category_breakdown` est vide et l’endpoint d’exploration renvoie une erreur 400 explicite.
+
 ### Base de données & authentification
 
 - Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :
