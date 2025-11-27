@@ -136,7 +136,9 @@ def explore_table(  # type: ignore[valid-type]
     sub_category: str,
     limit: int = 25,
     offset: int = 0,
-    sort_date: str | None = "desc",
+    sort_date: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> TableExplorePreview:
@@ -163,6 +165,8 @@ def explore_table(  # type: ignore[valid-type]
             limit=limit,
             offset=offset,
             sort_date=sort_date,
+            date_from=date_from,
+            date_to=date_to,
             allowed_tables=allowed,
         )
     except PermissionError as exc:

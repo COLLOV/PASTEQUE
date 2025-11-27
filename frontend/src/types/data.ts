@@ -54,4 +54,8 @@ export interface TableExplorePreview {
   limit?: number
   offset?: number
   sort_date?: 'asc' | 'desc'
+  date_from?: string
+  date_to?: string
+  date_min?: string
+  date_max?: string
 }

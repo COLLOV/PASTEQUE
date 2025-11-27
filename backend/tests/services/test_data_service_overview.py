@@ -144,6 +144,10 @@ def test_explore_table_supports_pagination_and_date_sort(tmp_path):
     assert page_1.matching_rows == 3
     assert len(page_1.preview_rows) == 1
     assert page_1.preview_rows[0]["date"] == "2024-05-03"
+    assert page_1.date_min == "2024-05-01"
+    assert page_1.date_max == "2024-05-03"
+    assert page_1.date_from is None
+    assert page_1.date_to is None
 
     page_2 = service.explore_table(
         table_name="dataset",
@@ -164,3 +168,18 @@ def test_explore_table_supports_pagination_and_date_sort(tmp_path):
         sort_date="asc",
     )
     assert [row["date"] for row in asc_page.preview_rows] == ["2024-05-01", "2024-05-02"]
+
+    filtered = service.explore_table(
+        table_name="dataset",
+        category="A",
+        sub_category="X",
+        limit=5,
+        offset=0,
+        sort_date="asc",
+        date_from="2024-05-02",
+        date_to="2024-05-03",
+    )
+    assert filtered.matching_rows == 2
+    assert [row["date"] for row in filtered.preview_rows] == ["2024-05-02", "2024-05-03"]
+    assert filtered.date_from == "2024-05-02"
+    assert filtered.date_to == "2024-05-03"

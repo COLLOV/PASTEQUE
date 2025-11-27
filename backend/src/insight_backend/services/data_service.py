@@ -280,6 +280,8 @@ class DataService:
         limit: int = 25,
         offset: int = 0,
         sort_date: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         allowed_tables: Iterable[str] | None = None,
     ) -> TableExplorePreview:
         if allowed_tables is not None:
@@ -301,6 +303,16 @@ class DataService:
         delimiter = "," if path.suffix.lower() == ".csv" else "\t"
         matching_rows = 0
         matched_rows: list[dict[str, str | int | float | bool | None]] = []
+
+        normalized_from = _normalize_date(date_from) if date_from else None
+        normalized_to = _normalize_date(date_to) if date_to else None
+        if date_from and not normalized_from:
+            raise ValueError("Paramètre 'date_from' invalide (format attendu ISO 8601).")
+        if date_to and not normalized_to:
+            raise ValueError("Paramètre 'date_to' invalide (format attendu ISO 8601).")
+
+        date_domain_min: str | None = None
+        date_domain_max: str | None = None
 
         with path.open("r", newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle, delimiter=delimiter)
@@ -333,18 +345,32 @@ class DataService:
                 sort_direction = normalized_sort
 
             date_column = None
-            if sort_direction:
+            if sort_direction or normalized_from or normalized_to:
                 for name in headers:
                     if name.casefold() == "date":
                         date_column = name
                         break
                 if date_column is None:
-                    raise ValueError("Colonne 'date' introuvable pour le tri demandé.")
+                    raise ValueError("Colonne 'date' introuvable pour appliquer tri/filtre.")
 
             for row in reader:
                 cat_value = _clean_text(row.get(CATEGORY_COLUMN_NAME))
                 sub_value = _clean_text(row.get(SUB_CATEGORY_COLUMN_NAME))
                 if cat_value == category and sub_value == sub_category:
+                    normalized_value = _normalize_date(row.get(date_column)) if date_column else None
+                    if normalized_value:
+                        if date_domain_min is None or normalized_value < date_domain_min:
+                            date_domain_min = normalized_value
+                        if date_domain_max is None or normalized_value > date_domain_max:
+                            date_domain_max = normalized_value
+
+                    if date_column and (normalized_from or normalized_to):
+                        if normalized_value is None:
+                            continue
+                        if normalized_from and normalized_value < normalized_from:
+                            continue
+                        if normalized_to and normalized_value > normalized_to:
+                            continue
                     matching_rows += 1
                     matched_rows.append(row)  # type: ignore[arg-type]
 
@@ -361,7 +387,7 @@ class DataService:
         preview_rows = matched_rows[offset : offset + limit]
 
         log.info(
-            "Explore table %s pour Category=%s, Sub Category=%s : lignes=%d, aperçu=%d (offset=%d, limit=%d, sort_date=%s)",
+            "Explore table %s pour Category=%s, Sub Category=%s : lignes=%d, aperçu=%d (offset=%d, limit=%d, sort_date=%s, date_from=%s, date_to=%s)",
             table_name,
             category,
             sub_category,
@@ -370,6 +396,8 @@ class DataService:
             offset,
             limit,
             sort_direction,
+            normalized_from,
+            normalized_to,
         )
 
         return TableExplorePreview(
@@ -382,4 +410,8 @@ class DataService:
             limit=limit,
             offset=offset,
             sort_date=sort_direction,
+            date_from=normalized_from,
+            date_to=normalized_to,
+            date_min=date_domain_min,
+            date_max=date_domain_max,
         )

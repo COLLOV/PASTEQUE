@@ -66,3 +66,7 @@ class TableExplorePreview(BaseModel):
     limit: int | None = None
     offset: int | None = None
     sort_date: Literal["asc", "desc"] | None = None
+    date_from: str | None = None
+    date_to: str | None = None
+    date_min: str | None = None
+    date_max: str | None = None

@@ -66,6 +66,10 @@ export default function IaView() {
   const [page, setPage] = useState(0)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [matchingRows, setMatchingRows] = useState(0)
+  const [dateBounds, setDateBounds] = useState<{ min?: string; max?: string }>({})
+  const [pendingRange, setPendingRange] = useState<{ from?: string; to?: string } | null>(null)
+  const [appliedRange, setAppliedRange] = useState<{ from?: string; to?: string } | null>(null)
+  const selectionKeyRef = useRef<string | null>(null)
   const requestRef = useRef(0)
 
   useEffect(() => {
@@ -88,6 +92,7 @@ export default function IaView() {
     () => (overview?.sources ?? []).filter(src => (src.category_breakdown?.length ?? 0) > 0),
     [overview]
   )
+  const hasDateDomain = Boolean(dateBounds.min && dateBounds.max)
 
   const totalCategoryPairs = useMemo(
     () =>
@@ -98,7 +103,12 @@ export default function IaView() {
     [sourcesWithCategories]
   )
 
-  const fetchPreview = (sel: Selection, pageIndex: number, direction: 'asc' | 'desc') => {
+  const fetchPreview = (
+    sel: Selection,
+    pageIndex: number,
+    direction: 'asc' | 'desc',
+    range: { from?: string; to?: string } | null = appliedRange
+  ) => {
     const offset = pageIndex * PAGE_SIZE
     setPreview(null)
     setPreviewError('')
@@ -111,8 +121,16 @@ export default function IaView() {
       sub_category: sel.subCategory,
       limit: String(PAGE_SIZE),
       offset: String(offset),
-      sort_date: direction,
     })
+    if (range?.from && hasDateDomain) {
+      params.set('date_from', range.from)
+    }
+    if (range?.to && hasDateDomain) {
+      params.set('date_to', range.to)
+    }
+    if (hasDateDomain) {
+      params.set('sort_date', direction)
+    }
 
     void (async () => {
       try {
@@ -122,6 +140,15 @@ export default function IaView() {
         if (requestRef.current !== requestId) return
         setPreview(res ?? null)
         setMatchingRows(res?.matching_rows ?? 0)
+        if (range) {
+          setAppliedRange(range)
+        }
+        if (res?.date_min && res?.date_max) {
+          setDateBounds({ min: res.date_min, max: res.date_max })
+          if (!pendingRange) {
+            setPendingRange({ from: res.date_min, to: res.date_max })
+          }
+        }
       } catch (err) {
         if (requestRef.current !== requestId) return
         setPreviewError(
@@ -143,7 +170,11 @@ export default function IaView() {
     setSelection(nextSelection)
     setPage(0)
     setMatchingRows(0)
-    fetchPreview(nextSelection, 0, sortDirection)
+    setDateBounds({})
+    setPendingRange(null)
+    setAppliedRange(null)
+    selectionKeyRef.current = `${source}::${category}::${subCategory}`
+    fetchPreview(nextSelection, 0, sortDirection, null)
   }
 
   const handlePageChange = (nextPage: number) => {
@@ -153,16 +184,48 @@ export default function IaView() {
     const maxPage = total ? Math.max(Math.ceil(total / PAGE_SIZE) - 1, 0) : 0
     const target = Math.min(nextPage, maxPage)
     setPage(target)
-    fetchPreview(selection, target, sortDirection)
+    fetchPreview(selection, target, sortDirection, appliedRange)
   }
 
   const handleToggleSort = () => {
     if (!selection) return
+    if (!hasDateDomain) return
     const nextDirection = sortDirection === 'desc' ? 'asc' : 'desc'
     setSortDirection(nextDirection)
     setPage(0)
-    fetchPreview(selection, 0, nextDirection)
+    fetchPreview(selection, 0, nextDirection, appliedRange)
   }
+
+  const handleApplyRange = () => {
+    if (!selection || !pendingRange || !hasDateDomain) return
+    setPage(0)
+    fetchPreview(selection, 0, sortDirection, pendingRange)
+  }
+
+  const handleResetRange = () => {
+    if (!selection || !hasDateDomain || !dateBounds.min || !dateBounds.max) return
+    const fullRange = { from: dateBounds.min, to: dateBounds.max }
+    setPendingRange(fullRange)
+    setPage(0)
+    fetchPreview(selection, 0, sortDirection, fullRange)
+  }
+
+  useEffect(() => {
+    if (!selection) {
+      setDateBounds({})
+      setPendingRange(null)
+      setAppliedRange(null)
+      return
+    }
+    if (preview?.date_min && preview?.date_max) {
+      setDateBounds({ min: preview.date_min, max: preview.date_max })
+      const selectionKey = `${selection.source}::${selection.category}::${selection.subCategory}`
+      if (!pendingRange || selectionKeyRef.current !== selectionKey) {
+        setPendingRange({ from: preview.date_min, to: preview.date_max })
+      }
+      selectionKeyRef.current = selectionKey
+    }
+  }, [selection, preview?.date_min, preview?.date_max, pendingRange])
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
@@ -262,6 +325,12 @@ export default function IaView() {
         sortDirection={sortDirection}
         onPageChange={handlePageChange}
         onToggleSort={handleToggleSort}
+        hasDateDomain={hasDateDomain}
+        dateBounds={dateBounds}
+        pendingRange={pendingRange}
+        onRangeChange={setPendingRange}
+        onApplyRange={handleApplyRange}
+        onResetRange={handleResetRange}
       />
 
       {loading ? (
@@ -387,6 +456,12 @@ function SelectionPreview({
   sortDirection,
   onPageChange,
   onToggleSort,
+  hasDateDomain,
+  dateBounds,
+  pendingRange,
+  onRangeChange,
+  onApplyRange,
+  onResetRange,
 }: {
   selection: Selection | null
   preview: TableExplorePreview | null
@@ -398,6 +473,12 @@ function SelectionPreview({
   sortDirection: 'asc' | 'desc'
   onPageChange: (nextPage: number) => void
   onToggleSort: () => void
+  hasDateDomain: boolean
+  dateBounds: { min?: string; max?: string }
+  pendingRange: { from?: string; to?: string } | null
+  onRangeChange: (range: { from?: string; to?: string } | null) => void
+  onApplyRange: () => void
+  onResetRange: () => void
 }) {
   if (!selection) return null
 
@@ -408,6 +489,50 @@ function SelectionPreview({
   const currentPage = Math.min(page, totalPages - 1)
   const hasPrev = currentPage > 0
   const hasNext = currentPage < totalPages - 1
+
+  const toTimestamp = (date?: string) => {
+    if (!date) return undefined
+    const ts = Date.parse(`${date}T00:00:00Z`)
+    return Number.isNaN(ts) ? undefined : ts
+  }
+
+  const minTs = toTimestamp(dateBounds.min)
+  const maxTs = toTimestamp(dateBounds.max)
+  const startTs =
+    pendingRange?.from && minTs !== undefined
+      ? Math.max(minTs, toTimestamp(pendingRange.from) ?? minTs)
+      : minTs
+  const endTs =
+    pendingRange?.to && maxTs !== undefined
+      ? Math.min(maxTs, toTimestamp(pendingRange.to) ?? maxTs)
+      : maxTs
+
+  const clampAndIso = (value: number | undefined, fallback: number | undefined) => {
+    if (value === undefined && fallback === undefined) return undefined
+    const target = value ?? fallback ?? 0
+    return new Date(target).toISOString().slice(0, 10)
+  }
+
+  const handleStartChange = (value: number) => {
+    if (minTs === undefined || maxTs === undefined || endTs === undefined) return
+    const clamped = Math.min(Math.max(value, minTs), endTs)
+    onRangeChange({ from: clampAndIso(clamped, minTs), to: clampAndIso(endTs, maxTs) })
+  }
+
+  const handleEndChange = (value: number) => {
+    if (minTs === undefined || maxTs === undefined || startTs === undefined) return
+    const clamped = Math.max(Math.min(value, maxTs), startTs)
+    onRangeChange({ from: clampAndIso(startTs, minTs), to: clampAndIso(clamped, maxTs) })
+  }
+
+  const formatDate = (value?: string) => {
+    if (!value) return '—'
+    const date = new Date(`${value}T00:00:00Z`)
+    if (Number.isNaN(date.getTime())) return value
+    return date.toLocaleDateString('fr-FR')
+  }
+  const startValue = startTs ?? minTs ?? 0
+  const endValue = endTs ?? maxTs ?? 0
 
   return (
     <Card variant="outlined" className="space-y-3">
@@ -430,7 +555,7 @@ function SelectionPreview({
             variant="secondary"
             size="sm"
             onClick={onToggleSort}
-            disabled={loading}
+            disabled={loading || !hasDateDomain}
             className="!rounded-full"
           >
             Tri date {sortDirection === 'desc' ? '↓' : '↑'}
@@ -458,6 +583,58 @@ function SelectionPreview({
           </Button>
         </div>
       </div>
+
+      {hasDateDomain && minTs !== undefined && maxTs !== undefined ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-[11px] text-primary-600">
+            <span>
+              De <span className="font-semibold text-primary-900">{formatDate(pendingRange?.from)}</span>
+            </span>
+            <span>
+              À <span className="font-semibold text-primary-900">{formatDate(pendingRange?.to)}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={minTs}
+              max={maxTs}
+              step={86_400_000}
+              value={startValue}
+              onChange={e => handleStartChange(Number(e.target.value))}
+              className="flex-1 accent-primary-900"
+            />
+            <input
+              type="range"
+              min={minTs}
+              max={maxTs}
+              step={86_400_000}
+              value={endValue}
+              onChange={e => handleEndChange(Number(e.target.value))}
+              className="flex-1 accent-primary-700"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onApplyRange}
+              disabled={loading}
+              className="!rounded-full"
+            >
+              Appliquer le filtre
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onResetRange}
+              disabled={loading}
+            >
+              Réinitialiser
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="py-6">
