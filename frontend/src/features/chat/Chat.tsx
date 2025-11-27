@@ -114,6 +114,7 @@ export default function Chat() {
   const [history, setHistory] = useState<Array<{ id: number; title: string; updated_at: string }>>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [awaitingFirstDelta, setAwaitingFirstDelta] = useState(false)
   const [error, setError] = useState('')
   // Statut éphémère en mode ANIMATION=true
   const [animStatus, setAnimStatus] = useState('')
@@ -318,6 +319,7 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
+    setAwaitingFirstDelta(true)
     // Reset uniquement l'état d'affichage du chat et du panneau Tickets
     setEvidenceSpec(null)
     setEvidenceData(null)
@@ -498,6 +500,7 @@ export default function Chat() {
           const delta = data as ChatStreamDelta
           // Dès qu'on commence la réponse, on remplace le contenu éventuel d'Animator
           setAnimStatus('')
+          setAwaitingFirstDelta(false)
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
@@ -527,6 +530,7 @@ export default function Chat() {
             return copy
           })
         } else if (type === 'done') {
+          setAwaitingFirstDelta(false)
           const done = data as ChatStreamDone
           if (typeof done.conversation_id === 'number' && Number.isFinite(done.conversation_id)) {
             setConversationId(done.conversation_id)
@@ -564,6 +568,7 @@ export default function Chat() {
           refreshHistory()
           setAnimStatus('')
         } else if (type === 'error') {
+          setAwaitingFirstDelta(false)
           setError(data?.message || 'Erreur streaming')
         }
       }, { signal: controller.signal })
@@ -751,6 +756,7 @@ export default function Chat() {
     setHistoryOpen(false)
     setHighlightMessageId(null)
     setTicketStatus('')
+    setAwaitingFirstDelta(false)
   }
 
   async function onFeedback(messageId: string, vote: FeedbackValue) {
@@ -1151,6 +1157,12 @@ export default function Chat() {
             )}
             {messages.length === 0 && loading && (
               <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
+            )}
+            {awaitingFirstDelta && (
+              <div className="flex items-center gap-2 text-xs text-primary-500 py-2 pl-1">
+                <span className="inline-block h-3 w-3 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                Le modèle prépare sa réponse…
+              </div>
             )}
             {error && (
               <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
