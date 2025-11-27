@@ -115,6 +115,8 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 
 ### Explorer (vision globale des sources)
 
+- L’onglet/page Explorer est désactivé dans la navigation (route retirée) pour alléger l’UI; utiliser la Vue IA et le Chat pour les parcours principaux.
+
 - API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
 - Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») avec cartes par source, colonnes autodécouvertes et masquage des champs piloté par l’administrateur (mise à jour persistante appliquée à tous les utilisateurs ; la tuile « Colonnes affichées » est retirée du header).
 - Admin : les colonnes Date / Category / Sub Category sont configurables par table dans l’Explorer (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
