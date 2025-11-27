@@ -71,6 +71,9 @@
   }
   .dual-range-thumb::-webkit-slider-runnable-track {
     background: transparent;
+    border: none;
+    box-shadow: none;
+    height: 0;
   }
   .dual-range-thumb::-moz-range-thumb {
     height: 16px;
@@ -82,6 +85,9 @@
   }
   .dual-range-thumb::-moz-range-track {
     background: transparent;
+    border: none;
+    box-shadow: none;
+    height: 0;
   }
 }
 
