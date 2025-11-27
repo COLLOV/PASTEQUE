@@ -179,6 +179,12 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 - Les imports sont désormais incrémentaux : `./start.sh` ne renvoie un fichier dans MindsDB que si son contenu ou sa configuration d'embedding a changé. L'état est stocké dans `DATA_TABLES_DIR/.mindsdb_sync_state.json` — supprimez ce fichier si vous devez forcer un rechargement complet. Ce fichier est ignoré par Git (`.mindsdb_sync_state.json`). Comme le conteneur MindsDB est recréé à chaque démarrage en développement, une vérification distante est effectuée : si une table est absente côté MindsDB, elle est ré‑uploadée même si le cache local est intact. Les embeddings ne sont recalculés que lorsque le contenu source ou la configuration d'embedding change.
 - Les fichiers enrichis d'embeddings conservent exactement le nom de table d'origine dans MindsDB (plus de suffixe `_emb`).
 
+### Feedback utilisateur
+
+- Chaque réponse assistant dans le chat expose deux actions pouce haut/bas. Les votes sont persistés avec la conversation et le message cible (pas de fallback silencieux).
+- API : `POST /api/v1/feedback` (création/mise à jour), `DELETE /api/v1/feedback/{id}` (suppression) et `GET /api/v1/feedback/admin` (admin uniquement, liste ordonnée).
+- Un onglet **Feedback** apparait dans le header pour les administrateurs. Il affiche les votes (auteur, conversation, extrait, date) et permet d'ouvrir directement la conversation correspondante via `/chat?conversation_id=...&message_id=...`.
+
 ### Visualisations (NL→SQL & MCP Chart)
 
 - Deux boutons icônes vivent dans la zone d’input :

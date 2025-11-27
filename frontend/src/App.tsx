@@ -5,6 +5,7 @@ import Login from '@/features/auth/Login'
 import Chat from '@/features/chat/Chat'
 import Dashboard from '@/features/dashboard/Dashboard'
 import AdminPanel from '@/features/admin/AdminPanel'
+import FeedbackAdmin from '@/features/admin/FeedbackAdmin'
 
 export default function App() {
   return (
@@ -28,6 +29,14 @@ export default function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="feedback"
+            element={
+              <ProtectedRoute requireAdmin>
+                <FeedbackAdmin />
               </ProtectedRoute>
             }
           />

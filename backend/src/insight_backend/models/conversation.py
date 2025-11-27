@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # import for type checking / linting only
     from .user import User
+    from .feedback import MessageFeedback
 
 from ..core.database import Base
 
@@ -42,6 +43,12 @@ class Conversation(Base):
         cascade="all, delete-orphan",
         order_by="ConversationEvent.created_at",
     )
+    feedback: Mapped[list["MessageFeedback"]] = relationship(
+        "MessageFeedback",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="MessageFeedback.created_at",
+    )
 
 
 class ConversationMessage(Base):
@@ -58,6 +65,12 @@ class ConversationMessage(Base):
     )
 
     conversation: Mapped[Conversation] = relationship("Conversation", back_populates="messages")
+    feedback: Mapped[list["MessageFeedback"]] = relationship(
+        "MessageFeedback",
+        back_populates="message",
+        cascade="all, delete-orphan",
+        order_by="MessageFeedback.created_at",
+    )
 
 
 class ConversationEvent(Base):

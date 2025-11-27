@@ -16,9 +16,11 @@ import type {
   SavedChartResponse,
   EvidenceSpec,
   EvidenceRowsPayload,
-  RetrievalDetails
+  RetrievalDetails,
+  FeedbackResponse,
+  FeedbackValue
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown } from 'react-icons/hi2'
 import clsx from 'clsx'
 
 //
@@ -106,6 +108,7 @@ export default function Chat() {
   const { search } = useLocation()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
+  const [highlightMessageId, setHighlightMessageId] = useState<number | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [history, setHistory] = useState<Array<{ id: number; title: string; updated_at: string }>>([])
   const [input, setInput] = useState('')
@@ -179,6 +182,23 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
 
+  // Auto-charger une conversation spécifique (lien admin feedback) et surligner un message précis
+  useEffect(() => {
+    const sp = new URLSearchParams(search)
+    const convRaw = sp.get('conversation_id')
+    const msgRaw = sp.get('message_id')
+    const convId = convRaw ? Number(convRaw) : NaN
+    const msgId = msgRaw ? Number(msgRaw) : NaN
+    if (Number.isFinite(convId) && convId > 0) {
+      if (conversationId !== convId || messages.length === 0) {
+        void loadConversation(convId, { highlightMessageId: Number.isFinite(msgId) ? msgId : null })
+      } else if (Number.isFinite(msgId)) {
+        setHighlightMessageId(msgId)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
+
   // Fermer la sheet Tickets avec la touche Escape
   useEffect(() => {
     if (!showTicketsSheet) return
@@ -188,6 +208,19 @@ export default function Chat() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [showTicketsSheet])
+
+  // Scroll vers le message ciblé (lien admin feedback)
+  useEffect(() => {
+    if (highlightMessageId == null) return
+    const target = document.querySelector<HTMLElement>(`[data-message-id="${highlightMessageId}"]`)
+    if (target) {
+      try {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } catch {
+        /* noop */
+      }
+    }
+  }, [highlightMessageId, messages.length])
 
   async function refreshHistory() {
     try {
@@ -408,6 +441,9 @@ export default function Chat() {
           })
         } else if (type === 'done') {
           const done = data as ChatStreamDone
+          if (typeof done.conversation_id === 'number' && Number.isFinite(done.conversation_id)) {
+            setConversationId(done.conversation_id)
+          }
           finalAnswer = done.content_full || ''
           setMessages(prev => {
             const copy = [...prev]
@@ -419,13 +455,20 @@ export default function Chat() {
                 content: done.content_full,
                 // Attach latest NL→SQL dataset (if any) to allow on-demand charting
                 ...(latestDataset ? { chartDataset: latestDataset } : {}),
+                messageId: typeof done.message_id === 'number' ? done.message_id : undefined,
                 details: {
                   ...(copy[idx].details || {}),
                   elapsed: done.elapsed_s
                 }
               }
             } else {
-              copy.push({ id: createMessageId(), role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
+              copy.push({
+                id: createMessageId(),
+                role: 'assistant',
+                content: done.content_full,
+                ...(latestDataset ? { chartDataset: latestDataset } : {}),
+                messageId: typeof done.message_id === 'number' ? done.message_id : undefined,
+              })
             }
             return copy
           })
@@ -523,7 +566,7 @@ export default function Chat() {
     }
   }
 
-  async function loadConversation(id: number) {
+  async function loadConversation(id: number, opts?: { highlightMessageId?: number | null }) {
     try {
       const data = await apiFetch<{
         id: number
@@ -532,6 +575,9 @@ export default function Chat() {
           role: 'user' | 'assistant'
           content: string
           created_at: string
+          message_id?: number
+          feedback?: FeedbackValue
+          feedback_id?: number
           details?: {
             plan?: any
             steps?: Array<{ step?: number; purpose?: string; sql?: string }>
@@ -560,6 +606,9 @@ export default function Chat() {
             id: createMessageId(),
             role: m.role,
             content: m.content,
+            messageId: typeof (m as any).message_id === 'number' ? (m as any).message_id : undefined,
+            feedback: (m as any).feedback === 'up' || (m as any).feedback === 'down' ? (m as any).feedback as FeedbackValue : undefined,
+            feedbackId: typeof (m as any).feedback_id === 'number' ? (m as any).feedback_id : undefined,
             details,
             ...(m as any).chart_url ? {
               chartUrl: (m as any).chart_url,
@@ -595,6 +644,7 @@ export default function Chat() {
         : []
       setExcludedTables(new Set(ex))
       setEffectiveTables([])
+      setHighlightMessageId(typeof opts?.highlightMessageId === 'number' ? opts?.highlightMessageId : null)
       closeHistory()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible')
@@ -612,6 +662,68 @@ export default function Chat() {
     setEvidenceData(null)
     setError('')
     setHistoryOpen(false)
+    setHighlightMessageId(null)
+  }
+
+  async function onFeedback(messageId: string, vote: FeedbackValue) {
+    if (!conversationId) return
+    const idx = messages.findIndex(m => m.id === messageId)
+    if (idx < 0) return
+    const msg = messages[idx]
+    if (!msg.messageId || msg.feedbackSaving) return
+    const same = msg.feedback === vote
+    const targetFeedbackId = msg.feedbackId
+    setMessages(prev => {
+      const copy = [...prev]
+      const i = copy.findIndex(m => m.id === messageId)
+      if (i >= 0) {
+        copy[i] = { ...copy[i], feedbackSaving: true, feedbackError: undefined }
+      }
+      return copy
+    })
+    try {
+      if (same && targetFeedbackId) {
+        await apiFetch<void>(`/feedback/${targetFeedbackId}`, { method: 'DELETE' })
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId
+              ? { ...m, feedbackSaving: false, feedback: undefined, feedbackId: undefined, feedbackError: undefined }
+              : m
+          )
+        )
+        return
+      }
+      const res = await apiFetch<FeedbackResponse>('/feedback', {
+        method: 'POST',
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          message_id: msg.messageId,
+          value: vote,
+        }),
+      })
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? {
+                ...m,
+                feedback: res?.value ?? vote,
+                feedbackId: res?.id ?? targetFeedbackId,
+                feedbackSaving: false,
+                feedbackError: undefined,
+              }
+            : m
+        )
+      )
+    } catch (err) {
+      const feedbackError = err instanceof Error ? err.message : 'Envoi du feedback impossible'
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? { ...m, feedbackSaving: false, feedbackError }
+            : m
+        )
+      )
+    }
   }
 
   async function onGenerateChart(messageId: string) {
@@ -942,6 +1054,8 @@ export default function Chat() {
                 message={message}
                 onSaveChart={onSaveChart}
                 onGenerateChart={onGenerateChart}
+                onFeedback={onFeedback}
+                highlighted={message.messageId != null && highlightMessageId === message.messageId}
               />
             ))}
             {(chartGenerating || messages.some(m => m.chartSaving)) && (
@@ -1164,6 +1278,8 @@ interface MessageBubbleProps {
   message: Message
   onSaveChart?: (messageId: string) => void
   onGenerateChart?: (messageId: string) => void
+  onFeedback?: (messageId: string, vote: FeedbackValue) => void
+  highlighted?: boolean
 }
 
 // -------- Left panel: Tickets from evidence --------
@@ -1428,7 +1544,7 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
   )
 }
 
-function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleProps) {
+function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, highlighted }: MessageBubbleProps) {
   const {
     id,
     role,
@@ -1443,8 +1559,17 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
   } = message
   const isUser = role === 'user'
   const [showDetails, setShowDetails] = useState(false)
+  const feedbackPending = Boolean(message.feedbackSaving)
+  const canFeedback = !isUser && !message.ephemeral && !chartUrl && Boolean(message.messageId)
+  const feedbackUp = message.feedback === 'up'
+  const feedbackDown = message.feedback === 'down'
+  const handleFeedback = (vote: FeedbackValue) => {
+    if (!id || !onFeedback) return
+    onFeedback(id, vote)
+  }
   return (
     <div
+      data-message-id={message.messageId ?? undefined}
       className={clsx(
         'flex',
         isUser ? 'justify-end' : 'justify-start'
@@ -1458,7 +1583,8 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             : clsx(
                 'max-w-full bg-transparent p-0 rounded-none shadow-none',
                 message.ephemeral && 'opacity-70'
-              )
+              ),
+          highlighted && !isUser && 'ring-2 ring-primary-200 ring-offset-2 ring-offset-white rounded-xl'
         )}
       >
         {/* Label d'auteur supprimé (Vous/Assistant) pour une UI plus épurée */}
@@ -1524,7 +1650,43 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             {content}
             {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
             {!isUser && !chartUrl && !message.ephemeral && (
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                {canFeedback && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleFeedback('up')}
+                      disabled={feedbackPending}
+                      aria-pressed={feedbackUp}
+                      className={clsx(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors',
+                        feedbackUp
+                          ? 'bg-green-100 border-green-200 text-green-800'
+                          : 'border-primary-200 text-primary-600 hover:bg-primary-50',
+                        feedbackPending && 'opacity-60 cursor-not-allowed'
+                      )}
+                      title="Pouce en l'air"
+                    >
+                      <HiHandThumbUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleFeedback('down')}
+                      disabled={feedbackPending}
+                      aria-pressed={feedbackDown}
+                      className={clsx(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors',
+                        feedbackDown
+                          ? 'bg-red-100 border-red-200 text-red-800'
+                          : 'border-primary-200 text-primary-600 hover:bg-primary-50',
+                        feedbackPending && 'opacity-60 cursor-not-allowed'
+                      )}
+                      title="Pouce en bas"
+                    >
+                      <HiHandThumbDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
                 <Button
                   size="xs"
                   variant="secondary"
@@ -1558,6 +1720,9 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                 >
                   {showDetails ? 'Masquer' : 'Détails'}
                 </Button>
+                {message.feedbackError && (
+                  <span className="text-[11px] text-red-600">{message.feedbackError}</span>
+                )}
               </div>
             )}
           </div>
