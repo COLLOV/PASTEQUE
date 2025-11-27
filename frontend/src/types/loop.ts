@@ -7,7 +7,7 @@ export interface LoopConfig {
   last_generated_at?: string | null
 }
 
-export type LoopKind = 'weekly' | 'monthly'
+export type LoopKind = 'daily' | 'weekly' | 'monthly'
 
 export interface LoopSummary {
   id: number
@@ -21,14 +21,19 @@ export interface LoopSummary {
 }
 
 export interface LoopOverview {
-  config: LoopConfig | null
-  weekly: LoopSummary[]
-  monthly: LoopSummary[]
-  last_generated_at?: string | null
+  items: LoopTableOverview[]
 }
 
 export interface LoopConfigPayload {
   table_name: string
   text_column: string
   date_column: string
+}
+
+export interface LoopTableOverview {
+  config: LoopConfig
+  daily: LoopSummary[]
+  weekly: LoopSummary[]
+  monthly: LoopSummary[]
+  last_generated_at?: string | null
 }

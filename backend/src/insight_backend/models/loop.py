@@ -37,7 +37,7 @@ class LoopSummary(Base):
     config_id: Mapped[int] = mapped_column(
         ForeignKey("loop_configs.id", ondelete="CASCADE"), index=True
     )
-    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # 'weekly' | 'monthly'
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # 'daily' | 'weekly' | 'monthly'
     period_label: Mapped[str] = mapped_column(String(32), nullable=False)
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)
