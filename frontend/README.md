@@ -144,6 +144,7 @@ import { login } from '@/services/auth'
 - Layout persistant avec header et navigation
 - Liens actifs avec indicateur visuel
 - Navigation responsive
+- Espace admin organisé en onglets (Statistiques, Dictionnaire, Loop, Utilisateurs, Feedback). L’entrée Feedback est accessible dans l’onglet Admin.
 
 ### Chat
 
