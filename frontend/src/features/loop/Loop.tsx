@@ -3,15 +3,8 @@ import { Card, Button, Loader } from '@/components/ui'
 import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
 import type { LoopOverview, LoopSummary, LoopTableOverview } from '@/types/loop'
-import { HiArrowPath, HiClock, HiOutlineDocumentText } from 'react-icons/hi2'
+import { HiArrowPath } from 'react-icons/hi2'
 import { marked, Renderer } from 'marked'
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
-}
 
 const escapeHtml = (text: string) =>
   text
@@ -43,55 +36,22 @@ function renderMarkdown(content: string) {
   )
 }
 
-function SummaryList({
-  title,
-  summaries,
-  emptyText,
-  sourceName,
-}: {
-  title: string
-  summaries: LoopSummary[]
-  sourceName: string
-  emptyText?: string
-}) {
-  if (summaries.length === 0) {
-    return (
-      <Card variant="elevated" className="p-6">
-        <p className="text-primary-600 text-sm">{emptyText ?? 'Aucun résumé disponible.'}</p>
-      </Card>
-    )
-  }
+function SummaryList({ title, summaries, emptyText }: { title: string; summaries: LoopSummary[]; emptyText?: string }) {
+  const summary = summaries[0]
 
   return (
-    <div className="space-y-3 max-w-6xl w-full">
-      <div className="flex items-center gap-2">
-        <HiOutlineDocumentText className="w-5 h-5 text-primary-500" />
-        <h3 className="text-lg font-semibold text-primary-900">{title}</h3>
-      </div>
-      <div className="flex flex-col gap-4">
-        {summaries.map(item => (
-          <Card
-            key={`${item.kind}-${item.id}`}
-            variant="elevated"
-            className="flex flex-col gap-3 w-full"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-primary-500">Source analysée</p>
-                <h4 className="text-xl font-semibold text-primary-950">{sourceName}</h4>
-              </div>
-              <div className="text-right text-sm text-primary-600">
-                <p className="font-medium text-primary-900">{item.ticket_count} tickets</p>
-                <p className="flex items-center justify-end gap-1 text-xs text-primary-500">
-                  <HiClock className="w-4 h-4" />
-                  Généré le {formatDate(item.created_at)}
-                </p>
-              </div>
-            </div>
-            {renderMarkdown(item.content)}
-          </Card>
-        ))}
-      </div>
+    <div className="space-y-2">
+      <h3 className="text-base font-semibold text-primary-900">{title}</h3>
+      {summary ? (
+        <Card key={`${summary.kind}-${summary.id}`} variant="elevated" className="p-4 space-y-3">
+          <p className="text-xs uppercase tracking-wide text-primary-500">Réponse LLM</p>
+          {renderMarkdown(summary.content)}
+        </Card>
+      ) : (
+        <Card variant="elevated" className="p-4">
+          <p className="text-primary-600 text-sm">{emptyText ?? 'Aucune réponse LLM disponible.'}</p>
+        </Card>
+      )}
     </div>
   )
 }
@@ -175,18 +135,15 @@ export default function Loop() {
                     <SummaryList
                       title="Vue journalière"
                       summaries={(item.daily ?? []).slice(0, 1)}
-                      sourceName={item.config.table_name}
-                      emptyText="Aucun ticket enregistré aujourd'hui."
+                      emptyText="Aucune réponse LLM disponible."
                     />
                     <SummaryList
                       title="Vue hebdomadaire"
                       summaries={(item.weekly ?? []).slice(0, 1)}
-                      sourceName={item.config.table_name}
                     />
                     <SummaryList
                       title="Vue mensuelle"
                       summaries={(item.monthly ?? []).slice(0, 1)}
-                      sourceName={item.config.table_name}
                     />
                   </div>
                 </Card>
