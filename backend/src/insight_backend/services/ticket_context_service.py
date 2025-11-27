@@ -121,7 +121,8 @@ class TicketContextService:
     # -------- Internals --------
     def _get_config(self, *, table: str | None, text_column: str | None, date_column: str | None):
         if table:
-            inferred_text, inferred_date = self._infer_columns(table)
+            canon = self._canonical_table(table, None)
+            inferred_text, inferred_date = self._infer_columns(canon)
             t_col = text_column or inferred_text
             d_col = date_column or inferred_date
             if not t_col or not d_col:
@@ -129,7 +130,7 @@ class TicketContextService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Impossible de déduire les colonnes texte/date pour cette table.",
                 )
-            return type("Cfg", (), {"table_name": table, "text_column": t_col, "date_column": d_col})
+            return type("Cfg", (), {"table_name": canon, "text_column": t_col, "date_column": d_col})
 
         config = self.loop_repo.get_config()
         if not config:
@@ -178,11 +179,26 @@ class TicketContextService:
     def _ensure_allowed(self, table_name: str, allowed_tables: Iterable[str] | None) -> None:
         if allowed_tables is None:
             return
-        if table_name not in set(allowed_tables):
+        allowed_set = {t.casefold() for t in allowed_tables}
+        if table_name.casefold() not in allowed_set:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Table tickets non autorisée pour cet utilisateur.",
             )
+
+    def _canonical_table(self, name: str, allowed_tables: Iterable[str] | None) -> str:
+        target = name.strip()
+        if not target:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nom de table manquant.")
+        available = self.data_repo.list_tables()
+        mapping = {t.casefold(): t for t in available}
+        key = target.casefold()
+        if key not in mapping:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Table introuvable: {target}")
+        canon = mapping[key]
+        if allowed_tables is not None and canon.casefold() not in {t.casefold() for t in allowed_tables}:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Table tickets non autorisée pour cet utilisateur.")
+        return canon
 
     def _load_entries(self, config) -> list[dict[str, Any]]:
         cached = self._cached_entries.get(config.table_name)
