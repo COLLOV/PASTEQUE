@@ -59,6 +59,7 @@
     appearance: none;
     background: transparent;
     opacity: 0; /* rendre la piste native invisible, on garde le handle custom au-dessus */
+    pointer-events: none; /* seule la zone du pouce doit être cliquable */
   }
   .dual-range-thumb::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -69,6 +70,7 @@
     background: #0f172a;
     border: 2px solid #e5e7eb;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
   }
   .dual-range-thumb::-webkit-slider-runnable-track {
     background: transparent;
@@ -83,6 +85,7 @@
     background: #0f172a;
     border: 2px solid #e5e7eb;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
   }
   .dual-range-thumb::-moz-range-track {
     background: transparent;
