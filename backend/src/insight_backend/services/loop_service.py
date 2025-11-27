@@ -297,7 +297,7 @@ class LoopService:
                 "period_start": group["start"],
                 "period_end": group["end"],
                 "ticket_count": 0,
-                "content": "Aucun ticket détecté sur cette période : rien dans le radar.",
+                "content": "Aucun ticket enregistré sur cette période. Aucun suivi requis.",
             }
         chunks = self._chunk_items(items)
         partial_summaries: list[str] = []

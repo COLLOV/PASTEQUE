@@ -266,7 +266,7 @@ ROUTER_MODE=rule   # rule | local | api | false
 ### Loop – résumés journaliers/hebdomadaires/mensuels
 
 - Endpoints:
-  - `GET /api/v1/loop/overview` (auth): configuration actuelle + résumés jour/hebdo/mensuels persistés (si aucun ticket sur le jour en cours, le résumé journalier indique « rien dans le radar »).
+  - `GET /api/v1/loop/overview` (auth): configuration actuelle + résumés jour/hebdo/mensuels persistés (le résumé journalier indique explicitement lorsqu’aucun ticket n’est enregistré le jour courant).
   - `PUT /api/v1/loop/config` (admin): choisit la table + colonnes texte/date à utiliser (validées sur les CSV en `DATA_TABLES_DIR`).
   - `POST /api/v1/loop/regenerate` (admin): relance l’agent `looper` pour regénérer les résumés journaliers/hebdo/mensuels récents.
 - L’agent `looper` injecte le contenu des tickets de chaque période et produit deux parties dans une réponse longue: problèmes majeurs à résoudre + plan d’action concret. Il respecte `LLM_MODE` (local vLLM ou API externe).

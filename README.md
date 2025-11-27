@@ -135,7 +135,7 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 
 ### Loop – résumés journaliers/hebdo/mensuels
 
-- Bouton « Loop » dans le header: affiche les résumés journaliers (indique « rien dans le radar » si aucun ticket ce jour), hebdomadaires et mensuels générés par l’agent `looper` (problèmes majeurs + plan d’action, réponses longues autorisées).
+- Bouton « Loop » dans le header: affiche les résumés journaliers (mention explicite lorsqu’aucun ticket n’est enregistré ce jour), hebdomadaires et mensuels générés par l’agent `looper` (problèmes majeurs + plan d’action, réponses longues autorisées).
 - Panneau Admin → section « Loop »: choisir la table source et les colonnes texte/date des tickets, enregistrer, puis relancer la génération (`POST /api/v1/loop/regenerate`). Résultats persistés et visibles pour tous via `GET /api/v1/loop/overview`.
 - L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, `LOOP_MAX_DAYS/WEEKS/MONTHS` par défaut à 1, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`, etc.).
 
