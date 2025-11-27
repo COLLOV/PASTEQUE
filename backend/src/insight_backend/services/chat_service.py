@@ -754,15 +754,6 @@ class ChatService:
         - Skip set operations (UNION / INTERSECT / EXCEPT) to avoid producing
           misleading evidence; the regular table payload remains available.
         """
-        def _arg(expr: exp.Expression, name: str):
-            return expr.args.get(name) or expr.args.get(f"{name}_")
-
-        def _set(base: exp.Expression, source: exp.Expression, name: str, value: exp.Expression) -> None:
-            target = name
-            if name not in source.args and f"{name}_" in source.args:
-                target = f"{name}_"
-            base.set(target, value)
-
         try:
             if limit is None:
                 limit = settings.evidence_limit_default
@@ -795,21 +786,18 @@ class ChatService:
 
             # Clone FROM / WHERE (keep CTEs if any)
             base_select = exp.select("*")
-            from_arg = _arg(select_node, "from")
-            if from_arg is not None:
-                _set(base_select, select_node, "from", from_arg.copy())
+            if select_node.args.get("from") is not None:
+                base_select.set("from", select_node.args["from"].copy())
             else:
                 # No FROM → nothing to select as evidence
                 return None
 
-            where_arg = _arg(select_node, "where")
-            if where_arg is not None:
-                _set(base_select, select_node, "where", where_arg.copy())
+            if select_node.args.get("where") is not None:
+                base_select.set("where", select_node.args["where"].copy())
 
             # Preserve CTEs
-            with_arg = _arg(select_node, "with")
-            if with_arg is not None:
-                _set(base_select, select_node, "with", with_arg.copy())
+            if select_node.args.get("with") is not None:
+                base_select.set("with", select_node.args["with"].copy())
 
             # Ensure a LIMIT cap
             if base_select.args.get("limit") is None:

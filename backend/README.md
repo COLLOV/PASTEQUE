@@ -7,8 +7,6 @@ Squelette minimal, sans logique métier. Les routes délèguent à des services.
 1. Installer `uv` (voir docs Astral).
 2. Depuis `backend/`: `uv sync`
 
-Note de compatibilité: FastAPI >= 0.122 n’expose plus de sous-module `fastapi.status`; importer les constantes HTTP via `from fastapi import status`.
-
 ### Développement
 
 `uv run uvicorn insight_backend.main:app --reload`
@@ -173,6 +171,7 @@ Par défaut, toutes les requêtes HTTP vers le backend LLM OpenAI‑compatible (
 - `LLM_VERIFY_SSL=false`: désactive la vérification TLS pour le client LLM (utilise `verify=False` côté HTTP). **À n'utiliser que dans un environnement contrôlé** lorsque vous devez contourner un certificat auto‑signé ou une chaîne incomplète.
 
 Lorsque `LLM_VERIFY_SSL=false`, un avertissement explicite est journalisé par `insight.integrations.openai` au démarrage du client.
+Ce flag s'applique aussi aux appels LLM utilisés par l'agent MCP `chart`.
 
 ### Mise en avant RAG
 

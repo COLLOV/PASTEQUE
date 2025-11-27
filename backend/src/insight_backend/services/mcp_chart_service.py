@@ -4,12 +4,14 @@ import json
 import os
 import sys
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Iterable, List, TextIO, Tuple
 
 import logging
 import anyio
 import anyio.lowlevel
+import httpx
 
 from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel
@@ -18,6 +20,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.messages import ModelResponse
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai import models as ai_models
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
@@ -45,6 +48,16 @@ def _should_suppress_json_error(raw_line: str) -> bool:
     if not text:
         return True
     return "jsonrpc" not in text
+
+
+@lru_cache
+def _openai_http_client(verify_ssl: bool) -> httpx.AsyncClient:
+    timeout = httpx.Timeout(timeout=600, connect=5)
+    return httpx.AsyncClient(
+        timeout=timeout,
+        headers={"User-Agent": ai_models.get_user_agent()},
+        verify=verify_ssl,
+    )
 
 
 @asynccontextmanager
@@ -383,7 +396,19 @@ class ChartGenerationService:
                 "Configuration LLM incomplète pour la génération de graphiques."
             )
 
-        provider = OpenAIProvider(base_url=base_url, api_key=api_key)
+        verify_ssl = bool(settings.llm_verify_ssl)
+        if not verify_ssl:
+            log.warning(
+                "LLM SSL verification disabled for MCP chart calls (LLM_VERIFY_SSL=%r).",
+                settings.llm_verify_ssl,
+            )
+
+        http_client = _openai_http_client(verify_ssl)
+        provider = OpenAIProvider(
+            base_url=base_url,
+            api_key=api_key,
+            http_client=http_client,
+        )
         return provider, model_name
 
     @staticmethod
