@@ -322,16 +322,16 @@ def assert_secure_configuration() -> None:
         )
 
 def resolve_project_path(p: str) -> str:
-    """Resolve ``p`` to an absolute path relative to the repo root when needed.
+    """Resolve ``p`` to an absolute path relative to the backend directory when needed.
 
-    - If ``p`` is absolute, return it unchanged.
-    - If relative, anchor it at the project root inferred from this file's location.
+    - If ``p`` est absolu, on le retourne tel quel.
+    - Si ``p`` est relatif, on l'ancre au dossier backend (parents[3] depuis ce fichier),
+      ce qui correspond à la racine du projet (contenant `backend/`, `data/`, `frontend/`, etc.).
     """
     from pathlib import Path as _Path  # local import to keep public surface minimal
 
     raw = _Path(p)
     if raw.is_absolute():
         return str(raw)
-    # backend/src/insight_backend/core/config.py → repo root is parents[4]
-    base = _Path(__file__).resolve().parents[4]
+    base = _Path(__file__).resolve().parents[3]  # …/backend
     return str((base / raw).resolve())

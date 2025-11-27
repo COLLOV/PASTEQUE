@@ -43,7 +43,7 @@ class TicketContextService:
         date_column: str | None = None,
     ) -> dict[str, Any]:
         config = self._get_config(table=table, text_column=text_column, date_column=date_column)
-        self._ensure_allowed(config["table_name"], allowed_tables)
+        self._ensure_allowed(config.table_name, allowed_tables)
         entries = self._load_entries(config)
         if not entries:
             raise HTTPException(
