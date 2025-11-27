@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     loop_max_months: int = Field(1, alias="LOOP_MAX_MONTHS")
     loop_temperature: float = Field(0.3, alias="LOOP_TEMPERATURE")
     loop_max_tokens: int = Field(800, alias="LOOP_MAX_TOKENS")
+    loop_max_tickets_per_call: int = Field(400, alias="LOOP_MAX_TICKETS_PER_CALL")
+    loop_max_input_chars: int = Field(300000, alias="LOOP_MAX_INPUT_CHARS")
 
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"

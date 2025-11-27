@@ -84,58 +84,12 @@ class LoopService:
 
         payloads: list[dict] = []
         for group in weekly_groups:
-            lines, truncated = self._format_context(group["items"])
-            if truncated:
-                log.warning(
-                    "Context weekly %s tronqué à %d tickets (total=%d)",
-                    group["label"],
-                    len(lines),
-                    len(group["items"]),
-                )
-            content = self.agent.summarize(
-                period_label=group["label"],
-                period_start=group["start"],
-                period_end=group["end"],
-                tickets=lines,
-                total_tickets=len(group["items"]),
-            )
-            payloads.append(
-                {
-                    "kind": "weekly",
-                    "period_label": group["label"],
-                    "period_start": group["start"],
-                    "period_end": group["end"],
-                    "ticket_count": len(group["items"]),
-                    "content": content,
-                }
-            )
+            content = self._summarize_group(group, kind="weekly")
+            payloads.append(content)
 
         for group in monthly_groups:
-            lines, truncated = self._format_context(group["items"])
-            if truncated:
-                log.warning(
-                    "Context monthly %s tronqué à %d tickets (total=%d)",
-                    group["label"],
-                    len(lines),
-                    len(group["items"]),
-                )
-            content = self.agent.summarize(
-                period_label=group["label"],
-                period_start=group["start"],
-                period_end=group["end"],
-                tickets=lines,
-                total_tickets=len(group["items"]),
-            )
-            payloads.append(
-                {
-                    "kind": "monthly",
-                    "period_label": group["label"],
-                    "period_start": group["start"],
-                    "period_end": group["end"],
-                    "ticket_count": len(group["items"]),
-                    "content": content,
-                }
-            )
+            content = self._summarize_group(group, kind="monthly")
+            payloads.append(content)
 
         saved = self.repo.replace_summaries(config=config, items=payloads)
         now = datetime.now(timezone.utc)
@@ -266,3 +220,77 @@ class LoopService:
                 prefix = f"{prefix} #{ticket_id}"
             lines.append(f"{idx}. {prefix} — {text}")
         return lines, len(items) > cap
+
+    def _chunk_items(self, items: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+        max_tickets = max(1, int(settings.loop_max_tickets_per_call))
+        max_chars = max(1000, int(settings.loop_max_input_chars))
+        chunks: list[list[Dict[str, Any]]] = []
+        current: list[Dict[str, Any]] = []
+        current_chars = 0
+
+        def _ticket_cost(item: dict[str, Any]) -> int:
+            text = str(item.get("text") or "")
+            return min(len(text), settings.loop_ticket_text_max_chars)
+
+        for item in items:
+            cost = _ticket_cost(item)
+            if current and (len(current) >= max_tickets or (current_chars + cost) > max_chars):
+                chunks.append(current)
+                current = []
+                current_chars = 0
+            current.append(item)
+            current_chars += cost
+
+        if current:
+            chunks.append(current)
+
+        return chunks or [items]
+
+    def _summarize_group(self, group: Dict[str, Any], *, kind: str) -> dict:
+        items = group["items"]
+        chunks = self._chunk_items(items)
+        partial_summaries: list[str] = []
+
+        for idx, chunk in enumerate(chunks, start=1):
+            lines, truncated = self._format_context(chunk)
+            if truncated:
+                log.warning(
+                    "Context %s %s tronqué à %d tickets (chunk=%d/%d total_chunk_tickets=%d)",
+                    kind,
+                    group["label"],
+                    len(lines),
+                    idx,
+                    len(chunks),
+                    len(chunk),
+                )
+            partial = self.agent.summarize(
+                period_label=f"{group['label']} (part {idx}/{len(chunks)})",
+                period_start=group["start"],
+                period_end=group["end"],
+                tickets=lines,
+                total_tickets=len(chunk),
+            )
+            partial_summaries.append(partial)
+
+        if len(partial_summaries) == 1:
+            final_content = partial_summaries[0]
+        else:
+            tickets = [
+                f"Synthèse partielle {i+1}/{len(partial_summaries)} : {text}"
+                for i, text in enumerate(partial_summaries)
+            ]
+            final_content = self.agent.summarize(
+                period_label=f"{group['label']} (fusion)",
+                period_start=group["start"],
+                period_end=group["end"],
+                tickets=tickets,
+                total_tickets=len(items),
+            )
+        return {
+            "kind": kind,
+            "period_label": group["label"],
+            "period_start": group["start"],
+            "period_end": group["end"],
+            "ticket_count": len(items),
+            "content": final_content,
+        }
