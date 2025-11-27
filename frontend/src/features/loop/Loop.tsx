@@ -192,8 +192,8 @@ export default function Loop() {
                 summaries={(overview?.daily ?? []).slice(0, 1)}
                 emptyText="Aucun ticket enregistré aujourd'hui."
               />
-              <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
               <SummaryList title="Vue hebdomadaire" summaries={(overview?.weekly ?? []).slice(0, 1)} />
+              <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
             </div>
           )}
         </>
