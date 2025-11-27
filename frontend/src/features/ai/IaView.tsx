@@ -323,8 +323,7 @@ export default function IaView() {
         <Card variant="elevated" className="space-y-3">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-primary-700">
-              <span className="font-semibold text-primary-900">Filtre date global</span>{' '}
-              (impacte les catégories, sous-catégories et l’aperçu)
+              <span className="font-semibold text-primary-900">Filtre date</span>
             </div>
             <div className="text-[11px] text-primary-600 flex gap-2">
               <span>
@@ -392,9 +391,6 @@ export default function IaView() {
               style={{ zIndex: 31, background: 'transparent', left: `${endPercent}%` }}
             />
           </div>
-          <p className="text-[11px] text-primary-500">
-            Les sources sans colonne « date » sont ignorées quand un filtre est appliqué.
-          </p>
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
