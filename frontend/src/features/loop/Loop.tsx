@@ -43,11 +43,11 @@ function renderMarkdown(content: string) {
   )
 }
 
-function SummaryList({ title, summaries }: { title: string; summaries: LoopSummary[] }) {
+function SummaryList({ title, summaries, emptyText }: { title: string; summaries: LoopSummary[]; emptyText?: string }) {
   if (summaries.length === 0) {
     return (
       <Card variant="elevated" className="p-6">
-        <p className="text-primary-600 text-sm">Aucun résumé disponible.</p>
+        <p className="text-primary-600 text-sm">{emptyText ?? 'Aucun résumé disponible.'}</p>
       </Card>
     )
   }
@@ -67,7 +67,9 @@ function SummaryList({ title, summaries }: { title: string; summaries: LoopSumma
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-primary-500">{item.kind === 'weekly' ? 'Hebdomadaire' : 'Mensuel'}</p>
+                <p className="text-xs uppercase tracking-wide text-primary-500">
+                  {item.kind === 'daily' ? 'Journalier' : item.kind === 'weekly' ? 'Hebdomadaire' : 'Mensuel'}
+                </p>
                 <h4 className="text-xl font-semibold text-primary-950">{item.period_label}</h4>
                 <p className="text-sm text-primary-600">
                   {formatDate(item.period_start)} → {formatDate(item.period_end)}
@@ -122,9 +124,10 @@ export default function Loop() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <p className="text-sm uppercase tracking-wide text-primary-500">Loop</p>
-          <h2 className="text-2xl font-bold text-primary-950">Résumés hebdo & mensuels</h2>
+          <h2 className="text-2xl font-bold text-primary-950">Résumés journaliers, hebdo & mensuels</h2>
           <p className="text-primary-600">
-            Synthèse des tickets par semaine et par mois, avec points majeurs et plan d'action.
+            Synthèse des tickets par jour, semaine et mois, avec points majeurs et plan d'action. Quand il n'y a rien,
+            on vous le dit clairement.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -184,6 +187,11 @@ export default function Loop() {
             </Card>
           ) : (
             <div className="space-y-6">
+              <SummaryList
+                title="Vue journalière"
+                summaries={(overview?.daily ?? []).slice(0, 1)}
+                emptyText="Rien dans le radar aujourd'hui."
+              />
               <SummaryList title="Vue mensuelle" summaries={(overview?.monthly ?? []).slice(0, 1)} />
               <SummaryList title="Vue hebdomadaire" summaries={(overview?.weekly ?? []).slice(0, 1)} />
             </div>

@@ -133,11 +133,11 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Les tuiles de synthèse (sources/couples/sélection) ont été retirées de la Vue IA pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
 - Les catégories sont maintenant sélectionnables via un dropdown, avec un filtre texte pour cibler les sous-catégories affichées dans une liste scrollable.
 
-### Loop – résumés hebdo/mensuels
+### Loop – résumés journaliers/hebdo/mensuels
 
-- Bouton « Loop » dans le header: affiche les résumés hebdomadaires et mensuels générés par l’agent `looper` (problèmes majeurs + plan d’action, réponses longues autorisées).
+- Bouton « Loop » dans le header: affiche les résumés journaliers (indique « rien dans le radar » si aucun ticket ce jour), hebdomadaires et mensuels générés par l’agent `looper` (problèmes majeurs + plan d’action, réponses longues autorisées).
 - Panneau Admin → section « Loop »: choisir la table source et les colonnes texte/date des tickets, enregistrer, puis relancer la génération (`POST /api/v1/loop/regenerate`). Résultats persistés et visibles pour tous via `GET /api/v1/loop/overview`.
-- L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, `LOOP_MAX_WEEKS/MONTHS` par défaut à 1, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`, etc.).
+- L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, `LOOP_MAX_DAYS/WEEKS/MONTHS` par défaut à 1, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`, etc.).
 
 ## Principes d’architecture
 

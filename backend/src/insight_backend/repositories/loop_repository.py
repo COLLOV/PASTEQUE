@@ -12,7 +12,7 @@ from ..models.loop import LoopConfig, LoopSummary
 log = logging.getLogger("insight.repositories.loop")
 
 
-LoopKind = Literal["weekly", "monthly"]
+LoopKind = Literal["daily", "weekly", "monthly"]
 
 
 class LoopRepository:

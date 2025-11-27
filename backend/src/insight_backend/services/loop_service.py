@@ -29,13 +29,14 @@ class LoopService:
         self.agent = agent or LooperAgent()
 
     # --- Public API ----------------------------------------------------
-    def get_overview(self) -> tuple[LoopConfig | None, list[LoopSummary], list[LoopSummary]]:
+    def get_overview(self) -> tuple[LoopConfig | None, list[LoopSummary], list[LoopSummary], list[LoopSummary]]:
         config = self.repo.get_config()
         if not config:
-            return None, [], []
+            return None, [], [], []
+        daily = self.repo.list_by_kind(kind="daily", config_id=config.id)[:1]
         weekly = self.repo.list_by_kind(kind="weekly", config_id=config.id)[:1]
         monthly = self.repo.list_by_kind(kind="monthly", config_id=config.id)[:1]
-        return config, weekly, monthly
+        return config, daily, weekly, monthly
 
     def save_config(self, *, table_name: str, text_column: str, date_column: str) -> LoopConfig:
         self._validate_columns(table_name=table_name, text_column=text_column, date_column=date_column)
@@ -55,7 +56,7 @@ class LoopService:
             self.repo.replace_summaries(config=config, items=[])
         return config
 
-    def regenerate(self) -> tuple[LoopConfig, list[LoopSummary], list[LoopSummary]]:
+    def regenerate(self) -> tuple[LoopConfig, list[LoopSummary], list[LoopSummary], list[LoopSummary]]:
         config = self.repo.get_config()
         if not config:
             raise HTTPException(
@@ -74,15 +75,19 @@ class LoopService:
                 detail="Aucun ticket exploitable avec cette configuration.",
             )
 
+        daily_groups = self._group_by_day(entries)
         weekly_groups = self._group_by_week(entries)
         monthly_groups = self._group_by_month(entries)
-        if not weekly_groups and not monthly_groups:
+        if not daily_groups and not weekly_groups and not monthly_groups:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Impossible de constituer des groupes hebdomadaires ou mensuels avec les données présentes.",
+                detail="Impossible de constituer des groupes journaliers, hebdomadaires ou mensuels avec les données présentes.",
             )
 
         payloads: list[dict] = []
+        for group in daily_groups:
+            content = self._summarize_group(group, kind="daily")
+            payloads.append(content)
         for group in weekly_groups:
             content = self._summarize_group(group, kind="weekly")
             payloads.append(content)
@@ -95,9 +100,10 @@ class LoopService:
         now = datetime.now(timezone.utc)
         self.repo.touch_generated(config_id=config.id, ts=now)
 
+        daily = [item for item in saved if item.kind == "daily"][:1]
         weekly = [item for item in saved if item.kind == "weekly"][:1]
         monthly = [item for item in saved if item.kind == "monthly"][:1]
-        return config, weekly, monthly
+        return config, daily, weekly, monthly
 
     # --- Helpers -------------------------------------------------------
     def _validate_columns(self, *, table_name: str, text_column: str, date_column: str) -> None:
@@ -205,6 +211,42 @@ class LoopService:
         limit = max(1, int(settings.loop_max_months))
         return groups[:limit]
 
+    def _group_by_day(self, entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        buckets: dict[date, list[dict[str, Any]]] = {}
+        for item in entries:
+            buckets.setdefault(item["date"], []).append(item)
+
+        limit = max(1, int(settings.loop_max_days))
+        today = date.today()
+        ordered_dates: list[date] = [today] + [d for d in sorted(buckets.keys(), reverse=True) if d != today]
+
+        seen: set[date] = set()
+        selected: list[date] = []
+        for d in ordered_dates:
+            if d in seen:
+                continue
+            seen.add(d)
+            selected.append(d)
+            if len(selected) >= limit:
+                break
+
+        if not selected:
+            selected = [today]
+
+        groups: list[dict[str, Any]] = []
+        for current in selected:
+            items = sorted(buckets.get(current, []), key=lambda item: item["date"], reverse=True)
+            groups.append(
+                {
+                    "label": current.isoformat(),
+                    "start": current,
+                    "end": current,
+                    "items": items,
+                }
+            )
+
+        return groups
+
     def _format_context(self, items: List[Dict[str, Any]]) -> Tuple[List[str], bool]:
         cap = max(1, int(settings.loop_max_tickets))
         max_chars = max(32, int(settings.loop_ticket_text_max_chars))
@@ -248,6 +290,15 @@ class LoopService:
 
     def _summarize_group(self, group: Dict[str, Any], *, kind: str) -> dict:
         items = group["items"]
+        if not items:
+            return {
+                "kind": kind,
+                "period_label": group["label"],
+                "period_start": group["start"],
+                "period_end": group["end"],
+                "ticket_count": 0,
+                "content": "Aucun ticket détecté sur cette période : rien dans le radar.",
+            }
         chunks = self._chunk_items(items)
         partial_summaries: list[str] = []
 

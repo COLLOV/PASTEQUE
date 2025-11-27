@@ -31,9 +31,10 @@ def get_overview(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
 ) -> LoopOverviewResponse:
     service = _service(session)
-    config, weekly, monthly = service.get_overview()
+    config, daily, weekly, monthly = service.get_overview()
     return LoopOverviewResponse(
         config=LoopConfigResponse.from_model(config) if config else None,
+        daily=[LoopSummaryResponse.from_model(item) for item in daily],
         weekly=[LoopSummaryResponse.from_model(item) for item in weekly],
         monthly=[LoopSummaryResponse.from_model(item) for item in monthly],
         last_generated_at=config.last_generated_at if config else None,
@@ -67,11 +68,12 @@ def regenerate_loop(  # type: ignore[valid-type]
     if not user_is_admin(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin requis")
     service = _service(session)
-    config, weekly, monthly = service.regenerate()
+    config, daily, weekly, monthly = service.regenerate()
     session.commit()
     session.refresh(config)
     return LoopOverviewResponse(
         config=LoopConfigResponse.from_model(config),
+        daily=[LoopSummaryResponse.from_model(item) for item in daily],
         weekly=[LoopSummaryResponse.from_model(item) for item in weekly],
         monthly=[LoopSummaryResponse.from_model(item) for item in monthly],
         last_generated_at=config.last_generated_at,

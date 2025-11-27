@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from ..models.loop import LoopConfig, LoopSummary
 
 
-LoopKind = Literal["weekly", "monthly"]
+LoopKind = Literal["daily", "weekly", "monthly"]
 
 
 class LoopConfigRequest(BaseModel):
@@ -63,6 +63,7 @@ class LoopSummaryResponse(BaseModel):
 
 class LoopOverviewResponse(BaseModel):
     config: LoopConfigResponse | None
+    daily: list[LoopSummaryResponse]
     weekly: list[LoopSummaryResponse]
     monthly: list[LoopSummaryResponse]
     last_generated_at: datetime | None = None
