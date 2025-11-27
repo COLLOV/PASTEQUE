@@ -41,15 +41,23 @@ function SummaryList({ title, summaries, emptyText }: { title: string; summaries
 
   return (
     <div className="space-y-2">
-      <h3 className="text-base font-semibold text-primary-900">{title}</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="text-base font-semibold text-primary-900">{title}</h3>
+        <span className="text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-1 rounded-full border border-primary-100">
+          Synthèse
+        </span>
+      </div>
       {summary ? (
-        <Card key={`${summary.kind}-${summary.id}`} variant="elevated" className="p-4 space-y-3">
-          <p className="text-xs uppercase tracking-wide text-primary-500">Réponse LLM</p>
+        <Card
+          key={`${summary.kind}-${summary.id}`}
+          variant="elevated"
+          className="p-5 space-y-3 bg-gradient-to-br from-white via-primary-50/50 to-primary-25 border border-primary-100"
+        >
           {renderMarkdown(summary.content)}
         </Card>
       ) : (
         <Card variant="elevated" className="p-4">
-          <p className="text-primary-600 text-sm">{emptyText ?? 'Aucune réponse LLM disponible.'}</p>
+          <p className="text-primary-600 text-sm">{emptyText ?? 'Pas encore de synthèse disponible.'}</p>
         </Card>
       )}
     </div>
@@ -133,16 +141,16 @@ export default function Loop() {
 
                   <div className="space-y-4">
                     <SummaryList
-                      title="Vue journalière"
+                      title="Flash du jour"
                       summaries={(item.daily ?? []).slice(0, 1)}
-                      emptyText="Aucune réponse LLM disponible."
+                      emptyText="Pas encore de synthèse disponible."
                     />
                     <SummaryList
-                      title="Vue hebdomadaire"
+                      title="Focus de la semaine"
                       summaries={(item.weekly ?? []).slice(0, 1)}
                     />
                     <SummaryList
-                      title="Vue mensuelle"
+                      title="Panorama du mois"
                       summaries={(item.monthly ?? []).slice(0, 1)}
                     />
                   </div>
