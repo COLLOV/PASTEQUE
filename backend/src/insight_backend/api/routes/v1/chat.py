@@ -369,6 +369,9 @@ def chat_stream(  # type: ignore[valid-type]
                 allowed_tables=allowed_tables,
                 date_from=meta_in.get("tickets_from"),
                 date_to=meta_in.get("tickets_to"),
+                table=meta_in.get("ticket_table"),
+                text_column=meta_in.get("ticket_text_column"),
+                date_column=meta_in.get("ticket_date_column"),
             )
             sys_msg = ticket_context.get("system_message")
             if sys_msg:

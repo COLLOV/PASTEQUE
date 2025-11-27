@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List
 
 from fastapi import HTTPException, status
 
-from ..core.config import settings, resolve_project_path
+from ..core.config import settings
 from ..repositories.data_repository import DataRepository
 from ..repositories.loop_repository import LoopRepository
 from ..services.ticket_context_agent import TicketContextAgent
@@ -31,12 +31,19 @@ class TicketContextService:
         self.loop_repo = loop_repo
         self.data_repo = data_repo
         self.agent = agent or TicketContextAgent()
-        self._cached_entries: list[dict[str, Any]] | None = None
+        self._cached_entries: dict[str, list[dict[str, Any]]] = {}
 
     # -------- Public API --------
-    def get_metadata(self, *, allowed_tables: Iterable[str] | None) -> dict[str, Any]:
-        config = self._get_config()
-        self._ensure_allowed(config.table_name, allowed_tables)
+    def get_metadata(
+        self,
+        *,
+        allowed_tables: Iterable[str] | None,
+        table: str | None = None,
+        text_column: str | None = None,
+        date_column: str | None = None,
+    ) -> dict[str, Any]:
+        config = self._get_config(table=table, text_column=text_column, date_column=date_column)
+        self._ensure_allowed(config["table_name"], allowed_tables)
         entries = self._load_entries(config)
         if not entries:
             raise HTTPException(
@@ -59,8 +66,11 @@ class TicketContextService:
         allowed_tables: Iterable[str] | None,
         date_from: str | None,
         date_to: str | None,
+        table: str | None = None,
+        text_column: str | None = None,
+        date_column: str | None = None,
     ) -> dict[str, Any]:
-        config = self._get_config()
+        config = self._get_config(table=table, text_column=text_column, date_column=date_column)
         self._ensure_allowed(config.table_name, allowed_tables)
         entries = self._load_entries(config)
         if not entries:
@@ -109,7 +119,18 @@ class TicketContextService:
         }
 
     # -------- Internals --------
-    def _get_config(self):
+    def _get_config(self, *, table: str | None, text_column: str | None, date_column: str | None):
+        if table:
+            inferred_text, inferred_date = self._infer_columns(table)
+            t_col = text_column or inferred_text
+            d_col = date_column or inferred_date
+            if not t_col or not d_col:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Impossible de déduire les colonnes texte/date pour cette table.",
+                )
+            return type("Cfg", (), {"table_name": table, "text_column": t_col, "date_column": d_col})
+
         config = self.loop_repo.get_config()
         if not config:
             raise HTTPException(
@@ -117,6 +138,42 @@ class TicketContextService:
                 detail="Configuration loop/tickets manquante.",
             )
         return config
+
+    def _infer_columns(self, table: str) -> tuple[str | None, str | None]:
+        try:
+            schema = [name for name, _ in self.data_repo.get_schema(table)]
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+        def pick(candidates: list[str]) -> str | None:
+            for cand in candidates:
+                for col in schema:
+                    if col.lower() == cand.lower():
+                        return col
+            return None
+
+        date_col = pick(
+            [
+                "date_feedback",
+                "creation_date",
+                "created_at",
+                "date",
+                "timestamp",
+            ]
+        ) or next((c for c in schema if "date" in c.lower()), None)
+
+        text_col = pick(
+            [
+                "commentaire",
+                "comment",
+                "description",
+                "resume",
+                "feedback",
+                "text",
+            ]
+        ) or next((c for c in schema if any(key in c.lower() for key in ["comment", "desc", "resume", "text"])), None)
+
+        return text_col, date_col
 
     def _ensure_allowed(self, table_name: str, allowed_tables: Iterable[str] | None) -> None:
         if allowed_tables is None:
@@ -128,14 +185,15 @@ class TicketContextService:
             )
 
     def _load_entries(self, config) -> list[dict[str, Any]]:
-        if self._cached_entries is not None:
-            return self._cached_entries
+        cached = self._cached_entries.get(config.table_name)
+        if cached is not None:
+            return cached
         entries = prepare_ticket_entries(
             rows=self.data_repo.read_rows(config.table_name),
             text_column=config.text_column,
             date_column=config.date_column,
         )
-        self._cached_entries = entries
+        self._cached_entries[config.table_name] = entries
         return entries
 
     def _filter_by_date(

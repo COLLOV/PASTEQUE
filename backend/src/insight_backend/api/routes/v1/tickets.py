@@ -30,12 +30,20 @@ def _service(session: Session) -> TicketContextService:
 def get_ticket_context_metadata(  # type: ignore[valid-type]
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
+    table: str | None = None,
+    text_column: str | None = None,
+    date_column: str | None = None,
 ) -> TicketContextMetadataResponse:
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     service = _service(session)
-    meta = service.get_metadata(allowed_tables=allowed_tables)
+    meta = service.get_metadata(
+        allowed_tables=allowed_tables,
+        table=table,
+        text_column=text_column,
+        date_column=date_column,
+    )
     return TicketContextMetadataResponse(
         table=meta["table"],
         text_column=meta["text_column"],

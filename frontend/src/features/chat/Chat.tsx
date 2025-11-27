@@ -125,6 +125,8 @@ export default function Chat() {
   const [ticketMetaLoading, setTicketMetaLoading] = useState(false)
   const [ticketMetaError, setTicketMetaError] = useState('')
   const [ticketStatus, setTicketStatus] = useState('')
+  const [ticketTable, setTicketTable] = useState<string>('')
+  const [ticketTables, setTicketTables] = useState<string[]>([])
   const [sqlMode, setSqlMode] = useState(true)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
@@ -241,12 +243,24 @@ export default function Chat() {
     refreshHistory()
   }, [])
 
-  async function loadTicketMetadata() {
+  async function loadTicketMetadata(tableOverride?: string) {
     setTicketMetaLoading(true)
     setTicketMetaError('')
     try {
+      if (ticketTables.length === 0) {
+        try {
+          const items = await apiFetch<Array<{ name: string; path: string }>>('/data/tables')
+          const names = (items || []).map(it => it?.name).filter((x): x is string => typeof x === 'string')
+          setTicketTables(names)
+        } catch {
+          // ignore table list errors; metadata may still resolve
+        }
+      }
+      const selectedTable = (tableOverride ?? ticketTable)?.trim() || ''
+      const params = new URLSearchParams()
+      if (selectedTable) params.set('table', selectedTable)
       const meta = await apiFetch<{ table: string; date_min?: string; date_max?: string; total_count: number }>(
-        '/tickets/context/metadata'
+        params.size ? `/tickets/context/metadata?${params.toString()}` : '/tickets/context/metadata'
       )
       setTicketMeta({
         min: meta?.date_min,
@@ -254,6 +268,7 @@ export default function Chat() {
         total: typeof meta?.total_count === 'number' ? meta.total_count : undefined,
         table: meta?.table,
       })
+      setTicketTable(selectedTable || meta?.table || '')
       setTicketRange(prev => ({
         from: prev.from ?? meta?.date_min ?? undefined,
         to: prev.to ?? meta?.date_max ?? undefined,
@@ -323,6 +338,7 @@ export default function Chat() {
         baseMeta.ticket_mode = true
         if (ticketRange.from) baseMeta.tickets_from = ticketRange.from
         if (ticketRange.to) baseMeta.tickets_to = ticketRange.to
+        if (ticketTable) baseMeta.ticket_table = ticketTable
         setTicketStatus('Préparation du contexte tickets…')
       } else {
         setTicketStatus('')
@@ -1151,6 +1167,23 @@ export default function Chat() {
                   <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
                     {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
                   </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-[11px] text-primary-600">Table</label>
+                  <select
+                    value={ticketTable}
+                    onChange={e => {
+                      const next = e.target.value
+                      setTicketTable(next)
+                      void loadTicketMetadata(next || undefined)
+                    }}
+                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                  >
+                    <option value="">Auto (config loop)</option>
+                    {ticketTables.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <label className="text-[11px] text-primary-600">Du</label>
