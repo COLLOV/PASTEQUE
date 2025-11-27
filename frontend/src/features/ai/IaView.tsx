@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import CategoryStackedChart from '@/components/charts/CategoryStackedChart'
 import { Card, Loader, Button } from '@/components/ui'
 import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
@@ -595,6 +596,12 @@ function SourceCategoryCard({
     )
   }
 
+  const handleChartSelect = (category: string, subCategory: string) => {
+    setActiveCategory(category)
+    setSubFilter('')
+    onSelect(source.source, category, subCategory)
+  }
+
   return (
     <Card variant="elevated" padding="md" className="space-y-3">
       {isAdmin ? (
@@ -678,6 +685,12 @@ function SourceCategoryCard({
           />
         </div>
       </div>
+
+      <CategoryStackedChart
+        breakdown={source.category_breakdown ?? []}
+        onSelect={handleChartSelect}
+        className="bg-primary-50/80"
+      />
 
       {selectedNode ? (
         <div className="overflow-hidden border border-primary-200 rounded-xl bg-white shadow-sm">
