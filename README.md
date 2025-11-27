@@ -211,7 +211,7 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 
 - Chaque réponse assistant dans le chat expose deux actions pouce haut/bas. Les votes sont persistés avec la conversation et le message cible (pas de fallback silencieux).
 - API : `POST /api/v1/feedback` (création/mise à jour), `DELETE /api/v1/feedback/{id}` (suppression) et `GET /api/v1/feedback/admin` (admin uniquement, liste ordonnée).
-- Un onglet **Feedback** apparait dans le header pour les administrateurs. Il affiche les votes (auteur, conversation, extrait, date) et permet d'ouvrir directement la conversation correspondante via `/chat?conversation_id=...&message_id=...`.
+- Les retours sont consultables depuis l’onglet **Feedback** du panneau Admin (`/admin?tab=feedback`, `/feedback` redirige). La liste affiche les votes (auteur, conversation, extrait, date) et permet d'ouvrir directement la conversation correspondante via `/chat?conversation_id=...&message_id=...`.
 
 ### Visualisations (NL→SQL & MCP Chart)
 
