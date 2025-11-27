@@ -70,6 +70,7 @@ export default function IaView() {
   const [pendingRange, setPendingRange] = useState<{ from?: string; to?: string } | null>(null)
   const [appliedRange, setAppliedRange] = useState<{ from?: string; to?: string } | null>(null)
   const requestRef = useRef(0)
+  const sliderRef = useRef<HTMLDivElement | null>(null)
 
   const computeGlobalBounds = (sources: DataSourceOverview[] | undefined) => {
     let min: string | undefined
@@ -149,6 +150,13 @@ export default function IaView() {
     if (value === undefined && fallback === undefined) return undefined
     const target = value ?? fallback ?? 0
     return new Date(target).toISOString().slice(0, 10)
+  }
+
+  const tsFromPointer = (clientX: number): number | undefined => {
+    const rect = sliderRef.current?.getBoundingClientRect()
+    if (!rect || minTs === undefined || maxTs === undefined) return undefined
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    return Math.round(minTs + pct * (maxTs - minTs))
   }
 
   const handleRangeStartChange = (value: number) => {
@@ -336,7 +344,7 @@ export default function IaView() {
               </span>
             </div>
           </div>
-          <div className="relative h-10">
+          <div className="relative h-10" ref={sliderRef}>
             <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-100" />
             <div
               className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-900/60 transition-all duration-200"
@@ -350,25 +358,47 @@ export default function IaView() {
               className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary-900 border-2 border-primary-100 shadow-sm pointer-events-none transition-transform duration-150"
               style={{ left: `calc(${endPercent}% - 8px)` }}
             />
-            <input
-              type="range"
-              min={minTs}
-              max={maxTs}
-              step={86_400_000}
-              value={startTs ?? minTs}
-              onChange={e => handleRangeStartChange(Number(e.target.value))}
-              className="dual-range-thumb"
-              style={{ zIndex: 30 }}
+            <button
+              type="button"
+              aria-label="Début de période"
+              className="absolute top-0 h-full w-11 -translate-x-1/2"
+              onPointerDown={event => {
+                event.preventDefault()
+                const ts = tsFromPointer(event.clientX)
+                if (ts !== undefined) handleRangeStartChange(ts)
+                const move = (evt: PointerEvent) => {
+                  const next = tsFromPointer(evt.clientX)
+                  if (next !== undefined) handleRangeStartChange(next)
+                }
+                const stop = () => {
+                  window.removeEventListener('pointermove', move)
+                  window.removeEventListener('pointerup', stop)
+                }
+                window.addEventListener('pointermove', move)
+                window.addEventListener('pointerup', stop, { once: true })
+              }}
+              style={{ zIndex: 30, background: 'transparent', left: `${startPercent}%` }}
             />
-            <input
-              type="range"
-              min={minTs}
-              max={maxTs}
-              step={86_400_000}
-              value={endTs ?? maxTs}
-              onChange={e => handleRangeEndChange(Number(e.target.value))}
-              className="dual-range-thumb"
-              style={{ zIndex: 20 }}
+            <button
+              type="button"
+              aria-label="Fin de période"
+              className="absolute top-0 h-full w-11 -translate-x-1/2"
+              onPointerDown={event => {
+                event.preventDefault()
+                const ts = tsFromPointer(event.clientX)
+                if (ts !== undefined) handleRangeEndChange(ts)
+                const move = (evt: PointerEvent) => {
+                  const next = tsFromPointer(evt.clientX)
+                  if (next !== undefined) handleRangeEndChange(next)
+                }
+                const stop = () => {
+                  window.removeEventListener('pointermove', move)
+                  window.removeEventListener('pointerup', stop)
+                }
+                window.addEventListener('pointermove', move)
+                window.addEventListener('pointerup', stop, { once: true })
+              }}
+              style={{ zIndex: 31, background: 'transparent', left: `${endPercent}%` }}
             />
           </div>
           <p className="text-[11px] text-primary-500">
