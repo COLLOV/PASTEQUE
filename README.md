@@ -6,6 +6,8 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 - Backend: Python (FastAPI), packagé avec `uv`. Toute la logique, l’accès aux données et les services.
 - Data: stockage des données sources et dérivées (pas de code ici).
 
+Dates (CSV → MindsDB): les colonnes nommées `date` ou suffixées `_date` sont normalisées en `YYYY-MM-DD` au moment du sync (troncation simple), puis les requêtes NL→SQL comparent toujours avec des littéraux `DATE 'YYYY-MM-DD'` (pas de comparaison de chaînes).
+
 ## Dossiers
 
 - `frontend/` – UI React, pages, composants, services d’appel API.

@@ -6,6 +6,7 @@ import logging
 import shutil
 import tempfile
 import hashlib
+from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
@@ -28,6 +29,60 @@ log = logging.getLogger("insight.services.mindsdb_sync")
 
 STATE_FILENAME = ".mindsdb_sync_state.json"
 CACHE_DIR_NAME = ".mindsdb_cache"
+DATE_HINT = "date"
+
+
+def _normalize_dates(path: Path) -> Path:
+    """Return a path where *_date columns are truncated to YYYY-MM-DD.
+
+    If no date-like columns or no changes are needed, the original path is returned.
+    """
+    delimiter = "," if path.suffix.lower() == ".csv" else "\t"
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter=delimiter)
+        fieldnames = reader.fieldnames
+        if not fieldnames:
+            return path
+
+        date_cols = [name for name in fieldnames if DATE_HINT in name.casefold()]
+        if not date_cols:
+            return path
+
+        changed = False
+        with tempfile.NamedTemporaryFile(
+            "w",
+            delete=False,
+            newline="",
+            encoding="utf-8",
+            suffix=path.suffix,
+            prefix=f"{path.stem}_dates_",
+        ) as tmp:
+            writer = csv.DictWriter(tmp, fieldnames=fieldnames, delimiter=delimiter)
+            writer.writeheader()
+            for row in reader:
+                new_row = dict(row)
+                for col in date_cols:
+                    raw = row.get(col)
+                    if raw:
+                        trimmed = str(raw).strip()
+                        # Simple rule: keep only YYYY-MM-DD if present
+                        iso = trimmed[:10]
+                        try:
+                            datetime.fromisoformat(iso)
+                        except ValueError:
+                            continue
+                        if iso != trimmed:
+                            changed = True
+                        new_row[col] = iso
+                writer.writerow(new_row)
+        tmp_path = Path(tmp.name)
+
+    if not changed:
+        tmp_path.unlink(missing_ok=True)
+        return path
+
+    log.info("Normalized date columns to YYYY-MM-DD for %s (columns=%s)", path.name, date_cols)
+    return tmp_path
 
 
 def sync_all_tables() -> list[str]:
@@ -59,7 +114,9 @@ def sync_all_tables() -> list[str]:
         for path in files:
             table_name = path.stem
             table_cfg = config.tables.get(table_name) if config else None
-            source_hash = _compute_file_hash(path)
+
+            normalized_path = _normalize_dates(path)
+            source_hash = _compute_file_hash(normalized_path)
             embedding_signature: dict[str, object] | None = None
             if table_cfg and embedding_default_model:
                 resolved_model = table_cfg.model or embedding_default_model
@@ -81,6 +138,8 @@ def sync_all_tables() -> list[str]:
                 if _remote_table_exists(client, table_name):
                     log.info("Skipping %s (cached, unchanged, present remotely)", table_name)
                     next_state[table_name] = previous_entry
+                    if normalized_path != path:
+                        normalized_path.unlink(missing_ok=True)
                     continue
                 else:
                     log.info("Re-uploading %s (absent in MindsDB, cache intact)", table_name)
@@ -92,7 +151,7 @@ def sync_all_tables() -> list[str]:
                         raise RuntimeError("Embedding client not initialised.")
 
                     # Check if we have a cached file with embeddings
-                    cached_path = _cached_file_path(repo.tables_dir, table_name, source_hash, path.suffix)
+                    cached_path = _cached_file_path(repo.tables_dir, table_name, source_hash, normalized_path.suffix)
 
                     if cache_is_valid and cached_path.exists():
                         # Reuse cached file with embeddings (avoid recomputing)
@@ -105,7 +164,7 @@ def sync_all_tables() -> list[str]:
                     else:
                         # Compute embeddings and cache the result
                         tmp_path = _augment_with_embeddings(
-                            source_path=path,
+                            source_path=normalized_path,
                             table_name=table_name,
                             table_cfg=table_cfg,
                             client=embedding_client,
@@ -134,7 +193,7 @@ def sync_all_tables() -> list[str]:
                             embedding_signature["model"] if embedding_signature else None,
                         )
                 else:
-                    upload_source = path
+                    upload_source = normalized_path
                     log.info("Uploading %s without embeddings", table_name)
                 client.upload_file(upload_source, table_name=table_name)
                 uploaded.append(path.name)
@@ -145,6 +204,8 @@ def sync_all_tables() -> list[str]:
             finally:
                 if tmp_path:
                     tmp_path.unlink(missing_ok=True)
+                if normalized_path != path:
+                    normalized_path.unlink(missing_ok=True)
     finally:
         client.close()
         if embedding_client:

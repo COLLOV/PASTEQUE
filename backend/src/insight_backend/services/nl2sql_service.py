@@ -164,6 +164,14 @@ def _rewrite_date_functions(sql: str) -> str:
     return out
 
 
+_DATE_LITERAL_RE = re.compile(r"(?i)(?<!date\s)\'(\d{4}-\d{2}-\d{2})\'")
+
+
+def _ensure_date_literals(sql: str) -> str:
+    """Wrap bare YYYY-MM-DD strings as DATE literals for consistent typing."""
+    return _DATE_LITERAL_RE.sub(r"DATE '\\1'", sql)
+
+
 def _collect_cte_names(sql: str) -> set[str]:
     names: set[str] = set()
     s = sql.lstrip()
@@ -339,7 +347,7 @@ class NL2SQLService:
                 "NL2SQL.generate truncated schema blob to 8000 chars (kept_lines=%d)",
                 len(truncated),
             )
-        # Hints for date-like columns
+        # Hints for date-like columns (only *_date or 'date')
         date_hints: Dict[str, List[str]] = {}
         for t, cols in schema.items():
             dcols = [c for c in cols if "date" in c.lower()]
@@ -353,6 +361,7 @@ class NL2SQLService:
             f"Use only the tables listed below under the '{settings.nl2sql_db_prefix}.' schema.\n"
             "Return exactly ONE SELECT query. No comments. No explanations.\n"
             "Rules: SELECT-only; never modify data. Date-like columns are TEXT in 'YYYY-MM-DD'.\n"
+            "In filters, compare date columns to DATE 'YYYY-MM-DD' literals (no bare string comparisons).\n"
             "For date parts, use EXTRACT(YEAR|MONTH FROM CAST(CASE WHEN col IS NULL OR col IN ('None','') THEN NULL ELSE col END AS DATE)).\n"
             "Never use NULLIF with more than 2 arguments. Prefer the CASE…END form above over NULLIF.\n"
             f"Every FROM/JOIN must reference tables as '{settings.nl2sql_db_prefix}.table' and assign an alias (e.g. FROM {settings.nl2sql_db_prefix}.tickets_jira AS t).\n"
@@ -389,6 +398,7 @@ class NL2SQLService:
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
         sql = _rewrite_date_functions(sql)
+        sql = _ensure_date_literals(sql)
         if not _is_select_only(sql):
             raise RuntimeError("Generated SQL is invalid or not SELECT-only")
         _ensure_required_prefix(sql)
@@ -593,6 +603,7 @@ class NL2SQLService:
             if not purpose or not sql:
                 continue
             sql = _rewrite_date_functions(sql)
+            sql = _ensure_date_literals(sql)
             if not _is_select_only(sql):
                 raise RuntimeError("Une requête exploratoire n'est pas un SELECT")
             _ensure_required_prefix(sql)
@@ -673,6 +684,7 @@ class NL2SQLService:
         text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         sql = _extract_sql(text)
         sql = _rewrite_date_functions(sql)
+        sql = _ensure_date_literals(sql)
         if not _is_select_only(sql):
             raise RuntimeError("La requête finale générée n'est pas un SELECT")
         _ensure_required_prefix(sql)
