@@ -51,6 +51,12 @@ export default function Layout() {
               <p className="text-sm text-primary-600">De la donnée à l'action</p>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={goTo('/explorer')} className="!rounded-full">
+                Explorer
+              </Button>
+              <Button variant="secondary" size="sm" onClick={goTo('/ia')} className="!rounded-full">
+                Vue IA
+              </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate('/chat?new=1', { replace: true })} className="!rounded-full">
                 Nouveau chat
               </Button>
@@ -69,9 +75,14 @@ export default function Layout() {
                 Dashboard
               </Button>
               {auth.isAdmin && (
-                <Button variant="secondary" size="sm" onClick={goTo('/admin')} className="!rounded-full">
-                  Admin
-                </Button>
+                <>
+                  <Button variant="secondary" size="sm" onClick={goTo('/feedback')} className="!rounded-full">
+                    Feedback
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={goTo('/admin')} className="!rounded-full">
+                    Admin
+                  </Button>
+                </>
               )}
               <Button variant="ghost" onClick={handleLogout} size="sm">
                 Se déconnecter

@@ -33,6 +33,8 @@ def init_database() -> None:
     _ensure_user_password_reset_column()
     _ensure_user_settings_column()
     _ensure_admin_column()
+    _ensure_feedback_archive_column()
+    _ensure_data_source_preference_columns()
     log.info("Database initialized (tables ensured).")
 
 
@@ -74,6 +76,31 @@ def _ensure_admin_column() -> None:
             {"admin_username": settings.admin_username},
         )
     log.info("Admin flag column ensured on users table.")
+
+
+def _ensure_data_source_preference_columns() -> None:
+    """Ensure optional columns exist on data_source_preferences."""
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("data_source_preferences")}
+    stmts = []
+    if "date_field" not in columns:
+        stmts.append("ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS date_field VARCHAR(255)")
+    if "category_field" not in columns:
+        stmts.append(
+            "ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS category_field VARCHAR(255)"
+        )
+    if "sub_category_field" not in columns:
+        stmts.append(
+            "ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS sub_category_field VARCHAR(255)"
+        )
+    if not stmts:
+        log.debug("data_source_preferences columns already present.")
+        return
+
+    with engine.begin() as conn:
+        for stmt in stmts:
+            conn.execute(text(stmt))
+    log.info("data_source_preferences optional columns ensured (%d added).", len(stmts))
 
 
 @contextmanager
@@ -187,6 +214,26 @@ def _ensure_conversation_settings_column() -> None:
             message = str(getattr(exc, "orig", exc)).lower()
             if "duplicate column" in message or "already exists" in message:
                 log.debug("settings column already exists (race).")
+            else:
+                raise
+
+
+def _ensure_feedback_archive_column() -> None:
+    """Ensure message_feedback has an is_archived column (backfill default false)."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("message_feedback")}
+        if "is_archived" in columns:
+            return
+        try:
+            connection.execute(
+                text("ALTER TABLE message_feedback ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE")
+            )
+            log.info("Added is_archived column to message_feedback.")
+        except DBAPIError as exc:  # pragma: no cover - defensive
+            message = str(getattr(exc, "orig", exc)).lower()
+            if "duplicate column" in message or "already exists" in message or "duplicate" in message:
+                log.debug("is_archived column already present on message_feedback.")
             else:
                 raise
 

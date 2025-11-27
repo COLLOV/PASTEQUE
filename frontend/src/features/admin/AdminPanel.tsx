@@ -13,6 +13,7 @@ import type {
 } from '@/types/user'
 import type { LoopConfig, LoopOverview, LoopConfigPayload } from '@/types/loop'
 import { HiCheckCircle, HiXCircle, HiArrowPath } from 'react-icons/hi2'
+import DictionaryManager from './DictionaryManager'
 
 interface Status {
   type: 'success' | 'error'
@@ -588,6 +589,8 @@ export default function AdminPanel() {
           </>
         )}
       </Card>
+
+      <DictionaryManager />
 
       <Card variant="elevated">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">

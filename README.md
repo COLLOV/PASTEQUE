@@ -111,6 +111,27 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Le panneau admin inclut maintenant une matrice des droits sur les tables CSV/TSV présentes dans le répertoire de tables configuré (`DATA_TABLES_DIR`, par défaut `data/`). Chaque case permet d’autoriser ou de retirer l’accès par utilisateur; l’administrateur conserve un accès complet par défaut.
 - Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.
 - Le backend applique ces restrictions pour les listings/ schémas (`GET /api/v1/data/...`) ainsi que pour le NL→SQL et les graphiques via `/api/v1/chat/*`: un utilisateur ne voit ni n’utilise de table qui ne lui a pas été accordée.
+- Les administrateurs peuvent créer/éditer/supprimer les dictionnaires de données directement depuis l’onglet **Admin** → carte « Dictionnaire de données ». Les fichiers YAML sont persistés dans `DATA_DICTIONARY_DIR` (par défaut `data/dictionary`). API: `GET /api/v1/dictionary` (liste), `GET/PUT /api/v1/dictionary/{table}` (lecture/écriture), `DELETE /api/v1/dictionary/{table}` (suppression). Les colonnes sont validées contre le schéma réel, sans mécanismes de secours.
+
+### Explorer (vision globale des sources)
+
+- API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
+- Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») avec cartes par source, colonnes autodécouvertes et masquage des champs piloté par l’administrateur (mise à jour persistante appliquée à tous les utilisateurs ; la tuile « Colonnes affichées » est retirée du header).
+- Admin : les colonnes Date / Category / Sub Category sont configurables par table dans l’Explorer (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
+- Visualisations Chart.js (lignes + barres) avec palette colorée pour timelines et répartitions des valeurs à partir des colonnes détectées automatiquement.
+- Le jeu `tickets_jira` inclut désormais les colonnes `Category` et `Sub Category` (classification ITSM) pour alimenter la répartition affichée dans l’Explorer et les filtres associés.
+- Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
+
+### Vue IA (navigation Category/Sub Category)
+
+- Nouvel onglet « Vue IA » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
+- Les colonnes Date / Category / Sub Category sont configurables par l’admin (Explorer ou Vue IA) et persistées via `/api/v1/data/overview/{source}/column-roles`.
+- Chaque source affichant ces colonnes est listée avec ses catégories et sous-catégories cliquables : un clic déclenche un aperçu (`/api/v1/data/explore/{source}`) limité à 25 lignes, avec le volume total de lignes correspondantes.
+- Si une source ne possède pas les deux colonnes, la vue l’ignore et affiche un message explicite plutôt que de masquer l’erreur.
+- Les aperçus sont paginés (25 lignes/page) avec navigation précédente/suivante et un tri par colonne `date` (desc/asc) quand la colonne est présente.
+- Un range slider « date » global (tout en haut) filtre les données et l’aperçu d’un seul coup : la plage sélectionnée est appliquée côté backend (`/data/overview` + `/data/explore`) pour recalculer les volumes, avec un rail unique qui met en évidence la plage choisie.
+- Les tuiles de synthèse (sources/couples/sélection) ont été retirées de la Vue IA pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
+- Les catégories sont maintenant sélectionnables via un dropdown, avec un filtre texte pour cibler les sous-catégories affichées dans une liste scrollable.
 
 ### Loop – résumés hebdo/mensuels
 
@@ -184,6 +205,12 @@ Vous pouvez ajuster la taille de batch via `MINDSDB_EMBEDDING_BATCH_SIZE`. Chaqu
 Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l'avancement du calcul des embeddings lors du démarrage.
 - Les imports sont désormais incrémentaux : `./start.sh` ne renvoie un fichier dans MindsDB que si son contenu ou sa configuration d'embedding a changé. L'état est stocké dans `DATA_TABLES_DIR/.mindsdb_sync_state.json` — supprimez ce fichier si vous devez forcer un rechargement complet. Ce fichier est ignoré par Git (`.mindsdb_sync_state.json`). Comme le conteneur MindsDB est recréé à chaque démarrage en développement, une vérification distante est effectuée : si une table est absente côté MindsDB, elle est ré‑uploadée même si le cache local est intact. Les embeddings ne sont recalculés que lorsque le contenu source ou la configuration d'embedding change.
 - Les fichiers enrichis d'embeddings conservent exactement le nom de table d'origine dans MindsDB (plus de suffixe `_emb`).
+
+### Feedback utilisateur
+
+- Chaque réponse assistant dans le chat expose deux actions pouce haut/bas. Les votes sont persistés avec la conversation et le message cible (pas de fallback silencieux).
+- API : `POST /api/v1/feedback` (création/mise à jour), `DELETE /api/v1/feedback/{id}` (suppression) et `GET /api/v1/feedback/admin` (admin uniquement, liste ordonnée).
+- Un onglet **Feedback** apparait dans le header pour les administrateurs. Il affiche les votes (auteur, conversation, extrait, date) et permet d'ouvrir directement la conversation correspondante via `/chat?conversation_id=...&message_id=...`.
 
 ### Visualisations (NL→SQL & MCP Chart)
 

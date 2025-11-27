@@ -18,3 +18,9 @@ columns:
   - name: departement
     type: string
     description: Code département ou unité impactée.
+  - name: Category
+    type: string
+    description: Macro-catégorie ITSM (accès, réseau, matériel, etc.).
+  - name: Sub Category
+    type: string
+    description: Sous-catégorie détaillant le type précis d'incident.

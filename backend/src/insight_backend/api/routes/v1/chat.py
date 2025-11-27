@@ -154,6 +154,7 @@ def chat_completion(  # type: ignore[valid-type]
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     # Ensure conversation + persist user message atomically
     repo = ConversationRepository(session)
+    assistant_msg = None
     meta = payload.metadata or {}
     with transactional(session):
         conv_id: int | None
@@ -213,19 +214,31 @@ def chat_completion(  # type: ignore[valid-type]
                 text = "Ce n'est pas une question pour passer de la data à l'action"
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conv_id, role="assistant", content=text)
+                        assistant_msg = repo.append_message(conversation_id=conv_id, role="assistant", content=text)
                 except SQLAlchemyError:
                     log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
-                return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
+                meta_out = {"provider": "router", "route": decision.route, "confidence": decision.confidence}
+                if conv_id:
+                    meta_out["conversation_id"] = conv_id
+                if assistant_msg:
+                    meta_out["message_id"] = assistant_msg.id
+                return ChatResponse(reply=text, metadata=meta_out)
         try:
             resp = service.completion(payload, allowed_tables=allowed_tables)
             # Persist assistant reply
             if resp and isinstance(resp.reply, str):
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
+                        assistant_msg = repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant reply (conversation_id=%s)", conv_id, exc_info=True)
+            if resp:
+                meta_out = dict(resp.metadata or {})
+                if conv_id:
+                    meta_out.setdefault("conversation_id", conv_id)
+                if assistant_msg:
+                    meta_out["message_id"] = assistant_msg.id
+                resp.metadata = meta_out or None
             # No need to re-apply exclusions here: they were persisted in the same transaction as the user message
             # Return as-is (no conversation id field in schema), clients can fetch via separate API
             return resp
@@ -296,6 +309,7 @@ def chat_stream(  # type: ignore[valid-type]
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"
     started = time.perf_counter()
     repo = ConversationRepository(session)
+    assistant_msg_id: int | None = None
 
     # Resolve conversation id from metadata or create one on the fly
     conversation_id: int | None = None
@@ -338,6 +352,7 @@ def chat_stream(  # type: ignore[valid-type]
             payload.metadata["exclude_tables"] = saved
 
     def generate() -> Iterator[bytes]:
+        nonlocal assistant_msg_id
         seq = 0
         anim_mode = (settings.animation_mode or "sql").strip().lower()
         animator = AnimatorAgent() if anim_mode == "true" else None
@@ -394,7 +409,8 @@ def chat_stream(  # type: ignore[valid-type]
                         elapsed = max(time.perf_counter() - started, 1e-6)
                         try:
                             with transactional(session):
-                                repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                                msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                                assistant_msg_id = msg_obj.id
                         except SQLAlchemyError:
                             log.warning("Failed to persist router reply (conversation_id=%s)", conversation_id, exc_info=True)
                         yield _sse(
@@ -405,6 +421,8 @@ def chat_stream(  # type: ignore[valid-type]
                                 "usage": None,
                                 "finish_reason": "stop",
                                 "elapsed_s": round(elapsed, 3),
+                                "message_id": assistant_msg_id,
+                                "conversation_id": conversation_id,
                             },
                         )
                         return
@@ -489,7 +507,8 @@ def chat_stream(  # type: ignore[valid-type]
                 # Persist assistant final message
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        assistant_msg_id = msg_obj.id
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
 
@@ -501,6 +520,8 @@ def chat_stream(  # type: ignore[valid-type]
                         "usage": None,
                         "finish_reason": "stop",
                         "elapsed_s": round(elapsed, 3),
+                        "message_id": assistant_msg_id,
+                        "conversation_id": conversation_id,
                     },
                 )
                 return
@@ -576,7 +597,8 @@ def chat_stream(  # type: ignore[valid-type]
                 elapsed = max(time.perf_counter() - started, 1e-6)
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        assistant_msg_id = msg_obj.id
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
 
@@ -588,6 +610,8 @@ def chat_stream(  # type: ignore[valid-type]
                         "usage": None,
                         "finish_reason": "stop",
                         "elapsed_s": round(elapsed, 3),
+                        "message_id": assistant_msg_id,
+                        "conversation_id": conversation_id,
                     },
                 )
                 return
@@ -616,7 +640,8 @@ def chat_stream(  # type: ignore[valid-type]
             )
             try:
                 with transactional(session):
-                    repo.append_message(conversation_id=conversation_id, role="assistant", content=content_full)
+                    msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=content_full)
+                    assistant_msg_id = msg_obj.id
             except SQLAlchemyError:
                 log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
             yield _sse(
@@ -627,6 +652,8 @@ def chat_stream(  # type: ignore[valid-type]
                     "usage": None,
                     "finish_reason": "stop",
                     "elapsed_s": round(elapsed, 3),
+                    "message_id": assistant_msg_id,
+                    "conversation_id": conversation_id,
                 },
             )
         except OpenAIBackendError as exc:

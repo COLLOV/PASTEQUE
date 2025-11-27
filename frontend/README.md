@@ -236,6 +236,16 @@ Personnalisation rapide:
 - Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
 - Pour changer la largeur des colonnes: adapter les classes Tailwind `lg:col-span-*` dans `src/features/chat/Chat.tsx`.
 
+### Explorer
+
+- Page `/explorer` accessible depuis le header (bouton à gauche de « Nouveau chat ») pour une vision globale des sources autorisées.
+- Consomme `GET /data/overview` : total par source et statistiques sur toutes les colonnes détectées (inférence des dates), en respectant les ACL.
+- Cartes par source avec mini-barres / timeline Chart.js colorées, gestion des colonnes affichées (masquage/affichage par l’admin) pour rester lisible malgré un grand nombre de champs.
+- Chaque carte est repliée par défaut avec un dropdown bien visible (chevron et pastille « Détails ») pour parcourir rapidement la liste des tables; cliquer pour dérouler statistiques et gestion des colonnes.
+- Si la table contient les colonnes `Category` et `Sub Category`, un graphique empilé (Category en abscisse, segments Sub Category) est affiché en haut de la carte:
+  - passer la souris affiche le nombre d’enregistrements par couple;
+  - un clic sur un segment interroge `GET /data/explore/{source}?category=...&sub_category=...` et affiche un aperçu des lignes correspondantes directement sous le graphique.
+
 ### Dashboard
 
 - Cartes de statistiques avec icônes
