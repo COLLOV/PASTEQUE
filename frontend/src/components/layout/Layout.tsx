@@ -69,7 +69,7 @@ export default function Layout() {
                 Historique
               </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/loop')} className="!rounded-full">
-                Loop
+                Radar
               </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">
                 Dashboard
