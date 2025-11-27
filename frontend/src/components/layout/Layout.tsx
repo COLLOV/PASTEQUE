@@ -55,7 +55,7 @@ export default function Layout() {
                 Explorer
               </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate('/chat?new=1', { replace: true })} className="!rounded-full">
-                Nouveau chat
+                Chat
               </Button>
               <Button
                 variant="secondary"
