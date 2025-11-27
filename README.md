@@ -124,9 +124,9 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Le jeu `tickets_jira` inclut désormais les colonnes `Category` et `Sub Category` (classification ITSM) pour alimenter la répartition affichée dans l’Explorer et les filtres associés.
 - Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
 
-### Vue IA (navigation Category/Sub Category)
+### Explorer (navigation Category/Sub Category)
 
-- Nouvel onglet « Vue IA » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
+- Onglet « Explorer » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
 - Les colonnes Date / Category / Sub Category sont configurables par l’admin (Explorer ou Vue IA) et persistées via `/api/v1/data/overview/{source}/column-roles`.
 - Chaque source affichant ces colonnes est listée avec ses catégories et sous-catégories cliquables : un clic déclenche un aperçu (`/api/v1/data/explore/{source}`) limité à 25 lignes, avec le volume total de lignes correspondantes.
 - Si une source ne possède pas les deux colonnes, la vue l’ignore et affiche un message explicite plutôt que de masquer l’erreur.

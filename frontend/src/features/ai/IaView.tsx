@@ -380,7 +380,7 @@ export default function IaView() {
             <HiSparkles className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-primary-950">Vue IA</h2>
+            <h2 className="text-2xl font-bold text-primary-950">Explorer</h2>
             <p className="text-primary-600">
               Naviguez par Category / Sub Category pour inspecter les données cliquables.
             </p>

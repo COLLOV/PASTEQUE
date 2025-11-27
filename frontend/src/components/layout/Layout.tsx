@@ -52,7 +52,7 @@ export default function Layout() {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={goTo('/ia')} className="!rounded-full">
-                Vue IA
+                Explorer
               </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate('/chat?new=1', { replace: true })} className="!rounded-full">
                 Nouveau chat
