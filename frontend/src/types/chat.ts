@@ -1,7 +1,14 @@
+export type FeedbackValue = 'up' | 'down'
+
 export interface Message {
   id?: string
   role: 'user' | 'assistant'
   content: string
+  messageId?: number
+  feedback?: FeedbackValue
+  feedbackId?: number
+  feedbackSaving?: boolean
+  feedbackError?: string
   // Optional dataset captured during NL→SQL streaming for this answer
   // Enables one-click chart generation from the assistant message bubble
   chartDataset?: ChartDatasetPayload
@@ -79,6 +86,8 @@ export interface ChatStreamDone {
   usage?: any
   finish_reason?: string
   elapsed_s?: number
+  message_id?: number
+  conversation_id?: number
 }
 
 export interface ChartDatasetPayload {
@@ -155,4 +164,26 @@ export interface RetrievalRow {
 export interface RetrievalDetails {
   rows: RetrievalRow[]
   round?: number
+}
+
+export interface FeedbackResponse {
+  id: number
+  conversation_id: number
+  message_id: number
+  value: FeedbackValue
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminFeedbackEntry {
+  id: number
+  value: FeedbackValue
+  created_at: string
+  conversation_id: number
+  conversation_title: string
+  message_id: number
+  message_content: string
+  message_created_at: string
+  owner_username: string
+  author_username: string
 }

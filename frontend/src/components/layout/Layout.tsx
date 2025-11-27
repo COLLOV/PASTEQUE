@@ -69,9 +69,14 @@ export default function Layout() {
                 Dashboard
               </Button>
               {auth.isAdmin && (
-                <Button variant="secondary" size="sm" onClick={goTo('/admin')} className="!rounded-full">
-                  Admin
-                </Button>
+                <>
+                  <Button variant="secondary" size="sm" onClick={goTo('/feedback')} className="!rounded-full">
+                    Feedback
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={goTo('/admin')} className="!rounded-full">
+                    Admin
+                  </Button>
+                </>
               )}
               <Button variant="ghost" onClick={handleLogout} size="sm">
                 Se déconnecter
