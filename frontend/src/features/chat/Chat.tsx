@@ -22,6 +22,7 @@ import type {
 } from '@/types/chat'
 import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiSparkles } from 'react-icons/hi2'
 import clsx from 'clsx'
+import { renderMarkdown } from '@/utils/markdown'
 
 //
 
@@ -1725,6 +1726,7 @@ function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, high
   } = message
   const isUser = role === 'user'
   const [showDetails, setShowDetails] = useState(false)
+  const renderedContent = useMemo(() => renderMarkdown(content), [content])
   const feedbackPending = Boolean(message.feedbackSaving)
   const canFeedback = !isUser && !message.ephemeral && !chartUrl && Boolean(message.messageId)
   const feedbackUp = message.feedback === 'up'
@@ -1810,10 +1812,17 @@ function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, high
           </div>
         ) : (
           <div className={clsx(
-            'text-sm whitespace-pre-wrap leading-relaxed',
+            'text-sm leading-relaxed message-markdown',
             isUser ? '' : 'text-primary-950'
           )}>
-            {content}
+            <div
+              className={clsx(
+                'space-y-2',
+                isUser ? '[&_a]:text-white [&_code]:bg-primary-900/50' : '[&_a]:text-primary-700',
+                '[&_a]:underline [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:p-3 [&_pre]:bg-primary-50 [&_pre]:rounded-md [&_pre]:text-[13px] [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-4 [&_ol]:pl-4'
+              )}
+              dangerouslySetInnerHTML={{ __html: renderedContent || '' }}
+            />
             {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
             {!isUser && !chartUrl && !message.ephemeral && (
               <div className="mt-2 flex items-center gap-2 flex-wrap">

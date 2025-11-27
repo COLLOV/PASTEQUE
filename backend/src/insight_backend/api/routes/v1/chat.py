@@ -42,6 +42,14 @@ from ....utils.validation import normalize_table_names
 
 _last_settings_update_ts_by_user: dict[int, float] = {}
 
+_MARKDOWN_SYSTEM_PROMPT = ChatMessage(
+    role="system",
+    content=(
+        "Formate toutes tes réponses en Markdown clair (titres concis, listes à puces, tableaux ou blocs de code "
+        "quand utile). Évite le HTML brut et les préambules verbeux."
+    ),
+)
+
 
 def _apply_exclusions_and_defaults(
     *,
@@ -197,6 +205,16 @@ def chat_completion(  # type: ignore[valid-type]
         if saved:
             payload.metadata = dict(payload.metadata or {})
             payload.metadata["exclude_tables"] = saved
+
+    msgs = list(payload.messages or [])
+    has_markdown_prompt = any(
+        m.role == "system" and isinstance(m.content, str) and "markdown" in m.content.casefold()
+        for m in msgs
+    )
+    if not has_markdown_prompt:
+        payload.messages = [_MARKDOWN_SYSTEM_PROMPT] + msgs
+    else:
+        payload.messages = msgs
 
     # Router gate on every user message (avoid useless SQL/NL2SQL work)
     last = payload.messages[-1] if payload.messages else None
@@ -397,6 +415,17 @@ def chat_stream(  # type: ignore[valid-type]
             ticket_context_error = str(exc)
         if ticket_context_error:
             ticket_events.append(("meta", {"ticket_context_error": ticket_context_error}))
+
+    # Toujours préfixer par une consigne Markdown si aucune consigne similaire n'est présente
+    msgs = list(payload.messages or [])
+    has_markdown_prompt = any(
+        m.role == "system" and isinstance(m.content, str) and "markdown" in m.content.casefold()
+        for m in msgs
+    )
+    if not has_markdown_prompt:
+        payload.messages = [_MARKDOWN_SYSTEM_PROMPT] + msgs
+    else:
+        payload.messages = msgs
 
     def generate() -> Iterator[bytes]:
         nonlocal assistant_msg_id
