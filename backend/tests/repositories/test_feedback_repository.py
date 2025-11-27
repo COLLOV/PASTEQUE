@@ -46,6 +46,7 @@ def test_upsert_create_and_update(session):
     session.commit()
     assert updated.id == fb.id
     assert updated.value == "down"
+    assert updated.is_archived is False
 
     all_fb = repo.list_for_conversation_user(conversation_id=conv.id, user_id=user.id)
     assert len(all_fb) == 1
@@ -69,3 +70,19 @@ def test_delete_feedback(session):
     session.commit()
 
     assert repo.get_by_id(fb.id) is None
+
+
+def test_archive_and_filter_latest(session):
+    user, conv, msg = _mk(session)
+    repo = FeedbackRepository(session)
+    fb = repo.upsert(user_id=user.id, conversation_id=conv.id, message_id=msg.id, value="up")
+    session.commit()
+
+    repo.archive(fb)
+    session.commit()
+
+    refreshed = repo.get_by_id(fb.id)
+    assert refreshed is not None
+    assert refreshed.is_archived is True
+    latest = repo.list_latest()
+    assert latest == []

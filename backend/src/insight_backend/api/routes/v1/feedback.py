@@ -82,6 +82,24 @@ def delete_feedback(  # type: ignore[valid-type]
     session.commit()
 
 
+@router.post("/{feedback_id}/archive", response_model=AdminFeedbackResponse)
+def archive_feedback(  # type: ignore[valid-type]
+    feedback_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> AdminFeedbackResponse:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    repo = FeedbackRepository(session)
+    fb = repo.get_by_id(feedback_id)
+    if not fb:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback introuvable")
+    repo.archive(fb)
+    session.commit()
+    session.refresh(fb)
+    return AdminFeedbackResponse.from_model(fb)
+
+
 @router.get("/admin", response_model=list[AdminFeedbackResponse])
 def list_admin_feedback(  # type: ignore[valid-type]
     limit: int = Query(200, ge=1, le=500),

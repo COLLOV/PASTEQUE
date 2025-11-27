@@ -33,6 +33,7 @@ def init_database() -> None:
     _ensure_user_password_reset_column()
     _ensure_user_settings_column()
     _ensure_admin_column()
+    _ensure_feedback_archive_column()
     log.info("Database initialized (tables ensured).")
 
 
@@ -187,6 +188,26 @@ def _ensure_conversation_settings_column() -> None:
             message = str(getattr(exc, "orig", exc)).lower()
             if "duplicate column" in message or "already exists" in message:
                 log.debug("settings column already exists (race).")
+            else:
+                raise
+
+
+def _ensure_feedback_archive_column() -> None:
+    """Ensure message_feedback has an is_archived column (backfill default false)."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("message_feedback")}
+        if "is_archived" in columns:
+            return
+        try:
+            connection.execute(
+                text("ALTER TABLE message_feedback ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE")
+            )
+            log.info("Added is_archived column to message_feedback.")
+        except DBAPIError as exc:  # pragma: no cover - defensive
+            message = str(getattr(exc, "orig", exc)).lower()
+            if "duplicate column" in message or "already exists" in message or "duplicate" in message:
+                log.debug("is_archived column already present on message_feedback.")
             else:
                 raise
 

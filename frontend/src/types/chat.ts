@@ -171,6 +171,7 @@ export interface FeedbackResponse {
   conversation_id: number
   message_id: number
   value: FeedbackValue
+  is_archived: boolean
   created_at: string
   updated_at: string
 }
@@ -186,4 +187,5 @@ export interface AdminFeedbackEntry {
   message_created_at: string
   owner_username: string
   author_username: string
+  is_archived: boolean
 }

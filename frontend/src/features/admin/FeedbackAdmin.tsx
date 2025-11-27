@@ -22,6 +22,7 @@ export default function FeedbackAdmin() {
   const [items, setItems] = useState<AdminFeedbackEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [archiving, setArchiving] = useState<Set<number>>(() => new Set())
   const navigate = useNavigate()
 
   const loadFeedback = useCallback(async () => {
@@ -47,6 +48,25 @@ export default function FeedbackAdmin() {
       message_id: String(messageId),
     })
     navigate(`/chat?${params.toString()}`)
+  }
+
+  async function archive(id: number) {
+    setArchiving(prev => new Set(prev).add(id))
+    try {
+      const res = await apiFetch<AdminFeedbackEntry>(`/feedback/${id}/archive`, { method: 'POST' })
+      setItems(prev => prev.filter(it => it.id !== id && !it.is_archived))
+      if (res && res.is_archived) {
+        // optionally keep archived list? spec: hide once seen
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Archivage impossible.')
+    } finally {
+      setArchiving(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
   }
 
   return (
@@ -156,14 +176,25 @@ export default function FeedbackAdmin() {
                         {formatDate(entry.created_at)}
                       </td>
                       <td className="px-4 py-3 border-b border-primary-100 align-top text-right">
-                        <Button
-                          size="xs"
-                          variant="secondary"
-                          onClick={() => openConversation(entry.conversation_id, entry.message_id)}
-                          className="!rounded-full"
-                        >
-                          Ouvrir
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="xs"
+                            variant="secondary"
+                            onClick={() => openConversation(entry.conversation_id, entry.message_id)}
+                            className="!rounded-full"
+                          >
+                            Ouvrir
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => archive(entry.id)}
+                            disabled={archiving.has(entry.id)}
+                            className="!rounded-full"
+                          >
+                            {archiving.has(entry.id) ? 'Archivage…' : 'Archiver'}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )

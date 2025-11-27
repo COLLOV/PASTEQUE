@@ -20,6 +20,7 @@ class FeedbackResponse(BaseModel):
     conversation_id: int
     message_id: int
     value: Literal["up", "down"]
+    is_archived: bool
     created_at: datetime
     updated_at: datetime
 
@@ -30,6 +31,7 @@ class FeedbackResponse(BaseModel):
             conversation_id=feedback.conversation_id,
             message_id=feedback.message_id,
             value=feedback.value,  # type: ignore[arg-type]
+            is_archived=bool(feedback.is_archived),
             created_at=feedback.created_at,
             updated_at=feedback.updated_at,
         )
@@ -46,6 +48,7 @@ class AdminFeedbackResponse(BaseModel):
     message_created_at: datetime
     owner_username: str
     author_username: str
+    is_archived: bool
 
     @classmethod
     def from_model(cls, feedback: "MessageFeedback") -> "AdminFeedbackResponse":
@@ -63,4 +66,5 @@ class AdminFeedbackResponse(BaseModel):
             message_created_at=msg.created_at if msg else feedback.created_at,
             owner_username=owner_username,
             author_username=feedback.user.username if feedback.user else "",
+            is_archived=bool(feedback.is_archived),
         )

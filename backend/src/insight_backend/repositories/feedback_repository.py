@@ -51,6 +51,7 @@ class FeedbackRepository:
             if existing.value != normalized:
                 existing.value = normalized
                 existing.updated_at = func.now()
+            existing.is_archived = False
             log.info(
                 "Feedback updated (id=%s, user_id=%s, conversation_id=%s, message_id=%s, value=%s)",
                 existing.id,
@@ -65,6 +66,7 @@ class FeedbackRepository:
             conversation_id=conversation_id,
             message_id=message_id,
             value=normalized,
+            is_archived=False,
         )
         self.session.add(feedback)
         self.session.flush()
@@ -93,6 +95,7 @@ class FeedbackRepository:
             .filter(
                 MessageFeedback.conversation_id == conversation_id,
                 MessageFeedback.user_id == user_id,
+                MessageFeedback.is_archived.is_(False),
             )
             .all()
         )
@@ -108,9 +111,21 @@ class FeedbackRepository:
                 .joinedload(ConversationMessage.conversation)
                 .joinedload(Conversation.user),
             )
+            .filter(MessageFeedback.is_archived.is_(False))
             .order_by(MessageFeedback.created_at.desc())
             .limit(limit)
             .all()
         )
         log.debug("Loaded %d feedback items for admin (limit=%s)", len(items), limit)
         return items
+
+    def archive(self, feedback: MessageFeedback) -> MessageFeedback:
+        feedback.is_archived = True
+        feedback.updated_at = func.now()
+        log.info(
+            "Feedback archived (id=%s, user_id=%s, message_id=%s)",
+            feedback.id,
+            feedback.user_id,
+            feedback.message_id,
+        )
+        return feedback
