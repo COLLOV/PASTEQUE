@@ -76,7 +76,7 @@ export default function Layout() {
               </Button>
               {auth.isAdmin && (
                 <>
-                  <Button variant="secondary" size="sm" onClick={goTo('/feedback')} className="!rounded-full">
+                  <Button variant="secondary" size="sm" onClick={goTo('/admin?tab=feedback')} className="!rounded-full">
                     Feedback
                   </Button>
                   <Button variant="secondary" size="sm" onClick={goTo('/admin')} className="!rounded-full">
