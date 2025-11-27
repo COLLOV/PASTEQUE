@@ -129,6 +129,7 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Un range slider « date » global (tout en haut) filtre toutes les catégories/sous-catégories et l’aperçu d’un seul coup : la plage sélectionnée est appliquée côté backend (`/data/overview` + `/data/explore`) pour recalculer les volumes, avec un rail unique qui met en évidence la plage choisie.
 - Les sources dépourvues de colonne `date` sont exclues lorsqu’un filtre temporel est appliqué afin d’éviter des résultats incohérents (les autres restent filtrées).
 - Les tuiles de synthèse (sources/couples/sélection) ont été retirées de la Vue IA pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
+- Les catégories sont maintenant sélectionnables via un dropdown, avec un filtre texte pour cibler les sous-catégories affichées dans une liste scrollable.
 
 ## Principes d’architecture
 

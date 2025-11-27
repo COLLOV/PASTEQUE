@@ -460,6 +460,23 @@ function SourceCategoryCard({
     () => buildCategoryNodes(source.category_breakdown),
     [source.category_breakdown]
   )
+  const [activeCategory, setActiveCategory] = useState<string>(categoryNodes[0]?.name ?? '')
+  const [subFilter, setSubFilter] = useState('')
+
+  useEffect(() => {
+    if (!activeCategory && categoryNodes[0]) {
+      setActiveCategory(categoryNodes[0].name)
+    } else if (activeCategory && !categoryNodes.find(node => node.name === activeCategory)) {
+      setActiveCategory(categoryNodes[0]?.name ?? '')
+    }
+  }, [categoryNodes, activeCategory])
+
+  const selectedNode =
+    categoryNodes.find(node => node.name === activeCategory) ?? categoryNodes[0] ?? null
+  const filteredSubs =
+    selectedNode?.subCategories.filter(sub =>
+      sub.name.toLowerCase().includes(subFilter.trim().toLowerCase())
+    ) ?? []
 
   if (!categoryNodes.length) {
     return (
@@ -477,7 +494,7 @@ function SourceCategoryCard({
 
   return (
     <Card variant="elevated" padding="md" className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
           <h3 className="text-lg font-semibold text-primary-950">{source.title}</h3>
@@ -486,39 +503,48 @@ function SourceCategoryCard({
             {categoryNodes.length.toLocaleString('fr-FR')} catégories
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-[11px] text-primary-500">Couples Category/Sub</p>
-          <p className="text-lg font-bold text-primary-950">
-            {source.category_breakdown?.length.toLocaleString('fr-FR') ?? 0}
-          </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <select
+            value={activeCategory}
+            onChange={e => setActiveCategory(e.target.value)}
+            className="border border-primary-200 rounded-md px-3 py-2 text-sm text-primary-900 bg-white shadow-inner"
+          >
+            {categoryNodes.map(node => (
+              <option key={node.name} value={node.name}>
+                {node.name} ({node.subCategories.length})
+              </option>
+            ))}
+          </select>
+          <input
+            type="search"
+            placeholder="Filtrer les sous-catégories"
+            value={subFilter}
+            onChange={e => setSubFilter(e.target.value)}
+            className="border border-primary-200 rounded-md px-3 py-2 text-sm text-primary-900 bg-white shadow-inner"
+          />
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {categoryNodes.map(node => (
-          <div
-            key={node.name}
-            className="overflow-hidden border border-primary-200 rounded-xl bg-white shadow-sm"
-          >
-            <div className="flex items-start justify-between px-3 py-2 bg-primary-900 text-white">
-              <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-wide text-primary-100">Catégorie</p>
-                <p className="text-sm font-semibold truncate">{node.name}</p>
-                <p className="text-[11px] text-primary-100/80">
-                  {node.total.toLocaleString('fr-FR')} lignes
-                </p>
-              </div>
-              <span className="text-[11px] font-semibold">
-                {node.subCategories.length.toLocaleString('fr-FR')} sous-catégories
-              </span>
+      {selectedNode ? (
+        <div className="overflow-hidden border border-primary-200 rounded-xl bg-white shadow-sm">
+          <div className="flex items-start justify-between px-3 py-2 bg-primary-900 text-white">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-wide text-primary-100">Catégorie</p>
+              <p className="text-sm font-semibold truncate">{selectedNode.name}</p>
+              <p className="text-[11px] text-primary-100/80">
+                {selectedNode.total.toLocaleString('fr-FR')} lignes ·{' '}
+                {selectedNode.subCategories.length.toLocaleString('fr-FR')} sous-catégories
+              </p>
             </div>
-            <div className="flex flex-col divide-y divide-primary-100">
-              {node.subCategories.map(sub => (
+          </div>
+          <div className="flex flex-col divide-y divide-primary-100 max-h-72 overflow-y-auto">
+            {filteredSubs.length ? (
+              filteredSubs.map(sub => (
                 <button
                   key={sub.name}
                   type="button"
                   className="flex items-center justify-between px-3 py-2 text-left hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 border-l-4 border-primary-200"
-                  onClick={() => onSelect(source.source, node.name, sub.name)}
+                  onClick={() => onSelect(source.source, selectedNode.name, sub.name)}
                 >
                   <div className="min-w-0">
                     <p className="text-[11px] uppercase tracking-wide text-primary-500">
@@ -530,11 +556,15 @@ function SourceCategoryCard({
                     {sub.count.toLocaleString('fr-FR')}
                   </span>
                 </button>
-              ))}
-            </div>
+              ))
+            ) : (
+              <div className="px-3 py-3 text-sm text-primary-600">
+                Aucune sous-catégorie ne correspond à ce filtre.
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+        </div>
+      ) : null}
     </Card>
   )
 }
