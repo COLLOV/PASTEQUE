@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Card, Loader } from '@/components/ui'
+import { Card, Loader, Button } from '@/components/ui'
 import { apiFetch } from '@/services/api'
 import type {
   CategorySubCategoryCount,
@@ -21,6 +21,8 @@ type Selection = {
   category: string
   subCategory: string
 }
+
+const PAGE_SIZE = 25
 
 function buildCategoryNodes(breakdown?: CategorySubCategoryCount[]): CategoryNode[] {
   if (!breakdown?.length) return []
@@ -61,6 +63,9 @@ export default function IaView() {
   const [preview, setPreview] = useState<TableExplorePreview | null>(null)
   const [previewError, setPreviewError] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [page, setPage] = useState(0)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [matchingRows, setMatchingRows] = useState(0)
   const requestRef = useRef(0)
 
   useEffect(() => {
@@ -93,24 +98,30 @@ export default function IaView() {
     [sourcesWithCategories]
   )
 
-  const handleSelect = (source: string, category: string, subCategory: string) => {
-    const nextSelection: Selection = { source, category, subCategory }
-    setSelection(nextSelection)
+  const fetchPreview = (sel: Selection, pageIndex: number, direction: 'asc' | 'desc') => {
+    const offset = pageIndex * PAGE_SIZE
     setPreview(null)
     setPreviewError('')
+    setPreviewLoading(true)
     const requestId = requestRef.current + 1
     requestRef.current = requestId
-    setPreviewLoading(true)
+
+    const params = new URLSearchParams({
+      category: sel.category,
+      sub_category: sel.subCategory,
+      limit: String(PAGE_SIZE),
+      offset: String(offset),
+      sort_date: direction,
+    })
 
     void (async () => {
       try {
         const res = await apiFetch<TableExplorePreview>(
-          `/data/explore/${encodeURIComponent(source)}?category=${encodeURIComponent(
-            category
-          )}&sub_category=${encodeURIComponent(subCategory)}&limit=50`
+          `/data/explore/${encodeURIComponent(sel.source)}?${params.toString()}`
         )
         if (requestRef.current !== requestId) return
         setPreview(res ?? null)
+        setMatchingRows(res?.matching_rows ?? 0)
       } catch (err) {
         if (requestRef.current !== requestId) return
         setPreviewError(
@@ -118,12 +129,39 @@ export default function IaView() {
             ? err.message
             : "Impossible de charger les données pour cette sélection."
         )
+        setMatchingRows(0)
       } finally {
         if (requestRef.current === requestId) {
           setPreviewLoading(false)
         }
       }
     })()
+  }
+
+  const handleSelect = (source: string, category: string, subCategory: string) => {
+    const nextSelection: Selection = { source, category, subCategory }
+    setSelection(nextSelection)
+    setPage(0)
+    setMatchingRows(0)
+    fetchPreview(nextSelection, 0, sortDirection)
+  }
+
+  const handlePageChange = (nextPage: number) => {
+    if (!selection) return
+    if (nextPage < 0) return
+    const total = matchingRows || preview?.matching_rows || 0
+    const maxPage = total ? Math.max(Math.ceil(total / PAGE_SIZE) - 1, 0) : 0
+    const target = Math.min(nextPage, maxPage)
+    setPage(target)
+    fetchPreview(selection, target, sortDirection)
+  }
+
+  const handleToggleSort = () => {
+    if (!selection) return
+    const nextDirection = sortDirection === 'desc' ? 'asc' : 'desc'
+    setSortDirection(nextDirection)
+    setPage(0)
+    fetchPreview(selection, 0, nextDirection)
   }
 
   return (
@@ -206,7 +244,7 @@ export default function IaView() {
                 Choisissez une catégorie pour voir les lignes
               </p>
               <p className="text-xs text-primary-500">
-                Les aperçus sont limités à 50 lignes pour rester réactifs.
+                Les aperçus sont paginés par blocs de 25 lignes pour rester réactifs.
               </p>
             </div>
           </Card>
@@ -218,6 +256,12 @@ export default function IaView() {
         preview={preview}
         loading={previewLoading}
         error={previewError}
+        limit={PAGE_SIZE}
+        page={page}
+        matchingRows={matchingRows || preview?.matching_rows || 0}
+        sortDirection={sortDirection}
+        onPageChange={handlePageChange}
+        onToggleSort={handleToggleSort}
       />
 
       {loading ? (
@@ -289,15 +333,19 @@ function SourceCategoryCard({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {categoryNodes.map(node => (
-          <div key={node.name} className="border border-primary-100 rounded-lg bg-primary-50/60">
-            <div className="flex items-start justify-between px-3 py-2 border-b border-primary-100">
+          <div
+            key={node.name}
+            className="overflow-hidden border border-primary-200 rounded-xl bg-white shadow-sm"
+          >
+            <div className="flex items-start justify-between px-3 py-2 bg-primary-900 text-white">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-primary-900 truncate">{node.name}</p>
-                <p className="text-[11px] text-primary-500">
+                <p className="text-[11px] uppercase tracking-wide text-primary-100">Catégorie</p>
+                <p className="text-sm font-semibold truncate">{node.name}</p>
+                <p className="text-[11px] text-primary-100/80">
                   {node.total.toLocaleString('fr-FR')} lignes
                 </p>
               </div>
-              <span className="text-[11px] text-primary-600">
+              <span className="text-[11px] font-semibold">
                 {node.subCategories.length.toLocaleString('fr-FR')} sous-catégories
               </span>
             </div>
@@ -306,12 +354,14 @@ function SourceCategoryCard({
                 <button
                   key={sub.name}
                   type="button"
-                  className="flex items-center justify-between px-3 py-2 text-left hover:bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                  className="flex items-center justify-between px-3 py-2 text-left hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 border-l-4 border-primary-200"
                   onClick={() => onSelect(source.source, node.name, sub.name)}
                 >
                   <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-primary-500">
+                      Sous-catégorie
+                    </p>
                     <p className="text-sm font-semibold text-primary-900 truncate">{sub.name}</p>
-                    <p className="text-[11px] text-primary-500">Sub Category</p>
                   </div>
                   <span className="text-xs font-semibold text-primary-700">
                     {sub.count.toLocaleString('fr-FR')}
@@ -331,16 +381,33 @@ function SelectionPreview({
   preview,
   loading,
   error,
+  limit,
+  page,
+  matchingRows,
+  sortDirection,
+  onPageChange,
+  onToggleSort,
 }: {
   selection: Selection | null
   preview: TableExplorePreview | null
   loading: boolean
   error: string
+  limit: number
+  page: number
+  matchingRows: number
+  sortDirection: 'asc' | 'desc'
+  onPageChange: (nextPage: number) => void
+  onToggleSort: () => void
 }) {
   if (!selection) return null
 
   const columns = preview?.preview_columns ?? []
   const rows = preview?.preview_rows ?? []
+  const totalRows = matchingRows || preview?.matching_rows || 0
+  const totalPages = totalRows ? Math.max(1, Math.ceil(totalRows / limit)) : 1
+  const currentPage = Math.min(page, totalPages - 1)
+  const hasPrev = currentPage > 0
+  const hasNext = currentPage < totalPages - 1
 
   return (
     <Card variant="outlined" className="space-y-3">
@@ -352,10 +419,44 @@ function SelectionPreview({
         </div>
         {preview ? (
           <div className="text-[11px] text-primary-500">
-            {preview.matching_rows.toLocaleString('fr-FR')} lignes correspondantes (aperçu des{' '}
-            {rows.length.toLocaleString('fr-FR')})
+            {preview.matching_rows.toLocaleString('fr-FR')} lignes correspondantes ·{' '}
+            {rows.length.toLocaleString('fr-FR')} affichées sur {limit} par page
           </div>
         ) : null}
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onToggleSort}
+            disabled={loading}
+            className="!rounded-full"
+          >
+            Tri date {sortDirection === 'desc' ? '↓' : '↑'}
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={!hasPrev || loading}
+          >
+            Précédent
+          </Button>
+          <span className="text-[11px] text-primary-600">
+            Page {currentPage + 1} / {totalPages} · {limit} lignes/page
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={!hasNext || loading}
+          >
+            Suivant
+          </Button>
+        </div>
       </div>
 
       {loading ? (
