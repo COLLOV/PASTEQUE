@@ -11,7 +11,8 @@ import type {
   AdminResetPasswordResponse,
   AdminUsageStatsResponse,
 } from '@/types/user'
-import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
+import type { LoopConfig, LoopOverview, LoopConfigPayload } from '@/types/loop'
+import { HiCheckCircle, HiXCircle, HiArrowPath } from 'react-icons/hi2'
 import DictionaryManager from './DictionaryManager'
 
 interface Status {
@@ -19,7 +20,11 @@ interface Status {
   message: string
 }
 
-function formatDate(value: string): string {
+type TableInfo = { name: string; path: string }
+type ColumnInfo = { name: string; dtype?: string | null }
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString()
@@ -47,6 +52,17 @@ export default function AdminPanel() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsError, setStatsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
+  const [loopConfig, setLoopConfig] = useState<LoopConfig | null>(null)
+  const [loopTables, setLoopTables] = useState<TableInfo[]>([])
+  const [loopColumns, setLoopColumns] = useState<ColumnInfo[]>([])
+  const [selectedTable, setSelectedTable] = useState('')
+  const [selectedTextColumn, setSelectedTextColumn] = useState('')
+  const [selectedDateColumn, setSelectedDateColumn] = useState('')
+  const [loopStatus, setLoopStatus] = useState<Status | null>(null)
+  const [loopError, setLoopError] = useState('')
+  const [loopLoading, setLoopLoading] = useState(true)
+  const [loopSaving, setLoopSaving] = useState(false)
+  const [loopRegenerating, setLoopRegenerating] = useState(false)
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
 
@@ -80,10 +96,126 @@ export default function AdminPanel() {
     }
   }, [])
 
+  const loadTables = useCallback(async () => {
+    try {
+      const response = await apiFetch<TableInfo[]>('/data/tables')
+      setLoopTables(response ?? [])
+    } catch (err) {
+      setLoopError(err instanceof Error ? err.message : 'Chargement des tables impossible.')
+    }
+  }, [])
+
+  const loadColumns = useCallback(async (tableName: string) => {
+    if (!tableName) {
+      setLoopColumns([])
+      return
+    }
+    try {
+      const response = await apiFetch<ColumnInfo[]>(`/data/schema/${encodeURIComponent(tableName)}`)
+      setLoopColumns(response ?? [])
+    } catch (err) {
+      setLoopError(err instanceof Error ? err.message : 'Chargement des colonnes impossible.')
+    }
+  }, [])
+
+  const loadLoopOverview = useCallback(async () => {
+    setLoopLoading(true)
+    setLoopError('')
+    try {
+      const response = await apiFetch<LoopOverview>('/loop/overview')
+      const config = response?.config ?? null
+      setLoopConfig(config)
+      if (config) {
+        setSelectedTable(config.table_name)
+        setSelectedTextColumn(config.text_column)
+        setSelectedDateColumn(config.date_column)
+        await loadColumns(config.table_name)
+      }
+    } catch (err) {
+      setLoopError(err instanceof Error ? err.message : 'Chargement Loop impossible.')
+    } finally {
+      setLoopLoading(false)
+    }
+  }, [loadColumns])
+
   useEffect(() => {
     void loadPermissions()
     void loadStats()
-  }, [loadPermissions, loadStats])
+    void loadTables()
+    void loadLoopOverview()
+  }, [loadPermissions, loadStats, loadTables, loadLoopOverview])
+
+  const handleTableChange = useCallback(
+    (value: string) => {
+      setSelectedTable(value)
+      setSelectedTextColumn('')
+      setSelectedDateColumn('')
+      setLoopStatus(null)
+      setLoopError('')
+      void loadColumns(value)
+    },
+    [loadColumns]
+  )
+
+  async function handleSaveLoopConfig() {
+    if (!selectedTable || !selectedTextColumn || !selectedDateColumn) {
+      setLoopStatus({ type: 'error', message: 'Table, colonne texte et colonne date sont requises.' })
+      return
+    }
+    setLoopError('')
+    setLoopSaving(true)
+    setLoopStatus(null)
+    try {
+      const payload: LoopConfigPayload = {
+        table_name: selectedTable,
+        text_column: selectedTextColumn,
+        date_column: selectedDateColumn,
+      }
+      const response = await apiFetch<LoopConfig>('/loop/config', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+      setLoopConfig(response ?? null)
+      setLoopStatus({ type: 'success', message: 'Configuration Loop enregistrée.' })
+    } catch (err) {
+      setLoopStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Sauvegarde impossible.',
+      })
+    } finally {
+      setLoopSaving(false)
+    }
+  }
+
+  async function handleRegenerateLoop() {
+    if (!loopConfig) {
+      setLoopStatus({ type: 'error', message: 'Configurez Loop avant de régénérer.' })
+      return
+    }
+    setLoopError('')
+    setLoopRegenerating(true)
+    setLoopStatus(null)
+    try {
+      const response = await apiFetch<LoopOverview>('/loop/regenerate', {
+        method: 'POST',
+      })
+      const config = response?.config ?? null
+      setLoopConfig(config)
+      if (config) {
+        setSelectedTable(config.table_name)
+        setSelectedTextColumn(config.text_column)
+        setSelectedDateColumn(config.date_column)
+      }
+      setLoopStatus({ type: 'success', message: 'Résumés Loop régénérés.' })
+    } catch (err) {
+      setLoopStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Régénération impossible.',
+      })
+    } finally {
+      setLoopRegenerating(false)
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -459,6 +591,158 @@ export default function AdminPanel() {
       </Card>
 
       <DictionaryManager />
+
+      <Card variant="elevated">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary-950">Loop – résumés tickets</h3>
+            <p className="text-sm text-primary-600">
+              Sélectionnez la table et les colonnes utilisées pour générer les résumés hebdomadaires et mensuels.
+            </p>
+          </div>
+          <div className="text-sm text-primary-600">
+            Dernière génération :{' '}
+            <span className="font-medium text-primary-900">
+              {formatDate(loopConfig?.last_generated_at)}
+            </span>
+          </div>
+        </div>
+
+        {loopError && (
+          <div className="mb-4 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 text-sm p-3">
+            {loopError}
+          </div>
+        )}
+
+        {loopStatus && (
+          <div
+            className={`mb-4 flex items-start gap-2 p-3 rounded-lg border ${
+              loopStatus.type === 'success'
+                ? 'border-green-200 bg-green-50 text-green-800'
+                : 'border-red-200 bg-red-50 text-red-800'
+            }`}
+          >
+            {loopStatus.type === 'success' ? (
+              <HiCheckCircle className="w-4 h-4 mt-0.5" />
+            ) : (
+              <HiXCircle className="w-4 h-4 mt-0.5" />
+            )}
+            <p className="text-sm">{loopStatus.message}</p>
+          </div>
+        )}
+
+        {loopLoading ? (
+          <div className="py-8 flex justify-center">
+            <Loader text="Chargement de la configuration Loop…" />
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-primary-800 mb-1">
+                  Table de tickets
+                </label>
+                <select
+                  value={selectedTable}
+                  onChange={(e) => handleTableChange(e.target.value)}
+                  className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                  disabled={loopTables.length === 0 || loopSaving}
+                >
+                  <option value="">Sélectionner une table…</option>
+                  {loopTables.map(table => (
+                    <option key={table.name} value={table.name}>
+                      {table.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-primary-800 mb-1">
+                    Colonne texte
+                  </label>
+                  <select
+                    value={selectedTextColumn}
+                    onChange={(e) => setSelectedTextColumn(e.target.value)}
+                    className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                    disabled={loopColumns.length === 0 || loopSaving}
+                  >
+                    <option value="">Choisir…</option>
+                    {loopColumns.map(col => (
+                      <option key={col.name} value={col.name}>
+                        {col.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-800 mb-1">
+                    Colonne date
+                  </label>
+                  <select
+                    value={selectedDateColumn}
+                    onChange={(e) => setSelectedDateColumn(e.target.value)}
+                    className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                    disabled={loopColumns.length === 0 || loopSaving}
+                  >
+                    <option value="">Choisir…</option>
+                    {loopColumns.map(col => (
+                      <option key={col.name} value={col.name}>
+                        {col.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSaveLoopConfig}
+                  disabled={loopSaving || loopTables.length === 0}
+                >
+                  {loopSaving ? 'Enregistrement…' : 'Enregistrer la configuration'}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-3 md:border-l md:border-primary-100 md:pl-6 pt-4 md:pt-0">
+              <p className="text-sm text-primary-700">
+                Régénérez les résumés hebdomadaires et mensuels à partir de la configuration courante.
+                Les résultats seront visibles dans l&apos;onglet « Loop ».
+              </p>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleRegenerateLoop}
+                disabled={loopRegenerating || loopSaving || loopLoading}
+                className="inline-flex items-center gap-2"
+              >
+                {loopRegenerating ? (
+                  <>
+                    <HiArrowPath className="w-4 h-4 animate-spin" />
+                    Régénération…
+                  </>
+                ) : (
+                  <>
+                    <HiArrowPath className="w-4 h-4" />
+                    Régénérer les résumés
+                  </>
+                )}
+              </Button>
+              {loopConfig ? (
+                <p className="text-xs text-primary-500">
+                  Table : <span className="font-semibold text-primary-800">{loopConfig.table_name}</span> — texte :{' '}
+                  {loopConfig.text_column} — date : {loopConfig.date_column}
+                </p>
+              ) : (
+                <p className="text-xs text-primary-500">
+                  Configurez Loop pour activer la génération.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
 
       <Card variant="elevated">
         <h3 className="text-lg font-semibold text-primary-950 mb-4">

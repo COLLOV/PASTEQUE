@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import csv
-from typing import Iterable
+from typing import Iterable, List, Dict, Any
 import logging
 
 
@@ -72,3 +72,14 @@ class DataRepository:
         cols = [(h, None) for h in header]
         log.info("Schéma table '%s' (%d colonnes)", table_name, len(cols))
         return cols
+
+    def read_rows(self, table_name: str) -> List[Dict[str, Any]]:
+        path = self._resolve_table_path(table_name)
+        if path is None:
+            raise FileNotFoundError(f"Table introuvable: {table_name}")
+        delimiter = "," if path.suffix.lower() == ".csv" else "\t"
+        with path.open("r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f, delimiter=delimiter)
+            rows = [dict(row) for row in reader if row]
+        log.info("Chargé %d lignes depuis %s", len(rows), path.name)
+        return rows

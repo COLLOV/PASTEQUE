@@ -263,6 +263,15 @@ ROUTER_MODE=rule   # rule | local | api | false
 # ROUTER_MODEL=    # optionnel; sinon Z_LOCAL_MODEL/LLM_MODEL
 ```
 
+### Loop – résumés hebdomadaires/mensuels
+
+- Endpoints:
+  - `GET /api/v1/loop/overview` (auth): configuration actuelle + résumés hebdo/mensuels persistés.
+  - `PUT /api/v1/loop/config` (admin): choisit la table + colonnes texte/date à utiliser (validées sur les CSV en `DATA_TABLES_DIR`).
+  - `POST /api/v1/loop/regenerate` (admin): relance l’agent `looper` pour regénérer les résumés des dernières semaines/mois.
+- L’agent `looper` injecte le contenu des tickets de chaque période et produit deux parties dans une réponse longue: problèmes majeurs à résoudre + plan d’action concret. Il respecte `LLM_MODE` (local vLLM ou API externe).
+- Garde‑fous configurables dans `.env.example`: `LOOP_MAX_TICKETS` (échantillon par période, défaut 60), `LOOP_TICKET_TEXT_MAX_CHARS` (tronque chaque ticket, 360), `LOOP_MAX_WEEKS` (1), `LOOP_MAX_MONTHS` (1), `LOOP_TEMPERATURE` (0.3), `LOOP_MAX_TOKENS` (800), `LOOP_MAX_TICKETS_PER_CALL` (400) et `LOOP_MAX_INPUT_CHARS` (300000) pour forcer le découpage en sous-résumés avant fusion. Quota via `AGENT_MAX_REQUESTS` clé `looper`.
+
 ### MCP – configuration déclarative
 
 Objectif: faciliter la connexion côté moteur de chat aux serveurs MCP:

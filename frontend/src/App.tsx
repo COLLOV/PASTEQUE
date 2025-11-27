@@ -5,6 +5,7 @@ import Login from '@/features/auth/Login'
 import Chat from '@/features/chat/Chat'
 import Dashboard from '@/features/dashboard/Dashboard'
 import AdminPanel from '@/features/admin/AdminPanel'
+import Loop from '@/features/loop/Loop'
 import FeedbackAdmin from '@/features/admin/FeedbackAdmin'
 import Explorer from '@/features/explorer/Explorer'
 import IaView from '@/features/ai/IaView'
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="ia" element={<IaView />} />
           <Route path="explorer" element={<Explorer />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="loop" element={<Loop />} />
           <Route
             path="admin"
             element={
