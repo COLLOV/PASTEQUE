@@ -1,4 +1,4 @@
-import { useMemo, useRef, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Doughnut, getElementAtEvent } from 'react-chartjs-2'
 import { ArcElement, Chart as ChartJS, Legend, Tooltip, type ChartData, type ChartOptions } from 'chart.js'
 import { Card } from '@/components/ui'
@@ -27,7 +27,7 @@ export default function CategoryStackedChart({
   breakdown,
   onSelect,
   title = 'Répartition Category / Sub Category',
-  subtitle = 'Cliquez sur une part pour ouvrir la sous-catégorie la plus fréquente.',
+  subtitle = 'Cliquez sur une catégorie pour ouvrir ses sous-catégories, puis sur une sous-catégorie pour l’aperçu.',
   height = 224,
   className,
 }: Props) {
@@ -66,26 +66,59 @@ export default function CategoryStackedChart({
   }, [categoryTotals.totals])
 
   const chartRef = useRef<ChartJS<'doughnut'> | null>(null)
+  const [focusedCategory, setFocusedCategory] = useState<string | null>(null)
 
   if (!categories.length) {
     return null
   }
 
+  const subCategoryMap = useMemo(() => {
+    const map = new Map<string, { name: string; count: number }[]>()
+    sanitized.forEach(item => {
+      const category = item.category as string
+      const sub = item.sub_category as string
+      const count = item.count ?? 0
+      if (!map.has(category)) {
+        map.set(category, [])
+      }
+      map.get(category)!.push({ name: sub, count })
+    })
+    return new Map(
+      Array.from(map.entries()).map(([cat, values]) => [
+        cat,
+        values.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+      ])
+    )
+  }, [sanitized])
+
+  const isDrilled = Boolean(focusedCategory && subCategoryMap.has(focusedCategory))
+  const subCategories = isDrilled ? subCategoryMap.get(focusedCategory ?? '') ?? [] : []
+  const chartLabels = isDrilled ? subCategories.map(item => item.name) : categories
+  const chartDataset = isDrilled
+    ? subCategories.map(item => item.count)
+    : categories.map(cat => categoryTotals.totals.get(cat) ?? 0)
+
+  useEffect(() => {
+    if (focusedCategory && !categories.includes(focusedCategory)) {
+      setFocusedCategory(null)
+    }
+  }, [categories, focusedCategory])
+
   const chartData = useMemo<ChartData<'doughnut'>>(
     () => ({
-      labels: categories,
+      labels: chartLabels,
       datasets: [
         {
-          label: 'Occurrences',
-          data: categories.map(cat => categoryTotals.totals.get(cat) ?? 0),
-          backgroundColor: categories.map((_, index) => pickColor(index)),
+          label: isDrilled ? 'Sous-catégories' : 'Catégories',
+          data: chartDataset,
+          backgroundColor: chartLabels.map((_, index) => pickColor(index)),
           borderColor: '#ffffff',
           borderWidth: 1,
           hoverOffset: 8,
         },
       ],
     }),
-    [categories, categoryTotals.totals]
+    [chartLabels, chartDataset, isDrilled]
   )
 
   const options = useMemo<ChartOptions<'doughnut'>>(
@@ -115,16 +148,21 @@ export default function CategoryStackedChart({
   )
 
   const handleClick = (event: MouseEvent<HTMLCanvasElement>) => {
-    if (!onSelect) return
     const chart = chartRef.current
     if (!chart) return
     const elements = getElementAtEvent(chart, event)
     if (!elements.length) return
     const { index } = elements[0]
-    const category = categories[index ?? 0]
-    const topSub = categoryTotals.topSub.get(category)?.sub
-    if (category) {
-      onSelect(category, topSub)
+    if (!isDrilled) {
+      const category = categories[index ?? 0]
+      if (category) {
+        setFocusedCategory(category)
+      }
+      return
+    }
+    const subCategory = subCategories[index ?? 0]?.name
+    if (focusedCategory && subCategory && onSelect) {
+      onSelect(focusedCategory, subCategory)
     }
   }
 
@@ -135,13 +173,32 @@ export default function CategoryStackedChart({
       {title || subtitle ? (
         <div className="flex items-center justify-between mb-2">
           <div>
-            {title ? <p className="text-sm font-semibold text-primary-800">{title}</p> : null}
+            {title ? (
+              <p className="text-sm font-semibold text-primary-800">
+                {isDrilled && focusedCategory ? `${title} – ${focusedCategory}` : title}
+              </p>
+            ) : null}
             {subtitle ? <p className="text-[11px] text-primary-500">{subtitle}</p> : null}
           </div>
+          {isDrilled ? (
+            <button
+              type="button"
+              className="text-[11px] text-primary-700 hover:text-primary-900 underline underline-offset-4"
+              onClick={() => setFocusedCategory(null)}
+            >
+              Retour catégories
+            </button>
+          ) : null}
         </div>
       ) : null}
       <div style={{ height }}>
-        <Doughnut ref={chartRef} data={chartData} options={options} onClick={handleClick} />
+        <Doughnut
+          key={isDrilled ? `sub-${focusedCategory}` : 'categories'}
+          ref={chartRef}
+          data={chartData}
+          options={options}
+          onClick={handleClick}
+        />
       </div>
     </Card>
   )
