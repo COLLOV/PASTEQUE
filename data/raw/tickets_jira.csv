@@ -1,4 +1,4 @@
-ticket_id,resume,description,creation_date,departement,Category,Sub Category
+ticket_id,resume,description,date,departement,Category,Sub Category
 JIRA-0105,Souris sans fil qui ne répond plus,La souris Bluetooth se déconnecte régulièrement. Nécessite un redémarrage du PC.,2025-04-21 11:22:18,Marketing,Poste de travail,Souris
 JIRA-0309,Ordinateur portable très lent au démarrage,Mon PC met plus de 10 minutes à démarrer complètement. Performances dégradées.,2025-04-21 11:22:18,Direction,Poste de travail,Performance poste
 JIRA-0430,Impossible d'imprimer en recto-verso,L'option recto-verso n'apparaît plus dans les paramètres d'impression.,2025-04-21 11:22:18,Ressources Humaines,Impression & Numérisation,Réglage recto-verso
