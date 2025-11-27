@@ -529,7 +529,6 @@ function SourceCategoryCard({
         <div className="overflow-hidden border border-primary-200 rounded-xl bg-white shadow-sm">
           <div className="flex items-start justify-between px-3 py-2 bg-primary-900 text-white">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wide text-primary-100">Catégorie</p>
               <p className="text-sm font-semibold truncate">{selectedNode.name}</p>
               <p className="text-[11px] text-primary-100/80">
                 {selectedNode.total.toLocaleString('fr-FR')} lignes ·{' '}
@@ -546,12 +545,7 @@ function SourceCategoryCard({
                   className="flex items-center justify-between px-3 py-2 text-left hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 border-l-4 border-primary-200"
                   onClick={() => onSelect(source.source, selectedNode.name, sub.name)}
                 >
-                  <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-wide text-primary-500">
-                      Sous-catégorie
-                    </p>
-                    <p className="text-sm font-semibold text-primary-900 truncate">{sub.name}</p>
-                  </div>
+                  <p className="text-sm font-semibold text-primary-900 truncate min-w-0">{sub.name}</p>
                   <span className="text-xs font-semibold text-primary-700">
                     {sub.count.toLocaleString('fr-FR')}
                   </span>
