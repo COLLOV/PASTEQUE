@@ -58,6 +58,7 @@
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
+    opacity: 0; /* rendre la piste native invisible, on garde le handle custom au-dessus */
   }
   .dual-range-thumb::-webkit-slider-thumb {
     -webkit-appearance: none;

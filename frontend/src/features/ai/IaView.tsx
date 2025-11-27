@@ -342,6 +342,14 @@ export default function IaView() {
               className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-900/60 transition-all duration-200"
               style={{ left: `${startPercent}%`, right: `${100 - endPercent}%` }}
             />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary-950 border-2 border-primary-100 shadow-sm pointer-events-none transition-transform duration-150"
+              style={{ left: `calc(${startPercent}% - 8px)` }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary-900 border-2 border-primary-100 shadow-sm pointer-events-none transition-transform duration-150"
+              style={{ left: `calc(${endPercent}% - 8px)` }}
+            />
             <input
               type="range"
               min={minTs}
