@@ -135,6 +135,34 @@
     @apply border-l-4 border-primary-200 pl-3 text-primary-700;
     margin: 0.35rem 0;
   }
+
+  /* User bubble overrides (dark background) */
+  .message-markdown--user h1,
+  .message-markdown--user h2,
+  .message-markdown--user h3,
+  .message-markdown--user h4,
+  .message-markdown--user p,
+  .message-markdown--user li,
+  .message-markdown--user blockquote {
+    @apply text-white;
+  }
+  .message-markdown--user a {
+    @apply text-white underline;
+  }
+  .message-markdown--user code {
+    @apply bg-primary-900 text-white border border-primary-800;
+  }
+  .message-markdown--user pre {
+    @apply bg-primary-900 border border-primary-800 text-white;
+  }
+  .message-markdown--user table,
+  .message-markdown--user th,
+  .message-markdown--user td {
+    @apply text-white border-primary-800;
+  }
+  .message-markdown--user blockquote {
+    @apply border-primary-700;
+  }
 }
 
 /* Utilitaires personnalisés */

@@ -1727,6 +1727,10 @@ function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, high
   const isUser = role === 'user'
   const [showDetails, setShowDetails] = useState(false)
   const renderedContent = useMemo(() => renderMarkdown(content), [content])
+  const markdownClass = useMemo(
+    () => clsx('message-markdown', isUser && 'message-markdown--user'),
+    [isUser]
+  )
   const feedbackPending = Boolean(message.feedbackSaving)
   const canFeedback = !isUser && !message.ephemeral && !chartUrl && Boolean(message.messageId)
   const feedbackUp = message.feedback === 'up'
@@ -1812,8 +1816,9 @@ function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, high
           </div>
         ) : (
           <div className={clsx(
-            'text-sm leading-relaxed message-markdown',
-            isUser ? '' : 'text-primary-950'
+            'text-sm leading-relaxed',
+            markdownClass,
+            isUser ? 'text-white' : 'text-primary-950'
           )}>
             <div
               className={clsx(
