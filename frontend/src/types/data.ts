@@ -27,6 +27,8 @@ export interface DataSourceOverview {
   source: string
   title: string
   total_rows: number
+  date_min?: string | null
+  date_max?: string | null
   field_count: number
   fields: FieldBreakdown[]
   category_breakdown?: CategorySubCategoryCount[]

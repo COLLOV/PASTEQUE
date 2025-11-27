@@ -64,17 +64,24 @@ def get_table_schema(  # type: ignore[valid-type]
 def get_data_overview(  # type: ignore[valid-type]
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
+    date_from: str | None = None,
+    date_to: str | None = None,
 ) -> DataOverviewResponse:
     allowed = None
     if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     hidden_map = DataSourcePreferenceRepository(session).list_hidden_fields_by_source()
     include_hidden = user_is_admin(current_user)
-    return _service.get_overview(
-        allowed_tables=allowed,
-        hidden_fields_by_source=hidden_map,
-        include_hidden_fields=include_hidden,
-    )
+    try:
+        return _service.get_overview(
+            allowed_tables=allowed,
+            hidden_fields_by_source=hidden_map,
+            include_hidden_fields=include_hidden,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.put("/overview/{source}/hidden-fields", response_model=HiddenFieldsResponse)

@@ -159,12 +159,21 @@ class DataService:
         allowed_tables: Iterable[str] | None = None,
         hidden_fields_by_source: Mapping[str, Iterable[str]] | None = None,
         include_hidden_fields: bool = False,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
             allowed_set = {name.casefold() for name in allowed_tables}
             table_names = [name for name in table_names if name.casefold() in allowed_set]
             log.debug("Filtered overview tables with permissions (count=%d)", len(table_names))
+
+        normalized_from = _normalize_date(date_from) if date_from else None
+        normalized_to = _normalize_date(date_to) if date_to else None
+        if date_from and not normalized_from:
+            raise ValueError("Paramètre 'date_from' invalide (format attendu ISO 8601).")
+        if date_to and not normalized_to:
+            raise ValueError("Paramètre 'date_to' invalide (format attendu ISO 8601).")
 
         hidden_lookup: Mapping[str, set[str]] = {
             (name.casefold() if hasattr(name, "casefold") else str(name)): set(fields)
@@ -178,6 +187,8 @@ class DataService:
                 table_name=name,
                 hidden_fields=hidden_for_table,
                 include_hidden_fields=include_hidden_fields,
+                date_from=normalized_from,
+                date_to=normalized_to,
             )
             if overview:
                 sources.append(overview)
@@ -190,6 +201,8 @@ class DataService:
         table_name: str,
         hidden_fields: Collection[str] | None = None,
         include_hidden_fields: bool = False,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
@@ -198,6 +211,10 @@ class DataService:
 
         delimiter = "," if path.suffix.lower() == ".csv" else "\t"
         total_rows = 0
+        date_min: str | None = None
+        date_max: str | None = None
+        date_from_norm = date_from
+        date_to_norm = date_to
 
         category_pairs: Counter[tuple[str, str]] = Counter()
         with path.open("r", newline="", encoding="utf-8") as handle:
@@ -217,13 +234,34 @@ class DataService:
 
             category_field = None
             sub_category_field = None
+            date_field = None
             for name in headers:
                 if name == CATEGORY_COLUMN_NAME:
                     category_field = name
                 if name == SUB_CATEGORY_COLUMN_NAME:
                     sub_category_field = name
+                if name.casefold() == "date":
+                    date_field = name
+
+            if (date_from_norm or date_to_norm) and not date_field:
+                raise ValueError("Colonne 'date' requise pour filtrer l'overview par date.")
 
             for row in reader:
+                normalized_date = _normalize_date(row.get(date_field)) if date_field else None
+                if normalized_date:
+                    if date_min is None or normalized_date < date_min:
+                        date_min = normalized_date
+                    if date_max is None or normalized_date > date_max:
+                        date_max = normalized_date
+
+                if date_from_norm or date_to_norm:
+                    if normalized_date is None:
+                        continue
+                    if date_from_norm and normalized_date < date_from_norm:
+                        continue
+                    if date_to_norm and normalized_date > date_to_norm:
+                        continue
+
                 total_rows += 1
                 for name, acc in accumulators.items():
                     acc.add(row.get(name))
@@ -260,12 +298,16 @@ class DataService:
             visible_count,
             total_field_count,
             len(category_breakdown),
+            date_from_norm,
+            date_to_norm,
         )
 
         return DataSourceOverview(
             source=table_name,
             title=TABLE_TITLES.get(table_name, table_name),
             total_rows=total_rows,
+            date_min=date_min,
+            date_max=date_max,
             field_count=total_field_count,
             fields=fields,
             category_breakdown=category_breakdown,

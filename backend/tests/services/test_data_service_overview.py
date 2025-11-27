@@ -50,12 +50,12 @@ def test_overview_includes_category_breakdown_when_available(tmp_path):
     sample.write_text(
         "\n".join(
             [
-                "Category,Sub Category,value",
-                "A,X,1",
-                "A,X,2",
-                "A,Y,3",
-                "B,X,4",
-                "B,Z,5",
+                "Category,Sub Category,value,date",
+                "A,X,1,2024-01-01",
+                "A,X,2,2024-01-02",
+                "A,Y,3,2024-01-03",
+                "B,X,4,",
+                "B,Z,5,2024-01-02",
             ]
         ),
         encoding="utf-8",
@@ -74,6 +74,35 @@ def test_overview_includes_category_breakdown_when_available(tmp_path):
         ("B", "X"): 1,
         ("B", "Z"): 1,
     }
+    assert source.date_min == "2024-01-01"
+    assert source.date_max == "2024-01-03"
+
+
+def test_overview_filters_by_date_range(tmp_path):
+    tables_dir = tmp_path / "tables"
+    tables_dir.mkdir()
+
+    sample = tables_dir / "dataset.csv"
+    sample.write_text(
+        "\n".join(
+            [
+                "Category,Sub Category,value,date",
+                "A,X,1,2024-05-01",
+                "A,X,2,2024-05-02",
+                "A,Y,3,2024-05-03",
+                "B,X,4,2024-05-04",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    service = DataService(repo=DataRepository(tables_dir=tables_dir))
+    overview = service.get_overview(date_from="2024-05-02", date_to="2024-05-03")
+
+    source = overview.sources[0]
+    assert source.total_rows == 2
+    pairs = {(item.category, item.sub_category): item.count for item in source.category_breakdown}
+    assert pairs == {("A", "X"): 1, ("A", "Y"): 1}
 
 
 def test_explore_table_filters_rows_by_category_and_sub_category(tmp_path):

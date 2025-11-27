@@ -37,6 +37,8 @@ class DataSourceOverview(BaseModel):
     source: str
     title: str
     total_rows: int
+    date_min: str | None = None
+    date_max: str | None = None
     field_count: int = 0
     fields: list[FieldBreakdown] = Field(default_factory=list)
     category_breakdown: list[CategorySubCategoryCount] = Field(default_factory=list)
