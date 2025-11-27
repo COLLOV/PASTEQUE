@@ -6,6 +6,10 @@ import type { AdminFeedbackEntry } from '@/types/chat'
 import { HiArrowPath, HiHandThumbDown, HiHandThumbUp } from 'react-icons/hi2'
 import clsx from 'clsx'
 
+type FeedbackAdminProps = {
+  embedded?: boolean
+}
+
 function formatDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -18,13 +22,16 @@ function truncate(value: string, max = 160): string {
   return `${value.slice(0, Math.max(0, max - 3))}...`
 }
 
-export default function FeedbackAdmin() {
+export default function FeedbackAdmin({ embedded = false }: FeedbackAdminProps) {
   const [items, setItems] = useState<AdminFeedbackEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [archiving, setArchiving] = useState<Set<number>>(() => new Set())
   const [showArchived, setShowArchived] = useState(false)
   const navigate = useNavigate()
+  const containerClass = embedded
+    ? 'space-y-6'
+    : 'max-w-5xl mx-auto animate-fade-in space-y-6'
 
   const loadFeedback = useCallback(async () => {
     setLoading(true)
@@ -74,7 +81,7 @@ export default function FeedbackAdmin() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in space-y-6">
+    <div className={containerClass}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-primary-950 mb-1">Feedback</h2>

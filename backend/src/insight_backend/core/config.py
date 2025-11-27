@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # Loop (résumés hebdo/mensuels)
     loop_max_tickets: int = Field(60, alias="LOOP_MAX_TICKETS")
     loop_ticket_text_max_chars: int = Field(360, alias="LOOP_TICKET_TEXT_MAX_CHARS")
+    loop_max_days: int = Field(1, alias="LOOP_MAX_DAYS")
     loop_max_weeks: int = Field(1, alias="LOOP_MAX_WEEKS")
     loop_max_months: int = Field(1, alias="LOOP_MAX_MONTHS")
     loop_temperature: float = Field(0.3, alias="LOOP_TEMPERATURE")
@@ -161,7 +162,7 @@ class Settings(BaseSettings):
             raise ValueError("RETRIEVAL_MAX_TOKENS must be > 0")
         return int(v)
 
-    @field_validator("loop_max_tickets", "loop_max_weeks", "loop_max_months", "loop_max_tokens")
+    @field_validator("loop_max_tickets", "loop_max_days", "loop_max_weeks", "loop_max_months", "loop_max_tokens")
     @classmethod
     def _validate_loop_positive_ints(cls, v: int, info: ValidationInfo) -> int:
         if v <= 0:

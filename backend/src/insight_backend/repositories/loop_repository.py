@@ -12,7 +12,7 @@ from ..models.loop import LoopConfig, LoopSummary
 log = logging.getLogger("insight.repositories.loop")
 
 
-LoopKind = Literal["weekly", "monthly"]
+LoopKind = Literal["daily", "weekly", "monthly"]
 
 
 class LoopRepository:
@@ -20,15 +20,25 @@ class LoopRepository:
         self.session = session
 
     # --- Config --------------------------------------------------------
-    def get_config(self) -> LoopConfig | None:
-        return (
+    def list_configs(self) -> list[LoopConfig]:
+        items = (
             self.session.query(LoopConfig)
             .order_by(LoopConfig.updated_at.desc(), LoopConfig.id.desc())
-            .first()
+            .all()
         )
+        log.debug("Loaded %d loop configs", len(items))
+        return items
+
+    def get_config_by_table(self, table_name: str) -> LoopConfig | None:
+        lookup = table_name.casefold()
+        items = self.list_configs()
+        for config in items:
+            if config.table_name.casefold() == lookup:
+                return config
+        return None
 
     def save_config(self, *, table_name: str, text_column: str, date_column: str) -> LoopConfig:
-        config = self.get_config()
+        config = self.get_config_by_table(table_name)
         if config is None:
             config = LoopConfig(
                 table_name=table_name,
@@ -38,10 +48,11 @@ class LoopRepository:
             self.session.add(config)
             log.info("Loop config created (table=%s, text=%s, date=%s)", table_name, text_column, date_column)
         else:
-            config.table_name = table_name
+            previous = (config.text_column, config.date_column)
             config.text_column = text_column
             config.date_column = date_column
-            config.last_generated_at = None
+            if (text_column, date_column) != previous:
+                config.last_generated_at = None
             log.info("Loop config updated (table=%s, text=%s, date=%s)", table_name, text_column, date_column)
         self.session.flush()
         return config
