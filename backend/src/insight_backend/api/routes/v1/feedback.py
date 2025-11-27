@@ -103,11 +103,12 @@ def archive_feedback(  # type: ignore[valid-type]
 @router.get("/admin", response_model=list[AdminFeedbackResponse])
 def list_admin_feedback(  # type: ignore[valid-type]
     limit: int = Query(200, ge=1, le=500),
+    archived: bool = Query(False),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> list[AdminFeedbackResponse]:
     if not user_is_admin(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     repo = FeedbackRepository(session)
-    items = repo.list_latest(limit=limit)
+    items = repo.list_latest(limit=limit, archived=archived)
     return [AdminFeedbackResponse.from_model(item) for item in items]

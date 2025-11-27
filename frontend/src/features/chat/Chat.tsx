@@ -1661,7 +1661,7 @@ function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, high
                       className={clsx(
                         'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors',
                         feedbackUp
-                          ? 'bg-primary-100 border-primary-300 text-primary-800'
+                          ? 'bg-green-100 border-green-200 text-green-800'
                           : 'border-primary-200 text-primary-600 hover:bg-primary-50',
                         feedbackPending && 'opacity-60 cursor-not-allowed'
                       )}

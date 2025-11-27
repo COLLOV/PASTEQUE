@@ -102,8 +102,8 @@ class FeedbackRepository:
         log.debug("Loaded %d feedback items for conversation_id=%s user_id=%s", len(items), conversation_id, user_id)
         return items
 
-    def list_latest(self, *, limit: int = 200) -> list[MessageFeedback]:
-        items = (
+    def list_latest(self, *, limit: int = 200, archived: bool = False) -> list[MessageFeedback]:
+        query = (
             self.session.query(MessageFeedback)
             .options(
                 joinedload(MessageFeedback.user),
@@ -111,12 +111,12 @@ class FeedbackRepository:
                 .joinedload(ConversationMessage.conversation)
                 .joinedload(Conversation.user),
             )
-            .filter(MessageFeedback.is_archived.is_(False))
+            .filter(MessageFeedback.is_archived.is_(archived))
             .order_by(MessageFeedback.created_at.desc())
             .limit(limit)
-            .all()
         )
-        log.debug("Loaded %d feedback items for admin (limit=%s)", len(items), limit)
+        items = query.all()
+        log.debug("Loaded %d feedback items for admin (limit=%s archived=%s)", len(items), limit, archived)
         return items
 
     def archive(self, feedback: MessageFeedback) -> MessageFeedback:

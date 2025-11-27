@@ -23,20 +23,21 @@ export default function FeedbackAdmin() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [archiving, setArchiving] = useState<Set<number>>(() => new Set())
+  const [showArchived, setShowArchived] = useState(false)
   const navigate = useNavigate()
 
   const loadFeedback = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const res = await apiFetch<AdminFeedbackEntry[]>('/feedback/admin')
+      const res = await apiFetch<AdminFeedbackEntry[]>(`/feedback/admin?archived=${showArchived ? 'true' : 'false'}`)
       setItems(res ?? [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Chargement des feedbacks impossible.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [showArchived])
 
   useEffect(() => {
     void loadFeedback()
@@ -54,9 +55,12 @@ export default function FeedbackAdmin() {
     setArchiving(prev => new Set(prev).add(id))
     try {
       const res = await apiFetch<AdminFeedbackEntry>(`/feedback/${id}/archive`, { method: 'POST' })
-      setItems(prev => prev.filter(it => it.id !== id && !it.is_archived))
-      if (res && res.is_archived) {
-        // optionally keep archived list? spec: hide once seen
+      if (res?.is_archived) {
+        if (!showArchived) {
+          setItems(prev => prev.filter(it => it.id !== id))
+        } else {
+          setItems(prev => prev.map(it => (it.id === id ? res : it)))
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Archivage impossible.')
@@ -75,23 +79,47 @@ export default function FeedbackAdmin() {
         <div>
           <h2 className="text-2xl font-bold text-primary-950 mb-1">Feedback</h2>
           <p className="text-sm text-primary-600">
-            Pouces laissés sur les réponses du LLM. Cliquez pour rouvrir la conversation.
+            Pouces laissés sur les réponses du LLM. Cliquez pour rouvrir la conversation ou archiver après revue.
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => { void loadFeedback() }}
-          disabled={loading}
-          className="!rounded-full"
-        >
-          {loading ? 'Actualisation...' : (
-            <span className="inline-flex items-center gap-2">
-              <HiArrowPath className="w-4 h-4" />
-              Rafraichir
-            </span>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex border border-primary-200 rounded-full overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowArchived(false)}
+              className={clsx(
+                'px-3 py-1 text-xs font-semibold',
+                showArchived ? 'bg-white text-primary-600' : 'bg-primary-100 text-primary-900'
+              )}
+            >
+              Actifs
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowArchived(true)}
+              className={clsx(
+                'px-3 py-1 text-xs font-semibold',
+                showArchived ? 'bg-primary-100 text-primary-900' : 'bg-white text-primary-600'
+              )}
+            >
+              Archivés
+            </button>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { void loadFeedback() }}
+            disabled={loading}
+            className="!rounded-full"
+          >
+            {loading ? 'Actualisation...' : (
+              <span className="inline-flex items-center gap-2">
+                <HiArrowPath className="w-4 h-4" />
+                Rafraichir
+              </span>
+            )}
+          </Button>
+        </div>
       </div>
 
       <Card variant="elevated">
@@ -161,6 +189,11 @@ export default function FeedbackAdmin() {
                         <div className="text-[11px] text-primary-500 mt-1">
                           ID {entry.conversation_id}
                         </div>
+                        {entry.is_archived && (
+                          <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary-500">
+                            <span className="h-2 w-2 rounded-full bg-primary-300 inline-block" /> Archivé
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 border-b border-primary-100 align-top">
                         <div className="text-sm text-primary-900">
@@ -185,15 +218,17 @@ export default function FeedbackAdmin() {
                           >
                             Ouvrir
                           </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            onClick={() => archive(entry.id)}
-                            disabled={archiving.has(entry.id)}
-                            className="!rounded-full"
-                          >
-                            {archiving.has(entry.id) ? 'Archivage…' : 'Archiver'}
-                          </Button>
+                          {!entry.is_archived && (
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              onClick={() => archive(entry.id)}
+                              disabled={archiving.has(entry.id)}
+                              className="!rounded-full"
+                            >
+                              {archiving.has(entry.id) ? 'Archivage…' : 'Archiver'}
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

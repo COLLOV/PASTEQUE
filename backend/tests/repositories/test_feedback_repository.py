@@ -84,5 +84,8 @@ def test_archive_and_filter_latest(session):
     refreshed = repo.get_by_id(fb.id)
     assert refreshed is not None
     assert refreshed.is_archived is True
-    latest = repo.list_latest()
-    assert latest == []
+    latest_active = repo.list_latest()
+    assert latest_active == []
+    archived = repo.list_latest(archived=True)
+    assert len(archived) == 1
+    assert archived[0].id == fb.id
