@@ -34,6 +34,7 @@ def init_database() -> None:
     _ensure_user_settings_column()
     _ensure_admin_column()
     _ensure_feedback_archive_column()
+    _ensure_data_source_preference_columns()
     log.info("Database initialized (tables ensured).")
 
 
@@ -75,6 +76,31 @@ def _ensure_admin_column() -> None:
             {"admin_username": settings.admin_username},
         )
     log.info("Admin flag column ensured on users table.")
+
+
+def _ensure_data_source_preference_columns() -> None:
+    """Ensure optional columns exist on data_source_preferences."""
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("data_source_preferences")}
+    stmts = []
+    if "date_field" not in columns:
+        stmts.append("ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS date_field VARCHAR(255)")
+    if "category_field" not in columns:
+        stmts.append(
+            "ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS category_field VARCHAR(255)"
+        )
+    if "sub_category_field" not in columns:
+        stmts.append(
+            "ALTER TABLE data_source_preferences ADD COLUMN IF NOT EXISTS sub_category_field VARCHAR(255)"
+        )
+    if not stmts:
+        log.debug("data_source_preferences columns already present.")
+        return
+
+    with engine.begin() as conn:
+        for stmt in stmts:
+            conn.execute(text(stmt))
+    log.info("data_source_preferences optional columns ensured (%d added).", len(stmts))
 
 
 @contextmanager

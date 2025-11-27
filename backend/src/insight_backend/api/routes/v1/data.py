@@ -9,9 +9,11 @@ from ....schemas.data import (
     UpdateHiddenFieldsRequest,
     HiddenFieldsResponse,
     TableExplorePreview,
+    UpdateColumnRolesRequest,
+    ColumnRolesResponse,
 )
 from ....schemas.tables import TableInfo, ColumnInfo
-from ....services.data_service import DataService
+from ....services.data_service import DataService, ColumnRoles
 from ....repositories.data_repository import DataRepository
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 from ....repositories.data_source_preference_repository import DataSourcePreferenceRepository
@@ -70,13 +72,24 @@ def get_data_overview(  # type: ignore[valid-type]
     allowed = None
     if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
-    hidden_map = DataSourcePreferenceRepository(session).list_hidden_fields_by_source()
+    pref_repo = DataSourcePreferenceRepository(session)
+    preferences = pref_repo.list_preferences()
+    hidden_map = {source: pref.hidden_fields for source, pref in preferences.items() if pref.hidden_fields}
+    column_roles_map = {
+        source: ColumnRoles(
+            date_field=pref.date_field,
+            category_field=pref.category_field,
+            sub_category_field=pref.sub_category_field,
+        )
+        for source, pref in preferences.items()
+    }
     include_hidden = user_is_admin(current_user)
     try:
         return _service.get_overview(
             allowed_tables=allowed,
             hidden_fields_by_source=hidden_map,
             include_hidden_fields=include_hidden,
+            column_roles_by_source=column_roles_map,
             date_from=date_from,
             date_to=date_to,
         )
@@ -136,6 +149,69 @@ def update_hidden_fields(  # type: ignore[valid-type]
     return HiddenFieldsResponse(source=table_name, hidden_fields=updated)
 
 
+@router.put("/overview/{source}/column-roles", response_model=ColumnRolesResponse)
+def update_column_roles(  # type: ignore[valid-type]
+    source: str,
+    payload: UpdateColumnRolesRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> ColumnRolesResponse:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    table_name = source.strip()
+    if not table_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Table name is required")
+
+    try:
+        schema = _service.get_schema(table_name)
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    available_fields = {col.name for col in schema}
+
+    def _validate(field_name: str | None, label: str) -> str | None:
+        if field_name is None:
+            return None
+        trimmed = field_name.strip()
+        if not trimmed:
+            return None
+        if trimmed not in available_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Colonne inconnue pour {table_name}: {trimmed} (champ {label})",
+            )
+        return trimmed
+
+    date_field = _validate(payload.date_field, "date_field")
+    category_field = _validate(payload.category_field, "category_field")
+    sub_category_field = _validate(payload.sub_category_field, "sub_category_field")
+
+    if (category_field and not sub_category_field) or (sub_category_field and not category_field):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sélectionnez à la fois une catégorie et une sous-catégorie ou aucune des deux.",
+        )
+
+    repo = DataSourcePreferenceRepository(session)
+    updated = repo.set_column_roles(
+        source=table_name,
+        date_field=date_field,
+        category_field=category_field,
+        sub_category_field=sub_category_field,
+    )
+    session.commit()
+
+    return ColumnRolesResponse(
+        source=table_name,
+        date_field=updated.date_field,
+        category_field=updated.category_field,
+        sub_category_field=updated.sub_category_field,
+    )
+
+
 @router.get("/explore/{source}", response_model=TableExplorePreview)
 def explore_table(  # type: ignore[valid-type]
     source: str,
@@ -164,6 +240,18 @@ def explore_table(  # type: ignore[valid-type]
     if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
 
+    pref_repo = DataSourcePreferenceRepository(session)
+    preferences = pref_repo.list_preferences()
+    normalized_roles = {name.casefold(): pref for name, pref in preferences.items()}
+    roles = normalized_roles.get(source.casefold())
+    column_roles = None
+    if roles:
+        column_roles = ColumnRoles(
+            date_field=roles.date_field,
+            category_field=roles.category_field,
+            sub_category_field=roles.sub_category_field,
+        )
+
     try:
         return _service.explore_table(
             table_name=source,
@@ -175,6 +263,7 @@ def explore_table(  # type: ignore[valid-type]
             date_from=date_from,
             date_to=date_to,
             allowed_tables=allowed,
+            column_roles=column_roles,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))

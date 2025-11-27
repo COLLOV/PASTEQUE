@@ -40,6 +40,13 @@ CATEGORY_COLUMN_NAME = "Category"
 SUB_CATEGORY_COLUMN_NAME = "Sub Category"
 
 
+@dataclass(frozen=True)
+class ColumnRoles:
+    date_field: str | None = None
+    category_field: str | None = None
+    sub_category_field: str | None = None
+
+
 def _clean_text(value: object | None) -> str | None:
     if value is None:
         return None
@@ -159,6 +166,7 @@ class DataService:
         allowed_tables: Iterable[str] | None = None,
         hidden_fields_by_source: Mapping[str, Iterable[str]] | None = None,
         include_hidden_fields: bool = False,
+        column_roles_by_source: Mapping[str, ColumnRoles] | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> DataOverviewResponse:
@@ -180,6 +188,11 @@ class DataService:
             for name, fields in (hidden_fields_by_source or {}).items()
         }
 
+        roles_lookup: Mapping[str, ColumnRoles] = {
+            (name.casefold() if hasattr(name, "casefold") else str(name)): roles
+            for name, roles in (column_roles_by_source or {}).items()
+        }
+
         sources: list[DataSourceOverview] = []
         for name in table_names:
             hidden_for_table = hidden_lookup.get(name.casefold(), set())
@@ -187,6 +200,7 @@ class DataService:
                 table_name=name,
                 hidden_fields=hidden_for_table,
                 include_hidden_fields=include_hidden_fields,
+                column_roles=roles_lookup.get(name.casefold()),
                 date_from=normalized_from,
                 date_to=normalized_to,
             )
@@ -201,6 +215,7 @@ class DataService:
         table_name: str,
         hidden_fields: Collection[str] | None = None,
         include_hidden_fields: bool = False,
+        column_roles: ColumnRoles | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> DataSourceOverview | None:
@@ -231,21 +246,45 @@ class DataService:
                 )
 
             accumulators = {name: FieldAccumulator(name=name) for name in headers}
+            roles = column_roles or ColumnRoles()
+            headers_set = set(headers)
+
+            date_field = None
+            if roles.date_field:
+                if roles.date_field not in headers_set:
+                    raise ValueError(
+                        f"Colonne '{roles.date_field}' introuvable pour la date dans {table_name}"
+                    )
+                date_field = roles.date_field
+            else:
+                for name in headers:
+                    if name.casefold() == "date":
+                        date_field = name
+                        break
 
             category_field = None
+            if roles.category_field:
+                if roles.category_field not in headers_set:
+                    raise ValueError(
+                        f"Colonne '{roles.category_field}' introuvable pour la catégorie dans {table_name}"
+                    )
+                category_field = roles.category_field
+            elif CATEGORY_COLUMN_NAME in headers_set:
+                category_field = CATEGORY_COLUMN_NAME
+
             sub_category_field = None
-            date_field = None
-            for name in headers:
-                if name == CATEGORY_COLUMN_NAME:
-                    category_field = name
-                if name == SUB_CATEGORY_COLUMN_NAME:
-                    sub_category_field = name
-                if name.casefold() == "date":
-                    date_field = name
+            if roles.sub_category_field:
+                if roles.sub_category_field not in headers_set:
+                    raise ValueError(
+                        f"Colonne '{roles.sub_category_field}' introuvable pour la sous-catégorie dans {table_name}"
+                    )
+                sub_category_field = roles.sub_category_field
+            elif SUB_CATEGORY_COLUMN_NAME in headers_set:
+                sub_category_field = SUB_CATEGORY_COLUMN_NAME
 
             if (date_from_norm or date_to_norm) and not date_field:
                 log.warning(
-                    "Filtre date ignoré pour %s : colonne 'date' absente, source exclue du résultat filtré.",
+                    "Filtre date ignoré pour %s : colonne de date absente, source exclue du résultat filtré.",
                     table_name,
                 )
                 return None
@@ -296,12 +335,19 @@ class DataService:
             ]
 
         log.info(
-            "Overview calculé pour %s : %d lignes, colonnes visibles=%d / total=%d, couples Category/Sub=%d",
+            (
+                "Overview calculé pour %s : %d lignes, colonnes visibles=%d / total=%d, "
+                "couples Category/Sub=%d, date_field=%s, category_field=%s, sub_category_field=%s, "
+                "filtres=(from=%s, to=%s)"
+            ),
             table_name,
             total_rows,
             visible_count,
             total_field_count,
             len(category_breakdown),
+            date_field,
+            category_field,
+            sub_category_field,
             date_from_norm,
             date_to_norm,
         )
@@ -315,6 +361,9 @@ class DataService:
             field_count=total_field_count,
             fields=fields,
             category_breakdown=category_breakdown,
+            date_field=date_field,
+            category_field=category_field,
+            sub_category_field=sub_category_field,
         )
 
     def explore_table(
@@ -329,6 +378,7 @@ class DataService:
         date_from: str | None = None,
         date_to: str | None = None,
         allowed_tables: Iterable[str] | None = None,
+        column_roles: ColumnRoles | None = None,
     ) -> TableExplorePreview:
         if allowed_tables is not None:
             allowed_set = {name.casefold() for name in allowed_tables}
@@ -377,10 +427,32 @@ class DataService:
                     sort_date=sort_date,
                 )
 
-            if CATEGORY_COLUMN_NAME not in headers or SUB_CATEGORY_COLUMN_NAME not in headers:
+            roles = column_roles or ColumnRoles()
+            headers_set = set(headers)
+
+            category_column = None
+            if roles.category_field:
+                if roles.category_field not in headers_set:
+                    raise ValueError(
+                        f"Colonne '{roles.category_field}' introuvable pour la catégorie dans {table_name}"
+                    )
+                category_column = roles.category_field
+            elif CATEGORY_COLUMN_NAME in headers_set:
+                category_column = CATEGORY_COLUMN_NAME
+
+            sub_category_column = None
+            if roles.sub_category_field:
+                if roles.sub_category_field not in headers_set:
+                    raise ValueError(
+                        f"Colonne '{roles.sub_category_field}' introuvable pour la sous-catégorie dans {table_name}"
+                    )
+                sub_category_column = roles.sub_category_field
+            elif SUB_CATEGORY_COLUMN_NAME in headers_set:
+                sub_category_column = SUB_CATEGORY_COLUMN_NAME
+
+            if not category_column or not sub_category_column:
                 raise ValueError(
-                    f"Colonnes requises manquantes pour l'exploration: "
-                    f"{CATEGORY_COLUMN_NAME!r} et {SUB_CATEGORY_COLUMN_NAME!r}"
+                    "Colonnes requises manquantes pour l'exploration: configurez une catégorie et sous-catégorie."
                 )
 
             sort_direction = None
@@ -391,17 +463,23 @@ class DataService:
                 sort_direction = normalized_sort
 
             date_column = None
-            if sort_direction or normalized_from or normalized_to:
+            if roles.date_field:
+                if roles.date_field not in headers_set:
+                    raise ValueError(
+                        f"Colonne '{roles.date_field}' introuvable pour la date dans {table_name}"
+                    )
+                date_column = roles.date_field
+            elif sort_direction or normalized_from or normalized_to:
                 for name in headers:
                     if name.casefold() == "date":
                         date_column = name
                         break
                 if date_column is None:
-                    raise ValueError("Colonne 'date' introuvable pour appliquer tri/filtre.")
+                    raise ValueError("Colonne de date introuvable pour appliquer tri/filtre.")
 
             for row in reader:
-                cat_value = _clean_text(row.get(CATEGORY_COLUMN_NAME))
-                sub_value = _clean_text(row.get(SUB_CATEGORY_COLUMN_NAME))
+                cat_value = _clean_text(row.get(category_column))
+                sub_value = _clean_text(row.get(sub_category_column))
                 if cat_value == category and sub_value == sub_category:
                     normalized_value = _normalize_date(row.get(date_column)) if date_column else None
                     if normalized_value:

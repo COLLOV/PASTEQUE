@@ -39,6 +39,9 @@ class DataSourceOverview(BaseModel):
     total_rows: int
     date_min: str | None = None
     date_max: str | None = None
+    date_field: str | None = None
+    category_field: str | None = None
+    sub_category_field: str | None = None
     field_count: int = 0
     fields: list[FieldBreakdown] = Field(default_factory=list)
     category_breakdown: list[CategorySubCategoryCount] = Field(default_factory=list)
@@ -56,6 +59,19 @@ class UpdateHiddenFieldsRequest(BaseModel):
 class HiddenFieldsResponse(BaseModel):
     source: str
     hidden_fields: list[str] = Field(default_factory=list)
+
+
+class UpdateColumnRolesRequest(BaseModel):
+    date_field: str | None = None
+    category_field: str | None = None
+    sub_category_field: str | None = None
+
+
+class ColumnRolesResponse(BaseModel):
+    source: str
+    date_field: str | None = None
+    category_field: str | None = None
+    sub_category_field: str | None = None
 
 
 class TableExplorePreview(BaseModel):

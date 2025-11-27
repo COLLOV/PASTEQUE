@@ -29,6 +29,9 @@ export interface DataSourceOverview {
   total_rows: number
   date_min?: string | null
   date_max?: string | null
+  date_field?: string | null
+  category_field?: string | null
+  sub_category_field?: string | null
   field_count: number
   fields: FieldBreakdown[]
   category_breakdown?: CategorySubCategoryCount[]
@@ -42,6 +45,19 @@ export interface DataOverviewResponse {
 export interface HiddenFieldsResponse {
   source: string
   hidden_fields: string[]
+}
+
+export interface ColumnRolesResponse {
+  source: string
+  date_field?: string | null
+  category_field?: string | null
+  sub_category_field?: string | null
+}
+
+export interface UpdateColumnRolesRequest {
+  date_field?: string | null
+  category_field?: string | null
+  sub_category_field?: string | null
 }
 
 export type TableRow = Record<string, string | number | boolean | null>
