@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import StreamingResponse
 
-from ....schemas.chat import ChatRequest, ChatResponse
+from ....schemas.chat import ChatRequest, ChatResponse, ChatMessage
 from ....core.config import settings, resolve_project_path
 from ....core.agent_limits import reset_from_settings, AgentBudgetExceeded
 from ....core.database import get_session, transactional
@@ -375,7 +375,7 @@ def chat_stream(  # type: ignore[valid-type]
             )
             sys_msg = ticket_context.get("system_message")
             if sys_msg:
-                payload.messages = [{"role": "system", "content": str(sys_msg)}] + list(payload.messages or [])
+                payload.messages = [ChatMessage(role="system", content=str(sys_msg))] + list(payload.messages or [])
             ctx_meta = {
                 "ticket_context": {
                     "period_label": ticket_context.get("period_label"),
