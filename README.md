@@ -262,6 +262,7 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 ## Maintenance
 
 - 2025-10-29: Correction d'un échec de build frontend (TS2451) dû à une double déclaration `const meta` dans `frontend/src/features/chat/Chat.tsx`. La duplication a été supprimée.
+- 2025-11-27: Corrige l’échec de build du frontend (Explorer) en ajoutant les dépendances `chart.js` / `react-chartjs-2` manquantes; relancer `npm install` puis `npm run build`.
 
 ## Sécurité configuration (backend)
 
