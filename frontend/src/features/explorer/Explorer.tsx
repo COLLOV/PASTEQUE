@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Bar, Line, getElementAtEvent } from 'react-chartjs-2'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Bar, Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
   BarElement,
@@ -19,12 +19,12 @@ import type {
   DataOverviewResponse,
   DataSourceOverview,
   FieldBreakdown,
-  CategorySubCategoryCount,
   HiddenFieldsResponse,
   ColumnRolesResponse,
   ValueCount,
   TableExplorePreview,
 } from '@/types/data'
+import CategoryStackedChart from '@/components/charts/CategoryStackedChart'
 import {
   HiChartBar,
   HiOutlineGlobeAlt,
@@ -423,7 +423,8 @@ function SourceCard({
   const hasCategoryChart =
     Array.isArray(source.category_breakdown) && (source.category_breakdown?.length ?? 0) > 0
 
-  const handleSelectCategory = (category: string, subCategory: string) => {
+  const handleSelectCategory = (category: string, subCategory?: string) => {
+    if (!subCategory) return
     setSelection({ category, subCategory })
     setPreview(null)
     setPreviewError('')
@@ -561,119 +562,6 @@ function SourceCard({
           )}
         </div>
       ) : null}
-    </Card>
-  )
-}
-
-function CategoryStackedChart({
-  breakdown,
-  onSelect,
-}: {
-  breakdown: CategorySubCategoryCount[]
-  onSelect: (category: string, subCategory: string) => void
-}) {
-  const categories = useMemo(
-    () => Array.from(new Set(breakdown.map(item => item.category))),
-    [breakdown]
-  )
-  const subCategories = useMemo(
-    () => Array.from(new Set(breakdown.map(item => item.sub_category))),
-    [breakdown]
-  )
-
-  const chartRef = useRef<ChartJS<'bar'> | null>(null)
-
-  if (!categories.length || !subCategories.length) {
-    return null
-  }
-
-  const chartData = useMemo<ChartData<'bar'>>(
-    () => ({
-      labels: categories,
-      datasets: subCategories.map((sub, datasetIndex) => ({
-        label: sub,
-        data: categories.map(cat => {
-          const match = breakdown.find(
-            item => item.category === cat && item.sub_category === sub
-          )
-          return match ? match.count : 0
-        }),
-        backgroundColor: pickColor(datasetIndex),
-        borderColor: pickColor(datasetIndex),
-        borderWidth: 1,
-        stack: 'category',
-      })),
-    }),
-    [breakdown, categories, subCategories]
-  )
-
-  const options = useMemo<ChartOptions<'bar'>>(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          labels: {
-            color: '#52525b',
-          },
-        },
-        tooltip: {
-          callbacks: {
-            label: context => {
-              const value = typeof context.raw === 'number' ? context.raw : Number(context.raw ?? 0)
-              return `${context.dataset.label ?? ''}: ${value.toLocaleString('fr-FR')} enregistrements`
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          stacked: true,
-          grid: { display: false },
-          ticks: { color: '#52525b', maxRotation: 45, minRotation: 45 },
-        },
-        y: {
-          stacked: true,
-          beginAtZero: true,
-          grid: { color: '#e5e7eb' },
-          ticks: {
-            color: '#52525b',
-            callback: value => Number(value).toLocaleString('fr-FR'),
-          },
-        },
-      },
-    }),
-    []
-  )
-
-  const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const chart = chartRef.current
-    if (!chart) return
-    const elements = getElementAtEvent(chart, event)
-    if (!elements.length) return
-    const { index, datasetIndex } = elements[0]
-    const category = categories[index ?? 0]
-    const subCategory = subCategories[datasetIndex ?? 0]
-    if (category && subCategory) {
-      onSelect(category, subCategory)
-    }
-  }
-
-  return (
-    <Card padding="sm" className="bg-primary-50">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <p className="text-sm font-semibold text-primary-800">Répartition Category / Sub Category</p>
-          <p className="text-[11px] text-primary-500">
-            Cliquez sur un segment pour explorer les lignes correspondantes.
-          </p>
-        </div>
-      </div>
-      <div className="h-56">
-        <Bar ref={chartRef} data={chartData} options={options} onClick={handleClick} />
-      </div>
     </Card>
   )
 }

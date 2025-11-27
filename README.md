@@ -96,11 +96,11 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Persistance côté backend des conversations, messages et événements (`conversations`, `conversation_messages`, `conversation_events`).
 - SSE `meta` inclut `conversation_id` pour qu’un premier message crée la conversation automatiquement.
 - Endpoints: `GET /api/v1/conversations`, `GET /api/v1/conversations/{id}`, `POST /api/v1/conversations`.
-- UI (header): « Historique » pour lister/ouvrir une discussion passée, « Nouveau chat » (remplace « Chat ») pour repartir de zéro.
+- UI (header): « Historique » pour lister/ouvrir une discussion passée, « Chat » pour démarrer une nouvelle session (`?new=1`).
 
 ### Gestion des utilisateurs (admin)
 
-- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Nouveau chat**, **Historique**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
+- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Chat**, **Explorer**, **Radar**, **Graph**, **Historique** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
 - L’espace admin est découpé en onglets (Statistiques, Dictionnaire, Radar, Utilisateurs, Feedback). L’ancien chemin `/feedback` redirige vers l’onglet Feedback pour centraliser la revue des avis.
 - Tout nouvel utilisateur (y compris l’administrateur initial) doit définir un mot de passe définitif lors de sa première connexion. Le backend retourne un code `PASSWORD_RESET_REQUIRED` si un utilisateur tente de se connecter avec son mot de passe provisoire: le frontend affiche alors un formulaire dédié qui impose la saisie du nouveau mot de passe deux fois avant de poursuivre.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
@@ -117,22 +117,23 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 
 ### Explorer (vision globale des sources)
 
+- L’onglet/page Explorer est désactivé dans la navigation (route retirée) pour alléger l’UI; utiliser l’Explorer (camembert Category/Sub Category) et le Chat pour les parcours principaux.
 - API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
-- Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») avec cartes par source, colonnes autodécouvertes et masquage des champs piloté par l’administrateur (mise à jour persistante appliquée à tous les utilisateurs ; la tuile « Colonnes affichées » est retirée du header).
-- Admin : les colonnes Date / Category / Sub Category sont configurables par table dans l’Explorer (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
+- Admin : les colonnes Date / Category / Sub Category sont configurables par table (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
 - Visualisations Chart.js (lignes + barres) avec palette colorée pour timelines et répartitions des valeurs à partir des colonnes détectées automatiquement.
 - Le jeu `tickets_jira` inclut désormais les colonnes `Category` et `Sub Category` (classification ITSM) pour alimenter la répartition affichée dans l’Explorer et les filtres associés.
 - Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
 
-### Vue IA (navigation Category/Sub Category)
+### Explorer (navigation Category/Sub Category)
 
-- Nouvel onglet « Vue IA » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
-- Les colonnes Date / Category / Sub Category sont configurables par l’admin (Explorer ou Vue IA) et persistées via `/api/v1/data/overview/{source}/column-roles`.
+- Onglet « Explorer » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
+- Les colonnes Date / Category / Sub Category sont configurables par l’admin (Explorer) et persistées via `/api/v1/data/overview/{source}/column-roles`.
 - Chaque source affichant ces colonnes est listée avec ses catégories et sous-catégories cliquables : un clic déclenche un aperçu (`/api/v1/data/explore/{source}`) limité à 25 lignes, avec le volume total de lignes correspondantes.
 - Si une source ne possède pas les deux colonnes, la vue l’ignore et affiche un message explicite plutôt que de masquer l’erreur.
 - Les aperçus sont paginés (25 lignes/page) avec navigation précédente/suivante et un tri par colonne `date` (desc/asc) quand la colonne est présente.
 - Un range slider « date » global (tout en haut) filtre les données et l’aperçu d’un seul coup : la plage sélectionnée est appliquée côté backend (`/data/overview` + `/data/explore`) pour recalculer les volumes, avec un rail unique qui met en évidence la plage choisie.
-- Les tuiles de synthèse (sources/couples/sélection) ont été retirées de la Vue IA pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
+- Chaque source inclut désormais un camembert Category/Sub Category (Chart.js) cliquable qui déclenche l’aperçu, se recalcule automatiquement quand le filtre date est appliqué et permet un drill-down : clic catégorie → camembert des sous-catégories + mise à jour immédiate de la table sur la sous-catégorie dominante, clic sous-catégorie → ouverture de l’aperçu (bouton retour pour remonter).
+- Les tuiles de synthèse (sources/couples/sélection) ont été retirées de l’Explorer pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
 - Les catégories sont maintenant sélectionnables via un dropdown, avec un filtre texte pour cibler les sous-catégories affichées dans une liste scrollable.
 
 ### Radar – résumés journaliers/hebdo/mensuels

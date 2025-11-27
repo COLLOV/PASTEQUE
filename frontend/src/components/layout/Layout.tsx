@@ -51,14 +51,17 @@ export default function Layout() {
               <p className="text-sm text-primary-600">De la donnée à l'action</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={goTo('/explorer')} className="!rounded-full">
-                Explorer
+              <Button variant="secondary" size="sm" onClick={() => navigate('/chat?new=1', { replace: true })} className="!rounded-full">
+                Chat
               </Button>
               <Button variant="secondary" size="sm" onClick={goTo('/ia')} className="!rounded-full">
-                Vue IA
+                Explorer
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => navigate('/chat?new=1', { replace: true })} className="!rounded-full">
-                Nouveau chat
+              <Button variant="secondary" size="sm" onClick={goTo('/radar')} className="!rounded-full">
+                Radar
+              </Button>
+              <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">
+                Graph
               </Button>
               <Button
                 variant="secondary"
@@ -67,12 +70,6 @@ export default function Layout() {
                 className="!rounded-full"
               >
                 Historique
-              </Button>
-              <Button variant="secondary" size="sm" onClick={goTo('/loop')} className="!rounded-full">
-                Radar
-              </Button>
-              <Button variant="secondary" size="sm" onClick={goTo('/dashboard')} className="!rounded-full">
-                Dashboard
               </Button>
               {auth.isAdmin && (
                 <Button variant="secondary" size="sm" onClick={goTo('/admin')} className="!rounded-full">

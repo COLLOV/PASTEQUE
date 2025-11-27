@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import CategoryStackedChart from '@/components/charts/CategoryStackedChart'
 import { Card, Loader, Button } from '@/components/ui'
 import { apiFetch } from '@/services/api'
 import { getAuth } from '@/services/auth'
@@ -379,7 +380,7 @@ export default function IaView() {
             <HiSparkles className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-primary-950">Vue IA</h2>
+            <h2 className="text-2xl font-bold text-primary-950">Explorer</h2>
             <p className="text-primary-600">
               Naviguez par Category / Sub Category pour inspecter les données cliquables.
             </p>
@@ -595,6 +596,18 @@ function SourceCategoryCard({
     )
   }
 
+  const handleChartSelect = (category: string, subCategory?: string) => {
+    setActiveCategory(category)
+    setSubFilter('')
+    const targetSub =
+      subCategory ??
+      categoryNodes.find(node => node.name === category)?.subCategories[0]?.name ??
+      ''
+    if (targetSub) {
+      onSelect(source.source, category, targetSub)
+    }
+  }
+
   return (
     <Card variant="elevated" padding="md" className="space-y-3">
       {isAdmin ? (
@@ -678,6 +691,12 @@ function SourceCategoryCard({
           />
         </div>
       </div>
+
+      <CategoryStackedChart
+        breakdown={source.category_breakdown ?? []}
+        onSelect={handleChartSelect}
+        className="bg-primary-50/80"
+      />
 
       {selectedNode ? (
         <div className="overflow-hidden border border-primary-200 rounded-xl bg-white shadow-sm">

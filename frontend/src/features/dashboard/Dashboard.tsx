@@ -48,7 +48,7 @@ export default function Dashboard() {
     const chart = charts.find(item => item.id === chartId)
     if (!chart) return
     const confirmation = window.confirm(
-      `Supprimer le graphique « ${chart.chart_title || 'sans titre'} » du dashboard ?`
+      `Supprimer le graphique « ${chart.chart_title || 'sans titre'} » de la page Graph ?`
     )
     if (!confirmation) return
 
@@ -79,7 +79,7 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto animate-fade-in">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-primary-950 mb-2">Dashboard</h2>
+        <h2 className="text-2xl font-bold text-primary-950 mb-2">Graph</h2>
         <p className="text-primary-600">
           {isAdmin
             ? 'Vue globale des graphiques sauvegardés par tous les utilisateurs.'
