@@ -26,6 +26,7 @@ from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackend
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 from ....repositories.conversation_repository import ConversationRepository
 from ....repositories.user_repository import UserRepository
+from ....repositories.data_source_preference_repository import DataSourcePreferenceRepository
 from ....utils.text import sanitize_title
 from ....repositories.data_repository import DataRepository
 from ....repositories.loop_repository import LoopRepository
@@ -311,6 +312,7 @@ def chat_stream(  # type: ignore[valid-type]
     ticket_service = TicketContextService(
         loop_repo=LoopRepository(session),
         data_repo=DataRepository(tables_dir=Path(resolve_project_path(settings.tables_dir))),
+        data_pref_repo=DataSourcePreferenceRepository(session),
     )
 
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"

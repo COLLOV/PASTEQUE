@@ -9,6 +9,10 @@ from fastapi import HTTPException, status
 from ..core.config import settings
 from ..repositories.data_repository import DataRepository
 from ..repositories.loop_repository import LoopRepository
+from ..repositories.data_source_preference_repository import (
+    DataSourcePreferenceRepository,
+    DataSourcePreferences,
+)
 from ..services.ticket_context_agent import TicketContextAgent
 from ..services.ticket_utils import (
     chunk_ticket_items,
@@ -27,10 +31,12 @@ class TicketContextService:
         loop_repo: LoopRepository,
         data_repo: DataRepository,
         agent: TicketContextAgent | None = None,
+        data_pref_repo: DataSourcePreferenceRepository | None = None,
     ):
         self.loop_repo = loop_repo
         self.data_repo = data_repo
         self.agent = agent or TicketContextAgent()
+        self.data_pref_repo = data_pref_repo
         self._cached_entries: dict[str, list[dict[str, Any]]] = {}
 
     # -------- Public API --------
@@ -146,6 +152,8 @@ class TicketContextService:
         except FileNotFoundError as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
+        pref = self._get_preferences(table)
+
         def pick(candidates: list[str]) -> str | None:
             for cand in candidates:
                 for col in schema:
@@ -153,7 +161,15 @@ class TicketContextService:
                         return col
             return None
 
-        date_col = pick(
+        def _match_pref(name: str | None) -> str | None:
+            if not name:
+                return None
+            for col in schema:
+                if col.lower() == name.lower():
+                    return col
+            return None
+
+        date_col = _match_pref(pref.date_field if pref else None) or pick(
             [
                 "date_feedback",
                 "creation_date",
@@ -175,6 +191,15 @@ class TicketContextService:
         ) or next((c for c in schema if any(key in c.lower() for key in ["comment", "desc", "resume", "text"])), None)
 
         return text_col, date_col
+
+    def _get_preferences(self, table: str) -> DataSourcePreferences | None:
+        if self.data_pref_repo is None:
+            return None
+        try:
+            return self.data_pref_repo.get_preferences_for_source(source=table)
+        except Exception:
+            log.debug("Unable to load data source preferences for %s", table, exc_info=True)
+            return None
 
     def _ensure_allowed(self, table_name: str, allowed_tables: Iterable[str] | None) -> None:
         if allowed_tables is None:

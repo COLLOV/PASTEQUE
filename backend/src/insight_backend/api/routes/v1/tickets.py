@@ -12,6 +12,7 @@ from ....models.user import User
 from ....repositories.loop_repository import LoopRepository
 from ....repositories.data_repository import DataRepository
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
+from ....repositories.data_source_preference_repository import DataSourcePreferenceRepository
 from ....services.ticket_context_service import TicketContextService
 from ....schemas.tickets import TicketContextMetadataResponse
 
@@ -23,6 +24,7 @@ def _service(session: Session) -> TicketContextService:
     return TicketContextService(
         loop_repo=LoopRepository(session),
         data_repo=DataRepository(tables_dir=Path(resolve_project_path(settings.tables_dir))),
+        data_pref_repo=DataSourcePreferenceRepository(session),
     )
 
 
