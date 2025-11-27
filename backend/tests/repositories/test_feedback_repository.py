@@ -89,3 +89,6 @@ def test_archive_and_filter_latest(session):
     archived = repo.list_latest(archived=True)
     assert len(archived) == 1
     assert archived[0].id == fb.id
+    # User-level listing with archived
+    with_archived = repo.list_for_conversation_user(conversation_id=conv.id, user_id=user.id, include_archived=True)
+    assert len(with_archived) == 1

@@ -89,17 +89,26 @@ class FeedbackRepository:
             feedback.message_id,
         )
 
-    def list_for_conversation_user(self, *, conversation_id: int, user_id: int) -> list[MessageFeedback]:
-        items = (
+    def list_for_conversation_user(
+        self, *, conversation_id: int, user_id: int, include_archived: bool = False
+    ) -> list[MessageFeedback]:
+        query = (
             self.session.query(MessageFeedback)
             .filter(
                 MessageFeedback.conversation_id == conversation_id,
                 MessageFeedback.user_id == user_id,
-                MessageFeedback.is_archived.is_(False),
             )
-            .all()
         )
-        log.debug("Loaded %d feedback items for conversation_id=%s user_id=%s", len(items), conversation_id, user_id)
+        if not include_archived:
+            query = query.filter(MessageFeedback.is_archived.is_(False))
+        items = query.all()
+        log.debug(
+            "Loaded %d feedback items for conversation_id=%s user_id=%s include_archived=%s",
+            len(items),
+            conversation_id,
+            user_id,
+            include_archived,
+        )
         return items
 
     def list_latest(self, *, limit: int = 200, archived: bool = False) -> list[MessageFeedback]:

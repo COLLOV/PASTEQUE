@@ -90,7 +90,11 @@ def get_conversation(  # type: ignore[valid-type]
     fb_repo = FeedbackRepository(session)
     feedback_by_msg: dict[int, tuple[str, int]] = {}
     try:
-        feedback_items = fb_repo.list_for_conversation_user(conversation_id=conv.id, user_id=current_user.id)
+        feedback_items = fb_repo.list_for_conversation_user(
+            conversation_id=conv.id,
+            user_id=current_user.id,
+            include_archived=True,
+        )
         feedback_by_msg = {item.message_id: (item.value, item.id) for item in feedback_items}
     except Exception:
         log.warning("Failed to load feedback for conversation_id=%s", conv.id, exc_info=True)
