@@ -12,6 +12,7 @@ import type {
   AdminUsageStatsResponse,
 } from '@/types/user'
 import { HiCheckCircle, HiXCircle } from 'react-icons/hi2'
+import DictionaryManager from './DictionaryManager'
 
 interface Status {
   type: 'success' | 'error'
@@ -456,6 +457,8 @@ export default function AdminPanel() {
           </>
         )}
       </Card>
+
+      <DictionaryManager />
 
       <Card variant="elevated">
         <h3 className="text-lg font-semibold text-primary-950 mb-4">

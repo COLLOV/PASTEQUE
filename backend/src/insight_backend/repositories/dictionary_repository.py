@@ -5,6 +5,8 @@ from pathlib import Path
 from functools import lru_cache
 import re
 from typing import Dict, List, Any
+import tempfile
+import os
 
 import yaml
 
@@ -84,9 +86,68 @@ class DataDictionaryRepository:
             return []
         return [self.root / f"{name}.yml", self.root / f"{name}.yaml"]
 
+    def _target_path(self, table: str) -> Path | None:
+        """Pick the path to write the dictionary file (prefer existing extension)."""
+        candidates = self._candidates(table)
+        if not candidates:
+            return None
+        for path in candidates:
+            if path.exists():
+                return path
+        return candidates[0]
+
     def load_table(self, table: str) -> dict[str, Any] | None:
         # Use cross-request cache keyed by absolute root and table
         return _load_table_from_root(str(self.root.resolve()), table)
+
+    def exists(self, table: str) -> bool:
+        return self._target_path(table) is not None and self._target_path(table).exists()
+
+    def save_table(self, table: str, payload: Dict[str, Any]) -> Path:
+        """Persist the given dictionary payload to disk atomically."""
+        path = self._target_path(table)
+        if path is None:
+            raise ValueError("Nom de table invalide pour le dictionnaire.")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), prefix=path.name, suffix=".tmp")
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                yaml.safe_dump(
+                    payload,
+                    f,
+                    allow_unicode=True,
+                    sort_keys=False,
+                    default_flow_style=False,
+                )
+            os.replace(tmp_path, path)
+            # Invalidate cache after successful write
+            _load_table_from_root.cache_clear()
+            log.info("Dictionary saved: %s (%d bytes)", path, path.stat().st_size)
+            return path
+        except Exception:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+            log.error("Failed to write dictionary file: %s", path, exc_info=True)
+            raise
+
+    def delete_table(self, table: str) -> bool:
+        """Delete dictionary file for a table. Returns True if a file was removed."""
+        removed = False
+        for path in self._candidates(table):
+            try:
+                path.unlink()
+                removed = True
+                log.info("Dictionary deleted: %s", path)
+            except FileNotFoundError:
+                continue
+            except Exception:
+                log.error("Failed to delete dictionary file: %s", path, exc_info=True)
+                raise
+        if removed:
+            _load_table_from_root.cache_clear()
+        return removed
 
     def for_schema(self, schema: Dict[str, List[str]]) -> Dict[str, Any]:
         """Return a compact dictionary (JSON-serializable) limited to the given schema.
