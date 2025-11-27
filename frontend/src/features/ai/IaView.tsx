@@ -8,7 +8,7 @@ import type {
   TableExplorePreview,
   TableRow,
 } from '@/types/data'
-import { HiChevronRight, HiSparkles, HiOutlineTableCells } from 'react-icons/hi2'
+import { HiSparkles } from 'react-icons/hi2'
 
 type CategoryNode = {
   name: string
@@ -183,15 +183,6 @@ export default function IaView() {
     if (Number.isNaN(date.getTime())) return value
     return date.toLocaleDateString('fr-FR')
   }
-
-  const totalCategoryPairs = useMemo(
-    () =>
-      sourcesWithCategories.reduce(
-        (acc, src) => acc + (src.category_breakdown?.length ?? 0),
-        0
-      ),
-    [sourcesWithCategories]
-  )
 
   const fetchPreview = (
     sel: Selection,
@@ -420,68 +411,6 @@ export default function IaView() {
           </div>
         </Card>
       ) : null}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card variant="elevated" className="flex items-center gap-3">
-          <div className="p-3 bg-primary-900 rounded-md text-white flex items-center justify-center">
-            <HiOutlineTableCells className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">
-              Sources avec Category
-            </p>
-            <p className="text-2xl font-bold text-primary-950">{sourcesWithCategories.length}</p>
-            <p className="text-xs text-primary-500">Colonnes Category + Sub Category détectées</p>
-          </div>
-        </Card>
-        <Card variant="elevated" className="flex items-center gap-3">
-          <div className="p-3 bg-primary-900 rounded-md text-white flex items-center justify-center">
-            <HiChevronRight className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">
-              Couples Category / Sub
-            </p>
-            <p className="text-2xl font-bold text-primary-950">{totalCategoryPairs}</p>
-            <p className="text-xs text-primary-500">Répartitions exploitables</p>
-          </div>
-        </Card>
-        {selection ? (
-          <Card variant="elevated" className="flex items-center gap-3">
-            <div className="p-3 bg-primary-900 rounded-md text-white flex items-center justify-center">
-              <HiSparkles className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">
-                Sélection active
-              </p>
-              <p className="text-sm font-semibold text-primary-950 truncate">
-                {selection.source} – {selection.category} / {selection.subCategory}
-              </p>
-              <p className="text-xs text-primary-500">
-                Cliquez sur une sous-catégorie pour rafraîchir l’aperçu.
-              </p>
-            </div>
-          </Card>
-        ) : (
-          <Card variant="elevated" className="flex items-center gap-3">
-            <div className="p-3 bg-primary-200 rounded-md text-primary-900 flex items-center justify-center">
-              <HiSparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">
-                Sélection
-              </p>
-              <p className="text-sm font-semibold text-primary-950">
-                Choisissez une catégorie pour voir les lignes
-              </p>
-              <p className="text-xs text-primary-500">
-                Les aperçus sont paginés par blocs de 25 lignes pour rester réactifs.
-              </p>
-            </div>
-          </Card>
-        )}
-      </div>
 
       <SelectionPreview
         selection={selection}
