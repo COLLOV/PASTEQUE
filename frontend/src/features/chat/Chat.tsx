@@ -125,11 +125,17 @@ export default function Chat() {
   const [ticketRanges, setTicketRanges] = useState<Array<{ id: string; from?: string; to?: string }>>([
     { id: createMessageId() }
   ])
+  const [extraTicketSources, setExtraTicketSources] = useState<Array<{
+    id: string
+    table?: string
+    ranges: Array<{ id: string; from?: string; to?: string }>
+  }>>([])
   const [ticketMeta, setTicketMeta] = useState<{ min?: string; max?: string; total?: number; table?: string } | null>(null)
+  const [ticketMetaByTable, setTicketMetaByTable] = useState<Record<string, { min?: string; max?: string; total?: number }>>({})
   const [ticketMetaLoading, setTicketMetaLoading] = useState(false)
   const [ticketMetaError, setTicketMetaError] = useState('')
   const [ticketStatus, setTicketStatus] = useState('')
-  const [ticketTable, setTicketTable] = useState<string>('') 
+  const [ticketTable, setTicketTable] = useState<string>('')
   const [ticketTables, setTicketTables] = useState<string[]>([])
   const [sqlMode, setSqlMode] = useState(false)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
@@ -255,7 +261,8 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticketMode])
 
-  async function loadTicketMetadata(tableOverride?: string) {
+  async function loadTicketMetadata(tableOverride?: string, opts?: { target?: 'main' | string }) {
+    const target = opts?.target ?? 'main'
     setTicketMetaLoading(true)
     setTicketMetaError('')
     try {
@@ -274,24 +281,46 @@ export default function Chat() {
       const meta = await apiFetch<{ table: string; date_min?: string; date_max?: string; total_count: number }>(
         params.size ? `/tickets/context/metadata?${params.toString()}` : '/tickets/context/metadata'
       )
-      setTicketMeta({
+      const metaRecord = {
         min: meta?.date_min,
         max: meta?.date_max,
         total: typeof meta?.total_count === 'number' ? meta.total_count : undefined,
-        table: meta?.table,
-      })
-      setTicketTable(selectedTable || meta?.table || '')
-      setTicketRanges(prev => {
-        const first = prev[0] ?? { id: createMessageId() }
-        const updated = {
-          ...first,
-          from: first.from ?? meta?.date_min ?? undefined,
-          to: first.to ?? meta?.date_max ?? undefined,
-        }
-        const rest = prev.slice(1)
-        return [updated, ...rest]
-      })
-      setTicketStatus(meta?.total_count ? `Tickets prêts (${meta.total_count})` : 'Contexte tickets chargé')
+      }
+      const resolvedTable = selectedTable || meta?.table || ''
+      setTicketMetaByTable(prev => ({
+        ...prev,
+        ...(resolvedTable ? { [resolvedTable]: metaRecord } : {}),
+      }))
+      if (target === 'main') {
+        setTicketMeta({ ...metaRecord, table: meta?.table })
+        setTicketTable(resolvedTable)
+        setTicketRanges(prev => {
+          const first = prev[0] ?? { id: createMessageId() }
+          const updated = {
+            ...first,
+            from: first.from ?? meta?.date_min ?? undefined,
+            to: first.to ?? meta?.date_max ?? undefined,
+          }
+          const rest = prev.slice(1)
+          return [updated, ...rest]
+        })
+        setTicketStatus(meta?.total_count ? `Tickets prêts (${meta.total_count})` : 'Contexte tickets chargé')
+      } else {
+        setExtraTicketSources(prev =>
+          prev.map(src =>
+            src.id === target
+              ? {
+                  ...src,
+                  table: resolvedTable,
+                  ranges:
+                    src.ranges.length > 0
+                      ? src.ranges
+                      : [{ id: createMessageId(), from: meta?.date_min ?? undefined, to: meta?.date_max ?? undefined }],
+                }
+              : src
+          )
+        )
+      }
     } catch (err) {
       setTicketMetaError(err instanceof Error ? err.message : 'Contexte tickets indisponible')
       setTicketStatus('')
@@ -360,13 +389,27 @@ export default function Chat() {
         const periods = ticketRanges
           .map(p => ({ from: p.from?.trim() || undefined, to: p.to?.trim() || undefined }))
           .filter(p => p.from || p.to)
+        const sources = [
+          {
+            table: ticketTable || undefined,
+            periods,
+          },
+          ...extraTicketSources.map(src => ({
+            table: src.table || undefined,
+            periods: (src.ranges || [])
+              .map(r => ({ from: r.from?.trim() || undefined, to: r.to?.trim() || undefined }))
+              .filter(r => r.from || r.to),
+          })),
+        ].filter(s => s.table || (s.periods && s.periods.length > 0))
         if (periods.length > 0) {
           baseMeta.ticket_periods = periods
-          // Backward compatibility for single range consumers
           baseMeta.tickets_from = periods[0].from
           baseMeta.tickets_to = periods[0].to
         }
         if (ticketTable) baseMeta.ticket_table = ticketTable
+        if (sources.length > 0) {
+          baseMeta.ticket_sources = sources
+        }
         setTicketStatus('Préparation du contexte tickets…')
       } else {
         setTicketStatus('')
@@ -1182,7 +1225,7 @@ export default function Chat() {
                     onChange={e => {
                       const next = e.target.value
                       setTicketTable(next)
-                      void loadTicketMetadata(next || undefined)
+                      void loadTicketMetadata(next || undefined, { target: 'main' })
                     }}
                     className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
                   >
@@ -1257,6 +1300,153 @@ export default function Chat() {
                     </button>
                   </div>
                 </div>
+
+                {/* Tables supplémentaires */}
+                {extraTicketSources.map((source, sourceIdx) => {
+                  const meta = source.table ? ticketMetaByTable[source.table] : undefined
+                  const minDate = meta?.min ?? ticketMeta?.min
+                  const maxDate = meta?.max ?? ticketMeta?.max
+                  return (
+                    <div key={source.id} className="mt-2 border-t border-primary-100 pt-2">
+                      <div className="flex items-center justify-between text-xs text-primary-700 mb-1">
+                        <span>Table additionnelle {sourceIdx + 1}</span>
+                        <button
+                          type="button"
+                          className="text-[11px] text-red-600 underline"
+                          onClick={() => setExtraTicketSources(prev => prev.filter(s => s.id !== source.id))}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="text-[11px] text-primary-600">Table</label>
+                        <select
+                          value={source.table ?? ''}
+                          onChange={e => {
+                            const next = e.target.value
+                            setExtraTicketSources(prev =>
+                              prev.map(s => (s.id === source.id ? { ...s, table: next } : s))
+                            )
+                            if (next) {
+                              void loadTicketMetadata(next, { target: source.id })
+                            }
+                          }}
+                          className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                        >
+                          <option value="">Auto (config loop)</option>
+                          {ticketTables.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-2 w-full mt-1">
+                        {(source.ranges || []).map((range, idx) => (
+                          <div key={range.id} className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[11px] text-primary-600">Du</label>
+                            <input
+                              type="date"
+                              value={range.from ?? ''}
+                              min={minDate}
+                              max={range.to || maxDate}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setExtraTicketSources(prev =>
+                                  prev.map(s =>
+                                    s.id === source.id
+                                      ? { ...s, ranges: s.ranges.map(r => r.id === range.id ? { ...r, from: value } : r) }
+                                      : s
+                                  )
+                                )
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            <span className="text-primary-400 text-xs">→</span>
+                            <label className="text-[11px] text-primary-600">au</label>
+                            <input
+                              type="date"
+                              value={range.to ?? ''}
+                              min={range.from || minDate}
+                              max={maxDate}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setExtraTicketSources(prev =>
+                                  prev.map(s =>
+                                    s.id === source.id
+                                      ? { ...s, ranges: s.ranges.map(r => r.id === range.id ? { ...r, to: value } : r) }
+                                      : s
+                                  )
+                                )
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            {(source.ranges?.length || 0) > 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 underline"
+                                onClick={() =>
+                                  setExtraTicketSources(prev =>
+                                    prev.map(s =>
+                                      s.id === source.id
+                                        ? { ...s, ranges: s.ranges.filter(r => r.id !== range.id) }
+                                        : s
+                                    )
+                                  )
+                                }
+                              >
+                                Supprimer
+                              </button>
+                            )}
+                            {idx === (source.ranges?.length || 1) - 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-primary-700 underline"
+                                onClick={() =>
+                                  setExtraTicketSources(prev =>
+                                    prev.map(s =>
+                                      s.id === source.id
+                                        ? { ...s, ranges: [...s.ranges, { id: createMessageId() }] }
+                                        : s
+                                    )
+                                  )
+                                }
+                              >
+                                + Ajouter une période
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="text-xs text-primary-700 underline self-start"
+                          onClick={() =>
+                            setExtraTicketSources(prev =>
+                              prev.map(s =>
+                                s.id === source.id
+                                  ? {
+                                      ...s,
+                                      ranges: [
+                                        { id: createMessageId(), from: minDate, to: maxDate },
+                                      ],
+                                    }
+                                  : s
+                              )
+                            )
+                          }
+                        >
+                          Réinitialiser cette table
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <button
+                  type="button"
+                  className="text-xs text-primary-700 underline self-start"
+                  onClick={() => setExtraTicketSources(prev => [...prev, { id: createMessageId(), ranges: [{ id: createMessageId() }] }])}
+                >
+                  + Ajouter une table
+                </button>
               </div>
             )}
 

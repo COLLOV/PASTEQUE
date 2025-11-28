@@ -61,6 +61,7 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Mode par défaut: le chat démarre en mode **tickets** (contexte injecté). Le bouton (icône étincelle) sert désormais à basculer vers le mode base (agents NL→SQL + RAG + rédaction). Quand le bouton n’est pas activé, le flux reste en mode tickets.
 - En mode tickets par défaut, l’UI pré-charge automatiquement la config (table/colonnes/date min-max) dès l’ouverture du chat pour que la liste des tables soit disponible sans action supplémentaire.
 - Plusieurs périodes peuvent être sélectionnées (ex.: septembre 2025 et octobre 2024) via le bouton « + Ajouter une période »; les périodes sont transmises en métadonnées `ticket_periods` et filtrent le contexte injecté.
+- Plusieurs tables peuvent être ajoutées (« + Ajouter une table ») avec leurs propres périodes; le frontend envoie `ticket_sources` (table + périodes) en plus du couple principal `ticket_table`/`ticket_periods` pour compatibilité.
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 - Les réponses du chat sont formatées et rendues en Markdown (titres courts, listes, tableaux, blocs de code) pour une meilleure lisibilité.
 - `LLM_MAX_TOKENS` (défaut 1024) impose le plafond `max_tokens` sur tous les appels OpenAI-compatibles (explorateur, analyste, rédaction, router, chat) pour éviter les erreurs lorsque `model_max_tokens - context_tokens` devient négatif.
