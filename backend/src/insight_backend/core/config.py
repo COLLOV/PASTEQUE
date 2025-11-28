@@ -58,6 +58,17 @@ class Settings(BaseSettings):
     retrieval_max_tokens: int = Field(220, alias="RETRIEVAL_MAX_TOKENS")
     retrieval_inject_analyst: bool = Field(True, alias="RETRIEVAL_INJECT_ANALYST")
 
+    # Loop (résumés hebdo/mensuels)
+    loop_max_tickets: int = Field(60, alias="LOOP_MAX_TICKETS")
+    loop_ticket_text_max_chars: int = Field(360, alias="LOOP_TICKET_TEXT_MAX_CHARS")
+    loop_max_days: int = Field(1, alias="LOOP_MAX_DAYS")
+    loop_max_weeks: int = Field(1, alias="LOOP_MAX_WEEKS")
+    loop_max_months: int = Field(1, alias="LOOP_MAX_MONTHS")
+    loop_temperature: float = Field(0.3, alias="LOOP_TEMPERATURE")
+    loop_max_tokens: int = Field(800, alias="LOOP_MAX_TOKENS")
+    loop_max_tickets_per_call: int = Field(400, alias="LOOP_MAX_TICKETS_PER_CALL")
+    loop_max_input_chars: int = Field(300000, alias="LOOP_MAX_INPUT_CHARS")
+
     # Router gate (applied on every user message)
     router_mode: str = Field("rule", alias="ROUTER_MODE")  # "rule" | "local" | "api" | "false"
     router_model: str | None = Field(None, alias="ROUTER_MODEL")
@@ -137,11 +148,25 @@ class Settings(BaseSettings):
             raise ValueError("RETRIEVAL_TEMPERATURE must be >= 0")
         return float(v)
 
+    @field_validator("loop_temperature")
+    @classmethod
+    def _validate_loop_temperature(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("LOOP_TEMPERATURE must be >= 0")
+        return float(v)
+
     @field_validator("retrieval_max_tokens")
     @classmethod
     def _validate_retrieval_max_tokens(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("RETRIEVAL_MAX_TOKENS must be > 0")
+        return int(v)
+
+    @field_validator("loop_max_tickets", "loop_max_days", "loop_max_weeks", "loop_max_months", "loop_max_tokens")
+    @classmethod
+    def _validate_loop_positive_ints(cls, v: int, info: ValidationInfo) -> int:
+        if v <= 0:
+            raise ValueError(f"{info.field_name.upper()} must be > 0")
         return int(v)
 
     @field_validator("llm_max_tokens")
@@ -298,16 +323,16 @@ def assert_secure_configuration() -> None:
         )
 
 def resolve_project_path(p: str) -> str:
-    """Resolve ``p`` to an absolute path relative to the repo root when needed.
+    """Resolve ``p`` to an absolute path relative to the backend directory when needed.
 
-    - If ``p`` is absolute, return it unchanged.
-    - If relative, anchor it at the project root inferred from this file's location.
+    - If ``p`` est absolu, on le retourne tel quel.
+    - Si ``p`` est relatif, on l'ancre au dossier backend (parents[3] depuis ce fichier),
+      ce qui correspond à la racine du projet (contenant `backend/`, `data/`, `frontend/`, etc.).
     """
     from pathlib import Path as _Path  # local import to keep public surface minimal
 
     raw = _Path(p)
     if raw.is_absolute():
         return str(raw)
-    # backend/src/insight_backend/core/config.py → repo root is parents[4]
-    base = _Path(__file__).resolve().parents[4]
+    base = _Path(__file__).resolve().parents[3]  # …/backend
     return str((base / raw).resolve())

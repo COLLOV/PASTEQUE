@@ -5,14 +5,15 @@ import time
 import uuid
 from typing import Iterator
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import StreamingResponse
 
-from ....schemas.chat import ChatRequest, ChatResponse
-from ....core.config import settings
+from ....schemas.chat import ChatRequest, ChatResponse, ChatMessage
+from ....core.config import settings, resolve_project_path
 from ....core.agent_limits import reset_from_settings, AgentBudgetExceeded
 from ....core.database import get_session, transactional
 from ....core.security import get_current_user, user_is_admin
@@ -25,8 +26,11 @@ from ....integrations.openai_client import OpenAICompatibleClient, OpenAIBackend
 from ....repositories.user_table_permission_repository import UserTablePermissionRepository
 from ....repositories.conversation_repository import ConversationRepository
 from ....repositories.user_repository import UserRepository
+from ....repositories.data_source_preference_repository import DataSourcePreferenceRepository
 from ....utils.text import sanitize_title
 from ....repositories.data_repository import DataRepository
+from ....repositories.loop_repository import LoopRepository
+from ....services.ticket_context_service import TicketContextService
 
 log = logging.getLogger("insight.api.chat")
 
@@ -37,6 +41,18 @@ from ....utils.validation import normalize_table_names
 
 
 _last_settings_update_ts_by_user: dict[int, float] = {}
+
+_MARKDOWN_SYSTEM_PROMPT = ChatMessage(
+    role="system",
+    content=(
+        "Formate toutes tes réponses en Markdown clair avec une structure lisible :\n"
+        "- Titre concis pour poser le contexte\n"
+        "- 3 à 7 puces en phrases complètes et explicites (pas de mots-clés secs)\n"
+        "- Ajoute des précisions utiles (détails, conséquences, exemples) pour chaque idée\n"
+        "- Tableaux ou blocs de code uniquement si cela améliore vraiment la lisibilité\n"
+        "Reste synthétique mais pas télégraphique. Évite le HTML brut."
+    ),
+)
 
 
 def _apply_exclusions_and_defaults(
@@ -154,6 +170,7 @@ def chat_completion(  # type: ignore[valid-type]
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
     # Ensure conversation + persist user message atomically
     repo = ConversationRepository(session)
+    assistant_msg = None
     meta = payload.metadata or {}
     with transactional(session):
         conv_id: int | None
@@ -193,6 +210,16 @@ def chat_completion(  # type: ignore[valid-type]
             payload.metadata = dict(payload.metadata or {})
             payload.metadata["exclude_tables"] = saved
 
+    msgs = list(payload.messages or [])
+    has_markdown_prompt = any(
+        m.role == "system" and isinstance(m.content, str) and "markdown" in m.content.casefold()
+        for m in msgs
+    )
+    if not has_markdown_prompt:
+        payload.messages = [_MARKDOWN_SYSTEM_PROMPT] + msgs
+    else:
+        payload.messages = msgs
+
     # Router gate on every user message (avoid useless SQL/NL2SQL work)
     last = payload.messages[-1] if payload.messages else None
     if last and last.role == "user":
@@ -213,19 +240,31 @@ def chat_completion(  # type: ignore[valid-type]
                 text = "Ce n'est pas une question pour passer de la data à l'action"
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conv_id, role="assistant", content=text)
+                        assistant_msg = repo.append_message(conversation_id=conv_id, role="assistant", content=text)
                 except SQLAlchemyError:
                     log.warning("Failed to persist router reply (conversation_id=%s)", conv_id, exc_info=True)
-                return ChatResponse(reply=text, metadata={"provider": "router", "route": decision.route, "confidence": decision.confidence})
+                meta_out = {"provider": "router", "route": decision.route, "confidence": decision.confidence}
+                if conv_id:
+                    meta_out["conversation_id"] = conv_id
+                if assistant_msg:
+                    meta_out["message_id"] = assistant_msg.id
+                return ChatResponse(reply=text, metadata=meta_out)
         try:
             resp = service.completion(payload, allowed_tables=allowed_tables)
             # Persist assistant reply
             if resp and isinstance(resp.reply, str):
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
+                        assistant_msg = repo.append_message(conversation_id=conv_id, role="assistant", content=resp.reply)
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant reply (conversation_id=%s)", conv_id, exc_info=True)
+            if resp:
+                meta_out = dict(resp.metadata or {})
+                if conv_id:
+                    meta_out.setdefault("conversation_id", conv_id)
+                if assistant_msg:
+                    meta_out["message_id"] = assistant_msg.id
+                resp.metadata = meta_out or None
             # No need to re-apply exclusions here: they were persisted in the same transaction as the user message
             # Return as-is (no conversation id field in schema), clients can fetch via separate API
             return resp
@@ -292,14 +331,21 @@ def chat_stream(  # type: ignore[valid-type]
     allowed_tables = None
     if not user_is_admin(current_user):
         allowed_tables = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+    ticket_service = TicketContextService(
+        loop_repo=LoopRepository(session),
+        data_repo=DataRepository(tables_dir=Path(resolve_project_path(settings.tables_dir))),
+        data_pref_repo=DataSourcePreferenceRepository(session),
+    )
 
     trace_id = f"chat-{uuid.uuid4().hex[:8]}"
     started = time.perf_counter()
     repo = ConversationRepository(session)
+    assistant_msg_id: int | None = None
 
     # Resolve conversation id from metadata or create one on the fly
     conversation_id: int | None = None
     meta_in = payload.metadata or {}
+    ticket_mode_active = bool(meta_in.get("ticket_mode")) if isinstance(meta_in, dict) else False
     try:
         raw_id = meta_in.get("conversation_id") if isinstance(meta_in, dict) else None
         conversation_id = int(raw_id) if raw_id is not None else None
@@ -337,7 +383,60 @@ def chat_stream(  # type: ignore[valid-type]
             payload.metadata = dict(payload.metadata or {})
             payload.metadata["exclude_tables"] = saved
 
+    # Optionnel: pré-charger le contexte tickets pour le mode dédié
+    ticket_context: dict[str, object] | None = None
+    ticket_context_error: str | None = None
+    ticket_events: list[tuple[str, dict]] = []
+    if isinstance(meta_in, dict) and meta_in.get("ticket_mode"):
+        periods = None
+        if isinstance(meta_in.get("ticket_periods"), list):
+            periods = meta_in.get("ticket_periods")
+        try:
+            ticket_context = ticket_service.build_context(
+                allowed_tables=allowed_tables,
+                date_from=meta_in.get("tickets_from"),
+                date_to=meta_in.get("tickets_to"),
+                periods=periods,
+                table=meta_in.get("ticket_table"),
+                text_column=meta_in.get("ticket_text_column"),
+                date_column=meta_in.get("ticket_date_column"),
+            )
+            sys_msg = ticket_context.get("system_message")
+            if sys_msg:
+                payload.messages = [ChatMessage(role="system", content=str(sys_msg))] + list(payload.messages or [])
+            ctx_meta = {
+                "ticket_context": {
+                    "period_label": ticket_context.get("period_label"),
+                    "count": ticket_context.get("count"),
+                    "total": ticket_context.get("total"),
+                    "chunks": ticket_context.get("chunks"),
+                    "table": ticket_context.get("table"),
+                    "date_from": ticket_context.get("date_from"),
+                    "date_to": ticket_context.get("date_to"),
+                }
+            }
+            ticket_events.append(("meta", ctx_meta))
+            # Evidence non diffusée pour ce mode: injection contextuelle uniquement
+        except HTTPException as exc:
+            ticket_context_error = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+        except Exception as exc:  # pragma: no cover - defensive
+            ticket_context_error = str(exc)
+        if ticket_context_error:
+            ticket_events.append(("meta", {"ticket_context_error": ticket_context_error}))
+
+    # Toujours préfixer par une consigne Markdown si aucune consigne similaire n'est présente
+    msgs = list(payload.messages or [])
+    has_markdown_prompt = any(
+        m.role == "system" and isinstance(m.content, str) and "markdown" in m.content.casefold()
+        for m in msgs
+    )
+    if not has_markdown_prompt:
+        payload.messages = [_MARKDOWN_SYSTEM_PROMPT] + msgs
+    else:
+        payload.messages = msgs
+
     def generate() -> Iterator[bytes]:
+        nonlocal assistant_msg_id
         seq = 0
         anim_mode = (settings.animation_mode or "sql").strip().lower()
         animator = AnimatorAgent() if anim_mode == "true" else None
@@ -361,6 +460,19 @@ def chat_stream(  # type: ignore[valid-type]
             if k == "rows":
                 return isinstance(data, dict) and data.get("purpose") == "evidence"
             return False
+
+        def _prime_ticket_events(q: "queue.Queue[tuple[str, dict] | tuple[str, object]]") -> None:
+            for item in ticket_events:
+                q.put(item)
+
+        def _emit_ticket_events_direct():
+            for kind, data in ticket_events:
+                try:
+                    with transactional(session):
+                        repo.add_event(conversation_id=conversation_id, kind=kind, payload=data)
+                except SQLAlchemyError:
+                    log.warning("Failed to persist ticket event kind=%s for conversation_id=%s", kind, conversation_id, exc_info=True)
+                yield _sse(kind, data)
         try:
             # Router gate on every user message before any SQL activity
             last = payload.messages[-1] if payload.messages else None
@@ -394,7 +506,8 @@ def chat_stream(  # type: ignore[valid-type]
                         elapsed = max(time.perf_counter() - started, 1e-6)
                         try:
                             with transactional(session):
-                                repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                                msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                                assistant_msg_id = msg_obj.id
                         except SQLAlchemyError:
                             log.warning("Failed to persist router reply (conversation_id=%s)", conversation_id, exc_info=True)
                         yield _sse(
@@ -405,6 +518,8 @@ def chat_stream(  # type: ignore[valid-type]
                                 "usage": None,
                                 "finish_reason": "stop",
                                 "elapsed_s": round(elapsed, 3),
+                                "message_id": assistant_msg_id,
+                                "conversation_id": conversation_id,
                             },
                         )
                         return
@@ -414,6 +529,7 @@ def chat_stream(  # type: ignore[valid-type]
                 prov = "mindsdb-sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+                _prime_ticket_events(q)
 
                 def emit(evt: str, data: dict) -> None:
                     # Push to SSE queue only; persist on the consumer thread to avoid cross-thread session use
@@ -489,7 +605,8 @@ def chat_stream(  # type: ignore[valid-type]
                 # Persist assistant final message
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        assistant_msg_id = msg_obj.id
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
 
@@ -501,15 +618,18 @@ def chat_stream(  # type: ignore[valid-type]
                         "usage": None,
                         "finish_reason": "stop",
                         "elapsed_s": round(elapsed, 3),
+                        "message_id": assistant_msg_id,
+                        "conversation_id": conversation_id,
                     },
                 )
                 return
 
-            # NL→SQL always enabled when not using '/sql' passthrough
-            if last and last.role == "user":
+            # NL→SQL always enabled when not using '/sql' passthrough (sauf mode tickets)
+            if last and last.role == "user" and not ticket_mode_active:
                 prov = "nl2sql"
                 yield _sse("meta", {"request_id": trace_id, "provider": prov, "model": model, "conversation_id": conversation_id})
                 q: "queue.Queue[tuple[str, dict] | tuple[str, object]]" = queue.Queue()
+                _prime_ticket_events(q)
 
                 def emit(evt: str, data: dict) -> None:
                     # Queue only; persistence happens on consumer side in this request thread
@@ -576,7 +696,8 @@ def chat_stream(  # type: ignore[valid-type]
                 elapsed = max(time.perf_counter() - started, 1e-6)
                 try:
                     with transactional(session):
-                        repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=text)
+                        assistant_msg_id = msg_obj.id
                 except SQLAlchemyError:
                     log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
 
@@ -588,6 +709,8 @@ def chat_stream(  # type: ignore[valid-type]
                         "usage": None,
                         "finish_reason": "stop",
                         "elapsed_s": round(elapsed, 3),
+                        "message_id": assistant_msg_id,
+                        "conversation_id": conversation_id,
                     },
                 )
                 return
@@ -595,6 +718,9 @@ def chat_stream(  # type: ignore[valid-type]
             # 2) Default LLM streaming
             # Default LLM streaming branch
             yield _sse("meta", {"request_id": trace_id, "provider": provider, "model": model, "conversation_id": conversation_id})
+            if ticket_events:
+                for chunk in _emit_ticket_events_direct():
+                    yield chunk
             full: list[str] = []
             for event in engine.stream(payload):
                 if event.get("type") == "delta":
@@ -616,7 +742,8 @@ def chat_stream(  # type: ignore[valid-type]
             )
             try:
                 with transactional(session):
-                    repo.append_message(conversation_id=conversation_id, role="assistant", content=content_full)
+                    msg_obj = repo.append_message(conversation_id=conversation_id, role="assistant", content=content_full)
+                    assistant_msg_id = msg_obj.id
             except SQLAlchemyError:
                 log.warning("Failed to persist assistant message (conversation_id=%s)", conversation_id, exc_info=True)
             yield _sse(
@@ -627,6 +754,8 @@ def chat_stream(  # type: ignore[valid-type]
                     "usage": None,
                     "finish_reason": "stop",
                     "elapsed_s": round(elapsed, 3),
+                    "message_id": assistant_msg_id,
+                    "conversation_id": conversation_id,
                 },
             )
         except OpenAIBackendError as exc:

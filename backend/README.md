@@ -60,6 +60,20 @@ Chargement et usage:
 - `DataDictionaryRepository` lit les YAML et ne conserve que les colonnes présentes dans le schéma courant (CSV en `DATA_TABLES_DIR`).
 - Conformément à la PR #59, le contenu est injecté en JSON compact dans la question courante à chaque tour NL→SQL (explore/plan/generate), pas dans un contexte global. La taille est plafonnée via `DATA_DICTIONARY_MAX_CHARS` (défaut 6000). En cas de dépassement, le JSON est réduit proprement (tables/colonnes limitées) et un avertissement est journalisé.
 
+### Explorer – agrégats Category / Sub Category
+
+L’onglet Explorer du frontend consomme principalement:
+
+- `GET /api/v1/data/overview` — vue globale des tables autorisées (sources) avec, pour chaque table:
+  - `fields`: statistiques par colonne (détection de dates, distributions, champs masqués, etc.).
+  - `category_breakdown`: liste de triplets `{ category, sub_category, count }` calculés à partir des colonnes `Category` et `Sub Category` si elles existent dans la table.
+- `GET /api/v1/data/explore/{source}?category=...&sub_category=...&limit=50` — aperçu des lignes correspondant au couple Category/Sub Category sélectionné dans le graphique de la table:
+  - `matching_rows`: nombre total de lignes correspondantes dans la table.
+  - `preview_columns`: ordre des colonnes dans l’aperçu.
+  - `preview_rows`: lignes brutes (JSON) limitées par `limit` (1–500).
+
+Si les colonnes `Category` et `Sub Category` sont absentes d’une table, `category_breakdown` est vide et l’endpoint d’exploration renvoie une erreur 400 explicite.
+
 ### Base de données & authentification
 
 - Le backend requiert une base PostgreSQL accessible via `DATABASE_URL` (driver `psycopg`). Exemple local :
@@ -248,6 +262,15 @@ Variables d’environnement (voir `.env.example`):
 ROUTER_MODE=rule   # rule | local | api | false
 # ROUTER_MODEL=    # optionnel; sinon Z_LOCAL_MODEL/LLM_MODEL
 ```
+
+### Loop – résumés journaliers/hebdomadaires/mensuels
+
+- Endpoints:
+  - `GET /api/v1/loop/overview` (auth): renvoie les tables configurées + leurs résumés jour/hebdo/mensuels. Les tables sont filtrées selon les droits d’accès de l’utilisateur (ACL `user_table_permissions`). Le résumé journalier indique explicitement lorsqu’aucun ticket n’est enregistré le jour courant.
+  - `PUT /api/v1/loop/config` (admin): choisit la table + colonnes texte/date à utiliser (validées sur les CSV en `DATA_TABLES_DIR`). Plusieurs tables peuvent être configurées.
+  - `POST /api/v1/loop/regenerate` (admin): relance l’agent `looper` pour regénérer les résumés. Paramètre optionnel `table_name` pour cibler une table précise, sinon toutes les tables configurées sont recalculées.
+- L’agent `looper` injecte le contenu des tickets de chaque période et produit deux parties dans une réponse longue: problèmes majeurs à résoudre + plan d’action concret. Il respecte `LLM_MODE` (local vLLM ou API externe).
+- Garde‑fous configurables dans `.env.example`: `LOOP_MAX_TICKETS` (échantillon par période, défaut 60), `LOOP_TICKET_TEXT_MAX_CHARS` (tronque chaque ticket, 360), `LOOP_MAX_DAYS` (1), `LOOP_MAX_WEEKS` (1), `LOOP_MAX_MONTHS` (1), `LOOP_TEMPERATURE` (0.3), `LOOP_MAX_TOKENS` (800), `LOOP_MAX_TICKETS_PER_CALL` (400) et `LOOP_MAX_INPUT_CHARS` (300000) pour forcer le découpage en sous-résumés avant fusion. Quota via `AGENT_MAX_REQUESTS` clé `looper`.
 
 ### MCP – configuration déclarative
 

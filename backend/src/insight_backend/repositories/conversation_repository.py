@@ -35,6 +35,14 @@ class ConversationRepository:
         log.info("Retrieved %d conversations for user_id=%s", len(items), user_id)
         return items
 
+    def get_by_id(self, conversation_id: int) -> Conversation | None:
+        return (
+            self.session.query(Conversation)
+            .options(joinedload(Conversation.messages), joinedload(Conversation.events))
+            .filter(Conversation.id == conversation_id)
+            .one_or_none()
+        )
+
     def get_by_id_for_user(self, conversation_id: int, user_id: int) -> Conversation | None:
         return (
             self.session.query(Conversation)
@@ -47,6 +55,8 @@ class ConversationRepository:
     def append_message(self, *, conversation_id: int, role: str, content: str) -> ConversationMessage:
         msg = ConversationMessage(conversation_id=conversation_id, role=role, content=content)
         self.session.add(msg)
+        # Flush to ensure PK is available immediately (used in streaming metadata)
+        self.session.flush()
         # touch conversation updated_at
         self.session.query(Conversation).filter(Conversation.id == conversation_id).update({Conversation.updated_at: func.now()})
         log.info(
@@ -65,6 +75,13 @@ class ConversationRepository:
         self.session.query(Conversation).filter(Conversation.id == conversation_id).update({Conversation.updated_at: func.now()})
         log.debug("Added event (conversation_id=%s, kind=%s)", conversation_id, kind)
         return evt
+
+    def get_message_by_id(self, message_id: int) -> ConversationMessage | None:
+        return (
+            self.session.query(ConversationMessage)
+            .filter(ConversationMessage.id == message_id)
+            .one_or_none()
+        )
 
     # Settings (JSON)
     def get_settings(self, *, conversation_id: int) -> dict[str, Any]:

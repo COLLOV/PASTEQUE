@@ -51,6 +51,118 @@
   textarea:focus-visible {
     @apply outline-none ring-2 ring-primary-400 ring-offset-2;
   }
+
+  /* Curseur double pour le filtre de dates */
+  .dual-range-thumb {
+    @apply absolute inset-0 w-full h-10;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    opacity: 0; /* rendre la piste native invisible, on garde le handle custom au-dessus */
+    pointer-events: none; /* seule la zone du pouce doit être cliquable */
+  }
+  .dual-range-thumb::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 9999px;
+    background: #0f172a;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+  }
+  .dual-range-thumb::-webkit-slider-runnable-track {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    height: 0;
+  }
+  .dual-range-thumb::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 9999px;
+    background: #0f172a;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+  }
+  .dual-range-thumb::-moz-range-track {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    height: 0;
+  }
+
+  /* Markdown rendering for chat bubbles */
+  .message-markdown h1,
+  .message-markdown h2,
+  .message-markdown h3,
+  .message-markdown h4 {
+    @apply font-semibold text-primary-900 leading-snug;
+    margin: 0.35rem 0 0.2rem 0;
+  }
+  .message-markdown h1 { @apply text-lg; }
+  .message-markdown h2 { @apply text-base; }
+  .message-markdown h3 { @apply text-sm; }
+  .message-markdown p {
+    margin: 0.35rem 0;
+  }
+  .message-markdown ul,
+  .message-markdown ol {
+    @apply pl-4;
+    margin: 0.35rem 0;
+  }
+  .message-markdown ul { list-style: disc; }
+  .message-markdown ol { list-style: decimal; }
+  .message-markdown li { @apply my-0.5; }
+  .message-markdown code {
+    @apply bg-primary-100 text-primary-900 rounded px-1 py-[2px] text-[13px];
+  }
+  .message-markdown pre {
+    @apply bg-primary-50 border border-primary-100 rounded-md p-3 text-[13px] overflow-auto;
+    margin: 0.35rem 0;
+  }
+  .message-markdown table {
+    @apply w-full text-sm text-left border-collapse;
+    margin: 0.5rem 0;
+  }
+  .message-markdown th,
+  .message-markdown td {
+    @apply border border-primary-200 px-2 py-1;
+  }
+  .message-markdown blockquote {
+    @apply border-l-4 border-primary-200 pl-3 text-primary-700;
+    margin: 0.35rem 0;
+  }
+
+  /* User bubble overrides (dark background) */
+  .message-markdown--user h1,
+  .message-markdown--user h2,
+  .message-markdown--user h3,
+  .message-markdown--user h4,
+  .message-markdown--user p,
+  .message-markdown--user li,
+  .message-markdown--user blockquote {
+    @apply text-white;
+  }
+  .message-markdown--user a {
+    @apply text-white underline;
+  }
+  .message-markdown--user code {
+    @apply bg-primary-900 text-white border border-primary-800;
+  }
+  .message-markdown--user pre {
+    @apply bg-primary-900 border border-primary-800 text-white;
+  }
+  .message-markdown--user table,
+  .message-markdown--user th,
+  .message-markdown--user td {
+    @apply text-white border-primary-800;
+  }
+  .message-markdown--user blockquote {
+    @apply border-primary-700;
+  }
 }
 
 /* Utilitaires personnalisés */

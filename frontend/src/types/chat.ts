@@ -1,7 +1,14 @@
+export type FeedbackValue = 'up' | 'down'
+
 export interface Message {
   id?: string
   role: 'user' | 'assistant'
   content: string
+  messageId?: number
+  feedback?: FeedbackValue
+  feedbackId?: number
+  feedbackSaving?: boolean
+  feedbackError?: string
   // Optional dataset captured during NL→SQL streaming for this answer
   // Enables one-click chart generation from the assistant message bubble
   chartDataset?: ChartDatasetPayload
@@ -41,6 +48,10 @@ export interface ChatMetadata {
   exclude_tables?: string[]
   // Demander au serveur d'enregistrer ces exclusions comme valeur par défaut utilisateur
   save_as_default?: boolean
+  // Mode tickets: injecte un contexte de tickets borné par dates
+  ticket_mode?: boolean
+  tickets_from?: string
+  tickets_to?: string
   // Extension point
   [key: string]: unknown
 }
@@ -66,6 +77,8 @@ export interface ChatStreamMeta {
   // Tables effectivement actives côté serveur pour NL→SQL
   effective_tables?: string[]
   retrieval?: RetrievalDetails
+  ticket_context?: TicketContextMeta
+  ticket_context_error?: string
 }
 
 export interface ChatStreamDelta {
@@ -79,6 +92,8 @@ export interface ChatStreamDone {
   usage?: any
   finish_reason?: string
   elapsed_s?: number
+  message_id?: number
+  conversation_id?: number
 }
 
 export interface ChartDatasetPayload {
@@ -155,4 +170,38 @@ export interface RetrievalRow {
 export interface RetrievalDetails {
   rows: RetrievalRow[]
   round?: number
+}
+
+export interface TicketContextMeta {
+  period_label?: string
+  count?: number
+  total?: number
+  chunks?: number
+  table?: string
+  date_from?: string
+  date_to?: string
+}
+
+export interface FeedbackResponse {
+  id: number
+  conversation_id: number
+  message_id: number
+  value: FeedbackValue
+  is_archived: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminFeedbackEntry {
+  id: number
+  value: FeedbackValue
+  created_at: string
+  conversation_id: number
+  conversation_title: string
+  message_id: number
+  message_content: string
+  message_created_at: string
+  owner_username: string
+  author_username: string
+  is_archived: boolean
 }

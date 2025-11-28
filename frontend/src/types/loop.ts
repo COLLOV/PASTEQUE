@@ -1,0 +1,39 @@
+export interface LoopConfig {
+  id: number
+  table_name: string
+  text_column: string
+  date_column: string
+  updated_at: string
+  last_generated_at?: string | null
+}
+
+export type LoopKind = 'daily' | 'weekly' | 'monthly'
+
+export interface LoopSummary {
+  id: number
+  kind: LoopKind
+  period_label: string
+  period_start: string
+  period_end: string
+  ticket_count: number
+  content: string
+  created_at: string
+}
+
+export interface LoopOverview {
+  items: LoopTableOverview[]
+}
+
+export interface LoopConfigPayload {
+  table_name: string
+  text_column: string
+  date_column: string
+}
+
+export interface LoopTableOverview {
+  config: LoopConfig
+  daily: LoopSummary[]
+  weekly: LoopSummary[]
+  monthly: LoopSummary[]
+  last_generated_at?: string | null
+}

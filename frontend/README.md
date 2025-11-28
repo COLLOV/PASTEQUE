@@ -144,6 +144,7 @@ import { login } from '@/services/auth'
 - Layout persistant avec header et navigation
 - Liens actifs avec indicateur visuel
 - Navigation responsive
+- Espace admin organisé en onglets (Statistiques, Dictionnaire, Radar, Utilisateurs, Feedback). L’entrée Feedback est accessible dans l’onglet Admin.
 
 ### Chat
 
@@ -168,7 +169,7 @@ import { login } from '@/services/auth'
 ### Historique des conversations
 
 - Le bouton « Historique » du header ouvre la modale via `?history=1` sur `/chat` (l'état reste synchronisé avec l'URL).
-- Le bouton « Nouveau chat » du header remplace l’ancien bouton « Chat » et initialise une nouvelle session via `?new=1`.
+- Le bouton « Chat » du header initialise une nouvelle session via `?new=1`.
 - Lors de l’envoi d’un premier message, le backend crée une conversation et renvoie `conversation_id` dans l’événement `meta`; le frontend rattache alors les messages suivants à cette conversation.
  - Robustesse (29 oct. 2025): lors du chargement d’une conversation depuis l’historique,
    les `evidence_rows.rows` sont normalisées côté front pour gérer les cas où le backend
@@ -236,7 +237,13 @@ Personnalisation rapide:
 - Modifier `h-10 w-10` des boutons et les tailles d'icônes (`w-5 h-5`).
 - Pour changer la largeur des colonnes: adapter les classes Tailwind `lg:col-span-*` dans `src/features/chat/Chat.tsx`.
 
-### Dashboard
+### Explorer
+
+- L’onglet/page Explorer est désactivé dans la navigation; parcours principaux via l’Explorer (camembert Category/Sub Category) et le Chat.
+- API `GET /data/overview` : total par source et statistiques sur toutes les colonnes détectées (inférence des dates), en respectant les ACL.
+- Les colonnes Date / Category / Sub Category restent configurables par table via `/data/overview/{source}/column-roles` et pilotent les filtres/aperçus dans l’Explorer.
+
+### Graph
 
 - Cartes de statistiques avec icônes
 - Design en grille responsive

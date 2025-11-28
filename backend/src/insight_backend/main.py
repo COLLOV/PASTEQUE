@@ -14,6 +14,10 @@ from .api.routes.v1.mindsdb import router as mindsdb_router
 from .api.routes.v1.charts import router as charts_router
 from .api.routes.v1.conversations import router as conversations_router
 from .api.routes.v1.auth import router as auth_router
+from .api.routes.v1.feedback import router as feedback_router
+from .api.routes.v1.dictionary import router as dictionary_router
+from .api.routes.v1.loop import router as loop_router
+from .api.routes.v1.tickets import router as tickets_router
 from .repositories.user_repository import UserRepository
 from .services.auth_service import AuthService
 
@@ -43,6 +47,10 @@ def create_app() -> FastAPI:
     app.include_router(charts_router, prefix=f"{settings.api_prefix}/v1", tags=["charts"]) 
     app.include_router(conversations_router, prefix=f"{settings.api_prefix}/v1", tags=["conversations"]) 
     app.include_router(auth_router, prefix=f"{settings.api_prefix}/v1", tags=["auth"]) 
+    app.include_router(feedback_router, prefix=f"{settings.api_prefix}/v1", tags=["feedback"])
+    app.include_router(dictionary_router, prefix=f"{settings.api_prefix}/v1", tags=["dictionary"])
+    app.include_router(loop_router, prefix=f"{settings.api_prefix}/v1", tags=["loop"])
+    app.include_router(tickets_router, prefix=f"{settings.api_prefix}/v1", tags=["tickets"])
 
     @app.on_event("startup")
     def _startup() -> None:

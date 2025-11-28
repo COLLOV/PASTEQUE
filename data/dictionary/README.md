@@ -28,6 +28,11 @@ Notes
 - `pii` helps downstream agents avoid leaking personal data.
 - Additional optional keys per column: `unit`, `nullable`, `example`, `enum`.
 
+Edition via la plateforme
+-------------------------
+
+Les administrateurs peuvent désormais éditer ces fichiers depuis l’onglet **Admin** (carte « Dictionnaire de données ») : création si un fichier manque, mise à jour des descriptions/types/PII et suppression d’un dictionnaire. Les sauvegardes écrivent directement ici au format YAML (1 fichier par table).
+
 Generated dictionaries
 ----------------------
 

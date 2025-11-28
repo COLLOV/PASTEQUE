@@ -10,11 +10,12 @@ from sqlalchemy.orm import Session
 from ....core.database import get_session
 from ....models.user import User
 from ....repositories.conversation_repository import ConversationRepository
-from ....core.security import get_current_user
+from ....core.security import get_current_user, user_is_admin
 from ....integrations.mindsdb_client import MindsDBClient
 from ....core.config import settings
 from ....utils.rows import normalize_rows
 from ....utils.text import sanitize_title
+from ....repositories.feedback_repository import FeedbackRepository
 
 log = logging.getLogger("insight.api.conversations")
 
@@ -61,7 +62,8 @@ def get_conversation(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:
     repo = ConversationRepository(session)
-    conv = repo.get_by_id_for_user(conversation_id, current_user.id)
+    is_admin = user_is_admin(current_user)
+    conv = repo.get_by_id(conversation_id) if is_admin else repo.get_by_id_for_user(conversation_id, current_user.id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation introuvable")
 
@@ -83,6 +85,19 @@ def get_conversation(  # type: ignore[valid-type]
                 "row_count": evt.payload.get("row_count") or (len(raw_rows) if isinstance(raw_rows, list) else 0),
                 "purpose": "evidence",
             }
+
+    # Feedback map for the current user (UI highlight)
+    fb_repo = FeedbackRepository(session)
+    feedback_by_msg: dict[int, tuple[str, int]] = {}
+    try:
+        feedback_items = fb_repo.list_for_conversation_user(
+            conversation_id=conv.id,
+            user_id=current_user.id,
+            include_archived=True,
+        )
+        feedback_by_msg = {item.message_id: (item.value, item.id) for item in feedback_items}
+    except Exception:
+        log.warning("Failed to load feedback for conversation_id=%s", conv.id, exc_info=True)
 
     # ---- Build a unified, time-ordered stream mixing messages and chart events ----
     entries: List[Dict[str, Any]] = []
@@ -124,10 +139,15 @@ def get_conversation(  # type: ignore[valid-type]
                 if detail_payload:
                     details = detail_payload
         payload: dict[str, Any] = {
+            "message_id": msg.id,
             "role": msg.role,
             "content": msg.content,
             "created_at": msg.created_at.isoformat(),
         }
+        fb_entry = feedback_by_msg.get(msg.id)
+        if fb_entry:
+            payload["feedback"] = fb_entry[0]
+            payload["feedback_id"] = fb_entry[1]
         if details:
             payload["details"] = details
         entries.append({"created_at": msg.created_at.isoformat(), "payload": payload})
@@ -181,7 +201,7 @@ def get_message_dataset(  # type: ignore[valid-type]
     Les requêtes d'évidence sont ignorées.
     """
     repo = ConversationRepository(session)
-    conv = repo.get_by_id_for_user(conversation_id, current_user.id)
+    conv = repo.get_by_id(conversation_id) if user_is_admin(current_user) else repo.get_by_id_for_user(conversation_id, current_user.id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation introuvable")
     if message_index < 0 or message_index >= len(conv.messages):
@@ -268,7 +288,7 @@ def append_chart_event(  # type: ignore[valid-type]
     Body fields (subset used): chart_url (required), tool_name, chart_title, chart_description, chart_spec.
     """
     repo = ConversationRepository(session)
-    conv = repo.get_by_id_for_user(conversation_id, current_user.id)
+    conv = repo.get_by_id(conversation_id) if user_is_admin(current_user) else repo.get_by_id_for_user(conversation_id, current_user.id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation introuvable")
     url = payload.get("chart_url")

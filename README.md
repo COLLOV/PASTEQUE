@@ -18,6 +18,7 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 Script combiné (depuis la racine):
 
 - `./start.sh` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), recrée systématiquement le conteneur `mindsdb_container` via `${CONTAINER_RUNTIME} run …` (`CONTAINER_RUNTIME` défini dans `backend/.env`, valeurs supportées : `docker` ou `podman`), attend que l’API MindsDB réponde, synchronise les tables locales, puis configure `ALLOWED_ORIGINS` côté backend avant de lancer backend, frontend et SSR. Le frontend est désormais servi en mode « preview » (build + `vite preview`) pour éviter les erreurs de type « too many files open » liées aux watchers; pas de rechargement instantané. Les hôtes/ports sont lus dans `backend/.env` (`BACKEND_DEV_URL`) et `frontend/.env.development` (`FRONTEND_DEV_URL`), tandis que `VITE_API_URL` sert de base d’appels pour le frontend. Optionnellement, `FRONTEND_URLS` peut lister plusieurs origines pour CORS (séparées par des virgules).
+- Si un conteneur MindsDB portant `${MINDSDB_CONTAINER_NAME}` existe déjà et tourne, `./start.sh` le réutilise (pas de redémarrage). Sinon il le démarre; le conteneur reste actif à la fin du script (pas d’arrêt automatique).
 - `./start_full.sh` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
 - Exemple: définir `BACKEND_DEV_URL=http://0.0.0.0:8000`, `FRONTEND_DEV_URL=http://localhost:5173` puis lancer `./start.sh`.
 
@@ -57,7 +58,13 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 
 - Endpoint: `POST /api/v1/chat/stream` (SSE `text/event-stream`).
 - Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL, les échantillons et désormais les lignes RAG récupérées (table, score, colonnes clés) pour expliquer la mise en avant.
+- Mode par défaut: le chat démarre en mode **tickets** (contexte injecté). Le bouton (icône étincelle) sert désormais à basculer vers le mode base (agents NL→SQL + RAG + rédaction). Quand le bouton n’est pas activé, le flux reste en mode tickets.
+- En mode tickets par défaut, l’UI pré-charge automatiquement la config (table/colonnes/date min-max) dès l’ouverture du chat pour que la liste des tables soit disponible sans action supplémentaire.
+- Plusieurs périodes peuvent être sélectionnées (ex.: septembre 2025 et octobre 2024) via le bouton « + Ajouter une période »; les périodes sont transmises en métadonnées `ticket_periods` et filtrent le contexte injecté.
+- Plusieurs tables peuvent être ajoutées (« + Ajouter une table ») avec leurs propres périodes; le frontend envoie `ticket_sources` (table + périodes) en plus du couple principal `ticket_table`/`ticket_periods` pour compatibilité.
+- Le panneau Contexte tickets peut être masqué/affiché (bouton « Masquer »/« Afficher ») pour libérer l’espace du chat sans perdre la configuration active.
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
+- Les réponses du chat sont formatées et rendues en Markdown (titres courts, listes, tableaux, blocs de code) pour une meilleure lisibilité.
 - `LLM_MAX_TOKENS` (défaut 1024) impose le plafond `max_tokens` sur tous les appels OpenAI-compatibles (explorateur, analyste, rédaction, router, chat) pour éviter les erreurs lorsque `model_max_tokens - context_tokens` devient négatif.
 - `AGENT_OUTPUT_MAX_ROWS`/`AGENT_OUTPUT_MAX_COLUMNS` (défauts 200/20) bornent le volume de lignes/colonnes envoyé par les agents NL→SQL dans les événements SSE afin d’éviter des payloads géants.
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
@@ -95,11 +102,12 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Persistance côté backend des conversations, messages et événements (`conversations`, `conversation_messages`, `conversation_events`).
 - SSE `meta` inclut `conversation_id` pour qu’un premier message crée la conversation automatiquement.
 - Endpoints: `GET /api/v1/conversations`, `GET /api/v1/conversations/{id}`, `POST /api/v1/conversations`.
-- UI (header): « Historique » pour lister/ouvrir une discussion passée, « Nouveau chat » (remplace « Chat ») pour repartir de zéro.
+- UI (header): « Historique » pour lister/ouvrir une discussion passée, « Chat » pour démarrer une nouvelle session (`?new=1`).
 
 ### Gestion des utilisateurs (admin)
 
-- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Nouveau chat**, **Historique**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
+- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Chat**, **Explorer**, **Radar**, **Graph**, **Historique** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
+- L’espace admin est découpé en onglets (Statistiques, Dictionnaire, Radar, Utilisateurs, Feedback). L’ancien chemin `/feedback` redirige vers l’onglet Feedback pour centraliser la revue des avis.
 - Tout nouvel utilisateur (y compris l’administrateur initial) doit définir un mot de passe définitif lors de sa première connexion. Le backend retourne un code `PASSWORD_RESET_REQUIRED` si un utilisateur tente de se connecter avec son mot de passe provisoire: le frontend affiche alors un formulaire dédié qui impose la saisie du nouveau mot de passe deux fois avant de poursuivre.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 - L’API `POST /api/v1/auth/reset-password` (sans jeton) attend `{ username, current_password, new_password, confirm_password }`. En cas de succès elle renvoie `204` ; le frontend relance automatiquement la connexion avec le nouveau secret.
@@ -111,6 +119,36 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Le panneau admin inclut maintenant une matrice des droits sur les tables CSV/TSV présentes dans le répertoire de tables configuré (`DATA_TABLES_DIR`, par défaut `data/`). Chaque case permet d’autoriser ou de retirer l’accès par utilisateur; l’administrateur conserve un accès complet par défaut.
 - Les droits sont stockés dans la table Postgres `user_table_permissions`. Les API `GET /api/v1/auth/users` (inventaire des tables + droits) et `PUT /api/v1/auth/users/{username}/table-permissions` (mise à jour atomique) pilotent ces ACL.
 - Le backend applique ces restrictions pour les listings/ schémas (`GET /api/v1/data/...`) ainsi que pour le NL→SQL et les graphiques via `/api/v1/chat/*`: un utilisateur ne voit ni n’utilise de table qui ne lui a pas été accordée.
+- Les administrateurs peuvent créer/éditer/supprimer les dictionnaires de données directement depuis l’onglet **Admin** → carte « Dictionnaire de données ». Les fichiers YAML sont persistés dans `DATA_DICTIONARY_DIR` (par défaut `data/dictionary`). API: `GET /api/v1/dictionary` (liste), `GET/PUT /api/v1/dictionary/{table}` (lecture/écriture), `DELETE /api/v1/dictionary/{table}` (suppression). Les colonnes sont validées contre le schéma réel, sans mécanismes de secours.
+
+### Explorer (vision globale des sources)
+
+- L’onglet/page Explorer est désactivé dans la navigation (route retirée) pour alléger l’UI; utiliser l’Explorer (camembert Category/Sub Category) et le Chat pour les parcours principaux.
+- API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
+- Admin : un onglet dédié dans l’espace « Admin » permet d’activer/désactiver les tables visibles dans l’Explorer et de fixer les colonnes Date / Category / Sub Category sans passer par l’UI Explorer.
+- `include_disabled=true` (admin uniquement) sur `GET /api/v1/data/overview` retourne aussi les tables désactivées pour préparer ou revoir leur configuration. `PUT /api/v1/data/overview/{source}/explorer-enabled` active/désactive explicitement une table pour l’Explorer.
+- Admin : les colonnes Date / Category / Sub Category sont configurables par table (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
+- Visualisations Chart.js (lignes + barres) avec palette colorée pour timelines et répartitions des valeurs à partir des colonnes détectées automatiquement.
+- Le jeu `tickets_jira` inclut désormais les colonnes `Category` et `Sub Category` (classification ITSM) pour alimenter la répartition affichée dans l’Explorer et les filtres associés.
+- Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
+
+### Explorer (navigation Category/Sub Category)
+
+- Onglet « Explorer » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
+- Les colonnes Date / Category / Sub Category sont configurables par l’admin (Explorer) et persistées via `/api/v1/data/overview/{source}/column-roles`.
+- Chaque source affichant ces colonnes est listée avec ses catégories et sous-catégories cliquables : un clic déclenche un aperçu (`/api/v1/data/explore/{source}`) limité à 25 lignes, avec le volume total de lignes correspondantes.
+- Si une source ne possède pas les deux colonnes, la vue l’ignore et affiche un message explicite plutôt que de masquer l’erreur.
+- Les aperçus sont paginés (25 lignes/page) avec navigation précédente/suivante et un tri par colonne `date` (desc/asc) quand la colonne est présente.
+- Un range slider « date » global (tout en haut) filtre les données et l’aperçu d’un seul coup : la plage sélectionnée est appliquée côté backend (`/data/overview` + `/data/explore`) pour recalculer les volumes, avec un rail unique qui met en évidence la plage choisie.
+- Chaque source inclut désormais un camembert Category/Sub Category (Chart.js) cliquable qui déclenche l’aperçu, se recalcule automatiquement quand le filtre date est appliqué et permet un drill-down : clic catégorie → camembert des sous-catégories + mise à jour immédiate de la table sur la sous-catégorie dominante, clic sous-catégorie → ouverture de l’aperçu (bouton retour pour remonter).
+- Les tuiles de synthèse (sources/couples/sélection) ont été retirées de l’Explorer pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
+- Les catégories sont maintenant sélectionnables via un dropdown, avec un filtre texte pour cibler les sous-catégories affichées dans une liste scrollable.
+
+### Radar – résumés journaliers/hebdo/mensuels
+
+- Bouton « Radar » dans le header: affiche les résumés journaliers (mention explicite lorsqu’aucun ticket n’est enregistré ce jour), hebdomadaires et mensuels générés par l’agent `looper`. Les tables visibles sont filtrées selon les droits `user_table_permissions`.
+- Panneau Admin → section « Radar »: configurer plusieurs tables (colonnes texte/date), puis relancer la génération pour une table donnée ou pour toutes (`POST /api/v1/loop/regenerate?table_name=...`). Résultats persistés et visibles via `GET /api/v1/loop/overview`.
+- L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, `LOOP_MAX_DAYS/WEEKS/MONTHS` par défaut à 1, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`, etc.).
 
 ## Principes d’architecture
 
@@ -179,6 +217,12 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 - Les imports sont désormais incrémentaux : `./start.sh` ne renvoie un fichier dans MindsDB que si son contenu ou sa configuration d'embedding a changé. L'état est stocké dans `DATA_TABLES_DIR/.mindsdb_sync_state.json` — supprimez ce fichier si vous devez forcer un rechargement complet. Ce fichier est ignoré par Git (`.mindsdb_sync_state.json`). Comme le conteneur MindsDB est recréé à chaque démarrage en développement, une vérification distante est effectuée : si une table est absente côté MindsDB, elle est ré‑uploadée même si le cache local est intact. Les embeddings ne sont recalculés que lorsque le contenu source ou la configuration d'embedding change.
 - Les fichiers enrichis d'embeddings conservent exactement le nom de table d'origine dans MindsDB (plus de suffixe `_emb`).
 
+### Feedback utilisateur
+
+- Chaque réponse assistant dans le chat expose deux actions pouce haut/bas. Les votes sont persistés avec la conversation et le message cible (pas de fallback silencieux).
+- API : `POST /api/v1/feedback` (création/mise à jour), `DELETE /api/v1/feedback/{id}` (suppression) et `GET /api/v1/feedback/admin` (admin uniquement, liste ordonnée).
+- Les retours sont consultables depuis l’onglet **Feedback** du panneau Admin (`/admin?tab=feedback`, `/feedback` redirige). La liste affiche les votes (auteur, conversation, extrait, date) et permet d'ouvrir directement la conversation correspondante via `/chat?conversation_id=...&message_id=...`.
+
 ### Visualisations (NL→SQL & MCP Chart)
 
 - Deux boutons icônes vivent dans la zone d’input :
@@ -229,6 +273,7 @@ Une barre de progression `tqdm` est affichée pour chaque table afin de suivre l
 ## Maintenance
 
 - 2025-10-29: Correction d'un échec de build frontend (TS2451) dû à une double déclaration `const meta` dans `frontend/src/features/chat/Chat.tsx`. La duplication a été supprimée.
+- 2025-11-27: Corrige l’échec de build du frontend (Explorer) en ajoutant les dépendances `chart.js` / `react-chartjs-2` manquantes; relancer `npm install` puis `npm run build`.
 
 ## Sécurité configuration (backend)
 

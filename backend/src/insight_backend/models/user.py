@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .chart import Chart
     from .user_table_permission import UserTablePermission
     from .conversation import Conversation
+    from .feedback import MessageFeedback
 
 
 class User(Base):
@@ -45,3 +46,8 @@ class User(Base):
     )
     # Optional JSON settings per user (e.g., default excludes for NL→SQL)
     settings: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    feedback: Mapped[list["MessageFeedback"]] = relationship(
+        "MessageFeedback",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

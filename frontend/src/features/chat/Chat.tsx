@@ -16,10 +16,13 @@ import type {
   SavedChartResponse,
   EvidenceSpec,
   EvidenceRowsPayload,
-  RetrievalDetails
+  RetrievalDetails,
+  FeedbackResponse,
+  FeedbackValue
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiCpuChip } from 'react-icons/hi2'
 import clsx from 'clsx'
+import { renderMarkdown } from '@/utils/markdown'
 
 //
 
@@ -106,17 +109,36 @@ export default function Chat() {
   const { search } = useLocation()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
+  const [highlightMessageId, setHighlightMessageId] = useState<number | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [history, setHistory] = useState<Array<{ id: number; title: string; updated_at: string }>>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [awaitingFirstDelta, setAwaitingFirstDelta] = useState(false)
   const [error, setError] = useState('')
   // Statut éphémère en mode ANIMATION=true
   const [animStatus, setAnimStatus] = useState('')
   // Animation de chargement pendant la génération d'un graphique
   const [chartGenerating, setChartGenerating] = useState(false)
   const [chartMode, setChartMode] = useState(false)
-  const [sqlMode, setSqlMode] = useState(true)
+  const [ticketMode, setTicketMode] = useState(true)
+  const [ticketRanges, setTicketRanges] = useState<Array<{ id: string; from?: string; to?: string }>>([
+    { id: createMessageId() }
+  ])
+  const [extraTicketSources, setExtraTicketSources] = useState<Array<{
+    id: string
+    table?: string
+    ranges: Array<{ id: string; from?: string; to?: string }>
+  }>>([])
+  const [showTicketPanel, setShowTicketPanel] = useState(true)
+  const [ticketMeta, setTicketMeta] = useState<{ min?: string; max?: string; total?: number; table?: string } | null>(null)
+  const [ticketMetaByTable, setTicketMetaByTable] = useState<Record<string, { min?: string; max?: string; total?: number }>>({})
+  const [ticketMetaLoading, setTicketMetaLoading] = useState(false)
+  const [ticketMetaError, setTicketMetaError] = useState('')
+  const [ticketStatus, setTicketStatus] = useState('')
+  const [ticketTable, setTicketTable] = useState<string>('')
+  const [ticketTables, setTicketTables] = useState<string[]>([])
+  const [sqlMode, setSqlMode] = useState(false)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
@@ -179,6 +201,23 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
 
+  // Auto-charger une conversation spécifique (lien admin feedback) et surligner un message précis
+  useEffect(() => {
+    const sp = new URLSearchParams(search)
+    const convRaw = sp.get('conversation_id')
+    const msgRaw = sp.get('message_id')
+    const convId = convRaw ? Number(convRaw) : NaN
+    const msgId = msgRaw ? Number(msgRaw) : NaN
+    if (Number.isFinite(convId) && convId > 0) {
+      if (conversationId !== convId || messages.length === 0) {
+        void loadConversation(convId, { highlightMessageId: Number.isFinite(msgId) ? msgId : null })
+      } else if (Number.isFinite(msgId)) {
+        setHighlightMessageId(msgId)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
+
   // Fermer la sheet Tickets avec la touche Escape
   useEffect(() => {
     if (!showTicketsSheet) return
@@ -188,6 +227,19 @@ export default function Chat() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [showTicketsSheet])
+
+  // Scroll vers le message ciblé (lien admin feedback)
+  useEffect(() => {
+    if (highlightMessageId == null) return
+    const target = document.querySelector<HTMLElement>(`[data-message-id="${highlightMessageId}"]`)
+    if (target) {
+      try {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } catch {
+        /* noop */
+      }
+    }
+  }, [highlightMessageId, messages.length])
 
   async function refreshHistory() {
     try {
@@ -202,6 +254,82 @@ export default function Chat() {
     refreshHistory()
   }, [])
 
+  // Ticket mode is now default: preload metadata/tables on first render
+  useEffect(() => {
+    if (ticketMode && !ticketMeta && !ticketMetaLoading) {
+      void loadTicketMetadata()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketMode])
+
+  async function loadTicketMetadata(tableOverride?: string, opts?: { target?: 'main' | string }) {
+    const target = opts?.target ?? 'main'
+    setTicketMetaLoading(true)
+    setTicketMetaError('')
+    try {
+      if (ticketTables.length === 0) {
+        try {
+          const items = await apiFetch<Array<{ name: string; path: string }>>('/data/tables')
+          const names = (items || []).map(it => it?.name).filter((x): x is string => typeof x === 'string')
+          setTicketTables(names)
+        } catch {
+          // ignore table list errors; metadata may still resolve
+        }
+      }
+      const selectedTable = (tableOverride ?? ticketTable)?.trim() || ''
+      const params = new URLSearchParams()
+      if (selectedTable) params.set('table', selectedTable)
+      const meta = await apiFetch<{ table: string; date_min?: string; date_max?: string; total_count: number }>(
+        params.size ? `/tickets/context/metadata?${params.toString()}` : '/tickets/context/metadata'
+      )
+      const metaRecord = {
+        min: meta?.date_min,
+        max: meta?.date_max,
+        total: typeof meta?.total_count === 'number' ? meta.total_count : undefined,
+      }
+      const resolvedTable = selectedTable || meta?.table || ''
+      setTicketMetaByTable(prev => ({
+        ...prev,
+        ...(resolvedTable ? { [resolvedTable]: metaRecord } : {}),
+      }))
+      if (target === 'main') {
+        setTicketMeta({ ...metaRecord, table: meta?.table })
+        setTicketTable(resolvedTable)
+        setTicketRanges(prev => {
+          const first = prev[0] ?? { id: createMessageId() }
+          const updated = {
+            ...first,
+            from: first.from ?? meta?.date_min ?? undefined,
+            to: first.to ?? meta?.date_max ?? undefined,
+          }
+          const rest = prev.slice(1)
+          return [updated, ...rest]
+        })
+        setTicketStatus(meta?.total_count ? `Tickets prêts (${meta.total_count})` : 'Contexte tickets chargé')
+      } else {
+        setExtraTicketSources(prev =>
+          prev.map(src =>
+            src.id === target
+              ? {
+                  ...src,
+                  table: resolvedTable,
+                  ranges:
+                    src.ranges.length > 0
+                      ? src.ranges
+                      : [{ id: createMessageId(), from: meta?.date_min ?? undefined, to: meta?.date_max ?? undefined }],
+                }
+              : src
+          )
+        )
+      }
+    } catch (err) {
+      setTicketMetaError(err instanceof Error ? err.message : 'Contexte tickets indisponible')
+      setTicketStatus('')
+    } finally {
+      setTicketMetaLoading(false)
+    }
+  }
+
   function onToggleChartModeClick() {
     setChartMode(v => {
       const next = !v
@@ -209,6 +337,25 @@ export default function Chat() {
       return next
     })
     setError('')
+  }
+
+  function onToggleTicketModeClick() {
+    setTicketMode(v => {
+      const next = !v
+      // next === true -> mode tickets; next === false -> mode base
+      if (next) {
+        if (!ticketMeta && !ticketMetaLoading) {
+          void loadTicketMetadata()
+        }
+        setSqlMode(false)
+        setChartMode(false)
+      } else {
+        setSqlMode(true)
+        setChartMode(false)
+        setTicketStatus('')
+      }
+      return next
+    })
   }
 
   async function onSend() {
@@ -220,6 +367,7 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
+    setAwaitingFirstDelta(ticketMode)
     // Reset uniquement l'état d'affichage du chat et du panneau Tickets
     setEvidenceSpec(null)
     setEvidenceData(null)
@@ -237,6 +385,36 @@ export default function Chat() {
       // Force NL→SQL when SQL toggle or Chart mode is active
       const baseMeta: Record<string, unknown> = {}
       if (sqlMode || isChartMode) baseMeta.nl2sql = true
+      if (ticketMode) {
+        baseMeta.ticket_mode = true
+        const periods = ticketRanges
+          .map(p => ({ from: p.from?.trim() || undefined, to: p.to?.trim() || undefined }))
+          .filter(p => p.from || p.to)
+        const sources = [
+          {
+            table: ticketTable || undefined,
+            periods,
+          },
+          ...extraTicketSources.map(src => ({
+            table: src.table || undefined,
+            periods: (src.ranges || [])
+              .map(r => ({ from: r.from?.trim() || undefined, to: r.to?.trim() || undefined }))
+              .filter(r => r.from || r.to),
+          })),
+        ].filter(s => s.table || (s.periods && s.periods.length > 0))
+        if (periods.length > 0) {
+          baseMeta.ticket_periods = periods
+          baseMeta.tickets_from = periods[0].from
+          baseMeta.tickets_to = periods[0].to
+        }
+        if (ticketTable) baseMeta.ticket_table = ticketTable
+        if (sources.length > 0) {
+          baseMeta.ticket_sources = sources
+        }
+        setTicketStatus('Préparation du contexte tickets…')
+      } else {
+        setTicketStatus('')
+      }
       if (conversationId) baseMeta.conversation_id = conversationId
       // Transmettre les exclusions de tables si présentes
       if (excludedTables.size > 0) {
@@ -250,6 +428,19 @@ export default function Chat() {
           const meta = data as ChatStreamMeta
           if (typeof meta?.conversation_id === 'number') {
             setConversationId(meta.conversation_id)
+          }
+          if ((meta as any)?.ticket_context) {
+            const tc = (meta as any).ticket_context as Record<string, unknown>
+            const label = typeof tc.period_label === 'string' ? tc.period_label : ''
+            const count = typeof tc.count === 'number' ? tc.count : undefined
+            const total = typeof tc.total === 'number' ? tc.total : undefined
+            const parts = []
+            if (count !== undefined) parts.push(`${count}${total ? `/${total}` : ''} tickets`)
+            if (label) parts.push(label)
+            setTicketStatus(parts.join(' — ') || 'Contexte tickets appliqué')
+          }
+          if ((meta as any)?.ticket_context_error) {
+            setTicketStatus(String((meta as any).ticket_context_error))
           }
           // Synchronise la sélection effective côté serveur (affichage et cohérence UI)
           if (Array.isArray(meta?.effective_tables)) {
@@ -378,6 +569,7 @@ export default function Chat() {
           const delta = data as ChatStreamDelta
           // Dès qu'on commence la réponse, on remplace le contenu éventuel d'Animator
           setAnimStatus('')
+          setAwaitingFirstDelta(false)
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
@@ -407,7 +599,11 @@ export default function Chat() {
             return copy
           })
         } else if (type === 'done') {
+          setAwaitingFirstDelta(false)
           const done = data as ChatStreamDone
+          if (typeof done.conversation_id === 'number' && Number.isFinite(done.conversation_id)) {
+            setConversationId(done.conversation_id)
+          }
           finalAnswer = done.content_full || ''
           setMessages(prev => {
             const copy = [...prev]
@@ -419,13 +615,20 @@ export default function Chat() {
                 content: done.content_full,
                 // Attach latest NL→SQL dataset (if any) to allow on-demand charting
                 ...(latestDataset ? { chartDataset: latestDataset } : {}),
+                messageId: typeof done.message_id === 'number' ? done.message_id : undefined,
                 details: {
                   ...(copy[idx].details || {}),
                   elapsed: done.elapsed_s
                 }
               }
             } else {
-              copy.push({ id: createMessageId(), role: 'assistant', content: done.content_full, ...(latestDataset ? { chartDataset: latestDataset } : {}) })
+              copy.push({
+                id: createMessageId(),
+                role: 'assistant',
+                content: done.content_full,
+                ...(latestDataset ? { chartDataset: latestDataset } : {}),
+                messageId: typeof done.message_id === 'number' ? done.message_id : undefined,
+              })
             }
             return copy
           })
@@ -434,6 +637,7 @@ export default function Chat() {
           refreshHistory()
           setAnimStatus('')
         } else if (type === 'error') {
+          setAwaitingFirstDelta(false)
           setError(data?.message || 'Erreur streaming')
         }
       }, { signal: controller.signal })
@@ -523,7 +727,7 @@ export default function Chat() {
     }
   }
 
-  async function loadConversation(id: number) {
+  async function loadConversation(id: number, opts?: { highlightMessageId?: number | null }) {
     try {
       const data = await apiFetch<{
         id: number
@@ -532,6 +736,9 @@ export default function Chat() {
           role: 'user' | 'assistant'
           content: string
           created_at: string
+          message_id?: number
+          feedback?: FeedbackValue
+          feedback_id?: number
           details?: {
             plan?: any
             steps?: Array<{ step?: number; purpose?: string; sql?: string }>
@@ -560,6 +767,9 @@ export default function Chat() {
             id: createMessageId(),
             role: m.role,
             content: m.content,
+            messageId: typeof (m as any).message_id === 'number' ? (m as any).message_id : undefined,
+            feedback: (m as any).feedback === 'up' || (m as any).feedback === 'down' ? (m as any).feedback as FeedbackValue : undefined,
+            feedbackId: typeof (m as any).feedback_id === 'number' ? (m as any).feedback_id : undefined,
             details,
             ...(m as any).chart_url ? {
               chartUrl: (m as any).chart_url,
@@ -595,6 +805,7 @@ export default function Chat() {
         : []
       setExcludedTables(new Set(ex))
       setEffectiveTables([])
+      setHighlightMessageId(typeof opts?.highlightMessageId === 'number' ? opts?.highlightMessageId : null)
       closeHistory()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible')
@@ -612,6 +823,70 @@ export default function Chat() {
     setEvidenceData(null)
     setError('')
     setHistoryOpen(false)
+    setHighlightMessageId(null)
+    setTicketStatus('')
+    setAwaitingFirstDelta(false)
+  }
+
+  async function onFeedback(messageId: string, vote: FeedbackValue) {
+    if (!conversationId) return
+    const idx = messages.findIndex(m => m.id === messageId)
+    if (idx < 0) return
+    const msg = messages[idx]
+    if (!msg.messageId || msg.feedbackSaving) return
+    const same = msg.feedback === vote
+    const targetFeedbackId = msg.feedbackId
+    setMessages(prev => {
+      const copy = [...prev]
+      const i = copy.findIndex(m => m.id === messageId)
+      if (i >= 0) {
+        copy[i] = { ...copy[i], feedbackSaving: true, feedbackError: undefined }
+      }
+      return copy
+    })
+    try {
+      if (same && targetFeedbackId) {
+        await apiFetch<void>(`/feedback/${targetFeedbackId}`, { method: 'DELETE' })
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId
+              ? { ...m, feedbackSaving: false, feedback: undefined, feedbackId: undefined, feedbackError: undefined }
+              : m
+          )
+        )
+        return
+      }
+      const res = await apiFetch<FeedbackResponse>('/feedback', {
+        method: 'POST',
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          message_id: msg.messageId,
+          value: vote,
+        }),
+      })
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? {
+                ...m,
+                feedback: res?.value ?? vote,
+                feedbackId: res?.id ?? targetFeedbackId,
+                feedbackSaving: false,
+                feedbackError: undefined,
+              }
+            : m
+        )
+      )
+    } catch (err) {
+      const feedbackError = err instanceof Error ? err.message : 'Envoi du feedback impossible'
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? { ...m, feedbackSaving: false, feedbackError }
+            : m
+        )
+      )
+    }
   }
 
   async function onGenerateChart(messageId: string) {
@@ -882,7 +1157,7 @@ export default function Chat() {
                 </div>
               </div>
             </div>
-            {/* Desktop toolbar (sans boutons Historique/Nouveau chat pour éviter doublons avec le header) */}
+            {/* Desktop toolbar (sans boutons Historique/Chat pour éviter doublons avec le header) */}
             <div className="hidden lg:flex items-center justify-between mb-2">
               <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
               <div className="flex items-center gap-2">
@@ -935,13 +1210,284 @@ export default function Chat() {
                 </button>
               </div>
             </div>
-            
+
+            {ticketMode && (
+              <>
+                {showTicketPanel ? (
+                  <div className="mb-3 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs text-primary-700">
+                      <span>Contexte tickets {ticketMeta?.table ? `(${ticketMeta.table})` : ''}</span>
+                      <div className="flex items-center gap-3">
+                        <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
+                          {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary-600 underline"
+                          onClick={() => setShowTicketPanel(false)}
+                        >
+                          Masquer
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className="text-[11px] text-primary-600">Table</label>
+                      <select
+                        value={ticketTable}
+                        onChange={e => {
+                          const next = e.target.value
+                          setTicketTable(next)
+                          void loadTicketMetadata(next || undefined, { target: 'main' })
+                        }}
+                        className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                      >
+                        <option value="">Auto (config loop)</option>
+                        {ticketTables.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-col gap-2 w-full">
+                        {ticketRanges.map((range, idx) => (
+                          <div key={range.id} className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[11px] text-primary-600">Du</label>
+                            <input
+                              type="date"
+                              value={range.from ?? ''}
+                              min={ticketMeta?.min}
+                              max={range.to || ticketMeta?.max}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, from: value } : r))
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            <span className="text-primary-400 text-xs">→</span>
+                            <label className="text-[11px] text-primary-600">au</label>
+                            <input
+                              type="date"
+                              value={range.to ?? ''}
+                              min={range.from || ticketMeta?.min}
+                              max={ticketMeta?.max}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, to: value } : r))
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            {ticketRanges.length > 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 underline"
+                                onClick={() => setTicketRanges(prev => prev.filter(r => r.id !== range.id))}
+                              >
+                                Supprimer
+                              </button>
+                            )}
+                            {idx === ticketRanges.length - 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-primary-700 underline"
+                                onClick={() => setTicketRanges(prev => [...prev, { id: createMessageId() }])}
+                              >
+                                + Ajouter une période
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="text-xs text-primary-700 underline self-start"
+                          onClick={() => {
+                            if (ticketMeta) {
+                              setTicketRanges([{ id: createMessageId(), from: ticketMeta.min, to: ticketMeta.max }])
+                              setTicketStatus(ticketMeta.total ? `${ticketMeta.total} tickets` : 'Contexte tickets réinitialisé')
+                            } else {
+                              setTicketRanges([{ id: createMessageId() }])
+                            }
+                          }}
+                        >
+                          Réinitialiser
+                        </button>
+                      </div>
+                    </div>
+
+                {/* Tables supplémentaires */}
+                {extraTicketSources.map((source, sourceIdx) => {
+                  const meta = source.table ? ticketMetaByTable[source.table] : undefined
+                  const minDate = meta?.min ?? ticketMeta?.min
+                  const maxDate = meta?.max ?? ticketMeta?.max
+                  return (
+                    <div key={source.id} className="mt-2 border-t border-primary-100 pt-2">
+                      <div className="flex items-center justify-between text-xs text-primary-700 mb-1">
+                        <span>Table additionnelle {sourceIdx + 1}</span>
+                        <button
+                          type="button"
+                          className="text-[11px] text-red-600 underline"
+                          onClick={() => setExtraTicketSources(prev => prev.filter(s => s.id !== source.id))}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="text-[11px] text-primary-600">Table</label>
+                        <select
+                          value={source.table ?? ''}
+                          onChange={e => {
+                            const next = e.target.value
+                            setExtraTicketSources(prev =>
+                              prev.map(s => (s.id === source.id ? { ...s, table: next } : s))
+                            )
+                            if (next) {
+                              void loadTicketMetadata(next, { target: source.id })
+                            }
+                          }}
+                          className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                        >
+                          <option value="">Auto (config loop)</option>
+                          {ticketTables.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-2 w-full mt-1">
+                        {(source.ranges || []).map((range, idx) => (
+                          <div key={range.id} className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[11px] text-primary-600">Du</label>
+                            <input
+                              type="date"
+                              value={range.from ?? ''}
+                              min={minDate}
+                              max={range.to || maxDate}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setExtraTicketSources(prev =>
+                                  prev.map(s =>
+                                    s.id === source.id
+                                      ? { ...s, ranges: s.ranges.map(r => r.id === range.id ? { ...r, from: value } : r) }
+                                      : s
+                                  )
+                                )
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            <span className="text-primary-400 text-xs">→</span>
+                            <label className="text-[11px] text-primary-600">au</label>
+                            <input
+                              type="date"
+                              value={range.to ?? ''}
+                              min={range.from || minDate}
+                              max={maxDate}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setExtraTicketSources(prev =>
+                                  prev.map(s =>
+                                    s.id === source.id
+                                      ? { ...s, ranges: s.ranges.map(r => r.id === range.id ? { ...r, to: value } : r) }
+                                      : s
+                                  )
+                                )
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            {(source.ranges?.length || 0) > 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 underline"
+                                onClick={() =>
+                                  setExtraTicketSources(prev =>
+                                    prev.map(s =>
+                                      s.id === source.id
+                                        ? { ...s, ranges: s.ranges.filter(r => r.id !== range.id) }
+                                        : s
+                                    )
+                                  )
+                                }
+                              >
+                                Supprimer
+                              </button>
+                            )}
+                            {idx === (source.ranges?.length || 1) - 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-primary-700 underline"
+                                onClick={() =>
+                                  setExtraTicketSources(prev =>
+                                    prev.map(s =>
+                                      s.id === source.id
+                                        ? { ...s, ranges: [...s.ranges, { id: createMessageId() }] }
+                                        : s
+                                    )
+                                  )
+                                }
+                              >
+                                + Ajouter une période
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="text-xs text-primary-700 underline self-start"
+                          onClick={() =>
+                            setExtraTicketSources(prev =>
+                              prev.map(s =>
+                                s.id === source.id
+                                  ? {
+                                      ...s,
+                                      ranges: [
+                                        { id: createMessageId(), from: minDate, to: maxDate },
+                                      ],
+                                    }
+                                  : s
+                              )
+                            )
+                          }
+                        >
+                          Réinitialiser cette table
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                    <button
+                      type="button"
+                      className="text-xs text-primary-700 underline self-start"
+                      onClick={() => setExtraTicketSources(prev => [...prev, { id: createMessageId(), ranges: [{ id: createMessageId() }] }])}
+                    >
+                      + Ajouter une table
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mb-3 border rounded-2xl bg-primary-50 px-3 py-2 flex items-center justify-between text-xs text-primary-700">
+                    <div className="flex items-center gap-2">
+                      <span>Contexte tickets masqué</span>
+                      <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
+                        {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary-600 underline"
+                      onClick={() => setShowTicketPanel(true)}
+                    >
+                      Afficher
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id ?? index}
                 message={message}
                 onSaveChart={onSaveChart}
                 onGenerateChart={onGenerateChart}
+                onFeedback={onFeedback}
+                highlighted={message.messageId != null && highlightMessageId === message.messageId}
               />
             ))}
             {(chartGenerating || messages.some(m => m.chartSaving)) && (
@@ -949,6 +1495,12 @@ export default function Chat() {
             )}
             {messages.length === 0 && loading && (
               <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
+            )}
+            {ticketMode && awaitingFirstDelta && (
+              <div className="flex items-center gap-2 text-xs text-primary-500 py-2 pl-1">
+                <span className="inline-block h-3 w-3 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                Le modèle prépare sa réponse…
+              </div>
             )}
             {error && (
               <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
@@ -960,6 +1512,40 @@ export default function Chat() {
           {/* Composer */}
           <div className="p-3">
             <div className="relative">
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onToggleTicketModeClick}
+                  aria-pressed={!ticketMode}
+                  title={!ticketMode ? 'Mode base actif (agents SQL/RAG)' : 'Activer le contexte tickets par défaut'}
+                  className={clsx(
+                    'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
+                    !ticketMode
+                      ? 'bg-primary-700 text-white hover:bg-primary-800 border-primary-700'
+                      : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+                  )}
+                >
+                  {ticketMetaLoading ? (
+                    <span className="inline-block h-4 w-4 border-2 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
+                  ) : (
+                    <HiCpuChip className="w-5 h-5" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={onToggleChartModeClick}
+                  aria-pressed={chartMode}
+                  title="Activer MCP Chart"
+                  className={clsx(
+                    'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
+                    chartMode
+                      ? 'bg-primary-600 text-white hover:bg-primary-700 border-primary-600'
+                      : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+                  )}
+                >
+                  <HiChartBar className="w-5 h-5" />
+                </button>
+              </div>
               <Textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
@@ -968,28 +1554,13 @@ export default function Chat() {
                 rows={1}
                 fullWidth
                 className={clsx(
-                  'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
+                  'pl-28 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
                   'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
                   'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
                   'leading-[48px] placeholder:text-primary-400',
                   'text-left whitespace-nowrap'
                 )}
               />
-              {/* Toggle Graph */}
-              <button
-                type="button"
-                onClick={onToggleChartModeClick}
-                aria-pressed={chartMode}
-                title="Activer MCP Chart"
-                className={clsx(
-                  'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                  chartMode
-                    ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                    : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-                )}
-              >
-                <HiChartBar className="w-5 h-5" />
-              </button>
               {/* Envoyer/Annuler */}
               <button
                 type="button"
@@ -1164,6 +1735,8 @@ interface MessageBubbleProps {
   message: Message
   onSaveChart?: (messageId: string) => void
   onGenerateChart?: (messageId: string) => void
+  onFeedback?: (messageId: string, vote: FeedbackValue) => void
+  highlighted?: boolean
 }
 
 // -------- Left panel: Tickets from evidence --------
@@ -1428,7 +2001,7 @@ function TicketPanel({ spec, data, containerRef }: TicketPanelProps) {
   )
 }
 
-function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleProps) {
+function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, highlighted }: MessageBubbleProps) {
   const {
     id,
     role,
@@ -1443,8 +2016,22 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
   } = message
   const isUser = role === 'user'
   const [showDetails, setShowDetails] = useState(false)
+  const renderedContent = useMemo(() => renderMarkdown(content), [content])
+  const markdownClass = useMemo(
+    () => clsx('message-markdown', isUser && 'message-markdown--user'),
+    [isUser]
+  )
+  const feedbackPending = Boolean(message.feedbackSaving)
+  const canFeedback = !isUser && !message.ephemeral && !chartUrl && Boolean(message.messageId)
+  const feedbackUp = message.feedback === 'up'
+  const feedbackDown = message.feedback === 'down'
+  const handleFeedback = (vote: FeedbackValue) => {
+    if (!id || !onFeedback) return
+    onFeedback(id, vote)
+  }
   return (
     <div
+      data-message-id={message.messageId ?? undefined}
       className={clsx(
         'flex',
         isUser ? 'justify-end' : 'justify-start'
@@ -1458,7 +2045,8 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
             : clsx(
                 'max-w-full bg-transparent p-0 rounded-none shadow-none',
                 message.ephemeral && 'opacity-70'
-              )
+              ),
+          highlighted && !isUser && 'ring-2 ring-primary-200 ring-offset-2 ring-offset-white rounded-xl'
         )}
       >
         {/* Label d'auteur supprimé (Vous/Assistant) pour une UI plus épurée */}
@@ -1518,13 +2106,57 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
           </div>
         ) : (
           <div className={clsx(
-            'text-sm whitespace-pre-wrap leading-relaxed',
-            isUser ? '' : 'text-primary-950'
+            'text-sm leading-relaxed',
+            markdownClass,
+            isUser ? 'text-white' : 'text-primary-950'
           )}>
-            {content}
+            <div
+              className={clsx(
+                'space-y-2',
+                isUser ? '[&_a]:text-white [&_code]:bg-primary-900/50' : '[&_a]:text-primary-700',
+                '[&_a]:underline [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:p-3 [&_pre]:bg-primary-50 [&_pre]:rounded-md [&_pre]:text-[13px] [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-4 [&_ol]:pl-4'
+              )}
+              dangerouslySetInnerHTML={{ __html: renderedContent || '' }}
+            />
             {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
             {!isUser && !chartUrl && !message.ephemeral && (
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                {canFeedback && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleFeedback('up')}
+                      disabled={feedbackPending}
+                      aria-pressed={feedbackUp}
+                      className={clsx(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors',
+                        feedbackUp
+                          ? 'bg-green-100 border-green-200 text-green-800'
+                          : 'border-primary-200 text-primary-600 hover:bg-primary-50',
+                        feedbackPending && 'opacity-60 cursor-not-allowed'
+                      )}
+                      title="Pouce en l'air"
+                    >
+                      <HiHandThumbUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleFeedback('down')}
+                      disabled={feedbackPending}
+                      aria-pressed={feedbackDown}
+                      className={clsx(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors',
+                        feedbackDown
+                          ? 'bg-red-100 border-red-200 text-red-800'
+                          : 'border-primary-200 text-primary-600 hover:bg-primary-50',
+                        feedbackPending && 'opacity-60 cursor-not-allowed'
+                      )}
+                      title="Pouce en bas"
+                    >
+                      <HiHandThumbDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
                 <Button
                   size="xs"
                   variant="secondary"
@@ -1558,6 +2190,9 @@ function MessageBubble({ message, onSaveChart, onGenerateChart }: MessageBubbleP
                 >
                   {showDetails ? 'Masquer' : 'Détails'}
                 </Button>
+                {message.feedbackError && (
+                  <span className="text-[11px] text-red-600">{message.feedbackError}</span>
+                )}
               </div>
             )}
           </div>
