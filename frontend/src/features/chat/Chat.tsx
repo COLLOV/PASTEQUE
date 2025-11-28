@@ -20,7 +20,7 @@ import type {
   FeedbackResponse,
   FeedbackValue
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiSparkles } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiSparkles, HiAdjustmentsHorizontal } from 'react-icons/hi2'
 import clsx from 'clsx'
 import { renderMarkdown } from '@/utils/markdown'
 
@@ -129,7 +129,7 @@ export default function Chat() {
   const [ticketStatus, setTicketStatus] = useState('')
   const [ticketTable, setTicketTable] = useState<string>('')
   const [ticketTables, setTicketTables] = useState<string[]>([])
-  const [sqlMode, setSqlMode] = useState(true)
+  const [sqlMode, setSqlMode] = useState(false)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
@@ -285,11 +285,12 @@ export default function Chat() {
   }
 
   function onToggleChartModeClick() {
-    setChartMode(v => {
-      const next = !v
-      setSqlMode(!next) // SQL actif par défaut hors mode graphique
-      return next
-    })
+    setChartMode(v => !v)
+    setError('')
+  }
+
+  function onToggleSqlModeClick() {
+    setSqlMode(v => !v)
     setError('')
   }
 
@@ -1266,6 +1267,21 @@ export default function Chat() {
                   )}
                 >
                   <HiChartBar className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onToggleSqlModeClick}
+                  aria-pressed={sqlMode}
+                  title="Activer le mode data (NL→SQL multi-agent)"
+                  className={clsx(
+                    'inline-flex items-center justify-center h-10 px-3 rounded-full transition-colors focus:outline-none border-2 text-xs font-semibold',
+                    sqlMode
+                      ? 'bg-primary-900 text-white hover:bg-primary-950 border-primary-900'
+                      : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+                  )}
+                >
+                  <HiAdjustmentsHorizontal className="w-4 h-4" />
+                  <span className="ml-1">Data</span>
                 </button>
               </div>
               <Textarea
