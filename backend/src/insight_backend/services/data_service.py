@@ -171,6 +171,7 @@ class DataService:
         date_to: str | None = None,
         explorer_enabled_by_source: Mapping[str, bool] | None = None,
         include_disabled_sources: bool = False,
+        skip_overview_for_disabled: bool = False,
     ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
@@ -217,6 +218,23 @@ class DataService:
         for name in table_names:
             hidden_for_table = hidden_lookup.get(name.casefold(), set())
             enabled_for_table = _is_enabled(name)
+            if include_disabled_sources and skip_overview_for_disabled and not enabled_for_table:
+                roles = roles_lookup.get(name.casefold())
+                sources.append(
+                    DataSourceOverview(
+                        source=name,
+                        title=TABLE_TITLES.get(name, name),
+                        total_rows=0,
+                        field_count=0,
+                        fields=[],
+                        category_breakdown=[],
+                        date_field=roles.date_field if roles else None,
+                        category_field=roles.category_field if roles else None,
+                        sub_category_field=roles.sub_category_field if roles else None,
+                        explorer_enabled=False,
+                    )
+                )
+                continue
             overview = self._compute_table_overview(
                 table_name=name,
                 hidden_fields=hidden_for_table,

@@ -225,7 +225,7 @@ export default function AdminPanel() {
       }
       setExplorerError('')
       try {
-        const response = await apiFetch<DataOverviewResponse>('/data/overview?include_disabled=true')
+        const response = await apiFetch<DataOverviewResponse>('/data/overview?include_disabled=true&lazy_disabled=true')
         const data = response ?? { generated_at: '', sources: [] }
         setExplorerData(data)
         const nextRoles: Record<string, ColumnRoleSelection> = {}
@@ -1011,7 +1011,7 @@ export default function AdminPanel() {
                         <p className="text-xs text-red-600">{roleError}</p>
                       ) : (
                         <p className="text-[11px] text-primary-500">
-                          Sélectionnez Category et Sub Category ensemble pour alimenter les répartitions et l’aperçu.
+                          Sélectionnez Category et Sub Category ensemble pour alimenter les répartitions et l’aperçu. Les tables désactivées ne sont pas scannées tant que l’option n’est pas cochée.
                         </p>
                       )}
 
