@@ -58,12 +58,24 @@ def _normalize_date(value: object | None) -> str | None:
     text = _clean_text(value)
     if not text:
         return None
-    try:
-        dt = datetime.fromisoformat(text.replace(" ", "T"))
-        return dt.date().isoformat()
-    except ValueError:
-        log.debug("Impossible de parser la date %r", text)
-        return None
+    candidates = [
+        text.replace(" ", "T"),
+        text,
+    ]
+    for raw in candidates:
+        try:
+            dt = datetime.fromisoformat(raw)
+            return dt.date().isoformat()
+        except ValueError:
+            pass
+        for fmt in ("%d/%m/%Y", "%d/%m/%y", "%Y/%m/%d"):
+            try:
+                dt = datetime.strptime(raw, fmt)
+                return dt.date().isoformat()
+            except ValueError:
+                continue
+    log.debug("Impossible de parser la date %r", text)
+    return None
 
 
 @dataclass
@@ -73,6 +85,7 @@ class FieldAccumulator:
     date_counter: Counter[str] = field(default_factory=Counter)
     non_null: int = 0
     parsed_dates: int = 0
+    parse_dates: bool = True
 
     def add(self, value: object | None) -> None:
         text = _clean_text(value)
@@ -81,10 +94,11 @@ class FieldAccumulator:
 
         self.non_null += 1
 
-        normalized_date = _normalize_date(text)
-        if normalized_date:
-            self.parsed_dates += 1
-            self.date_counter[normalized_date] += 1
+        if self.parse_dates:
+            normalized_date = _normalize_date(text)
+            if normalized_date:
+                self.parsed_dates += 1
+                self.date_counter[normalized_date] += 1
 
         self.raw_counter[text] += 1
 
@@ -171,6 +185,9 @@ class DataService:
         date_to: str | None = None,
         explorer_enabled_by_source: Mapping[str, bool] | None = None,
         include_disabled_sources: bool = False,
+        skip_overview_for_disabled: bool = False,
+        lightweight: bool = False,
+        headers_only: bool = False,
     ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
@@ -217,6 +234,23 @@ class DataService:
         for name in table_names:
             hidden_for_table = hidden_lookup.get(name.casefold(), set())
             enabled_for_table = _is_enabled(name)
+            if include_disabled_sources and skip_overview_for_disabled and not enabled_for_table:
+                roles = roles_lookup.get(name.casefold())
+                sources.append(
+                    DataSourceOverview(
+                        source=name,
+                        title=TABLE_TITLES.get(name, name),
+                        total_rows=0,
+                        field_count=0,
+                        fields=[],
+                        category_breakdown=[],
+                        date_field=roles.date_field if roles else None,
+                        category_field=roles.category_field if roles else None,
+                        sub_category_field=roles.sub_category_field if roles else None,
+                        explorer_enabled=False,
+                    )
+                )
+                continue
             overview = self._compute_table_overview(
                 table_name=name,
                 hidden_fields=hidden_for_table,
@@ -225,6 +259,8 @@ class DataService:
                 date_from=normalized_from,
                 date_to=normalized_to,
                 explorer_enabled=enabled_for_table,
+                lightweight=lightweight,
+                headers_only=headers_only,
             )
             if overview:
                 sources.append(overview)
@@ -241,11 +277,115 @@ class DataService:
         date_from: str | None = None,
         date_to: str | None = None,
         explorer_enabled: bool = True,
+        lightweight: bool = False,
+        headers_only: bool = False,
     ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
             log.warning("Table introuvable pour l'overview: %s", table_name)
             return None
+
+        if lightweight:
+            try:
+                schema = self.repo.get_schema(table_name)
+            except FileNotFoundError:
+                log.warning("Table introuvable pour l'overview (lightweight): %s", table_name)
+                return None
+
+            headers = [name for name, _ in schema]
+            if not headers:
+                return DataSourceOverview(
+                    source=table_name,
+                    title=TABLE_TITLES.get(table_name, table_name),
+                    total_rows=0,
+                    field_count=0,
+                    fields=[],
+                    explorer_enabled=explorer_enabled,
+                )
+
+            roles = column_roles or ColumnRoles()
+            headers_set = set(headers)
+
+            def _pick_date() -> str | None:
+                if roles.date_field:
+                    return roles.date_field if roles.date_field in headers_set else None
+                for name in headers:
+                    if name.casefold() == "date":
+                        return name
+                return None
+
+            def _pick_category(target: str | None, default: str) -> str | None:
+                if target:
+                    return target if target in headers_set else None
+                return default if default in headers_set else None
+
+            date_field = _pick_date()
+            category_field = _pick_category(roles.category_field, CATEGORY_COLUMN_NAME)
+            sub_category_field = _pick_category(roles.sub_category_field, SUB_CATEGORY_COLUMN_NAME)
+
+            fields = [
+                FieldBreakdown(
+                    field=name,
+                    label=name,
+                    hidden=name in (hidden_fields or set()),
+                )
+                for name in headers
+            ]
+            hidden_set = set(hidden_fields or [])
+            total_field_count = len(fields)
+            if hidden_set and not include_hidden_fields:
+                fields = [item for item in fields if item.field not in hidden_set]
+
+            return DataSourceOverview(
+                source=table_name,
+                title=TABLE_TITLES.get(table_name, table_name),
+                total_rows=0,
+                date_field=date_field,
+                category_field=category_field,
+                sub_category_field=sub_category_field,
+                field_count=total_field_count,
+                fields=fields,
+                category_breakdown=[],
+                explorer_enabled=explorer_enabled,
+            )
+
+        if headers_only:
+            try:
+                schema = self.repo.get_schema(table_name)
+            except FileNotFoundError:
+                log.warning("Table introuvable pour l'overview (headers_only): %s", table_name)
+                return None
+            headers = [name for name, _ in schema]
+            if not headers:
+                return DataSourceOverview(
+                    source=table_name,
+                    title=TABLE_TITLES.get(table_name, table_name),
+                    total_rows=0,
+                    field_count=0,
+                    fields=[],
+                    explorer_enabled=explorer_enabled,
+                )
+            fields = [
+                FieldBreakdown(
+                    field=name,
+                    label=name,
+                    hidden=name in (hidden_fields or set()),
+                )
+                for name in headers
+            ]
+            hidden_set = set(hidden_fields or [])
+            total_field_count = len(fields)
+            if hidden_set and not include_hidden_fields:
+                fields = [item for item in fields if item.field not in hidden_set]
+            return DataSourceOverview(
+                source=table_name,
+                title=TABLE_TITLES.get(table_name, table_name),
+                total_rows=0,
+                field_count=total_field_count,
+                fields=fields,
+                category_breakdown=[],
+                explorer_enabled=explorer_enabled,
+            )
 
         delimiter = "," if path.suffix.lower() == ".csv" else "\t"
         total_rows = 0
@@ -268,7 +408,6 @@ class DataService:
                     fields=[],
                 )
 
-            accumulators = {name: FieldAccumulator(name=name) for name in headers}
             roles = column_roles or ColumnRoles()
             headers_set = set(headers)
 
@@ -311,6 +450,11 @@ class DataService:
                     table_name,
                 )
                 return None
+
+            accumulators = {
+                name: FieldAccumulator(name=name, parse_dates=name == date_field)
+                for name in headers
+            }
 
             for row in reader:
                 normalized_date = _normalize_date(row.get(date_field)) if date_field else None

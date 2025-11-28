@@ -71,13 +71,22 @@ def get_data_overview(  # type: ignore[valid-type]
     date_from: str | None = None,
     date_to: str | None = None,
     include_disabled: bool = False,
+    lazy_disabled: bool = True,
+    lightweight: bool = False,
+    headers_only: bool = False,
 ) -> DataOverviewResponse:
     allowed = None
     if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
         include_disabled = False
+        lazy_disabled = True
+        lightweight = False
+        headers_only = False
     else:
         include_disabled = bool(include_disabled)
+        lazy_disabled = bool(lazy_disabled)
+        lightweight = bool(lightweight)
+        headers_only = bool(headers_only)
     pref_repo = DataSourcePreferenceRepository(session)
     preferences = pref_repo.list_preferences()
     hidden_map = {source: pref.hidden_fields for source, pref in preferences.items() if pref.hidden_fields}
@@ -101,6 +110,9 @@ def get_data_overview(  # type: ignore[valid-type]
             date_to=date_to,
             explorer_enabled_by_source=enabled_map,
             include_disabled_sources=include_disabled,
+            skip_overview_for_disabled=lazy_disabled,
+            lightweight=lightweight,
+            headers_only=headers_only,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
