@@ -210,7 +210,8 @@ export default function AdminPanel() {
     setLoopError('')
     try {
       const response = await apiFetch<LoopOverview>('/loop/overview')
-      const config = response?.config ?? null
+      const first = response?.items?.[0]
+      const config = first?.config ?? null
       setLoopConfig(config)
       if (config) {
         setSelectedTable(config.table_name)
@@ -305,7 +306,8 @@ export default function AdminPanel() {
       const response = await apiFetch<LoopOverview>('/loop/regenerate', {
         method: 'POST',
       })
-      const config = response?.config ?? null
+      const first = response?.items?.[0]
+      const config = first?.config ?? null
       setLoopConfig(config)
       if (config) {
         setSelectedTable(config.table_name)
