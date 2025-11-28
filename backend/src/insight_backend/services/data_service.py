@@ -58,12 +58,24 @@ def _normalize_date(value: object | None) -> str | None:
     text = _clean_text(value)
     if not text:
         return None
-    try:
-        dt = datetime.fromisoformat(text.replace(" ", "T"))
-        return dt.date().isoformat()
-    except ValueError:
-        log.debug("Impossible de parser la date %r", text)
-        return None
+    candidates = [
+        text.replace(" ", "T"),
+        text,
+    ]
+    for raw in candidates:
+        try:
+            dt = datetime.fromisoformat(raw)
+            return dt.date().isoformat()
+        except ValueError:
+            pass
+        for fmt in ("%d/%m/%Y", "%d/%m/%y", "%Y/%m/%d"):
+            try:
+                dt = datetime.strptime(raw, fmt)
+                return dt.date().isoformat()
+            except ValueError:
+                continue
+    log.debug("Impossible de parser la date %r", text)
+    return None
 
 
 @dataclass
