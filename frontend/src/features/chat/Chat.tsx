@@ -121,7 +121,7 @@ export default function Chat() {
   // Animation de chargement pendant la génération d'un graphique
   const [chartGenerating, setChartGenerating] = useState(false)
   const [chartMode, setChartMode] = useState(false)
-  const [ticketMode, setTicketMode] = useState(false)
+  const [ticketMode, setTicketMode] = useState(true)
   const [ticketRange, setTicketRange] = useState<{ from?: string; to?: string }>({})
   const [ticketMeta, setTicketMeta] = useState<{ min?: string; max?: string; total?: number; table?: string } | null>(null)
   const [ticketMetaLoading, setTicketMetaLoading] = useState(false)
@@ -129,7 +129,7 @@ export default function Chat() {
   const [ticketStatus, setTicketStatus] = useState('')
   const [ticketTable, setTicketTable] = useState<string>('')
   const [ticketTables, setTicketTables] = useState<string[]>([])
-  const [sqlMode, setSqlMode] = useState(true)
+  const [sqlMode, setSqlMode] = useState(false)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
@@ -296,14 +296,16 @@ export default function Chat() {
   function onToggleTicketModeClick() {
     setTicketMode(v => {
       const next = !v
-      if (next && !ticketMeta && !ticketMetaLoading) {
-        void loadTicketMetadata()
-      }
+      // next === true -> mode tickets; next === false -> mode base
       if (next) {
+        if (!ticketMeta && !ticketMetaLoading) {
+          void loadTicketMetadata()
+        }
         setSqlMode(false)
         setChartMode(false)
-      }
-      if (!next) {
+      } else {
+        setSqlMode(true)
+        setChartMode(false)
         setTicketStatus('')
       }
       return next
@@ -1238,21 +1240,21 @@ export default function Chat() {
                 <button
                   type="button"
                   onClick={onToggleTicketModeClick}
-                  aria-pressed={ticketMode}
-                  title="Activer le contexte tickets"
-                className={clsx(
-                  'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
-                  ticketMode
-                    ? 'bg-primary-700 text-white hover:bg-primary-800 border-primary-700'
-                    : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
-                )}
-              >
-                {ticketMetaLoading ? (
-                  <span className="inline-block h-4 w-4 border-2 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
-                ) : (
-                  <HiSparkles className="w-5 h-5" />
-                )}
-              </button>
+                  aria-pressed={!ticketMode}
+                  title={!ticketMode ? 'Mode base actif (agents SQL/RAG)' : 'Activer le contexte tickets par défaut'}
+                  className={clsx(
+                    'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
+                    !ticketMode
+                      ? 'bg-primary-700 text-white hover:bg-primary-800 border-primary-700'
+                      : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+                  )}
+                >
+                  {ticketMetaLoading ? (
+                    <span className="inline-block h-4 w-4 border-2 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
+                  ) : (
+                    <HiSparkles className="w-5 h-5" />
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={onToggleChartModeClick}
