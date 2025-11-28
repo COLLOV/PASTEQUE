@@ -72,6 +72,7 @@ class TicketContextService:
         allowed_tables: Iterable[str] | None,
         date_from: str | None,
         date_to: str | None,
+        periods: list[dict[str, str | None]] | None = None,
         table: str | None = None,
         text_column: str | None = None,
         date_column: str | None = None,
@@ -84,14 +85,15 @@ class TicketContextService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Aucun ticket exploitable avec cette configuration.",
             )
-        filtered = self._filter_by_date(entries, date_from=date_from, date_to=date_to)
+        parsed_periods = self._parse_periods(date_from=date_from, date_to=date_to, periods=periods)
+        filtered = self._filter_by_periods(entries, periods=parsed_periods)
         if not filtered:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Aucun ticket dans cette plage de dates.",
             )
 
-        period_label = self._period_label(filtered, date_from=date_from, date_to=date_to)
+        period_label = self._period_label(filtered, periods=parsed_periods)
         chunks = self._build_chunks(filtered)
         summary = self.agent.summarize_chunks(period_label=period_label, chunks=chunks)
 
@@ -237,13 +239,13 @@ class TicketContextService:
         self._cached_entries[config.table_name] = entries
         return entries
 
-    def _filter_by_date(
+    def _parse_periods(
         self,
-        entries: list[dict[str, Any]],
         *,
         date_from: str | None,
         date_to: str | None,
-    ) -> list[dict[str, Any]]:
+        periods: list[dict[str, str | None]] | None,
+    ) -> list[tuple[date | None, date | None]]:
         def _parse(dt: str | None) -> date | None:
             if not dt:
                 return None
@@ -252,16 +254,39 @@ class TicketContextService:
             except Exception:
                 return None
 
+        parsed: list[tuple[date | None, date | None]] = []
+        if periods:
+            for item in periods:
+                if not isinstance(item, dict):
+                    continue
+                start = _parse(item.get("from"))
+                end = _parse(item.get("to"))
+                if start or end:
+                    parsed.append((start, end))
+        # Fallback to single range for backward compatibility
         start = _parse(date_from)
         end = _parse(date_to)
+        if not parsed and (start or end):
+            parsed.append((start, end))
+        # If still empty, keep None to represent "all dates"
+        return parsed or [(None, None)]
+
+    def _filter_by_periods(
+        self,
+        entries: list[dict[str, Any]],
+        *,
+        periods: list[tuple[date | None, date | None]],
+    ) -> list[dict[str, Any]]:
         filtered = []
         for item in entries:
             d: date = item["date"]
-            if start and d < start:
-                continue
-            if end and d > end:
-                continue
-            filtered.append(item)
+            for start, end in periods:
+                if start and d < start:
+                    continue
+                if end and d > end:
+                    continue
+                filtered.append(item)
+                break
         return filtered
 
     def _build_chunks(self, entries: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
@@ -278,13 +303,18 @@ class TicketContextService:
             )
         return chunk_ticket_items(formatted)
 
-    def _period_label(self, entries: list[dict[str, Any]], *, date_from: str | None, date_to: str | None) -> str:
+    def _period_label(self, entries: list[dict[str, Any]], *, periods: list[tuple[date | None, date | None]]) -> str:
         dates = [item["date"] for item in entries]
         if not dates:
             return "période inconnue"
-        start = date_from or min(dates).isoformat()
-        end = date_to or max(dates).isoformat()
-        return f"{start} → {end}"
+        labels: list[str] = []
+        for start, end in periods:
+            s = start.isoformat() if start else min(dates).isoformat()
+            e = end.isoformat() if end else max(dates).isoformat()
+            labels.append(f"{s} → {e}")
+        # Deduplicate to avoid noise when single-period fallback is present
+        uniq = list(dict.fromkeys(labels))
+        return " ; ".join(uniq)
 
     def _derive_columns(self, *, config, sample: list[dict[str, Any]]) -> list[str]:
         columns: list[str] = []
@@ -313,10 +343,7 @@ class TicketContextService:
             },
             "columns": columns,
             "limit": settings.evidence_limit_default,
-            "period": {
-                "from": period_label.split("→")[0].strip(),
-                "to": period_label.split("→")[-1].strip(),
-            },
+            "period": period_label,
         }
         return spec
 
