@@ -225,7 +225,9 @@ export default function AdminPanel() {
       }
       setExplorerError('')
       try {
-        const response = await apiFetch<DataOverviewResponse>('/data/overview?include_disabled=true&lazy_disabled=true')
+        const response = await apiFetch<DataOverviewResponse>(
+          '/data/overview?include_disabled=true&lazy_disabled=true&lightweight=true'
+        )
         const data = response ?? { generated_at: '', sources: [] }
         setExplorerData(data)
         const nextRoles: Record<string, ColumnRoleSelection> = {}

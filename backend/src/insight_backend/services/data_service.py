@@ -172,6 +172,7 @@ class DataService:
         explorer_enabled_by_source: Mapping[str, bool] | None = None,
         include_disabled_sources: bool = False,
         skip_overview_for_disabled: bool = False,
+        lightweight: bool = False,
     ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
@@ -243,6 +244,7 @@ class DataService:
                 date_from=normalized_from,
                 date_to=normalized_to,
                 explorer_enabled=enabled_for_table,
+                lightweight=lightweight,
             )
             if overview:
                 sources.append(overview)
@@ -259,11 +261,76 @@ class DataService:
         date_from: str | None = None,
         date_to: str | None = None,
         explorer_enabled: bool = True,
+        lightweight: bool = False,
     ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
             log.warning("Table introuvable pour l'overview: %s", table_name)
             return None
+
+        if lightweight:
+            try:
+                schema = self.repo.get_schema(table_name)
+            except FileNotFoundError:
+                log.warning("Table introuvable pour l'overview (lightweight): %s", table_name)
+                return None
+
+            headers = [name for name, _ in schema]
+            if not headers:
+                return DataSourceOverview(
+                    source=table_name,
+                    title=TABLE_TITLES.get(table_name, table_name),
+                    total_rows=0,
+                    field_count=0,
+                    fields=[],
+                    explorer_enabled=explorer_enabled,
+                )
+
+            roles = column_roles or ColumnRoles()
+            headers_set = set(headers)
+
+            def _pick_date() -> str | None:
+                if roles.date_field:
+                    return roles.date_field if roles.date_field in headers_set else None
+                for name in headers:
+                    if name.casefold() == "date":
+                        return name
+                return None
+
+            def _pick_category(target: str | None, default: str) -> str | None:
+                if target:
+                    return target if target in headers_set else None
+                return default if default in headers_set else None
+
+            date_field = _pick_date()
+            category_field = _pick_category(roles.category_field, CATEGORY_COLUMN_NAME)
+            sub_category_field = _pick_category(roles.sub_category_field, SUB_CATEGORY_COLUMN_NAME)
+
+            fields = [
+                FieldBreakdown(
+                    field=name,
+                    label=name,
+                    hidden=name in (hidden_fields or set()),
+                )
+                for name in headers
+            ]
+            hidden_set = set(hidden_fields or [])
+            total_field_count = len(fields)
+            if hidden_set and not include_hidden_fields:
+                fields = [item for item in fields if item.field not in hidden_set]
+
+            return DataSourceOverview(
+                source=table_name,
+                title=TABLE_TITLES.get(table_name, table_name),
+                total_rows=0,
+                date_field=date_field,
+                category_field=category_field,
+                sub_category_field=sub_category_field,
+                field_count=total_field_count,
+                fields=fields,
+                category_breakdown=[],
+                explorer_enabled=explorer_enabled,
+            )
 
         delimiter = "," if path.suffix.lower() == ".csv" else "\t"
         total_rows = 0
