@@ -245,6 +245,14 @@ export default function Chat() {
     refreshHistory()
   }, [])
 
+  // Ticket mode is now default: preload metadata/tables on first render
+  useEffect(() => {
+    if (ticketMode && !ticketMeta && !ticketMetaLoading) {
+      void loadTicketMetadata()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketMode])
+
   async function loadTicketMetadata(tableOverride?: string) {
     setTicketMetaLoading(true)
     setTicketMetaError('')
