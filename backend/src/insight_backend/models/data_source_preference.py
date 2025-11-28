@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import String, JSON, DateTime, func
+from sqlalchemy import String, JSON, DateTime, func, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.database import Base
@@ -17,6 +17,7 @@ class DataSourcePreference(Base):
     date_field: Mapped[str | None] = mapped_column(String(255), nullable=True)
     category_field: Mapped[str | None] = mapped_column(String(255), nullable=True)
     sub_category_field: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    explorer_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

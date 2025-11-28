@@ -42,6 +42,7 @@ class DataSourceOverview(BaseModel):
     date_field: str | None = None
     category_field: str | None = None
     sub_category_field: str | None = None
+    explorer_enabled: bool = True
     field_count: int = 0
     fields: list[FieldBreakdown] = Field(default_factory=list)
     category_breakdown: list[CategorySubCategoryCount] = Field(default_factory=list)
@@ -72,6 +73,15 @@ class ColumnRolesResponse(BaseModel):
     date_field: str | None = None
     category_field: str | None = None
     sub_category_field: str | None = None
+
+
+class UpdateExplorerEnabledRequest(BaseModel):
+    enabled: bool
+
+
+class ExplorerEnabledResponse(BaseModel):
+    source: str
+    enabled: bool
 
 
 class TableExplorePreview(BaseModel):

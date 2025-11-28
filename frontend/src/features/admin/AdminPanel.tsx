@@ -13,7 +13,7 @@ import type {
   AdminUsageStatsResponse,
 } from '@/types/user'
 import type { LoopConfig, LoopOverview, LoopConfigPayload } from '@/types/loop'
-import type { DataOverviewResponse, ColumnRolesResponse } from '@/types/data'
+import type { DataOverviewResponse, ColumnRolesResponse, ExplorerEnabledResponse } from '@/types/data'
 import { HiCheckCircle, HiXCircle, HiArrowPath } from 'react-icons/hi2'
 import DictionaryManager from './DictionaryManager'
 import FeedbackAdmin from './FeedbackAdmin'
@@ -25,6 +25,11 @@ interface Status {
 
 type TableInfo = { name: string; path: string }
 type ColumnInfo = { name: string; dtype?: string | null }
+type ColumnRoleSelection = {
+  date_field: string | null
+  category_field: string | null
+  sub_category_field: string | null
+}
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -43,13 +48,14 @@ function formatActivity(value: string | null): string {
   return formatDate(value)
 }
 
-type TabKey = 'stats' | 'dictionary' | 'loop' | 'users' | 'feedback'
+type TabKey = 'stats' | 'dictionary' | 'explorer' | 'loop' | 'users' | 'feedback'
 
 const DEFAULT_TAB: TabKey = 'stats'
-const TAB_KEYS = new Set<TabKey>(['stats', 'dictionary', 'loop', 'users', 'feedback'])
+const TAB_KEYS = new Set<TabKey>(['stats', 'dictionary', 'explorer', 'loop', 'users', 'feedback'])
 const TAB_ITEMS: { key: TabKey; label: string }[] = [
   { key: 'stats', label: 'Statistiques' },
   { key: 'dictionary', label: 'Dictionnaire' },
+  { key: 'explorer', label: 'Explorer' },
   { key: 'loop', label: 'Loop' },
   { key: 'users', label: 'Utilisateurs' },
   { key: 'feedback', label: 'Feedback' },
@@ -93,6 +99,13 @@ export default function AdminPanel() {
   const [ticketError, setTicketError] = useState('')
   const [ticketSaving, setTicketSaving] = useState(false)
   const [ticketRoles, setTicketRoles] = useState<ColumnRolesResponse | null>(null)
+  const [explorerData, setExplorerData] = useState<DataOverviewResponse | null>(null)
+  const [explorerLoading, setExplorerLoading] = useState(false)
+  const [explorerError, setExplorerError] = useState('')
+  const [explorerSaving, setExplorerSaving] = useState<Set<string>>(() => new Set())
+  const [explorerToggling, setExplorerToggling] = useState<Set<string>>(() => new Set())
+  const [explorerRoles, setExplorerRoles] = useState<Record<string, ColumnRoleSelection>>({})
+  const [explorerRoleErrors, setExplorerRoleErrors] = useState<Record<string, string>>({})
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
 
@@ -183,7 +196,7 @@ export default function AdminPanel() {
       try {
         const [colsResponse, overview] = await Promise.all([
           apiFetch<ColumnInfo[]>(`/data/schema/${encodeURIComponent(tableName)}`),
-          apiFetch<DataOverviewResponse>('/data/overview'),
+          apiFetch<DataOverviewResponse>('/data/overview?include_disabled=true'),
         ])
         setTicketColumns(colsResponse ?? [])
         const match = overview?.sources?.find(src => src.source === tableName)
@@ -200,6 +213,35 @@ export default function AdminPanel() {
         setTicketRoles(null)
         setTicketDateColumn('')
         setTicketError(err instanceof Error ? err.message : 'Chargement impossible.')
+      }
+    },
+    []
+  )
+
+  const loadExplorerOverview = useCallback(
+    async (withLoader = true) => {
+      if (withLoader) {
+        setExplorerLoading(true)
+      }
+      setExplorerError('')
+      try {
+        const response = await apiFetch<DataOverviewResponse>('/data/overview?include_disabled=true')
+        const data = response ?? { generated_at: '', sources: [] }
+        setExplorerData(data)
+        const nextRoles: Record<string, ColumnRoleSelection> = {}
+        data.sources.forEach(src => {
+          nextRoles[src.source] = {
+            date_field: src.date_field ?? null,
+            category_field: src.category_field ?? null,
+            sub_category_field: src.sub_category_field ?? null,
+          }
+        })
+        setExplorerRoles(nextRoles)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Chargement impossible.'
+        setExplorerError(message)
+      } finally {
+        setExplorerLoading(false)
       }
     },
     []
@@ -232,6 +274,12 @@ export default function AdminPanel() {
     void loadTables()
     void loadLoopOverview()
   }, [loadPermissions, loadStats, loadTables, loadLoopOverview])
+
+  useEffect(() => {
+    if (activeTab === 'explorer' && !explorerData && !explorerLoading) {
+      void loadExplorerOverview()
+    }
+  }, [activeTab, explorerData, explorerLoading, loadExplorerOverview])
 
   useEffect(() => {
     if (loopConfig && !ticketTable) {
@@ -360,6 +408,97 @@ export default function AdminPanel() {
       })
     } finally {
       setTicketSaving(false)
+    }
+  }
+
+  const handleExplorerRoleChange = (
+    source: string,
+    key: keyof ColumnRoleSelection,
+    value: string
+  ) => {
+    setExplorerRoles(prev => {
+      const current = prev[source] ?? { date_field: null, category_field: null, sub_category_field: null }
+      return {
+        ...prev,
+        [source]: {
+          ...current,
+          [key]: value || null,
+        },
+      }
+    })
+  }
+
+  const handleSaveExplorerRoles = async (source: string) => {
+    const draft = explorerRoles[source] ?? { date_field: null, category_field: null, sub_category_field: null }
+    if ((draft.category_field && !draft.sub_category_field) || (draft.sub_category_field && !draft.category_field)) {
+      setExplorerRoleErrors(prev => ({
+        ...prev,
+        [source]: 'Choisissez une catégorie ET une sous-catégorie ou aucune des deux.',
+      }))
+      return
+    }
+
+    setExplorerRoleErrors(prev => ({ ...prev, [source]: '' }))
+    setExplorerSaving(prev => new Set(prev).add(source))
+    try {
+      const response = await apiFetch<ColumnRolesResponse>(
+        `/data/overview/${encodeURIComponent(source)}/column-roles`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(draft),
+        }
+      )
+      const updated = response ?? draft
+      setExplorerRoles(prev => ({
+        ...prev,
+        [source]: {
+          date_field: updated.date_field ?? null,
+          category_field: updated.category_field ?? null,
+          sub_category_field: updated.sub_category_field ?? null,
+        },
+      }))
+      await loadExplorerOverview(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Mise à jour impossible.'
+      setExplorerRoleErrors(prev => ({ ...prev, [source]: message }))
+    } finally {
+      setExplorerSaving(prev => {
+        const next = new Set(prev)
+        next.delete(source)
+        return next
+      })
+    }
+  }
+
+  const handleToggleExplorer = async (source: string, enabled: boolean) => {
+    setExplorerError('')
+    setExplorerToggling(prev => new Set(prev).add(source))
+    try {
+      const response = await apiFetch<ExplorerEnabledResponse>(
+        `/data/overview/${encodeURIComponent(source)}/explorer-enabled`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ enabled }),
+        }
+      )
+      const nextEnabled = response?.enabled ?? enabled
+      setExplorerData(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          sources: prev.sources.map(item =>
+            item.source === source ? { ...item, explorer_enabled: nextEnabled } : item
+          ),
+        }
+      })
+    } catch (err) {
+      setExplorerError(err instanceof Error ? err.message : 'Mise à jour impossible.')
+    } finally {
+      setExplorerToggling(prev => {
+        const next = new Set(prev)
+        next.delete(source)
+        return next
+      })
     }
   }
 
@@ -536,6 +675,8 @@ export default function AdminPanel() {
   const totals = stats?.totals ?? null
   const perUserStats = stats?.per_user ?? []
   const statsUpdatedAt = stats?.generated_at ?? ''
+  const explorerSources = explorerData?.sources ?? []
+  const explorerActiveCount = explorerSources.filter(src => src.explorer_enabled !== false).length
   const metricCards = !totals
     ? []
     : [
@@ -759,6 +900,143 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'dictionary' && <DictionaryManager />}
+
+      {activeTab === 'explorer' && (
+        <Card variant="elevated" className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold text-primary-950">Explorer – tables et colonnes</h3>
+              <p className="text-sm text-primary-600 max-w-3xl">
+                Activez uniquement les tables utiles dans l’Explorer et définissez les colonnes Date / Category / Sub Category.
+                Les changements sont globaux pour tous les utilisateurs.
+              </p>
+              <p className="text-xs text-primary-500 mt-1">
+                Tables actives : <span className="font-semibold text-primary-800">{explorerActiveCount}</span> / {explorerSources.length}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { void loadExplorerOverview() }}
+                disabled={explorerLoading}
+              >
+                {explorerLoading ? 'Actualisation…' : 'Actualiser'}
+              </Button>
+            </div>
+          </div>
+
+          {explorerError && (
+            <div className="rounded-lg border-2 border-red-200 bg-red-50 text-red-700 text-sm p-3">
+              {explorerError}
+            </div>
+          )}
+
+          {explorerLoading && explorerSources.length === 0 ? (
+            <div className="py-8 flex justify-center">
+              <Loader text="Chargement des tables Explorer…" />
+            </div>
+          ) : explorerSources.length === 0 ? (
+            <div className="py-6 text-sm text-primary-600">Aucune table détectée.</div>
+          ) : (
+            <div className="space-y-3">
+              {explorerSources.map(source => {
+                const fields = source.fields ?? []
+                const roles = explorerRoles[source.source] ?? {
+                  date_field: source.date_field ?? null,
+                  category_field: source.category_field ?? null,
+                  sub_category_field: source.sub_category_field ?? null,
+                }
+                const isEnabled = source.explorer_enabled !== false
+                const savingRoles = explorerSaving.has(source.source)
+                const toggling = explorerToggling.has(source.source)
+                const roleError = explorerRoleErrors[source.source]
+                return (
+                  <div
+                    key={source.source}
+                    className={`rounded-xl border ${isEnabled ? 'border-primary-100 bg-white' : 'border-primary-100 bg-primary-25'}`}
+                  >
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-4 py-3 border-b border-primary-100">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-primary-500">{source.source}</p>
+                        <p className="text-sm font-semibold text-primary-900">{source.title}</p>
+                        <p className="text-[11px] text-primary-600">
+                          {formatNumber(source.total_rows)} lignes · {fields.length} colonnes
+                        </p>
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-sm text-primary-800">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-primary-300 text-primary-900 focus:ring-primary-500"
+                          checked={isEnabled}
+                          onChange={e => handleToggleExplorer(source.source, e.target.checked)}
+                          disabled={toggling}
+                        />
+                        <span className="font-semibold">Inclure dans l’Explorer</span>
+                        {!isEnabled && (
+                          <span className="text-xs text-primary-500">(désactivée)</span>
+                        )}
+                      </label>
+                    </div>
+
+                    <div className="px-4 py-3 space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {(['date_field', 'category_field', 'sub_category_field'] as const).map(key => (
+                          <label key={key} className="flex flex-col gap-1 text-xs text-primary-700">
+                            <span className="font-semibold text-primary-800">
+                              {key === 'date_field'
+                                ? 'Colonne date'
+                                : key === 'category_field'
+                                  ? 'Category'
+                                  : 'Sub Category'}
+                            </span>
+                            <select
+                              className="h-10 rounded-md border border-primary-200 bg-white px-2 text-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              value={roles[key] ?? ''}
+                              onChange={e => handleExplorerRoleChange(source.source, key, e.target.value)}
+                              disabled={savingRoles || fields.length === 0}
+                            >
+                              <option value="">Aucune</option>
+                              {fields.map(field => (
+                                <option key={field.field} value={field.field}>
+                                  {field.field}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ))}
+                      </div>
+
+                      {roleError ? (
+                        <p className="text-xs text-red-600">{roleError}</p>
+                      ) : (
+                        <p className="text-[11px] text-primary-500">
+                          Sélectionnez Category et Sub Category ensemble pour alimenter les répartitions et l’aperçu.
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => { void handleSaveExplorerRoles(source.source) }}
+                          disabled={savingRoles}
+                        >
+                          {savingRoles ? 'Enregistrement…' : 'Enregistrer les colonnes'}
+                        </Button>
+                        {!isEnabled && (
+                          <span className="text-[11px] text-primary-500">Cette table reste masquée tant qu’elle n’est pas activée.</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Card>
+      )}
 
       {activeTab === 'loop' && (
       <>
