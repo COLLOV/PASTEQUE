@@ -20,7 +20,7 @@ import type {
   FeedbackResponse,
   FeedbackValue
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiSparkles } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiCpuChip } from 'react-icons/hi2'
 import clsx from 'clsx'
 import { renderMarkdown } from '@/utils/markdown'
 
@@ -121,15 +121,24 @@ export default function Chat() {
   // Animation de chargement pendant la génération d'un graphique
   const [chartGenerating, setChartGenerating] = useState(false)
   const [chartMode, setChartMode] = useState(false)
-  const [ticketMode, setTicketMode] = useState(false)
-  const [ticketRange, setTicketRange] = useState<{ from?: string; to?: string }>({})
+  const [ticketMode, setTicketMode] = useState(true)
+  const [ticketRanges, setTicketRanges] = useState<Array<{ id: string; from?: string; to?: string }>>([
+    { id: createMessageId() }
+  ])
+  const [extraTicketSources, setExtraTicketSources] = useState<Array<{
+    id: string
+    table?: string
+    ranges: Array<{ id: string; from?: string; to?: string }>
+  }>>([])
+  const [showTicketPanel, setShowTicketPanel] = useState(true)
   const [ticketMeta, setTicketMeta] = useState<{ min?: string; max?: string; total?: number; table?: string } | null>(null)
+  const [ticketMetaByTable, setTicketMetaByTable] = useState<Record<string, { min?: string; max?: string; total?: number }>>({})
   const [ticketMetaLoading, setTicketMetaLoading] = useState(false)
   const [ticketMetaError, setTicketMetaError] = useState('')
   const [ticketStatus, setTicketStatus] = useState('')
   const [ticketTable, setTicketTable] = useState<string>('')
   const [ticketTables, setTicketTables] = useState<string[]>([])
-  const [sqlMode, setSqlMode] = useState(true)
+  const [sqlMode, setSqlMode] = useState(false)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
   const [showTicketsSheet, setShowTicketsSheet] = useState(false)
@@ -245,7 +254,16 @@ export default function Chat() {
     refreshHistory()
   }, [])
 
-  async function loadTicketMetadata(tableOverride?: string) {
+  // Ticket mode is now default: preload metadata/tables on first render
+  useEffect(() => {
+    if (ticketMode && !ticketMeta && !ticketMetaLoading) {
+      void loadTicketMetadata()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketMode])
+
+  async function loadTicketMetadata(tableOverride?: string, opts?: { target?: 'main' | string }) {
+    const target = opts?.target ?? 'main'
     setTicketMetaLoading(true)
     setTicketMetaError('')
     try {
@@ -264,18 +282,46 @@ export default function Chat() {
       const meta = await apiFetch<{ table: string; date_min?: string; date_max?: string; total_count: number }>(
         params.size ? `/tickets/context/metadata?${params.toString()}` : '/tickets/context/metadata'
       )
-      setTicketMeta({
+      const metaRecord = {
         min: meta?.date_min,
         max: meta?.date_max,
         total: typeof meta?.total_count === 'number' ? meta.total_count : undefined,
-        table: meta?.table,
-      })
-      setTicketTable(selectedTable || meta?.table || '')
-      setTicketRange(prev => ({
-        from: prev.from ?? meta?.date_min ?? undefined,
-        to: prev.to ?? meta?.date_max ?? undefined,
+      }
+      const resolvedTable = selectedTable || meta?.table || ''
+      setTicketMetaByTable(prev => ({
+        ...prev,
+        ...(resolvedTable ? { [resolvedTable]: metaRecord } : {}),
       }))
-      setTicketStatus(meta?.total_count ? `Tickets prêts (${meta.total_count})` : 'Contexte tickets chargé')
+      if (target === 'main') {
+        setTicketMeta({ ...metaRecord, table: meta?.table })
+        setTicketTable(resolvedTable)
+        setTicketRanges(prev => {
+          const first = prev[0] ?? { id: createMessageId() }
+          const updated = {
+            ...first,
+            from: first.from ?? meta?.date_min ?? undefined,
+            to: first.to ?? meta?.date_max ?? undefined,
+          }
+          const rest = prev.slice(1)
+          return [updated, ...rest]
+        })
+        setTicketStatus(meta?.total_count ? `Tickets prêts (${meta.total_count})` : 'Contexte tickets chargé')
+      } else {
+        setExtraTicketSources(prev =>
+          prev.map(src =>
+            src.id === target
+              ? {
+                  ...src,
+                  table: resolvedTable,
+                  ranges:
+                    src.ranges.length > 0
+                      ? src.ranges
+                      : [{ id: createMessageId(), from: meta?.date_min ?? undefined, to: meta?.date_max ?? undefined }],
+                }
+              : src
+          )
+        )
+      }
     } catch (err) {
       setTicketMetaError(err instanceof Error ? err.message : 'Contexte tickets indisponible')
       setTicketStatus('')
@@ -296,14 +342,16 @@ export default function Chat() {
   function onToggleTicketModeClick() {
     setTicketMode(v => {
       const next = !v
-      if (next && !ticketMeta && !ticketMetaLoading) {
-        void loadTicketMetadata()
-      }
+      // next === true -> mode tickets; next === false -> mode base
       if (next) {
+        if (!ticketMeta && !ticketMetaLoading) {
+          void loadTicketMetadata()
+        }
         setSqlMode(false)
         setChartMode(false)
-      }
-      if (!next) {
+      } else {
+        setSqlMode(true)
+        setChartMode(false)
         setTicketStatus('')
       }
       return next
@@ -339,9 +387,30 @@ export default function Chat() {
       if (sqlMode || isChartMode) baseMeta.nl2sql = true
       if (ticketMode) {
         baseMeta.ticket_mode = true
-        if (ticketRange.from) baseMeta.tickets_from = ticketRange.from
-        if (ticketRange.to) baseMeta.tickets_to = ticketRange.to
+        const periods = ticketRanges
+          .map(p => ({ from: p.from?.trim() || undefined, to: p.to?.trim() || undefined }))
+          .filter(p => p.from || p.to)
+        const sources = [
+          {
+            table: ticketTable || undefined,
+            periods,
+          },
+          ...extraTicketSources.map(src => ({
+            table: src.table || undefined,
+            periods: (src.ranges || [])
+              .map(r => ({ from: r.from?.trim() || undefined, to: r.to?.trim() || undefined }))
+              .filter(r => r.from || r.to),
+          })),
+        ].filter(s => s.table || (s.periods && s.periods.length > 0))
+        if (periods.length > 0) {
+          baseMeta.ticket_periods = periods
+          baseMeta.tickets_from = periods[0].from
+          baseMeta.tickets_to = periods[0].to
+        }
         if (ticketTable) baseMeta.ticket_table = ticketTable
+        if (sources.length > 0) {
+          baseMeta.ticket_sources = sources
+        }
         setTicketStatus('Préparation du contexte tickets…')
       } else {
         setTicketStatus('')
@@ -1141,7 +1210,276 @@ export default function Chat() {
                 </button>
               </div>
             </div>
-            
+
+            {ticketMode && (
+              <>
+                {showTicketPanel ? (
+                  <div className="mb-3 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs text-primary-700">
+                      <span>Contexte tickets {ticketMeta?.table ? `(${ticketMeta.table})` : ''}</span>
+                      <div className="flex items-center gap-3">
+                        <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
+                          {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary-600 underline"
+                          onClick={() => setShowTicketPanel(false)}
+                        >
+                          Masquer
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className="text-[11px] text-primary-600">Table</label>
+                      <select
+                        value={ticketTable}
+                        onChange={e => {
+                          const next = e.target.value
+                          setTicketTable(next)
+                          void loadTicketMetadata(next || undefined, { target: 'main' })
+                        }}
+                        className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                      >
+                        <option value="">Auto (config loop)</option>
+                        {ticketTables.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-col gap-2 w-full">
+                        {ticketRanges.map((range, idx) => (
+                          <div key={range.id} className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[11px] text-primary-600">Du</label>
+                            <input
+                              type="date"
+                              value={range.from ?? ''}
+                              min={ticketMeta?.min}
+                              max={range.to || ticketMeta?.max}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, from: value } : r))
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            <span className="text-primary-400 text-xs">→</span>
+                            <label className="text-[11px] text-primary-600">au</label>
+                            <input
+                              type="date"
+                              value={range.to ?? ''}
+                              min={range.from || ticketMeta?.min}
+                              max={ticketMeta?.max}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, to: value } : r))
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            {ticketRanges.length > 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 underline"
+                                onClick={() => setTicketRanges(prev => prev.filter(r => r.id !== range.id))}
+                              >
+                                Supprimer
+                              </button>
+                            )}
+                            {idx === ticketRanges.length - 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-primary-700 underline"
+                                onClick={() => setTicketRanges(prev => [...prev, { id: createMessageId() }])}
+                              >
+                                + Ajouter une période
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="text-xs text-primary-700 underline self-start"
+                          onClick={() => {
+                            if (ticketMeta) {
+                              setTicketRanges([{ id: createMessageId(), from: ticketMeta.min, to: ticketMeta.max }])
+                              setTicketStatus(ticketMeta.total ? `${ticketMeta.total} tickets` : 'Contexte tickets réinitialisé')
+                            } else {
+                              setTicketRanges([{ id: createMessageId() }])
+                            }
+                          }}
+                        >
+                          Réinitialiser
+                        </button>
+                      </div>
+                    </div>
+
+                {/* Tables supplémentaires */}
+                {extraTicketSources.map((source, sourceIdx) => {
+                  const meta = source.table ? ticketMetaByTable[source.table] : undefined
+                  const minDate = meta?.min ?? ticketMeta?.min
+                  const maxDate = meta?.max ?? ticketMeta?.max
+                  return (
+                    <div key={source.id} className="mt-2 border-t border-primary-100 pt-2">
+                      <div className="flex items-center justify-between text-xs text-primary-700 mb-1">
+                        <span>Table additionnelle {sourceIdx + 1}</span>
+                        <button
+                          type="button"
+                          className="text-[11px] text-red-600 underline"
+                          onClick={() => setExtraTicketSources(prev => prev.filter(s => s.id !== source.id))}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="text-[11px] text-primary-600">Table</label>
+                        <select
+                          value={source.table ?? ''}
+                          onChange={e => {
+                            const next = e.target.value
+                            setExtraTicketSources(prev =>
+                              prev.map(s => (s.id === source.id ? { ...s, table: next } : s))
+                            )
+                            if (next) {
+                              void loadTicketMetadata(next, { target: source.id })
+                            }
+                          }}
+                          className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                        >
+                          <option value="">Auto (config loop)</option>
+                          {ticketTables.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-2 w-full mt-1">
+                        {(source.ranges || []).map((range, idx) => (
+                          <div key={range.id} className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[11px] text-primary-600">Du</label>
+                            <input
+                              type="date"
+                              value={range.from ?? ''}
+                              min={minDate}
+                              max={range.to || maxDate}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setExtraTicketSources(prev =>
+                                  prev.map(s =>
+                                    s.id === source.id
+                                      ? { ...s, ranges: s.ranges.map(r => r.id === range.id ? { ...r, from: value } : r) }
+                                      : s
+                                  )
+                                )
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            <span className="text-primary-400 text-xs">→</span>
+                            <label className="text-[11px] text-primary-600">au</label>
+                            <input
+                              type="date"
+                              value={range.to ?? ''}
+                              min={range.from || minDate}
+                              max={maxDate}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setExtraTicketSources(prev =>
+                                  prev.map(s =>
+                                    s.id === source.id
+                                      ? { ...s, ranges: s.ranges.map(r => r.id === range.id ? { ...r, to: value } : r) }
+                                      : s
+                                  )
+                                )
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            {(source.ranges?.length || 0) > 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 underline"
+                                onClick={() =>
+                                  setExtraTicketSources(prev =>
+                                    prev.map(s =>
+                                      s.id === source.id
+                                        ? { ...s, ranges: s.ranges.filter(r => r.id !== range.id) }
+                                        : s
+                                    )
+                                  )
+                                }
+                              >
+                                Supprimer
+                              </button>
+                            )}
+                            {idx === (source.ranges?.length || 1) - 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-primary-700 underline"
+                                onClick={() =>
+                                  setExtraTicketSources(prev =>
+                                    prev.map(s =>
+                                      s.id === source.id
+                                        ? { ...s, ranges: [...s.ranges, { id: createMessageId() }] }
+                                        : s
+                                    )
+                                  )
+                                }
+                              >
+                                + Ajouter une période
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="text-xs text-primary-700 underline self-start"
+                          onClick={() =>
+                            setExtraTicketSources(prev =>
+                              prev.map(s =>
+                                s.id === source.id
+                                  ? {
+                                      ...s,
+                                      ranges: [
+                                        { id: createMessageId(), from: minDate, to: maxDate },
+                                      ],
+                                    }
+                                  : s
+                              )
+                            )
+                          }
+                        >
+                          Réinitialiser cette table
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                    <button
+                      type="button"
+                      className="text-xs text-primary-700 underline self-start"
+                      onClick={() => setExtraTicketSources(prev => [...prev, { id: createMessageId(), ranges: [{ id: createMessageId() }] }])}
+                    >
+                      + Ajouter une table
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mb-3 border rounded-2xl bg-primary-50 px-3 py-2 flex items-center justify-between text-xs text-primary-700">
+                    <div className="flex items-center gap-2">
+                      <span>Contexte tickets masqué</span>
+                      <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
+                        {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary-600 underline"
+                      onClick={() => setShowTicketPanel(true)}
+                    >
+                      Afficher
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id ?? index}
@@ -1173,86 +1511,26 @@ export default function Chat() {
 
           {/* Composer */}
           <div className="p-3">
-            {ticketMode && (
-              <div className="mb-2 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-primary-700">
-                  <span>Contexte tickets {ticketMeta?.table ? `(${ticketMeta.table})` : ''}</span>
-                  <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
-                    {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <label className="text-[11px] text-primary-600">Table</label>
-                  <select
-                    value={ticketTable}
-                    onChange={e => {
-                      const next = e.target.value
-                      setTicketTable(next)
-                      void loadTicketMetadata(next || undefined)
-                    }}
-                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
-                  >
-                    <option value="">Auto (config loop)</option>
-                    {ticketTables.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <label className="text-[11px] text-primary-600">Du</label>
-                  <input
-                    type="date"
-                    value={ticketRange.from ?? ''}
-                    min={ticketMeta?.min}
-                    max={ticketRange.to || ticketMeta?.max}
-                    onChange={e => setTicketRange(prev => ({ ...prev, from: e.target.value || undefined }))}
-                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
-                  />
-                  <span className="text-primary-400 text-xs">→</span>
-                  <label className="text-[11px] text-primary-600">au</label>
-                  <input
-                    type="date"
-                    value={ticketRange.to ?? ''}
-                    min={ticketRange.from || ticketMeta?.min}
-                    max={ticketMeta?.max}
-                    onChange={e => setTicketRange(prev => ({ ...prev, to: e.target.value || undefined }))}
-                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
-                  />
-                  <button
-                    type="button"
-                    className="text-xs text-primary-700 underline"
-                    onClick={() => {
-                      if (ticketMeta) {
-                        setTicketRange({ from: ticketMeta.min, to: ticketMeta.max })
-                        setTicketStatus(ticketMeta.total ? `${ticketMeta.total} tickets` : 'Contexte tickets réinitialisé')
-                      }
-                    }}
-                  >
-                    Réinitialiser
-                  </button>
-                </div>
-              </div>
-            )}
             <div className="relative">
               <div className="absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onToggleTicketModeClick}
-                  aria-pressed={ticketMode}
-                  title="Activer le contexte tickets"
-                className={clsx(
-                  'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
-                  ticketMode
-                    ? 'bg-primary-700 text-white hover:bg-primary-800 border-primary-700'
-                    : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
-                )}
-              >
-                {ticketMetaLoading ? (
-                  <span className="inline-block h-4 w-4 border-2 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
-                ) : (
-                  <HiSparkles className="w-5 h-5" />
-                )}
-              </button>
+                  aria-pressed={!ticketMode}
+                  title={!ticketMode ? 'Mode base actif (agents SQL/RAG)' : 'Activer le contexte tickets par défaut'}
+                  className={clsx(
+                    'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
+                    !ticketMode
+                      ? 'bg-primary-700 text-white hover:bg-primary-800 border-primary-700'
+                      : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+                  )}
+                >
+                  {ticketMetaLoading ? (
+                    <span className="inline-block h-4 w-4 border-2 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
+                  ) : (
+                    <HiCpuChip className="w-5 h-5" />
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={onToggleChartModeClick}
