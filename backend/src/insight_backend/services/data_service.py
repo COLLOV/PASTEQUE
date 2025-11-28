@@ -73,6 +73,7 @@ class FieldAccumulator:
     date_counter: Counter[str] = field(default_factory=Counter)
     non_null: int = 0
     parsed_dates: int = 0
+    parse_dates: bool = True
 
     def add(self, value: object | None) -> None:
         text = _clean_text(value)
@@ -81,10 +82,11 @@ class FieldAccumulator:
 
         self.non_null += 1
 
-        normalized_date = _normalize_date(text)
-        if normalized_date:
-            self.parsed_dates += 1
-            self.date_counter[normalized_date] += 1
+        if self.parse_dates:
+            normalized_date = _normalize_date(text)
+            if normalized_date:
+                self.parsed_dates += 1
+                self.date_counter[normalized_date] += 1
 
         self.raw_counter[text] += 1
 
@@ -394,7 +396,6 @@ class DataService:
                     fields=[],
                 )
 
-            accumulators = {name: FieldAccumulator(name=name) for name in headers}
             roles = column_roles or ColumnRoles()
             headers_set = set(headers)
 
@@ -437,6 +438,12 @@ class DataService:
                     table_name,
                 )
                 return None
+
+            parse_all_dates = date_field is None
+            accumulators = {
+                name: FieldAccumulator(name=name, parse_dates=parse_all_dates or name == date_field)
+                for name in headers
+            }
 
             for row in reader:
                 normalized_date = _normalize_date(row.get(date_field)) if date_field else None
