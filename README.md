@@ -18,6 +18,7 @@ Plateforme modulaire pour « discuter avec les données » (chatbot, dashboard, 
 Script combiné (depuis la racine):
 
 - `./start.sh` – coupe les processus déjà liés à ces ports, synchronise les dépendances (`uv sync`, `npm install` si besoin), recrée systématiquement le conteneur `mindsdb_container` via `${CONTAINER_RUNTIME} run …` (`CONTAINER_RUNTIME` défini dans `backend/.env`, valeurs supportées : `docker` ou `podman`), attend que l’API MindsDB réponde, synchronise les tables locales, puis configure `ALLOWED_ORIGINS` côté backend avant de lancer backend, frontend et SSR. Le frontend est désormais servi en mode « preview » (build + `vite preview`) pour éviter les erreurs de type « too many files open » liées aux watchers; pas de rechargement instantané. Les hôtes/ports sont lus dans `backend/.env` (`BACKEND_DEV_URL`) et `frontend/.env.development` (`FRONTEND_DEV_URL`), tandis que `VITE_API_URL` sert de base d’appels pour le frontend. Optionnellement, `FRONTEND_URLS` peut lister plusieurs origines pour CORS (séparées par des virgules).
+- Si un conteneur MindsDB portant `${MINDSDB_CONTAINER_NAME}` existe déjà et tourne, `./start.sh` le réutilise (pas de redémarrage). Sinon il le démarre; le conteneur reste actif à la fin du script (pas d’arrêt automatique).
 - `./start_full.sh` – mêmes étapes que `start.sh`, mais diffuse dans ce terminal les logs temps réel du backend, du frontend et de MindsDB (préfixés pour rester lisibles).
 - Exemple: définir `BACKEND_DEV_URL=http://0.0.0.0:8000`, `FRONTEND_DEV_URL=http://localhost:5173` puis lancer `./start.sh`.
 
@@ -35,7 +36,6 @@ Backend (depuis `backend/`):
 2. Installer les deps: `uv sync`
 3. Lancer: `uv run uvicorn insight_backend.main:app --reload`
 4. Copier `backend/.env.example` en `backend/.env` et ajuster les variables (`BACKEND_DEV_URL` pour l’hôte/port d’écoute du backend, PostgreSQL `DATABASE_URL`, identifiants admin, LLM mode local/API, `CONTAINER_RUNTIME` = `docker` ou `podman` pour le lancement de MindsDB, etc.). Le fichier `backend/.env.example` est versionné : mettez-le à jour dès que vous ajoutez ou renommez une variable pour que l’équipe dispose de la configuration de référence.
-5. Les chemins de données (`DATA_TABLES_DIR`, `DATA_DICTIONARY_DIR`, `MINDSDB_EMBEDDINGS_CONFIG_PATH`, etc.) sont résolus par rapport au dossier `backend/` (via `resolve_project_path`). Avec la configuration par défaut (`../data/raw`), les CSV du repo sont correctement pris en compte pour le mode tickets; pour MindsDB embeddings, pointez sur `../data/mindsdb_embeddings.yaml` si vous utilisez ce fichier.
 
 `backend/.env` (également versionné) est désormais maintenu strictement aligné sur `backend/.env.example`. Si vous avez besoin de variantes locales, créez un fichier ignoré (ex. `backend/.env.local`) ou exportez temporairement vos variables sans modifier ceux qui servent de base commune à l’équipe.
 
@@ -60,7 +60,6 @@ Lors du premier lancement, connectez-vous avec `admin / admin` (ou les valeurs `
 - Front: affichage en direct des tokens. Lorsqu’un mode NL→SQL est actif, la/les requêtes SQL exécutées s’affichent d’abord dans la bulle (grisé car provisoire), puis la bulle bascule automatiquement sur la réponse finale. Un lien « Afficher les détails de la requête » dans la bulle permet de revoir les SQL, les échantillons et désormais les lignes RAG récupérées (table, score, colonnes clés) pour expliquer la mise en avant.
 - Backend: deux modes LLM (`LLM_MODE=local|api`) — vLLM local via `VLLM_BASE_URL`, provider externe via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `LLM_MODEL`.
 - Les réponses du chat sont formatées et rendues en Markdown (titres courts, listes, tableaux, blocs de code) pour une meilleure lisibilité.
-- Nouveau mode « Tickets » (bouton étincelle à côté du graphique) : injecte uniquement la description des tickets (date/id/description) dans le prompt via une plage de dates sélectionnable, sans lancer de SQL ni afficher la liste détaillée. La table source peut être choisie (sinon prise depuis la config Loop) et les garde‑fous du looper s’appliquent (`LOOP_MAX_TICKETS`, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`): si le volume dépasse le cap, les tickets sont chunkés puis fusionnés en « résumés de résumés ». Endpoint utilitaire: `GET /api/v1/tickets/context/metadata` pour récupérer les bornes min/max (avec `table=` optionnel).
 - `LLM_MAX_TOKENS` (défaut 1024) impose le plafond `max_tokens` sur tous les appels OpenAI-compatibles (explorateur, analyste, rédaction, router, chat) pour éviter les erreurs lorsque `model_max_tokens - context_tokens` devient négatif.
 - `AGENT_OUTPUT_MAX_ROWS`/`AGENT_OUTPUT_MAX_COLUMNS` (défauts 200/20) bornent le volume de lignes/colonnes envoyé par les agents NL→SQL dans les événements SSE afin d’éviter des payloads géants.
 - Le mode NL→SQL enchaîne désormais les requêtes en conservant le contexte conversationnel (ex.: après « Combien de tickets en mai 2023 ? », la question « Et en juin ? » reste sur l’année 2023).
@@ -98,12 +97,12 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 - Persistance côté backend des conversations, messages et événements (`conversations`, `conversation_messages`, `conversation_events`).
 - SSE `meta` inclut `conversation_id` pour qu’un premier message crée la conversation automatiquement.
 - Endpoints: `GET /api/v1/conversations`, `GET /api/v1/conversations/{id}`, `POST /api/v1/conversations`.
-- UI (header): « Historique » pour lister/ouvrir une discussion passée, « Nouveau chat » (remplace « Chat ») pour repartir de zéro.
+- UI (header): « Historique » pour lister/ouvrir une discussion passée, « Chat » pour démarrer une nouvelle session (`?new=1`).
 
 ### Gestion des utilisateurs (admin)
 
-- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Nouveau chat**, **Historique**, **Dashboard** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
-- L’espace admin est découpé en onglets (Statistiques, Dictionnaire, Loop, Utilisateurs, Feedback). L’ancien chemin `/feedback` redirige vers l’onglet Feedback pour centraliser la revue des avis.
+- Une fois connecté avec le compte administrateur, l’UI affiche l’onglet **Admin** permettant de créer de nouveaux couples utilisateur/mot de passe. L’interface a été simplifiée: **Chat**, **Explorer**, **Radar**, **Graph**, **Historique** et **Admin** sont accessibles via des boutons dans le header (top bar). La barre de navigation secondaire a été supprimée pour éviter les doublons.
+- L’espace admin est découpé en onglets (Statistiques, Dictionnaire, Radar, Utilisateurs, Feedback). L’ancien chemin `/feedback` redirige vers l’onglet Feedback pour centraliser la revue des avis.
 - Tout nouvel utilisateur (y compris l’administrateur initial) doit définir un mot de passe définitif lors de sa première connexion. Le backend retourne un code `PASSWORD_RESET_REQUIRED` si un utilisateur tente de se connecter avec son mot de passe provisoire: le frontend affiche alors un formulaire dédié qui impose la saisie du nouveau mot de passe deux fois avant de poursuivre.
 - L’endpoint backend `POST /api/v1/auth/users` (token Bearer requis) accepte `{ "username": "...", "password": "..." }` et renvoie les métadonnées de l’utilisateur créé. La réponse de connexion contient désormais `username` et `is_admin` pour que le frontend sélectionne l’onglet Admin uniquement pour l’administrateur.
 - L’API `POST /api/v1/auth/reset-password` (sans jeton) attend `{ username, current_password, new_password, confirm_password }`. En cas de succès elle renvoie `204` ; le frontend relance automatiquement la connexion avec le nouveau secret.
@@ -119,30 +118,30 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 
 ### Explorer (vision globale des sources)
 
+- L’onglet/page Explorer est désactivé dans la navigation (route retirée) pour alléger l’UI; utiliser l’Explorer (camembert Category/Sub Category) et le Chat pour les parcours principaux.
 - API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
-- Frontend : page `/explorer` (bouton à gauche de « Nouveau chat ») avec cartes par source, colonnes autodécouvertes et masquage des champs piloté par l’administrateur (mise à jour persistante appliquée à tous les utilisateurs ; la tuile « Colonnes affichées » est retirée du header).
-- Admin : les colonnes Date / Category / Sub Category sont configurables par table dans l’Explorer (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
+- Admin : les colonnes Date / Category / Sub Category sont configurables par table (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
 - Visualisations Chart.js (lignes + barres) avec palette colorée pour timelines et répartitions des valeurs à partir des colonnes détectées automatiquement.
 - Le jeu `tickets_jira` inclut désormais les colonnes `Category` et `Sub Category` (classification ITSM) pour alimenter la répartition affichée dans l’Explorer et les filtres associés.
 - Usage : vérifier la santé et la couverture des jeux de données avant d’ouvrir un chat ou de générer des graphiques.
 
-### Vue IA (navigation Category/Sub Category)
+### Explorer (navigation Category/Sub Category)
 
-- Nouvel onglet « Vue IA » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
-- Les colonnes Date / Category / Sub Category sont configurables par l’admin (Explorer ou Vue IA) et persistées via `/api/v1/data/overview/{source}/column-roles`.
+- Onglet « Explorer » dans le header pour explorer les données par paires `Category` / `Sub Category` quand ces colonnes existent.
+- Les colonnes Date / Category / Sub Category sont configurables par l’admin (Explorer) et persistées via `/api/v1/data/overview/{source}/column-roles`.
 - Chaque source affichant ces colonnes est listée avec ses catégories et sous-catégories cliquables : un clic déclenche un aperçu (`/api/v1/data/explore/{source}`) limité à 25 lignes, avec le volume total de lignes correspondantes.
 - Si une source ne possède pas les deux colonnes, la vue l’ignore et affiche un message explicite plutôt que de masquer l’erreur.
 - Les aperçus sont paginés (25 lignes/page) avec navigation précédente/suivante et un tri par colonne `date` (desc/asc) quand la colonne est présente.
 - Un range slider « date » global (tout en haut) filtre les données et l’aperçu d’un seul coup : la plage sélectionnée est appliquée côté backend (`/data/overview` + `/data/explore`) pour recalculer les volumes, avec un rail unique qui met en évidence la plage choisie.
-- Les tuiles de synthèse (sources/couples/sélection) ont été retirées de la Vue IA pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
+- Chaque source inclut désormais un camembert Category/Sub Category (Chart.js) cliquable qui déclenche l’aperçu, se recalcule automatiquement quand le filtre date est appliqué et permet un drill-down : clic catégorie → camembert des sous-catégories + mise à jour immédiate de la table sur la sous-catégorie dominante, clic sous-catégorie → ouverture de l’aperçu (bouton retour pour remonter).
+- Les tuiles de synthèse (sources/couples/sélection) ont été retirées de l’Explorer pour alléger l’interface et concentrer l’espace sur l’aperçu et les listes cliquables.
 - Les catégories sont maintenant sélectionnables via un dropdown, avec un filtre texte pour cibler les sous-catégories affichées dans une liste scrollable.
 
-### Loop – résumés hebdo/mensuels
+### Radar – résumés journaliers/hebdo/mensuels
 
-- Bouton « Loop » dans le header: affiche les résumés hebdomadaires et mensuels générés par l’agent `looper` (problèmes majeurs + plan d’action, réponses longues autorisées).
-- Panneau Admin → section « Loop »: choisir la table source et les colonnes texte/date des tickets, enregistrer, puis relancer la génération (`POST /api/v1/loop/regenerate`). Résultats persistés et visibles pour tous via `GET /api/v1/loop/overview`.
-- Panneau Admin → section « Contexte tickets (chat) »: choisir la colonne date utilisée par le mode tickets du chat (réutilise les column‑roles de l’Explorer pour rester cohérent avec les catégories).
-- L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, `LOOP_MAX_WEEKS/MONTHS` par défaut à 1, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`, etc.).
+- Bouton « Radar » dans le header: affiche les résumés journaliers (mention explicite lorsqu’aucun ticket n’est enregistré ce jour), hebdomadaires et mensuels générés par l’agent `looper`. Les tables visibles sont filtrées selon les droits `user_table_permissions`.
+- Panneau Admin → section « Radar »: configurer plusieurs tables (colonnes texte/date), puis relancer la génération pour une table donnée ou pour toutes (`POST /api/v1/loop/regenerate?table_name=...`). Résultats persistés et visibles via `GET /api/v1/loop/overview`.
+- L’agent suit `LLM_MODE` (local vLLM ou API OpenAI‑compatible) et peut être borné via `AGENT_MAX_REQUESTS` (clé `looper`). Les garde‑fous de contexte sont décrits dans `backend/README.md` (`LOOP_MAX_TICKETS`, `LOOP_TICKET_TEXT_MAX_CHARS`, `LOOP_MAX_DAYS/WEEKS/MONTHS` par défaut à 1, `LOOP_MAX_TICKETS_PER_CALL`, `LOOP_MAX_INPUT_CHARS`, etc.).
 
 ## Principes d’architecture
 

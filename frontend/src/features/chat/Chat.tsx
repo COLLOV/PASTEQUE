@@ -1088,7 +1088,7 @@ export default function Chat() {
                 </div>
               </div>
             </div>
-            {/* Desktop toolbar (sans boutons Historique/Nouveau chat pour éviter doublons avec le header) */}
+            {/* Desktop toolbar (sans boutons Historique/Chat pour éviter doublons avec le header) */}
             <div className="hidden lg:flex items-center justify-between mb-2">
               <div className="text-xs text-primary-500">{conversationId ? `Discussion #${conversationId}` : 'Nouvelle discussion'}</div>
               <div className="flex items-center gap-2">

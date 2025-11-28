@@ -13,7 +13,7 @@ log = logging.getLogger("insight.services.looper")
 
 
 class LooperAgent:
-    """Agent dédié aux résumés hebdomadaires/mensuels des tickets."""
+    """Agent dédié aux résumés journaliers/hebdomadaires/mensuels des tickets."""
 
     def summarize(
         self,
