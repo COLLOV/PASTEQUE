@@ -86,7 +86,9 @@ export default function Explorer() {
       }
       setUpdateError('')
       try {
-        const res = await apiFetch<DataOverviewResponse>('/data/overview?include_disabled=true&lazy_disabled=true&lightweight=true')
+        const res = await apiFetch<DataOverviewResponse>(
+          '/data/overview?include_disabled=true&lazy_disabled=true&headers_only=true'
+        )
         setOverview(res ?? { generated_at: '', sources: [] })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Chargement impossible.'

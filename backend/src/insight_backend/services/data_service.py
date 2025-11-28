@@ -262,6 +262,7 @@ class DataService:
         date_to: str | None = None,
         explorer_enabled: bool = True,
         lightweight: bool = False,
+        headers_only: bool = False,
     ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
@@ -326,6 +327,44 @@ class DataService:
                 date_field=date_field,
                 category_field=category_field,
                 sub_category_field=sub_category_field,
+                field_count=total_field_count,
+                fields=fields,
+                category_breakdown=[],
+                explorer_enabled=explorer_enabled,
+            )
+
+        if headers_only:
+            try:
+                schema = self.repo.get_schema(table_name)
+            except FileNotFoundError:
+                log.warning("Table introuvable pour l'overview (headers_only): %s", table_name)
+                return None
+            headers = [name for name, _ in schema]
+            if not headers:
+                return DataSourceOverview(
+                    source=table_name,
+                    title=TABLE_TITLES.get(table_name, table_name),
+                    total_rows=0,
+                    field_count=0,
+                    fields=[],
+                    explorer_enabled=explorer_enabled,
+                )
+            fields = [
+                FieldBreakdown(
+                    field=name,
+                    label=name,
+                    hidden=name in (hidden_fields or set()),
+                )
+                for name in headers
+            ]
+            hidden_set = set(hidden_fields or [])
+            total_field_count = len(fields)
+            if hidden_set and not include_hidden_fields:
+                fields = [item for item in fields if item.field not in hidden_set]
+            return DataSourceOverview(
+                source=table_name,
+                title=TABLE_TITLES.get(table_name, table_name),
+                total_rows=0,
                 field_count=total_field_count,
                 fields=fields,
                 category_breakdown=[],
