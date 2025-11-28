@@ -281,10 +281,16 @@ export default function Chat() {
         table: meta?.table,
       })
       setTicketTable(selectedTable || meta?.table || '')
-      setTicketRange(prev => ({
-        from: prev.from ?? meta?.date_min ?? undefined,
-        to: prev.to ?? meta?.date_max ?? undefined,
-      }))
+      setTicketRanges(prev => {
+        const first = prev[0] ?? { id: createMessageId() }
+        const updated = {
+          ...first,
+          from: first.from ?? meta?.date_min ?? undefined,
+          to: first.to ?? meta?.date_max ?? undefined,
+        }
+        const rest = prev.slice(1)
+        return [updated, ...rest]
+      })
       setTicketStatus(meta?.total_count ? `Tickets prêts (${meta.total_count})` : 'Contexte tickets chargé')
     } catch (err) {
       setTicketMetaError(err instanceof Error ? err.message : 'Contexte tickets indisponible')
