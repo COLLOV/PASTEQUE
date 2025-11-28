@@ -12,7 +12,8 @@ import type {
   AdminResetPasswordResponse,
   AdminUsageStatsResponse,
 } from '@/types/user'
-import type { LoopConfig, LoopOverview, LoopConfigPayload, LoopTableOverview } from '@/types/loop'
+import type { LoopConfig, LoopOverview, LoopConfigPayload } from '@/types/loop'
+import type { DataOverviewResponse, ColumnRolesResponse } from '@/types/data'
 import { HiCheckCircle, HiXCircle, HiArrowPath } from 'react-icons/hi2'
 import DictionaryManager from './DictionaryManager'
 import FeedbackAdmin from './FeedbackAdmin'
@@ -49,7 +50,7 @@ const TAB_KEYS = new Set<TabKey>(['stats', 'dictionary', 'loop', 'users', 'feedb
 const TAB_ITEMS: { key: TabKey; label: string }[] = [
   { key: 'stats', label: 'Statistiques' },
   { key: 'dictionary', label: 'Dictionnaire' },
-  { key: 'loop', label: 'Radar' },
+  { key: 'loop', label: 'Loop' },
   { key: 'users', label: 'Utilisateurs' },
   { key: 'feedback', label: 'Feedback' },
 ]
@@ -74,7 +75,7 @@ export default function AdminPanel() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsError, setStatsError] = useState('')
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(() => new Set())
-  const [loopOverviewData, setLoopOverviewData] = useState<LoopOverview | null>(null)
+  const [loopConfig, setLoopConfig] = useState<LoopConfig | null>(null)
   const [loopTables, setLoopTables] = useState<TableInfo[]>([])
   const [loopColumns, setLoopColumns] = useState<ColumnInfo[]>([])
   const [selectedTable, setSelectedTable] = useState('')
@@ -85,11 +86,15 @@ export default function AdminPanel() {
   const [loopLoading, setLoopLoading] = useState(true)
   const [loopSaving, setLoopSaving] = useState(false)
   const [loopRegenerating, setLoopRegenerating] = useState(false)
+  const [ticketTable, setTicketTable] = useState('')
+  const [ticketDateColumn, setTicketDateColumn] = useState('')
+  const [ticketColumns, setTicketColumns] = useState<ColumnInfo[]>([])
+  const [ticketStatus, setTicketStatus] = useState<Status | null>(null)
+  const [ticketError, setTicketError] = useState('')
+  const [ticketSaving, setTicketSaving] = useState(false)
+  const [ticketRoles, setTicketRoles] = useState<ColumnRolesResponse | null>(null)
   const auth = getAuth()
   const adminUsername = auth?.username ?? ''
-  const loopItems: LoopTableOverview[] = loopOverviewData?.items ?? []
-  const selectedLoopConfig: LoopConfig | null =
-    loopItems.find(item => item.config.table_name === selectedTable)?.config ?? null
 
   useEffect(() => {
     const tabFromUrl = getValidTab(tabParam)
@@ -165,57 +170,98 @@ export default function AdminPanel() {
     }
   }, [])
 
+  const loadTicketConfig = useCallback(
+    async (tableName: string) => {
+      if (!tableName) {
+        setTicketColumns([])
+        setTicketRoles(null)
+        setTicketDateColumn('')
+        return
+      }
+      setTicketError('')
+      setTicketStatus(null)
+      try {
+        const [colsResponse, overview] = await Promise.all([
+          apiFetch<ColumnInfo[]>(`/data/schema/${encodeURIComponent(tableName)}`),
+          apiFetch<DataOverviewResponse>('/data/overview'),
+        ])
+        setTicketColumns(colsResponse ?? [])
+        const match = overview?.sources?.find(src => src.source === tableName)
+        const roles: ColumnRolesResponse = {
+          source: tableName,
+          date_field: match?.date_field ?? null,
+          category_field: match?.category_field ?? null,
+          sub_category_field: match?.sub_category_field ?? null,
+        }
+        setTicketRoles(roles)
+        setTicketDateColumn(roles.date_field ?? '')
+      } catch (err) {
+        setTicketColumns([])
+        setTicketRoles(null)
+        setTicketDateColumn('')
+        setTicketError(err instanceof Error ? err.message : 'Chargement impossible.')
+      }
+    },
+    []
+  )
+
   const loadLoopOverview = useCallback(async () => {
     setLoopLoading(true)
     setLoopError('')
     try {
       const response = await apiFetch<LoopOverview>('/loop/overview')
-      const items = response?.items ?? []
-      setLoopOverviewData(response ?? { items: [] })
-
-      if (items.length === 0) {
-        setSelectedTable('')
-        setSelectedTextColumn('')
-        setSelectedDateColumn('')
-        setLoopColumns([])
-        return
-      }
-
-      const hasSelection = selectedTable && items.some(item => item.config.table_name === selectedTable)
-      const nextTable = hasSelection ? selectedTable : items[0]?.config.table_name ?? ''
-      const matched = items.find(item => item.config.table_name === nextTable)
-
-      setSelectedTable(nextTable)
-      setSelectedTextColumn(matched?.config.text_column ?? '')
-      setSelectedDateColumn(matched?.config.date_column ?? '')
-      if (nextTable) {
-        await loadColumns(nextTable)
+      const first = response?.items?.[0]
+      const config = first?.config ?? null
+      setLoopConfig(config)
+      if (config) {
+        setSelectedTable(config.table_name)
+        setSelectedTextColumn(config.text_column)
+        setSelectedDateColumn(config.date_column)
+        await loadColumns(config.table_name)
       }
     } catch (err) {
-      setLoopError(err instanceof Error ? err.message : 'Chargement Radar impossible.')
+      setLoopError(err instanceof Error ? err.message : 'Chargement Loop impossible.')
     } finally {
       setLoopLoading(false)
     }
-  }, [loadColumns, selectedTable])
+  }, [loadColumns])
 
   useEffect(() => {
     void loadPermissions()
     void loadStats()
     void loadTables()
     void loadLoopOverview()
-  }, [loadPermissions, loadStats, loadTables])
+  }, [loadPermissions, loadStats, loadTables, loadLoopOverview])
+
+  useEffect(() => {
+    if (loopConfig && !ticketTable) {
+      setTicketTable(loopConfig.table_name)
+      void loadTicketConfig(loopConfig.table_name)
+    }
+  }, [loopConfig, ticketTable, loadTicketConfig])
 
   const handleTableChange = useCallback(
     (value: string) => {
       setSelectedTable(value)
-      const matched = loopOverviewData?.items?.find(item => item.config.table_name === value)
-      setSelectedTextColumn(matched?.config.text_column ?? '')
-      setSelectedDateColumn(matched?.config.date_column ?? '')
+      setSelectedTextColumn('')
+      setSelectedDateColumn('')
       setLoopStatus(null)
       setLoopError('')
       void loadColumns(value)
     },
-    [loadColumns, loopOverviewData]
+    [loadColumns]
+  )
+
+  const handleTicketTableChange = useCallback(
+    (value: string) => {
+      setTicketTable(value)
+      setTicketStatus(null)
+      setTicketError('')
+      setTicketDateColumn('')
+      setTicketRoles(null)
+      void loadTicketConfig(value)
+    },
+    [loadTicketConfig]
   )
 
   async function handleSaveLoopConfig() {
@@ -232,12 +278,12 @@ export default function AdminPanel() {
         text_column: selectedTextColumn,
         date_column: selectedDateColumn,
       }
-      await apiFetch<LoopConfig>('/loop/config', {
+      const response = await apiFetch<LoopConfig>('/loop/config', {
         method: 'PUT',
         body: JSON.stringify(payload),
       })
-      setLoopStatus({ type: 'success', message: `Configuration Radar enregistrée pour ${selectedTable}.` })
-      await loadLoopOverview()
+      setLoopConfig(response ?? null)
+      setLoopStatus({ type: 'success', message: 'Configuration Loop enregistrée.' })
     } catch (err) {
       setLoopStatus({
         type: 'error',
@@ -248,34 +294,27 @@ export default function AdminPanel() {
     }
   }
 
-  async function handleRegenerateLoop(tableName?: string) {
-    if (!loopOverviewData?.items?.length && !tableName) {
-      setLoopStatus({ type: 'error', message: 'Configurez Radar avant de régénérer.' })
+  async function handleRegenerateLoop() {
+    if (!loopConfig) {
+      setLoopStatus({ type: 'error', message: 'Configurez Loop avant de régénérer.' })
       return
     }
     setLoopError('')
     setLoopRegenerating(true)
     setLoopStatus(null)
     try {
-      const url = tableName
-        ? `/loop/regenerate?table_name=${encodeURIComponent(tableName)}`
-        : '/loop/regenerate'
-      const response = await apiFetch<LoopOverview>(url, {
+      const response = await apiFetch<LoopOverview>('/loop/regenerate', {
         method: 'POST',
       })
-      const items = response?.items ?? []
-      setLoopOverviewData(response ?? { items: [] })
-      if (items.length > 0) {
-        const nextTable = tableName && items.some(item => item.config.table_name === tableName)
-          ? tableName
-          : selectedTable || items[0].config.table_name
-        const matched = items.find(item => item.config.table_name === nextTable)
-        setSelectedTable(nextTable)
-        setSelectedTextColumn(matched?.config.text_column ?? '')
-        setSelectedDateColumn(matched?.config.date_column ?? '')
+      const first = response?.items?.[0]
+      const config = first?.config ?? null
+      setLoopConfig(config)
+      if (config) {
+        setSelectedTable(config.table_name)
+        setSelectedTextColumn(config.text_column)
+        setSelectedDateColumn(config.date_column)
       }
-      const label = tableName ? `Résumés Radar régénérés pour ${tableName}.` : 'Résumés Radar régénérés pour toutes les tables.'
-      setLoopStatus({ type: 'success', message: label })
+      setLoopStatus({ type: 'success', message: 'Résumés Loop régénérés.' })
     } catch (err) {
       setLoopStatus({
         type: 'error',
@@ -283,6 +322,44 @@ export default function AdminPanel() {
       })
     } finally {
       setLoopRegenerating(false)
+    }
+  }
+
+  async function handleSaveTicketRoles() {
+    if (!ticketTable) {
+      setTicketStatus({ type: 'error', message: 'Choisissez une table de tickets.' })
+      return
+    }
+    if (!ticketDateColumn) {
+      setTicketStatus({ type: 'error', message: 'Sélectionnez la colonne date.' })
+      return
+    }
+    setTicketSaving(true)
+    setTicketStatus(null)
+    try {
+      const payload = {
+        date_field: ticketDateColumn,
+        category_field: ticketRoles?.category_field ?? null,
+        sub_category_field: ticketRoles?.sub_category_field ?? null,
+      }
+      const response = await apiFetch<ColumnRolesResponse>(
+        `/data/overview/${encodeURIComponent(ticketTable)}/column-roles`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        }
+      )
+      const updated = response ?? payload
+      setTicketRoles(updated as ColumnRolesResponse)
+      setTicketDateColumn(updated.date_field ?? '')
+      setTicketStatus({ type: 'success', message: 'Colonne date enregistrée pour le mode tickets.' })
+    } catch (err) {
+      setTicketStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Mise à jour impossible.',
+      })
+    } finally {
+      setTicketSaving(false)
     }
   }
 
@@ -684,130 +761,130 @@ export default function AdminPanel() {
       {activeTab === 'dictionary' && <DictionaryManager />}
 
       {activeTab === 'loop' && (
-      <Card variant="elevated">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-primary-950">Radar – résumés tickets</h3>
-            <p className="text-sm text-primary-600">
-              Configurez Radar sur plusieurs tables (colonne texte + date) pour générer des résumés journaliers, hebdomadaires et mensuels.
-            </p>
-          </div>
-          <div className="text-sm text-primary-600">
-            Table sélectionnée : <span className="font-medium text-primary-900">{selectedTable || '—'}</span>
-          </div>
-        </div>
-
-        {loopError && (
-          <div className="mb-4 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 text-sm p-3">
-            {loopError}
-          </div>
-        )}
-
-        {loopStatus && (
-          <div
-            className={`mb-4 flex items-start gap-2 p-3 rounded-lg border ${
-              loopStatus.type === 'success'
-                ? 'border-green-200 bg-green-50 text-green-800'
-                : 'border-red-200 bg-red-50 text-red-800'
-            }`}
-          >
-            {loopStatus.type === 'success' ? (
-              <HiCheckCircle className="w-4 h-4 mt-0.5" />
-            ) : (
-              <HiXCircle className="w-4 h-4 mt-0.5" />
-            )}
-            <p className="text-sm">{loopStatus.message}</p>
-          </div>
-        )}
-
-        {loopLoading ? (
-          <div className="py-8 flex justify-center">
-            <Loader text="Chargement de la configuration Radar…" />
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-primary-800 mb-1">
-                  Table de tickets
-                </label>
-                <select
-                  value={selectedTable}
-                  onChange={(e) => handleTableChange(e.target.value)}
-                  className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
-                  disabled={loopTables.length === 0 || loopSaving}
-                >
-                  <option value="">Sélectionner une table…</option>
-                  {loopTables.map(table => (
-                    <option key={table.name} value={table.name}>
-                      {table.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-primary-800 mb-1">
-                    Colonne texte
-                  </label>
-                  <select
-                    value={selectedTextColumn}
-                    onChange={(e) => setSelectedTextColumn(e.target.value)}
-                    className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
-                    disabled={loopColumns.length === 0 || loopSaving}
-                  >
-                    <option value="">Choisir…</option>
-                    {loopColumns.map(col => (
-                      <option key={col.name} value={col.name}>
-                        {col.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-800 mb-1">
-                    Colonne date
-                  </label>
-                  <select
-                    value={selectedDateColumn}
-                    onChange={(e) => setSelectedDateColumn(e.target.value)}
-                    className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
-                    disabled={loopColumns.length === 0 || loopSaving}
-                  >
-                    <option value="">Choisir…</option>
-                    {loopColumns.map(col => (
-                      <option key={col.name} value={col.name}>
-                        {col.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleSaveLoopConfig}
-                  disabled={loopSaving || loopTables.length === 0}
-                >
-                  {loopSaving ? 'Enregistrement…' : 'Enregistrer la configuration'}
-                </Button>
-                <p className="text-xs text-primary-500">
-                  Dernière génération (table sélectionnée) :{' '}
-                  <span className="font-semibold text-primary-800">{formatDate(selectedLoopConfig?.last_generated_at)}</span>
-                </p>
-              </div>
-            </div>
-            <div className="space-y-4 md:border-l md:border-primary-100 md:pl-6 pt-4 md:pt-0">
-              <p className="text-sm text-primary-700">
-                Régénérez les résumés (jour/hebdo/mois) par table ou sur l’ensemble des tables configurées. Les résultats sont filtrés automatiquement selon les droits d’accès aux tables.
+      <>
+        <Card variant="elevated">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-primary-950">Loop – résumés tickets</h3>
+              <p className="text-sm text-primary-600">
+                Sélectionnez la table et les colonnes utilisées pour générer les résumés hebdomadaires et mensuels.
               </p>
-              <div className="flex flex-wrap gap-2">
+            </div>
+            <div className="text-sm text-primary-600">
+              Dernière génération :{' '}
+              <span className="font-medium text-primary-900">
+                {formatDate(loopConfig?.last_generated_at)}
+              </span>
+            </div>
+          </div>
+
+          {loopError && (
+            <div className="mb-4 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 text-sm p-3">
+              {loopError}
+            </div>
+          )}
+
+          {loopStatus && (
+            <div
+              className={`mb-4 flex items-start gap-2 p-3 rounded-lg border ${
+                loopStatus.type === 'success'
+                  ? 'border-green-200 bg-green-50 text-green-800'
+                  : 'border-red-200 bg-red-50 text-red-800'
+              }`}
+            >
+              {loopStatus.type === 'success' ? (
+                <HiCheckCircle className="w-4 h-4 mt-0.5" />
+              ) : (
+                <HiXCircle className="w-4 h-4 mt-0.5" />
+              )}
+              <p className="text-sm">{loopStatus.message}</p>
+            </div>
+          )}
+
+          {loopLoading ? (
+            <div className="py-8 flex justify-center">
+              <Loader text="Chargement de la configuration Loop…" />
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-primary-800 mb-1">
+                    Table de tickets
+                  </label>
+                  <select
+                    value={selectedTable}
+                    onChange={(e) => handleTableChange(e.target.value)}
+                    className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                    disabled={loopTables.length === 0 || loopSaving}
+                  >
+                    <option value="">Sélectionner une table…</option>
+                    {loopTables.map(table => (
+                      <option key={table.name} value={table.name}>
+                        {table.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-primary-800 mb-1">
+                      Colonne texte
+                    </label>
+                    <select
+                      value={selectedTextColumn}
+                      onChange={(e) => setSelectedTextColumn(e.target.value)}
+                      className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                      disabled={loopColumns.length === 0 || loopSaving}
+                    >
+                      <option value="">Choisir…</option>
+                      {loopColumns.map(col => (
+                        <option key={col.name} value={col.name}>
+                          {col.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary-800 mb-1">
+                      Colonne date
+                    </label>
+                    <select
+                      value={selectedDateColumn}
+                      onChange={(e) => setSelectedDateColumn(e.target.value)}
+                      className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                      disabled={loopColumns.length === 0 || loopSaving}
+                    >
+                      <option value="">Choisir…</option>
+                      {loopColumns.map(col => (
+                        <option key={col.name} value={col.name}>
+                          {col.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleSaveLoopConfig}
+                    disabled={loopSaving || loopTables.length === 0}
+                  >
+                    {loopSaving ? 'Enregistrement…' : 'Enregistrer la configuration'}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-3 md:border-l md:border-primary-100 md:pl-6 pt-4 md:pt-0">
+                <p className="text-sm text-primary-700">
+                  Régénérez les résumés hebdomadaires et mensuels à partir de la configuration courante.
+                  Les résultats seront visibles dans l&apos;onglet « Loop ».
+                </p>
                 <Button
                   type="button"
                   variant="primary"
-                  onClick={() => handleRegenerateLoop()}
-                  disabled={loopRegenerating || loopSaving || loopLoading || loopItems.length === 0}
+                  onClick={handleRegenerateLoop}
+                  disabled={loopRegenerating || loopSaving || loopLoading}
                   className="inline-flex items-center gap-2"
                 >
                   {loopRegenerating ? (
@@ -818,62 +895,125 @@ export default function AdminPanel() {
                   ) : (
                     <>
                       <HiArrowPath className="w-4 h-4" />
-                      Régénérer toutes les tables
+                      Régénérer les résumés
                     </>
                   )}
                 </Button>
-                {selectedTable && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => handleRegenerateLoop(selectedTable)}
-                    disabled={loopRegenerating || loopSaving || loopLoading}
-                    className="inline-flex items-center gap-2"
-                  >
-                    <HiArrowPath className="w-4 h-4" />
-                    Régénérer {selectedTable}
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-2">
-                {loopItems.length === 0 ? (
-                  <p className="text-xs text-primary-500">Configurez au moins une table pour activer la génération Radar.</p>
+                {loopConfig ? (
+                  <p className="text-xs text-primary-500">
+                    Table : <span className="font-semibold text-primary-800">{loopConfig.table_name}</span> — texte :{' '}
+                    {loopConfig.text_column} — date : {loopConfig.date_column}
+                  </p>
                 ) : (
-                  loopItems.map(item => (
-                    <div
-                      key={item.config.id}
-                      className="rounded-md border border-primary-100 bg-primary-25 px-3 py-2 flex flex-col gap-1"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-primary-900">{item.config.table_name}</p>
-                          <p className="text-xs text-primary-600">
-                            Texte : {item.config.text_column} — Date : {item.config.date_column}
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleRegenerateLoop(item.config.table_name)}
-                          disabled={loopRegenerating || loopSaving || loopLoading}
-                          className="inline-flex items-center gap-1"
-                        >
-                          <HiArrowPath className="w-4 h-4" />
-                          Régénérer
-                        </Button>
-                      </div>
-                      <p className="text-xs text-primary-500">
-                        Dernière génération : {formatDate(item.config.last_generated_at ?? item.last_generated_at)}
-                      </p>
-                    </div>
-                  ))
+                  <p className="text-xs text-primary-500">
+                    Configurez Loop pour activer la génération.
+                  </p>
                 )}
               </div>
             </div>
+          )}
+        </Card>
+
+        <Card variant="elevated" className="mt-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-primary-950">Contexte tickets (chat)</h3>
+              <p className="text-sm text-primary-600">
+                Choisissez la colonne date utilisée pour filtrer et trier les tickets dans le mode chat « tickets ».
+                Les choix s&apos;appuient sur les tables disponibles et restent alignés avec l&apos;Explorer.
+              </p>
+            </div>
           </div>
-        )}
-      </Card>
+
+          {ticketError && (
+            <div className="mb-4 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 text-sm p-3">
+              {ticketError}
+            </div>
+          )}
+
+          {ticketStatus && (
+            <div
+              className={`mb-4 flex items-start gap-2 p-3 rounded-lg border ${
+                ticketStatus.type === 'success'
+                  ? 'border-green-200 bg-green-50 text-green-800'
+                  : 'border-red-200 bg-red-50 text-red-800'
+              }`}
+            >
+              {ticketStatus.type === 'success' ? (
+                <HiCheckCircle className="w-4 h-4 mt-0.5" />
+              ) : (
+                <HiXCircle className="w-4 h-4 mt-0.5" />
+              )}
+              <p className="text-sm">{ticketStatus.message}</p>
+            </div>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-primary-800 mb-1">
+                  Table de tickets
+                </label>
+                <select
+                  value={ticketTable}
+                  onChange={(e) => handleTicketTableChange(e.target.value)}
+                  className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                  disabled={loopTables.length === 0 || ticketSaving}
+                >
+                  <option value="">Sélectionner une table…</option>
+                  {loopTables.map(table => (
+                    <option key={table.name} value={table.name}>
+                      {table.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary-800 mb-1">
+                  Colonne date (mode tickets)
+                </label>
+                <select
+                  value={ticketDateColumn}
+                  onChange={(e) => setTicketDateColumn(e.target.value)}
+                  className="w-full rounded-md border border-primary-200 px-3 py-2 text-primary-900 focus:border-primary-400 focus:outline-none"
+                  disabled={ticketColumns.length === 0 || ticketSaving}
+                >
+                  <option value="">Choisir…</option>
+                  {ticketColumns.map(col => (
+                    <option key={col.name} value={col.name}>
+                      {col.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-primary-500 mt-1">
+                  Catégorie actuelle : {ticketRoles?.category_field || '—'} / Sous-catégorie :{' '}
+                  {ticketRoles?.sub_category_field || '—'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSaveTicketRoles}
+                  disabled={ticketSaving || loopTables.length === 0}
+                >
+                  {ticketSaving ? 'Enregistrement…' : 'Enregistrer la colonne date'}
+                </Button>
+              </div>
+            </div>
+            <div className="md:border-l md:border-primary-100 md:pl-6 pt-4 md:pt-0 space-y-2 text-sm text-primary-700">
+              <p>
+                Cette sélection est utilisée par le mode chat « tickets » pour filtrer et ordonner les items. Elle
+                partage le même stockage que l&apos;Explorer (column-roles) afin de rester cohérente.
+              </p>
+              <p className="text-xs text-primary-500">
+                Pour éviter d&apos;écraser vos catégories existantes, elles sont conservées automatiquement lors de la
+                sauvegarde.
+              </p>
+            </div>
+          </div>
+        </Card>
+      </>
       )}
 
       {activeTab === 'users' && (

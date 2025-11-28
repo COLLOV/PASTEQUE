@@ -20,8 +20,9 @@ import type {
   FeedbackResponse,
   FeedbackValue
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiSparkles } from 'react-icons/hi2'
 import clsx from 'clsx'
+import { renderMarkdown } from '@/utils/markdown'
 
 //
 
@@ -113,12 +114,21 @@ export default function Chat() {
   const [history, setHistory] = useState<Array<{ id: number; title: string; updated_at: string }>>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [awaitingFirstDelta, setAwaitingFirstDelta] = useState(false)
   const [error, setError] = useState('')
   // Statut éphémère en mode ANIMATION=true
   const [animStatus, setAnimStatus] = useState('')
   // Animation de chargement pendant la génération d'un graphique
   const [chartGenerating, setChartGenerating] = useState(false)
   const [chartMode, setChartMode] = useState(false)
+  const [ticketMode, setTicketMode] = useState(false)
+  const [ticketRange, setTicketRange] = useState<{ from?: string; to?: string }>({})
+  const [ticketMeta, setTicketMeta] = useState<{ min?: string; max?: string; total?: number; table?: string } | null>(null)
+  const [ticketMetaLoading, setTicketMetaLoading] = useState(false)
+  const [ticketMetaError, setTicketMetaError] = useState('')
+  const [ticketStatus, setTicketStatus] = useState('')
+  const [ticketTable, setTicketTable] = useState<string>('')
+  const [ticketTables, setTicketTables] = useState<string[]>([])
   const [sqlMode, setSqlMode] = useState(true)
   const [evidenceSpec, setEvidenceSpec] = useState<EvidenceSpec | null>(null)
   const [evidenceData, setEvidenceData] = useState<EvidenceRowsPayload | null>(null)
@@ -235,6 +245,45 @@ export default function Chat() {
     refreshHistory()
   }, [])
 
+  async function loadTicketMetadata(tableOverride?: string) {
+    setTicketMetaLoading(true)
+    setTicketMetaError('')
+    try {
+      if (ticketTables.length === 0) {
+        try {
+          const items = await apiFetch<Array<{ name: string; path: string }>>('/data/tables')
+          const names = (items || []).map(it => it?.name).filter((x): x is string => typeof x === 'string')
+          setTicketTables(names)
+        } catch {
+          // ignore table list errors; metadata may still resolve
+        }
+      }
+      const selectedTable = (tableOverride ?? ticketTable)?.trim() || ''
+      const params = new URLSearchParams()
+      if (selectedTable) params.set('table', selectedTable)
+      const meta = await apiFetch<{ table: string; date_min?: string; date_max?: string; total_count: number }>(
+        params.size ? `/tickets/context/metadata?${params.toString()}` : '/tickets/context/metadata'
+      )
+      setTicketMeta({
+        min: meta?.date_min,
+        max: meta?.date_max,
+        total: typeof meta?.total_count === 'number' ? meta.total_count : undefined,
+        table: meta?.table,
+      })
+      setTicketTable(selectedTable || meta?.table || '')
+      setTicketRange(prev => ({
+        from: prev.from ?? meta?.date_min ?? undefined,
+        to: prev.to ?? meta?.date_max ?? undefined,
+      }))
+      setTicketStatus(meta?.total_count ? `Tickets prêts (${meta.total_count})` : 'Contexte tickets chargé')
+    } catch (err) {
+      setTicketMetaError(err instanceof Error ? err.message : 'Contexte tickets indisponible')
+      setTicketStatus('')
+    } finally {
+      setTicketMetaLoading(false)
+    }
+  }
+
   function onToggleChartModeClick() {
     setChartMode(v => {
       const next = !v
@@ -242,6 +291,23 @@ export default function Chat() {
       return next
     })
     setError('')
+  }
+
+  function onToggleTicketModeClick() {
+    setTicketMode(v => {
+      const next = !v
+      if (next && !ticketMeta && !ticketMetaLoading) {
+        void loadTicketMetadata()
+      }
+      if (next) {
+        setSqlMode(false)
+        setChartMode(false)
+      }
+      if (!next) {
+        setTicketStatus('')
+      }
+      return next
+    })
   }
 
   async function onSend() {
@@ -253,6 +319,7 @@ export default function Chat() {
     setMessages(next)
     setInput('')
     setLoading(true)
+    setAwaitingFirstDelta(ticketMode)
     // Reset uniquement l'état d'affichage du chat et du panneau Tickets
     setEvidenceSpec(null)
     setEvidenceData(null)
@@ -270,6 +337,15 @@ export default function Chat() {
       // Force NL→SQL when SQL toggle or Chart mode is active
       const baseMeta: Record<string, unknown> = {}
       if (sqlMode || isChartMode) baseMeta.nl2sql = true
+      if (ticketMode) {
+        baseMeta.ticket_mode = true
+        if (ticketRange.from) baseMeta.tickets_from = ticketRange.from
+        if (ticketRange.to) baseMeta.tickets_to = ticketRange.to
+        if (ticketTable) baseMeta.ticket_table = ticketTable
+        setTicketStatus('Préparation du contexte tickets…')
+      } else {
+        setTicketStatus('')
+      }
       if (conversationId) baseMeta.conversation_id = conversationId
       // Transmettre les exclusions de tables si présentes
       if (excludedTables.size > 0) {
@@ -283,6 +359,19 @@ export default function Chat() {
           const meta = data as ChatStreamMeta
           if (typeof meta?.conversation_id === 'number') {
             setConversationId(meta.conversation_id)
+          }
+          if ((meta as any)?.ticket_context) {
+            const tc = (meta as any).ticket_context as Record<string, unknown>
+            const label = typeof tc.period_label === 'string' ? tc.period_label : ''
+            const count = typeof tc.count === 'number' ? tc.count : undefined
+            const total = typeof tc.total === 'number' ? tc.total : undefined
+            const parts = []
+            if (count !== undefined) parts.push(`${count}${total ? `/${total}` : ''} tickets`)
+            if (label) parts.push(label)
+            setTicketStatus(parts.join(' — ') || 'Contexte tickets appliqué')
+          }
+          if ((meta as any)?.ticket_context_error) {
+            setTicketStatus(String((meta as any).ticket_context_error))
           }
           // Synchronise la sélection effective côté serveur (affichage et cohérence UI)
           if (Array.isArray(meta?.effective_tables)) {
@@ -411,6 +500,7 @@ export default function Chat() {
           const delta = data as ChatStreamDelta
           // Dès qu'on commence la réponse, on remplace le contenu éventuel d'Animator
           setAnimStatus('')
+          setAwaitingFirstDelta(false)
           setMessages(prev => {
             const copy = [...prev]
             const idx = copy.findIndex(m => m.ephemeral)
@@ -440,6 +530,7 @@ export default function Chat() {
             return copy
           })
         } else if (type === 'done') {
+          setAwaitingFirstDelta(false)
           const done = data as ChatStreamDone
           if (typeof done.conversation_id === 'number' && Number.isFinite(done.conversation_id)) {
             setConversationId(done.conversation_id)
@@ -477,6 +568,7 @@ export default function Chat() {
           refreshHistory()
           setAnimStatus('')
         } else if (type === 'error') {
+          setAwaitingFirstDelta(false)
           setError(data?.message || 'Erreur streaming')
         }
       }, { signal: controller.signal })
@@ -663,6 +755,8 @@ export default function Chat() {
     setError('')
     setHistoryOpen(false)
     setHighlightMessageId(null)
+    setTicketStatus('')
+    setAwaitingFirstDelta(false)
   }
 
   async function onFeedback(messageId: string, vote: FeedbackValue) {
@@ -1064,6 +1158,12 @@ export default function Chat() {
             {messages.length === 0 && loading && (
               <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
             )}
+            {ticketMode && awaitingFirstDelta && (
+              <div className="flex items-center gap-2 text-xs text-primary-500 py-2 pl-1">
+                <span className="inline-block h-3 w-3 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                Le modèle prépare sa réponse…
+              </div>
+            )}
             {error && (
               <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
                 <p className="text-sm text-red-700">{error}</p>
@@ -1073,7 +1173,101 @@ export default function Chat() {
 
           {/* Composer */}
           <div className="p-3">
+            {ticketMode && (
+              <div className="mb-2 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs text-primary-700">
+                  <span>Contexte tickets {ticketMeta?.table ? `(${ticketMeta.table})` : ''}</span>
+                  <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
+                    {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-[11px] text-primary-600">Table</label>
+                  <select
+                    value={ticketTable}
+                    onChange={e => {
+                      const next = e.target.value
+                      setTicketTable(next)
+                      void loadTicketMetadata(next || undefined)
+                    }}
+                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                  >
+                    <option value="">Auto (config loop)</option>
+                    {ticketTables.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-[11px] text-primary-600">Du</label>
+                  <input
+                    type="date"
+                    value={ticketRange.from ?? ''}
+                    min={ticketMeta?.min}
+                    max={ticketRange.to || ticketMeta?.max}
+                    onChange={e => setTicketRange(prev => ({ ...prev, from: e.target.value || undefined }))}
+                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                  />
+                  <span className="text-primary-400 text-xs">→</span>
+                  <label className="text-[11px] text-primary-600">au</label>
+                  <input
+                    type="date"
+                    value={ticketRange.to ?? ''}
+                    min={ticketRange.from || ticketMeta?.min}
+                    max={ticketMeta?.max}
+                    onChange={e => setTicketRange(prev => ({ ...prev, to: e.target.value || undefined }))}
+                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                  />
+                  <button
+                    type="button"
+                    className="text-xs text-primary-700 underline"
+                    onClick={() => {
+                      if (ticketMeta) {
+                        setTicketRange({ from: ticketMeta.min, to: ticketMeta.max })
+                        setTicketStatus(ticketMeta.total ? `${ticketMeta.total} tickets` : 'Contexte tickets réinitialisé')
+                      }
+                    }}
+                  >
+                    Réinitialiser
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="relative">
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onToggleTicketModeClick}
+                  aria-pressed={ticketMode}
+                  title="Activer le contexte tickets"
+                className={clsx(
+                  'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
+                  ticketMode
+                    ? 'bg-primary-700 text-white hover:bg-primary-800 border-primary-700'
+                    : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+                )}
+              >
+                {ticketMetaLoading ? (
+                  <span className="inline-block h-4 w-4 border-2 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
+                ) : (
+                  <HiSparkles className="w-5 h-5" />
+                )}
+              </button>
+                <button
+                  type="button"
+                  onClick={onToggleChartModeClick}
+                  aria-pressed={chartMode}
+                  title="Activer MCP Chart"
+                  className={clsx(
+                    'inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none border-2',
+                    chartMode
+                      ? 'bg-primary-600 text-white hover:bg-primary-700 border-primary-600'
+                      : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50'
+                  )}
+                >
+                  <HiChartBar className="w-5 h-5" />
+                </button>
+              </div>
               <Textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
@@ -1082,28 +1276,13 @@ export default function Chat() {
                 rows={1}
                 fullWidth
                 className={clsx(
-                  'pl-14 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
+                  'pl-28 pr-14 h-12 min-h-[48px] resize-none overflow-x-auto overflow-y-hidden scrollbar-none no-focus-ring !rounded-2xl',
                   'focus:!border-primary-200 focus:!ring-0 focus:!ring-transparent focus:!ring-offset-0 focus:!outline-none',
                   'focus-visible:!border-primary-200 focus-visible:!ring-0 focus-visible:!ring-transparent focus-visible:!ring-offset-0 focus-visible:!outline-none',
                   'leading-[48px] placeholder:text-primary-400',
                   'text-left whitespace-nowrap'
                 )}
               />
-              {/* Toggle Graph */}
-              <button
-                type="button"
-                onClick={onToggleChartModeClick}
-                aria-pressed={chartMode}
-                title="Activer MCP Chart"
-                className={clsx(
-                  'absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none',
-                  chartMode
-                    ? 'bg-primary-600 text-white hover:bg-primary-700 border-2 border-primary-600'
-                    : 'bg-white text-primary-700 border-2 border-primary-200 hover:bg-primary-50'
-                )}
-              >
-                <HiChartBar className="w-5 h-5" />
-              </button>
               {/* Envoyer/Annuler */}
               <button
                 type="button"
@@ -1559,6 +1738,11 @@ function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, high
   } = message
   const isUser = role === 'user'
   const [showDetails, setShowDetails] = useState(false)
+  const renderedContent = useMemo(() => renderMarkdown(content), [content])
+  const markdownClass = useMemo(
+    () => clsx('message-markdown', isUser && 'message-markdown--user'),
+    [isUser]
+  )
   const feedbackPending = Boolean(message.feedbackSaving)
   const canFeedback = !isUser && !message.ephemeral && !chartUrl && Boolean(message.messageId)
   const feedbackUp = message.feedback === 'up'
@@ -1644,10 +1828,18 @@ function MessageBubble({ message, onSaveChart, onGenerateChart, onFeedback, high
           </div>
         ) : (
           <div className={clsx(
-            'text-sm whitespace-pre-wrap leading-relaxed',
-            isUser ? '' : 'text-primary-950'
+            'text-sm leading-relaxed',
+            markdownClass,
+            isUser ? 'text-white' : 'text-primary-950'
           )}>
-            {content}
+            <div
+              className={clsx(
+                'space-y-2',
+                isUser ? '[&_a]:text-white [&_code]:bg-primary-900/50' : '[&_a]:text-primary-700',
+                '[&_a]:underline [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:p-3 [&_pre]:bg-primary-50 [&_pre]:rounded-md [&_pre]:text-[13px] [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-4 [&_ol]:pl-4'
+              )}
+              dangerouslySetInnerHTML={{ __html: renderedContent || '' }}
+            />
             {/* Actions: Graphique + Détails (affichés uniquement quand le message est finalisé) */}
             {!isUser && !chartUrl && !message.ephemeral && (
               <div className="mt-2 flex items-center gap-2 flex-wrap">

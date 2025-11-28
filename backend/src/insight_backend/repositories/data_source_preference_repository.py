@@ -134,3 +134,18 @@ class DataSourcePreferenceRepository:
             sub_category_clean,
         )
         return updated
+
+    def get_preferences_for_source(self, *, source: str) -> DataSourcePreferences | None:
+        pref = (
+            self.session.query(DataSourcePreference)
+            .filter(DataSourcePreference.source == source)
+            .one_or_none()
+        )
+        if pref is None:
+            return None
+        return DataSourcePreferences(
+            hidden_fields=self._clean_hidden_fields(pref.hidden_fields),
+            date_field=self._clean_optional_name(pref.date_field),
+            category_field=self._clean_optional_name(pref.category_field),
+            sub_category_field=self._clean_optional_name(pref.sub_category_field),
+        )
