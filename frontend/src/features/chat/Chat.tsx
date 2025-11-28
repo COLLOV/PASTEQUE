@@ -1166,40 +1166,9 @@ export default function Chat() {
                 </button>
               </div>
             </div>
-            
-            {messages.map((message, index) => (
-              <MessageBubble
-                key={message.id ?? index}
-                message={message}
-                onSaveChart={onSaveChart}
-                onGenerateChart={onGenerateChart}
-                onFeedback={onFeedback}
-                highlighted={message.messageId != null && highlightMessageId === message.messageId}
-              />
-            ))}
-            {(chartGenerating || messages.some(m => m.chartSaving)) && (
-              <div className="flex justify-center py-2"><Loader text="Génération du graphique…" /></div>
-            )}
-            {messages.length === 0 && loading && (
-              <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
-            )}
-            {ticketMode && awaitingFirstDelta && (
-              <div className="flex items-center gap-2 text-xs text-primary-500 py-2 pl-1">
-                <span className="inline-block h-3 w-3 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-                Le modèle prépare sa réponse…
-              </div>
-            )}
-            {error && (
-              <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
-          </div>
 
-          {/* Composer */}
-          <div className="p-3">
             {ticketMode && (
-              <div className="mb-2 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
+              <div className="mb-3 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-primary-700">
                   <span>Contexte tickets {ticketMeta?.table ? `(${ticketMeta.table})` : ''}</span>
                   <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
@@ -1290,6 +1259,38 @@ export default function Chat() {
                 </div>
               </div>
             )}
+
+            {messages.map((message, index) => (
+              <MessageBubble
+                key={message.id ?? index}
+                message={message}
+                onSaveChart={onSaveChart}
+                onGenerateChart={onGenerateChart}
+                onFeedback={onFeedback}
+                highlighted={message.messageId != null && highlightMessageId === message.messageId}
+              />
+            ))}
+            {(chartGenerating || messages.some(m => m.chartSaving)) && (
+              <div className="flex justify-center py-2"><Loader text="Génération du graphique…" /></div>
+            )}
+            {messages.length === 0 && loading && (
+              <div className="flex justify-center py-2"><Loader text="Streaming…" /></div>
+            )}
+            {ticketMode && awaitingFirstDelta && (
+              <div className="flex items-center gap-2 text-xs text-primary-500 py-2 pl-1">
+                <span className="inline-block h-3 w-3 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                Le modèle prépare sa réponse…
+              </div>
+            )}
+            {error && (
+              <div className="mt-2 bg-red-50 border-2 border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Composer */}
+          <div className="p-3">
             <div className="relative">
               <div className="absolute left-2 top-1/2 -translate-y-1/2 transform inline-flex items-center gap-2">
                 <button
