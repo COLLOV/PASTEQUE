@@ -125,6 +125,8 @@ Un routeur léger s’exécute à chaque message utilisateur pour éviter de lan
 
 - L’onglet/page Explorer est désactivé dans la navigation (route retirée) pour alléger l’UI; utiliser l’Explorer (camembert Category/Sub Category) et le Chat pour les parcours principaux.
 - API : `GET /api/v1/data/overview` agrège, pour chaque table autorisée, le volume total et les statistiques de toutes les colonnes détectées (avec inférence des dates), en respectant les ACL `user_table_permissions`.
+- Admin : un onglet dédié dans l’espace « Admin » permet d’activer/désactiver les tables visibles dans l’Explorer et de fixer les colonnes Date / Category / Sub Category sans passer par l’UI Explorer.
+- `include_disabled=true` (admin uniquement) sur `GET /api/v1/data/overview` retourne aussi les tables désactivées pour préparer ou revoir leur configuration. `PUT /api/v1/data/overview/{source}/explorer-enabled` active/désactive explicitement une table pour l’Explorer.
 - Admin : les colonnes Date / Category / Sub Category sont configurables par table (persistées via `/data/overview/{source}/column-roles`) et pilotent les filtres date, la répartition Category/Sub Category et l’aperçu.
 - Visualisations Chart.js (lignes + barres) avec palette colorée pour timelines et répartitions des valeurs à partir des colonnes détectées automatiquement.
 - Le jeu `tickets_jira` inclut désormais les colonnes `Category` et `Sub Category` (classification ITSM) pour alimenter la répartition affichée dans l’Explorer et les filtres associés.

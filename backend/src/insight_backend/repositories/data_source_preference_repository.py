@@ -18,6 +18,7 @@ class DataSourcePreferences:
     date_field: str | None
     category_field: str | None
     sub_category_field: str | None
+    explorer_enabled: bool
 
 
 class DataSourcePreferenceRepository:
@@ -48,6 +49,10 @@ class DataSourcePreferenceRepository:
             cleaned.append(trimmed)
         return cleaned
 
+    @staticmethod
+    def _clean_enabled_flag(value: object | None) -> bool:
+        return bool(value) if value is not None else True
+
     def list_hidden_fields_by_source(self) -> dict[str, list[str]]:
         preferences = self.session.query(DataSourcePreference).all()
         result: dict[str, list[str]] = {}
@@ -68,6 +73,7 @@ class DataSourcePreferenceRepository:
                 date_field=self._clean_optional_name(pref.date_field),
                 category_field=self._clean_optional_name(pref.category_field),
                 sub_category_field=self._clean_optional_name(pref.sub_category_field),
+                explorer_enabled=self._clean_enabled_flag(pref.explorer_enabled),
             )
         log.debug("Loaded data source preferences for %d sources", len(result))
         return result
@@ -81,7 +87,7 @@ class DataSourcePreferenceRepository:
             .one_or_none()
         )
         if pref is None:
-            pref = DataSourcePreference(source=source, hidden_fields=cleaned)
+            pref = DataSourcePreference(source=source, hidden_fields=cleaned, explorer_enabled=True)
             self.session.add(pref)
         else:
             pref.hidden_fields = cleaned
@@ -113,6 +119,7 @@ class DataSourcePreferenceRepository:
                 date_field=date_clean,
                 category_field=category_clean,
                 sub_category_field=sub_category_clean,
+                explorer_enabled=True,
             )
             self.session.add(pref)
         else:
@@ -125,6 +132,7 @@ class DataSourcePreferenceRepository:
             date_field=date_clean,
             category_field=category_clean,
             sub_category_field=sub_category_clean,
+            explorer_enabled=self._clean_enabled_flag(pref.explorer_enabled),
         )
         log.info(
             "Updated column roles for source=%s (date=%s, category=%s, sub_category=%s)",
@@ -134,6 +142,26 @@ class DataSourcePreferenceRepository:
             sub_category_clean,
         )
         return updated
+
+    def set_explorer_enabled(self, *, source: str, enabled: bool) -> bool:
+        pref = (
+            self.session.query(DataSourcePreference)
+            .filter(DataSourcePreference.source == source)
+            .one_or_none()
+        )
+        target = bool(enabled)
+        if pref is None:
+            pref = DataSourcePreference(
+                source=source,
+                hidden_fields=[],
+                explorer_enabled=target,
+            )
+            self.session.add(pref)
+        else:
+            pref.explorer_enabled = target
+
+        log.info("Updated explorer_enabled for source=%s -> %s", source, target)
+        return target
 
     def get_preferences_for_source(self, *, source: str) -> DataSourcePreferences | None:
         pref = (
@@ -148,4 +176,5 @@ class DataSourcePreferenceRepository:
             date_field=self._clean_optional_name(pref.date_field),
             category_field=self._clean_optional_name(pref.category_field),
             sub_category_field=self._clean_optional_name(pref.sub_category_field),
+            explorer_enabled=self._clean_enabled_flag(pref.explorer_enabled),
         )

@@ -32,6 +32,7 @@ export interface DataSourceOverview {
   date_field?: string | null
   category_field?: string | null
   sub_category_field?: string | null
+   explorer_enabled?: boolean
   field_count: number
   fields: FieldBreakdown[]
   category_breakdown?: CategorySubCategoryCount[]
@@ -52,6 +53,15 @@ export interface ColumnRolesResponse {
   date_field?: string | null
   category_field?: string | null
   sub_category_field?: string | null
+}
+
+export interface UpdateExplorerEnabledRequest {
+  enabled: boolean
+}
+
+export interface ExplorerEnabledResponse {
+  source: string
+  enabled: boolean
 }
 
 export interface UpdateColumnRolesRequest {

@@ -11,6 +11,8 @@ from ....schemas.data import (
     TableExplorePreview,
     UpdateColumnRolesRequest,
     ColumnRolesResponse,
+    UpdateExplorerEnabledRequest,
+    ExplorerEnabledResponse,
 )
 from ....schemas.tables import TableInfo, ColumnInfo
 from ....services.data_service import DataService, ColumnRoles
@@ -68,10 +70,14 @@ def get_data_overview(  # type: ignore[valid-type]
     session: Session = Depends(get_session),
     date_from: str | None = None,
     date_to: str | None = None,
+    include_disabled: bool = False,
 ) -> DataOverviewResponse:
     allowed = None
     if not user_is_admin(current_user):
         allowed = UserTablePermissionRepository(session).get_allowed_tables(current_user.id)
+        include_disabled = False
+    else:
+        include_disabled = bool(include_disabled)
     pref_repo = DataSourcePreferenceRepository(session)
     preferences = pref_repo.list_preferences()
     hidden_map = {source: pref.hidden_fields for source, pref in preferences.items() if pref.hidden_fields}
@@ -83,6 +89,7 @@ def get_data_overview(  # type: ignore[valid-type]
         )
         for source, pref in preferences.items()
     }
+    enabled_map = {source: pref.explorer_enabled for source, pref in preferences.items()}
     include_hidden = user_is_admin(current_user)
     try:
         return _service.get_overview(
@@ -92,6 +99,8 @@ def get_data_overview(  # type: ignore[valid-type]
             column_roles_by_source=column_roles_map,
             date_from=date_from,
             date_to=date_to,
+            explorer_enabled_by_source=enabled_map,
+            include_disabled_sources=include_disabled,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -210,6 +219,33 @@ def update_column_roles(  # type: ignore[valid-type]
         category_field=updated.category_field,
         sub_category_field=updated.sub_category_field,
     )
+
+
+@router.put("/overview/{source}/explorer-enabled", response_model=ExplorerEnabledResponse)
+def update_explorer_enabled(  # type: ignore[valid-type]
+    source: str,
+    payload: UpdateExplorerEnabledRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> ExplorerEnabledResponse:
+    if not user_is_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    table_name = source.strip()
+    if not table_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Table name is required")
+
+    try:
+        _service.get_schema(table_name)
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    repo = DataSourcePreferenceRepository(session)
+    enabled = repo.set_explorer_enabled(source=table_name, enabled=payload.enabled)
+    session.commit()
+    return ExplorerEnabledResponse(source=table_name, enabled=enabled)
 
 
 @router.get("/explore/{source}", response_model=TableExplorePreview)

@@ -169,6 +169,8 @@ class DataService:
         column_roles_by_source: Mapping[str, ColumnRoles] | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
+        explorer_enabled_by_source: Mapping[str, bool] | None = None,
+        include_disabled_sources: bool = False,
     ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
@@ -193,9 +195,28 @@ class DataService:
             for name, roles in (column_roles_by_source or {}).items()
         }
 
+        def _normalize_enabled(value: object | None) -> bool:
+            if value is None:
+                return True
+            return bool(value)
+
+        enabled_lookup: Mapping[str, bool] = {
+            (name.casefold() if hasattr(name, "casefold") else str(name)): _normalize_enabled(enabled)
+            for name, enabled in (explorer_enabled_by_source or {}).items()
+        }
+
+        def _is_enabled(name: str) -> bool:
+            key = name.casefold() if hasattr(name, "casefold") else str(name)
+            return enabled_lookup.get(key, True)
+
+        if not include_disabled_sources:
+            table_names = [name for name in table_names if _is_enabled(name)]
+            log.debug("Filtered overview tables for explorer flag (count=%d)", len(table_names))
+
         sources: list[DataSourceOverview] = []
         for name in table_names:
             hidden_for_table = hidden_lookup.get(name.casefold(), set())
+            enabled_for_table = _is_enabled(name)
             overview = self._compute_table_overview(
                 table_name=name,
                 hidden_fields=hidden_for_table,
@@ -203,6 +224,7 @@ class DataService:
                 column_roles=roles_lookup.get(name.casefold()),
                 date_from=normalized_from,
                 date_to=normalized_to,
+                explorer_enabled=enabled_for_table,
             )
             if overview:
                 sources.append(overview)
@@ -218,6 +240,7 @@ class DataService:
         column_roles: ColumnRoles | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
+        explorer_enabled: bool = True,
     ) -> DataSourceOverview | None:
         path = self.repo._resolve_table_path(table_name)
         if path is None:
@@ -364,6 +387,7 @@ class DataService:
             date_field=date_field,
             category_field=category_field,
             sub_category_field=sub_category_field,
+            explorer_enabled=explorer_enabled,
         )
 
     def explore_table(
