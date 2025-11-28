@@ -173,6 +173,7 @@ class DataService:
         include_disabled_sources: bool = False,
         skip_overview_for_disabled: bool = False,
         lightweight: bool = False,
+        headers_only: bool = False,
     ) -> DataOverviewResponse:
         table_names = self.repo.list_tables()
         if allowed_tables is not None:
@@ -245,6 +246,7 @@ class DataService:
                 date_to=normalized_to,
                 explorer_enabled=enabled_for_table,
                 lightweight=lightweight,
+                headers_only=headers_only,
             )
             if overview:
                 sources.append(overview)
