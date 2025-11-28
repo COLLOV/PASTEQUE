@@ -20,7 +20,7 @@ import type {
   FeedbackResponse,
   FeedbackValue
 } from '@/types/chat'
-import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiSparkles } from 'react-icons/hi2'
+import { HiPaperAirplane, HiChartBar, HiBookmark, HiCheckCircle, HiXMark, HiHandThumbUp, HiHandThumbDown, HiCpuChip } from 'react-icons/hi2'
 import clsx from 'clsx'
 import { renderMarkdown } from '@/utils/markdown'
 
@@ -1260,7 +1260,7 @@ export default function Chat() {
                   {ticketMetaLoading ? (
                     <span className="inline-block h-4 w-4 border-2 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
                   ) : (
-                    <HiSparkles className="w-5 h-5" />
+                    <HiCpuChip className="w-5 h-5" />
                   )}
                 </button>
                 <button
