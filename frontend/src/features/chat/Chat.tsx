@@ -130,6 +130,7 @@ export default function Chat() {
     table?: string
     ranges: Array<{ id: string; from?: string; to?: string }>
   }>>([])
+  const [showTicketPanel, setShowTicketPanel] = useState(true)
   const [ticketMeta, setTicketMeta] = useState<{ min?: string; max?: string; total?: number; table?: string } | null>(null)
   const [ticketMetaByTable, setTicketMetaByTable] = useState<Record<string, { min?: string; max?: string; total?: number }>>({})
   const [ticketMetaLoading, setTicketMetaLoading] = useState(false)
@@ -1211,95 +1212,106 @@ export default function Chat() {
             </div>
 
             {ticketMode && (
-              <div className="mb-3 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-primary-700">
-                  <span>Contexte tickets {ticketMeta?.table ? `(${ticketMeta.table})` : ''}</span>
-                  <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
-                    {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <label className="text-[11px] text-primary-600">Table</label>
-                  <select
-                    value={ticketTable}
-                    onChange={e => {
-                      const next = e.target.value
-                      setTicketTable(next)
-                      void loadTicketMetadata(next || undefined, { target: 'main' })
-                    }}
-                    className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
-                  >
-                    <option value="">Auto (config loop)</option>
-                    {ticketTables.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex flex-col gap-2 w-full">
-                    {ticketRanges.map((range, idx) => (
-                      <div key={range.id} className="flex items-center gap-2 flex-wrap">
-                        <label className="text-[11px] text-primary-600">Du</label>
-                        <input
-                          type="date"
-                          value={range.from ?? ''}
-                          min={ticketMeta?.min}
-                          max={range.to || ticketMeta?.max}
-                          onChange={e => {
-                            const value = e.target.value || undefined
-                            setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, from: value } : r))
-                          }}
-                          className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
-                        />
-                        <span className="text-primary-400 text-xs">→</span>
-                        <label className="text-[11px] text-primary-600">au</label>
-                        <input
-                          type="date"
-                          value={range.to ?? ''}
-                          min={range.from || ticketMeta?.min}
-                          max={ticketMeta?.max}
-                          onChange={e => {
-                            const value = e.target.value || undefined
-                            setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, to: value } : r))
-                          }}
-                          className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
-                        />
-                        {ticketRanges.length > 1 && (
-                          <button
-                            type="button"
-                            className="text-xs text-red-600 underline"
-                            onClick={() => setTicketRanges(prev => prev.filter(r => r.id !== range.id))}
-                          >
-                            Supprimer
-                          </button>
-                        )}
-                        {idx === ticketRanges.length - 1 && (
-                          <button
-                            type="button"
-                            className="text-xs text-primary-700 underline"
-                            onClick={() => setTicketRanges(prev => [...prev, { id: createMessageId() }])}
-                          >
-                            + Ajouter une période
-                          </button>
-                        )}
+              <>
+                {showTicketPanel ? (
+                  <div className="mb-3 border rounded-2xl bg-primary-50 p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs text-primary-700">
+                      <span>Contexte tickets {ticketMeta?.table ? `(${ticketMeta.table})` : ''}</span>
+                      <div className="flex items-center gap-3">
+                        <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
+                          {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary-600 underline"
+                          onClick={() => setShowTicketPanel(false)}
+                        >
+                          Masquer
+                        </button>
                       </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="text-xs text-primary-700 underline self-start"
-                      onClick={() => {
-                        if (ticketMeta) {
-                          setTicketRanges([{ id: createMessageId(), from: ticketMeta.min, to: ticketMeta.max }])
-                          setTicketStatus(ticketMeta.total ? `${ticketMeta.total} tickets` : 'Contexte tickets réinitialisé')
-                        } else {
-                          setTicketRanges([{ id: createMessageId() }])
-                        }
-                      }}
-                    >
-                      Réinitialiser
-                    </button>
-                  </div>
-                </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className="text-[11px] text-primary-600">Table</label>
+                      <select
+                        value={ticketTable}
+                        onChange={e => {
+                          const next = e.target.value
+                          setTicketTable(next)
+                          void loadTicketMetadata(next || undefined, { target: 'main' })
+                        }}
+                        className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                      >
+                        <option value="">Auto (config loop)</option>
+                        {ticketTables.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-col gap-2 w-full">
+                        {ticketRanges.map((range, idx) => (
+                          <div key={range.id} className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[11px] text-primary-600">Du</label>
+                            <input
+                              type="date"
+                              value={range.from ?? ''}
+                              min={ticketMeta?.min}
+                              max={range.to || ticketMeta?.max}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, from: value } : r))
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            <span className="text-primary-400 text-xs">→</span>
+                            <label className="text-[11px] text-primary-600">au</label>
+                            <input
+                              type="date"
+                              value={range.to ?? ''}
+                              min={range.from || ticketMeta?.min}
+                              max={ticketMeta?.max}
+                              onChange={e => {
+                                const value = e.target.value || undefined
+                                setTicketRanges(prev => prev.map(r => r.id === range.id ? { ...r, to: value } : r))
+                              }}
+                              className="border border-primary-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary-400"
+                            />
+                            {ticketRanges.length > 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 underline"
+                                onClick={() => setTicketRanges(prev => prev.filter(r => r.id !== range.id))}
+                              >
+                                Supprimer
+                              </button>
+                            )}
+                            {idx === ticketRanges.length - 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-primary-700 underline"
+                                onClick={() => setTicketRanges(prev => [...prev, { id: createMessageId() }])}
+                              >
+                                + Ajouter une période
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="text-xs text-primary-700 underline self-start"
+                          onClick={() => {
+                            if (ticketMeta) {
+                              setTicketRanges([{ id: createMessageId(), from: ticketMeta.min, to: ticketMeta.max }])
+                              setTicketStatus(ticketMeta.total ? `${ticketMeta.total} tickets` : 'Contexte tickets réinitialisé')
+                            } else {
+                              setTicketRanges([{ id: createMessageId() }])
+                            }
+                          }}
+                        >
+                          Réinitialiser
+                        </button>
+                      </div>
+                    </div>
 
                 {/* Tables supplémentaires */}
                 {extraTicketSources.map((source, sourceIdx) => {
@@ -1440,14 +1452,32 @@ export default function Chat() {
                   )
                 })}
 
-                <button
-                  type="button"
-                  className="text-xs text-primary-700 underline self-start"
-                  onClick={() => setExtraTicketSources(prev => [...prev, { id: createMessageId(), ranges: [{ id: createMessageId() }] }])}
-                >
-                  + Ajouter une table
-                </button>
-              </div>
+                    <button
+                      type="button"
+                      className="text-xs text-primary-700 underline self-start"
+                      onClick={() => setExtraTicketSources(prev => [...prev, { id: createMessageId(), ranges: [{ id: createMessageId() }] }])}
+                    >
+                      + Ajouter une table
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mb-3 border rounded-2xl bg-primary-50 px-3 py-2 flex items-center justify-between text-xs text-primary-700">
+                    <div className="flex items-center gap-2">
+                      <span>Contexte tickets masqué</span>
+                      <span className={clsx('text-[11px]', ticketMetaError ? 'text-red-600' : 'text-primary-600')}>
+                        {ticketMetaError || ticketStatus || (ticketMeta?.total ? `${ticketMeta.total} tickets` : '')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary-600 underline"
+                      onClick={() => setShowTicketPanel(true)}
+                    >
+                      Afficher
+                    </button>
+                  </div>
+                )}
+              </>
             )}
 
             {messages.map((message, index) => (
