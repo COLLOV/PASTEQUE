@@ -37,6 +37,11 @@ class LoopRepository:
                 return config
         return None
 
+    def get_config(self) -> LoopConfig | None:
+        """Return the most recently updated loop config, if any."""
+        items = self.list_configs()
+        return items[0] if items else None
+
     def save_config(self, *, table_name: str, text_column: str, date_column: str) -> LoopConfig:
         config = self.get_config_by_table(table_name)
         if config is None:
