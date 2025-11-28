@@ -439,9 +439,8 @@ class DataService:
                 )
                 return None
 
-            parse_all_dates = date_field is None
             accumulators = {
-                name: FieldAccumulator(name=name, parse_dates=parse_all_dates or name == date_field)
+                name: FieldAccumulator(name=name, parse_dates=name == date_field)
                 for name in headers
             }
 
